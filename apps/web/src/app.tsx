@@ -47,14 +47,6 @@ import {
   DialogTitle,
 } from "@lens/ui/components/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@lens/ui/components/dropdown-menu";
-import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -80,8 +72,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
 } from "@lens/ui/components/sidebar";
 import { Skeleton } from "@lens/ui/components/skeleton";
 import { Spinner } from "@lens/ui/components/spinner";
@@ -98,20 +88,20 @@ import { Textarea } from "@lens/ui/components/textarea";
 import { toast } from "@lens/ui/components/toast";
 import { cn } from "@lens/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import {
-  Link,
-  Navigate,
-  Outlet,
-  useNavigate,
-  useParams,
-  useRouterState,
-} from "@tanstack/react-router";
+  createColumnHelper,
+  createSortedRowModel,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
 import {
   Activity,
   AlertCircle,
   ArrowLeft,
+  ArrowUpDown,
   Braces,
-  Building2,
   Check,
   ChevronRight,
   CircleDot,
@@ -133,7 +123,6 @@ import {
   Sun,
   TerminalSquare,
   Trash2,
-  UserCog,
   Users,
   X,
   Zap,
@@ -152,8 +141,7 @@ import { api, queryString } from "./lib/api";
 import { authClient } from "./lib/auth";
 
 type ProjectWithRole = Project & { role: string };
-type Workspace = { id: string; name: string; slug: string; role: string; createdAt: string };
-type WorkspaceMember = {
+type TeamMember = {
   id: string;
   userId: string;
   name: string;
@@ -163,7 +151,7 @@ type WorkspaceMember = {
   createdAt: string;
   isCurrentUser: boolean;
 };
-type WorkspaceInvitation = {
+type TeamInvitation = {
   id: string;
   email: string;
   role: string | null;
@@ -171,11 +159,12 @@ type WorkspaceInvitation = {
   expiresAt: string;
   createdAt: string;
 };
-type WorkspaceDirectory = {
+type TeamDirectory = {
+  organizationId: string;
   role: string;
   canManage: boolean;
-  members: WorkspaceMember[];
-  invitations: WorkspaceInvitation[];
+  members: TeamMember[];
+  invitations: TeamInvitation[];
 };
 type ProjectContextValue = {
   project: ProjectWithRole;
@@ -187,6 +176,107 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 const chartConfig = {
   traces: { label: "Traces", color: "var(--chart-2)" },
 } satisfies ChartConfig;
+const dataTableFeatures = tableFeatures({
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+});
+const traceColumnHelper = createColumnHelper<typeof dataTableFeatures, TraceSummary>();
+const sessionColumnHelper = createColumnHelper<typeof dataTableFeatures, SessionSummary>();
+
+type SortableHeaderColumn = {
+  getIsSorted: () => false | "asc" | "desc";
+  getToggleSortingHandler: () => ((event: unknown) => void) | undefined;
+};
+
+function sortableHeader(label: string) {
+  return ({ column }: { column: SortableHeaderColumn }) => {
+    const direction = column.getIsSorted();
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={column.getToggleSortingHandler()}
+        aria-label={`Sort by ${label}${direction ? `, currently ${direction}` : ""}`}
+      >
+        {label}
+        <ArrowUpDown />
+      </Button>
+    );
+  };
+}
+
+const traceColumns = traceColumnHelper.columns([
+  traceColumnHelper.accessor("name", {
+    header: sortableHeader("Trace"),
+    cell: ({ row }) => <TraceNameCell trace={row.original} />,
+  }),
+  traceColumnHelper.accessor("serviceName", {
+    header: sortableHeader("Service"),
+  }),
+  traceColumnHelper.accessor("status", {
+    header: sortableHeader("Status"),
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+  }),
+  traceColumnHelper.accessor("durationMs", {
+    header: sortableHeader("Duration"),
+    cell: ({ row }) => <span className="font-mono">{formatDuration(row.original.durationMs)}</span>,
+  }),
+  traceColumnHelper.accessor("totalTokens", {
+    header: sortableHeader("Tokens"),
+    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.totalTokens)}</span>,
+  }),
+  traceColumnHelper.accessor("startedAt", {
+    header: sortableHeader("Started"),
+    cell: ({ row }) => relativeTime(row.original.startedAt),
+  }),
+  traceColumnHelper.display({
+    id: "open",
+    header: () => <span className="sr-only">Open</span>,
+    cell: ({ row }) => <TraceOpenCell trace={row.original} />,
+  }),
+]);
+
+const sessionColumns = sessionColumnHelper.columns([
+  sessionColumnHelper.accessor("sessionId", {
+    header: sortableHeader("Session"),
+    cell: ({ row }) => <SessionNameCell session={row.original} />,
+  }),
+  sessionColumnHelper.accessor("userId", {
+    header: sortableHeader("User"),
+    cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
+  }),
+  sessionColumnHelper.accessor("traceCount", {
+    header: sortableHeader("Traces"),
+    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.traceCount)}</span>,
+  }),
+  sessionColumnHelper.accessor("errorCount", {
+    header: sortableHeader("Errors"),
+    cell: ({ row }) =>
+      row.original.errorCount > 0 ? (
+        <Badge variant="destructive">{row.original.errorCount}</Badge>
+      ) : (
+        <Badge variant="secondary">0</Badge>
+      ),
+  }),
+  sessionColumnHelper.accessor("durationMs", {
+    header: sortableHeader("Duration"),
+    cell: ({ row }) => <span className="font-mono">{formatDuration(row.original.durationMs)}</span>,
+  }),
+  sessionColumnHelper.accessor("totalTokens", {
+    header: sortableHeader("Tokens"),
+    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.totalTokens)}</span>,
+  }),
+  sessionColumnHelper.accessor("startedAt", {
+    header: sortableHeader("Started"),
+    cell: ({ row }) => relativeTime(row.original.startedAt),
+  }),
+  sessionColumnHelper.display({
+    id: "open",
+    header: () => <span className="sr-only">Open</span>,
+    cell: ({ row }) => <SessionOpenCell session={row.original} />,
+  }),
+]);
 
 function useProject(): ProjectContextValue {
   const context = useContext(ProjectContext);
@@ -208,6 +298,7 @@ export function AppRoot() {
 
 function AuthenticatedApp(props: { user: { name: string; email: string } }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const params = useParams({ strict: false });
   const routeProjectId = "projectId" in params ? params.projectId : undefined;
   const projectsQuery = useQuery({
@@ -225,7 +316,7 @@ function AuthenticatedApp(props: { user: { name: string; email: string } }) {
   if (projectsQuery.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading projects" />;
   if (projectsQuery.isError)
-    return <FullPageMessage icon={<AlertCircle />} text="Could not load your Lens workspace" />;
+    return <FullPageMessage icon={<AlertCircle />} text="Could not load your Lens projects" />;
   if (project === undefined) {
     return projects.length === 0 ? (
       <SetupPage />
@@ -242,20 +333,46 @@ function AuthenticatedApp(props: { user: { name: string; email: string } }) {
 
   return (
     <ProjectContext.Provider value={{ project, projects, selectProject }}>
-      <SidebarProvider>
-        <AppSidebar user={props.user} />
-        <SidebarInset>
-          <AppHeader />
-          <Outlet />
-        </SidebarInset>
-      </SidebarProvider>
+      {pathname === "/" ? (
+        <ProjectSelectorShell user={props.user} />
+      ) : (
+        <SidebarProvider>
+          <AppSidebar user={props.user} />
+          <SidebarInset>
+            <AppHeader />
+            <Outlet />
+          </SidebarInset>
+        </SidebarProvider>
+      )}
     </ProjectContext.Provider>
   );
 }
 
-export function ProjectRedirectPage() {
-  const { project } = useProject();
-  return <Navigate to="/$projectId" params={{ projectId: project.id }} replace />;
+function ProjectSelectorShell(props: { user: { name: string; email: string } }) {
+  return (
+    <div className="flex min-h-svh w-full flex-col bg-background">
+      <header className="flex h-14 items-center border-b px-4 md:px-6">
+        <Link className="flex items-center gap-2" to="/">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <CircleDot className="size-4" />
+          </span>
+          <span className="font-heading text-sm font-medium">Lens</span>
+        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="hidden text-sm text-muted-foreground sm:inline">{props.user.email}</span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Sign out"
+            onClick={() => authClient.signOut()}
+          >
+            <LogOut />
+          </Button>
+        </div>
+      </header>
+      <Outlet />
+    </div>
+  );
 }
 
 function AppSidebar(props: { user: { name: string; email: string } }) {
@@ -285,14 +402,14 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
     {
       to: "/$projectId/settings" as const,
       path: `${projectRoot}/settings`,
-      label: "Settings",
+      label: "Project settings",
       icon: Settings,
     },
   ];
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="none">
       <SidebarHeader>
-        <div className="flex h-10 items-center gap-2 px-2">
+        <Link className="flex h-10 items-center gap-2 px-2" to="/">
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <CircleDot className="size-4" />
           </span>
@@ -300,7 +417,7 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
             <span className="font-heading text-sm font-medium">Lens</span>
             <span className="truncate text-xs text-muted-foreground">OpenTelemetry</span>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -322,21 +439,16 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
                   </SidebarMenuItem>
                 );
               })}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to="/workspace" />}
-                  isActive={pathname.startsWith("/workspace")}
-                  tooltip="Workspace"
-                >
-                  <Building2 />
-                  <span>Workspace</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <ModeToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
         <div className="flex items-center gap-2 p-2">
           <Avatar className="size-8">
             <AvatarFallback>{props.user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
@@ -356,34 +468,18 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
           </Button>
         </div>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   );
 }
 
 function AppHeader() {
-  const { project, projects, selectProject } = useProject();
+  const { project } = useProject();
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
-      <SidebarTrigger />
-      <Separator orientation="vertical" className="h-5" />
+    <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-background px-4">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{project.name}</p>
         <p className="truncate text-xs text-muted-foreground">Current project</p>
       </div>
-      <NativeSelect
-        aria-label="Select project"
-        value={project.id}
-        onChange={(event) => selectProject(event.target.value)}
-        className="hidden sm:block"
-      >
-        {projects.map((item) => (
-          <NativeSelectOption key={item.id} value={item.id}>
-            {item.name}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
-      <ModeToggle />
     </header>
   );
 }
@@ -391,27 +487,19 @@ function AppHeader() {
 function ModeToggle() {
   const { theme, setTheme } = useTheme();
   const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Laptop;
+  const nextTheme = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
+  const label =
+    theme === "system" ? "System theme" : `${theme[0]?.toUpperCase()}${theme.slice(1)} theme`;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label="Choose color theme" />}
-      >
-        <Icon />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          <Sun /> Light {theme === "light" ? <Check className="ml-auto" /> : null}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          <Moon /> Dark {theme === "dark" ? <Check className="ml-auto" /> : null}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          <Laptop /> System {theme === "system" ? <Check className="ml-auto" /> : null}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <SidebarMenuButton
+      type="button"
+      title={`${label}. Switch to ${nextTheme} theme`}
+      aria-label={`${label}. Switch to ${nextTheme} theme`}
+      onClick={() => setTheme(nextTheme)}
+    >
+      <Icon />
+      <span>{label}</span>
+    </SidebarMenuButton>
   );
 }
 
@@ -560,28 +648,7 @@ export function TracesPage() {
           {traces.isLoading ? (
             <LoadingRows />
           ) : traces.data?.items.length ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Trace</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Tokens</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>
-                      <span className="sr-only">Open</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {traces.data.items.map((trace) => (
-                    <TraceRow key={trace.traceId} trace={trace} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <TraceDataTable traces={traces.data.items} />
           ) : (
             <EmptyState
               icon={<Activity />}
@@ -595,43 +662,85 @@ export function TracesPage() {
   );
 }
 
-function TraceRow({ trace }: { trace: TraceSummary }) {
+function TraceNameCell({ trace }: { trace: TraceSummary }) {
   const { project } = useProject();
   return (
-    <TableRow>
-      <TableCell>
-        <Link
-          className="flex items-center gap-3 font-medium hover:underline"
-          to="/$projectId/traces/$traceId"
-          params={{ projectId: project.id, traceId: trace.traceId }}
-        >
-          <ObservationIcon kind={trace.generationCount > 0 ? "generation" : "span"} />
-          <span className="grid">
-            <span>{trace.name}</span>
-            <span className="font-mono text-xs font-normal text-muted-foreground">
-              {shortId(trace.traceId)} · {trace.spanCount} spans
-            </span>
-          </span>
-        </Link>
-      </TableCell>
-      <TableCell>{trace.serviceName}</TableCell>
-      <TableCell>
-        <StatusBadge status={trace.status} />
-      </TableCell>
-      <TableCell className="font-mono">{formatDuration(trace.durationMs)}</TableCell>
-      <TableCell className="font-mono">{formatNumber(trace.totalTokens)}</TableCell>
-      <TableCell>{relativeTime(trace.startedAt)}</TableCell>
-      <TableCell>
-        <Link
-          className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          to="/$projectId/traces/$traceId"
-          params={{ projectId: project.id, traceId: trace.traceId }}
-          aria-label={`Open ${trace.name}`}
-        >
-          <ChevronRight />
-        </Link>
-      </TableCell>
-    </TableRow>
+    <Link
+      className="flex items-center gap-3 font-medium hover:underline"
+      to="/$projectId/traces/$traceId"
+      params={{ projectId: project.id, traceId: trace.traceId }}
+    >
+      <ObservationIcon kind={trace.generationCount > 0 ? "generation" : "span"} />
+      <span className="grid">
+        <span>{trace.name}</span>
+        <span className="font-mono text-xs font-normal text-muted-foreground">
+          {shortId(trace.traceId)} · {trace.spanCount} spans
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function TraceOpenCell({ trace }: { trace: TraceSummary }) {
+  const { project } = useProject();
+  return (
+    <Link
+      className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+      to="/$projectId/traces/$traceId"
+      params={{ projectId: project.id, traceId: trace.traceId }}
+      aria-label={`Open ${trace.name}`}
+    >
+      <ChevronRight />
+    </Link>
+  );
+}
+
+function TraceDataTable({ traces }: { traces: TraceSummary[] }) {
+  const table = useTable({
+    features: dataTableFeatures,
+    columns: traceColumns,
+    data: traces,
+    getRowId: (trace) => trace.traceId,
+  });
+  return (
+    <div className="w-full overflow-x-auto">
+      <Table className="w-full">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                const direction = header.column.getIsSorted();
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={
+                      direction === "asc"
+                        ? "ascending"
+                        : direction === "desc"
+                          ? "descending"
+                          : undefined
+                    }
+                  >
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getAllCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -673,29 +782,7 @@ export function SessionsPage() {
           {sessions.isLoading ? (
             <LoadingRows />
           ) : sessions.data?.items.length ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Session</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Traces</TableHead>
-                    <TableHead>Errors</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Tokens</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>
-                      <span className="sr-only">Open</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessions.data.items.map((session) => (
-                    <SessionRow key={session.sessionId} session={session} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <SessionDataTable sessions={sessions.data.items} />
           ) : (
             <EmptyState
               icon={<MessagesSquare />}
@@ -709,47 +796,80 @@ export function SessionsPage() {
   );
 }
 
-function SessionRow({ session }: { session: SessionSummary }) {
+function SessionNameCell({ session }: { session: SessionSummary }) {
   const { project } = useProject();
-  const destination = {
-    projectId: project.id,
-    sessionId: session.sessionId,
-  };
   return (
-    <TableRow>
-      <TableCell>
-        <Link
-          className="flex items-center gap-3 font-medium hover:underline"
-          to="/$projectId/sessions/$sessionId"
-          params={destination}
-        >
-          <MessagesSquare className="size-4 text-muted-foreground" />
-          <span className="font-mono">{session.sessionId}</span>
-        </Link>
-      </TableCell>
-      <TableCell className="font-mono text-xs">{session.userId ?? "—"}</TableCell>
-      <TableCell className="font-mono">{formatNumber(session.traceCount)}</TableCell>
-      <TableCell>
-        {session.errorCount > 0 ? (
-          <Badge variant="destructive">{session.errorCount}</Badge>
-        ) : (
-          <Badge variant="secondary">0</Badge>
-        )}
-      </TableCell>
-      <TableCell className="font-mono">{formatDuration(session.durationMs)}</TableCell>
-      <TableCell className="font-mono">{formatNumber(session.totalTokens)}</TableCell>
-      <TableCell>{relativeTime(session.startedAt)}</TableCell>
-      <TableCell>
-        <Link
-          className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          to="/$projectId/sessions/$sessionId"
-          params={destination}
-          aria-label={`Open session ${session.sessionId}`}
-        >
-          <ChevronRight />
-        </Link>
-      </TableCell>
-    </TableRow>
+    <Link
+      className="flex items-center gap-3 font-medium hover:underline"
+      to="/$projectId/sessions/$sessionId"
+      params={{ projectId: project.id, sessionId: session.sessionId }}
+    >
+      <MessagesSquare className="size-4 text-muted-foreground" />
+      <span className="font-mono">{session.sessionId}</span>
+    </Link>
+  );
+}
+
+function SessionOpenCell({ session }: { session: SessionSummary }) {
+  const { project } = useProject();
+  return (
+    <Link
+      className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+      to="/$projectId/sessions/$sessionId"
+      params={{ projectId: project.id, sessionId: session.sessionId }}
+      aria-label={`Open session ${session.sessionId}`}
+    >
+      <ChevronRight />
+    </Link>
+  );
+}
+
+function SessionDataTable({ sessions }: { sessions: SessionSummary[] }) {
+  const table = useTable({
+    features: dataTableFeatures,
+    columns: sessionColumns,
+    data: sessions,
+    getRowId: (session) => session.sessionId,
+  });
+  return (
+    <div className="w-full overflow-x-auto">
+      <Table className="w-full">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                const direction = header.column.getIsSorted();
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={
+                      direction === "asc"
+                        ? "ascending"
+                        : direction === "desc"
+                          ? "descending"
+                          : undefined
+                    }
+                  >
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getAllCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -795,28 +915,7 @@ export function SessionDetailPage() {
           <CardDescription>All traces carrying this session ID</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Trace</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Tokens</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Open</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {detail.traces.map((trace) => (
-                  <TraceRow key={trace.traceId} trace={trace} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <TraceDataTable traces={detail.traces} />
         </CardContent>
       </Card>
     </Page>
@@ -1088,55 +1187,28 @@ export function OnboardingPage() {
   );
 }
 
-export function WorkspacePage() {
+export function ProjectsPage() {
   const { project, projects, selectProject } = useProject();
   const queryClient = useQueryClient();
-  const workspaces = useQuery({
-    queryKey: ["workspaces"],
-    queryFn: () => api<{ items: Workspace[] }>("/api/v1/workspaces"),
-  });
-  const [workspaceId, setWorkspaceId] = useState(project.workspaceId);
-  const selectedWorkspace =
-    workspaces.data?.items.find((item) => item.id === workspaceId) ?? workspaces.data?.items[0];
   const directory = useQuery({
-    queryKey: ["workspace-directory", selectedWorkspace?.id],
-    queryFn: () => api<WorkspaceDirectory>(`/api/v1/workspaces/${selectedWorkspace?.id}/directory`),
-    enabled: selectedWorkspace !== undefined,
+    queryKey: ["team"],
+    queryFn: () => api<TeamDirectory>("/api/v1/team"),
   });
-  const workspaceProjects = projects.filter((item) => item.workspaceId === selectedWorkspace?.id);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceSlug, setWorkspaceSlug] = useState("");
-  const [workspaceDialog, setWorkspaceDialog] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectSlug, setProjectSlug] = useState("");
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteMemberOpen, setInviteMemberOpen] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
 
-  const invalidateDirectory = () =>
-    queryClient.invalidateQueries({ queryKey: ["workspace-directory", selectedWorkspace?.id] });
-  const createWorkspace = useMutation({
-    mutationFn: () =>
-      api<Workspace>("/api/v1/workspaces", {
-        method: "POST",
-        body: JSON.stringify({ name: workspaceName, slug: workspaceSlug }),
-      }),
-    onSuccess: async (created) => {
-      setWorkspaceName("");
-      setWorkspaceSlug("");
-      setWorkspaceId(created.id);
-      setWorkspaceDialog(false);
-      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-      notify("Workspace created");
-    },
-  });
+  const invalidateDirectory = () => queryClient.invalidateQueries({ queryKey: ["team"] });
   const createProject = useMutation({
     mutationFn: () =>
       api<Project>("/api/v1/projects", {
         method: "POST",
         body: JSON.stringify({
-          workspaceId: selectedWorkspace?.id,
           name: projectName,
           slug: projectSlug,
         }),
@@ -1144,6 +1216,7 @@ export function WorkspacePage() {
     onSuccess: async (created) => {
       setProjectName("");
       setProjectSlug("");
+      setCreateProjectOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
       selectProject(created.id);
       notify("Project created");
@@ -1152,36 +1225,35 @@ export function WorkspacePage() {
   const deleteProject = useMutation({
     mutationFn: (projectId: string) =>
       api<void>(`/api/v1/projects/${projectId}`, { method: "DELETE" }),
-    onSuccess: async (_, deletedId) => {
+    onSuccess: async () => {
       setDeleteProjectId(null);
-      const fallback = projects.find((item) => item.id !== deletedId && item.state === "active");
-      if (project.id === deletedId && fallback) selectProject(fallback.id);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
       notify("Project deletion queued");
     },
   });
   const inviteMember = useMutation({
     mutationFn: () =>
-      api<WorkspaceInvitation>("/api/auth/organization/invite-member", {
+      api<TeamInvitation>("/api/auth/organization/invite-member", {
         method: "POST",
         body: JSON.stringify({
-          organizationId: selectedWorkspace?.id,
+          organizationId: directory.data?.organizationId,
           email: inviteEmail,
           role: inviteRole,
         }),
       }),
     onSuccess: async () => {
       setInviteEmail("");
+      setInviteMemberOpen(false);
       await invalidateDirectory();
       notify("Invitation sent");
     },
   });
   const updateRole = useMutation({
     mutationFn: (input: { memberId: string; role: "admin" | "member" }) =>
-      api<{ id: string; role: string }>(
-        `/api/v1/workspaces/${selectedWorkspace?.id}/members/${input.memberId}`,
-        { method: "PATCH", body: JSON.stringify({ role: input.role }) },
-      ),
+      api<{ id: string; role: string }>(`/api/v1/team/members/${input.memberId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: input.role }),
+      }),
     onSuccess: async () => {
       await invalidateDirectory();
       notify("Member role updated");
@@ -1189,7 +1261,7 @@ export function WorkspacePage() {
   });
   const removeMember = useMutation({
     mutationFn: (memberId: string) =>
-      api<void>(`/api/v1/workspaces/${selectedWorkspace?.id}/members/${memberId}`, {
+      api<void>(`/api/v1/team/members/${memberId}`, {
         method: "DELETE",
       }),
     onSuccess: async () => {
@@ -1210,57 +1282,22 @@ export function WorkspacePage() {
     },
   });
   const managementError =
-    createWorkspace.error ??
-    createProject.error ??
-    deleteProject.error ??
-    inviteMember.error ??
-    updateRole.error ??
-    removeMember.error ??
-    cancelInvitation.error;
+    deleteProject.error ?? updateRole.error ?? removeMember.error ?? cancelInvitation.error;
 
   return (
     <Page
-      title="Workspace"
-      description="Manage workspace boundaries, projects, teammates, and access"
-      action={
-        <div className="flex gap-2">
-          <NativeSelect
-            value={selectedWorkspace?.id ?? ""}
-            onChange={(event) => setWorkspaceId(event.target.value)}
-          >
-            {workspaces.data?.items.map((item) => (
-              <NativeSelectOption key={item.id} value={item.id}>
-                {item.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-          <Button onClick={() => setWorkspaceDialog(true)}>
-            <Plus /> Workspace
-          </Button>
-        </div>
-      }
+      className="mx-auto max-w-2xl"
+      title="Projects"
+      description="Choose a project to open its observability dashboard"
     >
       {managementError ? <ErrorAlert error={managementError} /> : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>{selectedWorkspace?.name ?? "Workspace"}</CardTitle>
-          <CardDescription>
-            Workspaces are the access boundary for people and projects.
-          </CardDescription>
-          <CardAction>
-            <Badge variant="secondary">
-              <UserCog /> {directory.data?.role ?? selectedWorkspace?.role ?? "member"}
-            </Badge>
-          </CardAction>
-        </CardHeader>
-      </Card>
       <Tabs defaultValue="projects">
         <TabsList>
           <TabsTrigger value="projects">
             <Layers3 /> Projects
           </TabsTrigger>
           <TabsTrigger value="members">
-            <Users /> Members
+            <Users /> Team
           </TabsTrigger>
         </TabsList>
         <TabsContent value="projects">
@@ -1270,39 +1307,16 @@ export function WorkspacePage() {
               <CardDescription>
                 Telemetry, settings, and ingestion keys are isolated per project.
               </CardDescription>
-            </CardHeader>
-            {directory.data?.canManage ? (
-              <CardContent>
-                <form
-                  className="grid gap-3 md:grid-cols-3"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    createProject.mutate();
-                  }}
-                >
-                  <Input
-                    required
-                    placeholder="Project name"
-                    value={projectName}
-                    onChange={(event) => {
-                      setProjectName(event.target.value);
-                      setProjectSlug(slugify(event.target.value));
-                    }}
-                  />
-                  <Input
-                    required
-                    placeholder="project-slug"
-                    value={projectSlug}
-                    onChange={(event) => setProjectSlug(event.target.value)}
-                  />
-                  <Button disabled={createProject.isPending} type="submit">
+              {directory.data?.canManage ? (
+                <CardAction>
+                  <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
                     <Plus /> Create project
                   </Button>
-                </form>
-              </CardContent>
-            ) : null}
+                </CardAction>
+              ) : null}
+            </CardHeader>
             <CardContent className="grid gap-2">
-              {workspaceProjects.map((item) => (
+              {projects.map((item) => (
                 <div className="flex items-center gap-3 rounded-lg border p-3" key={item.id}>
                   <span className="flex size-9 items-center justify-center rounded-lg bg-muted">
                     <Layers3 className="size-4" />
@@ -1330,11 +1344,11 @@ export function WorkspacePage() {
                   ) : null}
                 </div>
               ))}
-              {workspaceProjects.length === 0 ? (
+              {projects.length === 0 ? (
                 <EmptyState
                   icon={<Layers3 />}
                   title="No projects yet"
-                  text="Create the first telemetry project in this workspace."
+                  text="Create your first telemetry project."
                 />
               ) : null}
             </CardContent>
@@ -1347,37 +1361,14 @@ export function WorkspacePage() {
               <CardDescription>
                 Owners and admins can invite people and update roles.
               </CardDescription>
-            </CardHeader>
-            {directory.data?.canManage ? (
-              <CardContent>
-                <form
-                  className="grid gap-3 md:grid-cols-3"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    inviteMember.mutate();
-                  }}
-                >
-                  <Input
-                    required
-                    type="email"
-                    placeholder="teammate@company.com"
-                    value={inviteEmail}
-                    onChange={(event) => setInviteEmail(event.target.value)}
-                  />
-                  <NativeSelect
-                    value={inviteRole}
-                    onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
-                    className="w-full"
-                  >
-                    <NativeSelectOption value="member">Member</NativeSelectOption>
-                    <NativeSelectOption value="admin">Admin</NativeSelectOption>
-                  </NativeSelect>
-                  <Button disabled={inviteMember.isPending} type="submit">
-                    <MailPlus /> Send invitation
+              {directory.data?.canManage ? (
+                <CardAction>
+                  <Button size="sm" onClick={() => setInviteMemberOpen(true)}>
+                    <MailPlus /> Add member
                   </Button>
-                </form>
-              </CardContent>
-            ) : null}
+                </CardAction>
+              ) : null}
+            </CardHeader>
             <CardContent className="px-0">
               <Table>
                 <TableHeader>
@@ -1478,51 +1469,120 @@ export function WorkspacePage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={workspaceDialog} onOpenChange={setWorkspaceDialog}>
+      <Dialog
+        open={createProjectOpen}
+        onOpenChange={(open) => {
+          setCreateProjectOpen(open);
+          if (!open) createProject.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create workspace</DialogTitle>
+            <DialogTitle>Create project</DialogTitle>
             <DialogDescription>
-              Create a separate access boundary for a team or organization.
+              Create an isolated destination for telemetry, settings, and ingestion keys.
             </DialogDescription>
           </DialogHeader>
+          {createProject.error ? <ErrorAlert error={createProject.error} /> : null}
           <form
-            id="workspace-form"
-            className="grid gap-4"
+            id="create-project-form"
             onSubmit={(event) => {
               event.preventDefault();
-              createWorkspace.mutate();
+              createProject.mutate();
             }}
           >
-            <Field>
-              <FieldLabel htmlFor="workspace-name">Name</FieldLabel>
-              <Input
-                id="workspace-name"
-                required
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  setWorkspaceSlug(slugify(event.target.value));
-                }}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="workspace-slug">Slug</FieldLabel>
-              <Input
-                id="workspace-slug"
-                required
-                value={workspaceSlug}
-                onChange={(event) => setWorkspaceSlug(event.target.value)}
-              />
-            </Field>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="project-name">Name</FieldLabel>
+                <Input
+                  id="project-name"
+                  required
+                  autoFocus
+                  placeholder="Production agents"
+                  value={projectName}
+                  onChange={(event) => {
+                    setProjectName(event.target.value);
+                    setProjectSlug(slugify(event.target.value));
+                  }}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
+                <Input
+                  id="project-slug"
+                  required
+                  placeholder="production-agents"
+                  value={projectSlug}
+                  onChange={(event) => setProjectSlug(event.target.value)}
+                />
+              </Field>
+            </FieldGroup>
           </form>
           <DialogFooter showCloseButton>
-            <Button form="workspace-form" type="submit" disabled={createWorkspace.isPending}>
-              Create workspace
+            <Button form="create-project-form" type="submit" disabled={createProject.isPending}>
+              <Plus /> Create project
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={inviteMemberOpen}
+        onOpenChange={(open) => {
+          setInviteMemberOpen(open);
+          if (!open) inviteMember.reset();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add team member</DialogTitle>
+            <DialogDescription>
+              Send an invitation to give someone access to the team's projects.
+            </DialogDescription>
+          </DialogHeader>
+          {inviteMember.error ? <ErrorAlert error={inviteMember.error} /> : null}
+          <form
+            id="invite-member-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              inviteMember.mutate();
+            }}
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+                <Input
+                  id="invite-email"
+                  required
+                  autoFocus
+                  type="email"
+                  placeholder="teammate@company.com"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+                <NativeSelect
+                  id="invite-role"
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="member">Member</NativeSelectOption>
+                  <NativeSelectOption value="admin">Admin</NativeSelectOption>
+                </NativeSelect>
+              </Field>
+            </FieldGroup>
+          </form>
+          <DialogFooter showCloseButton>
+            <Button form="invite-member-form" type="submit" disabled={inviteMember.isPending}>
+              <MailPlus /> Send invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog
         open={deleteProjectId !== null}
         onOpenChange={(open) => {
@@ -1561,7 +1621,7 @@ export function WorkspacePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this member?</AlertDialogTitle>
             <AlertDialogDescription>
-              They will immediately lose access to every project in this workspace.
+              They will immediately lose access to every project in Lens.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1622,12 +1682,12 @@ export function AcceptInvitationPage() {
   return (
     <CenteredCard
       icon={<MailPlus />}
-      eyebrow="Workspace invitation"
+      eyebrow="Team invitation"
       title={`Join ${detail.organizationName}`}
       description={
         <>
           You were invited as <strong>{detail.role ?? "member"}</strong>. Accept to access this
-          workspace and its projects.
+          team's projects.
         </>
       }
     >
@@ -1817,8 +1877,6 @@ export function SettingsPage() {
 
 function SetupPage() {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<"workspace" | "project">("workspace");
-  const [workspaceId, setWorkspaceId] = useState("");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState("");
@@ -1826,22 +1884,11 @@ function SetupPage() {
     event.preventDefault();
     setError("");
     try {
-      if (step === "workspace") {
-        const workspace = await api<Workspace>("/api/v1/workspaces", {
-          method: "POST",
-          body: JSON.stringify({ name, slug }),
-        });
-        setWorkspaceId(workspace.id);
-        setName("");
-        setSlug("");
-        setStep("project");
-      } else {
-        await api<Project>("/api/v1/projects", {
-          method: "POST",
-          body: JSON.stringify({ workspaceId, name, slug }),
-        });
-        await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      }
+      await api<Project>("/api/v1/projects", {
+        method: "POST",
+        body: JSON.stringify({ name, slug }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Setup failed");
     }
@@ -1849,13 +1896,9 @@ function SetupPage() {
   return (
     <CenteredCard
       icon={<CircleDot />}
-      eyebrow={step === "workspace" ? "First workspace" : "First project"}
-      title={step === "workspace" ? "Create your workspace" : "Create a project"}
-      description={
-        step === "workspace"
-          ? "Workspaces group people and projects."
-          : "Projects isolate ingestion keys and trace data."
-      }
+      eyebrow="First project"
+      title="Create a project"
+      description="Projects isolate ingestion keys and trace data."
     >
       <form className="grid gap-4" onSubmit={submit}>
         <Field>
@@ -1868,7 +1911,7 @@ function SetupPage() {
               setName(event.target.value);
               setSlug(slugify(event.target.value));
             }}
-            placeholder={step === "workspace" ? "Acme AI" : "Production agents"}
+            placeholder="Production agents"
           />
         </Field>
         <Field>
@@ -2018,10 +2061,11 @@ function Page(props: {
   title: string;
   description: string;
   action?: ReactNode;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 p-4 md:p-6">
+    <main className={cn("flex w-full flex-1 flex-col gap-6 p-4 md:p-6", props.className)}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="grid gap-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

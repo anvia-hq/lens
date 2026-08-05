@@ -60,9 +60,9 @@ services:
       target: migrate
     environment: &app-environment
       NODE_ENV: production
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
       API_PORT: 3001
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost}
       POSTGRES_URL: postgresql://lens:lens@postgres:5432/lens
       CLICKHOUSE_URL: http://clickhouse:8123
       CLICKHOUSE_DATABASE: lens
@@ -127,7 +127,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-3000}:80"
+      - "${WEB_PORT:-80}:80"
 
 volumes:
   lens-clickhouse:

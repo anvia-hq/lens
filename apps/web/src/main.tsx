@@ -10,13 +10,12 @@ import {
   AppRoot,
   OnboardingPage,
   OverviewPage,
-  ProjectRedirectPage,
+  ProjectsPage,
   SessionDetailPage,
   SessionsPage,
   SettingsPage,
   TraceDetailPage,
   TracesPage,
-  WorkspacePage,
 } from "./app";
 import { ThemeProvider } from "./components/theme-provider";
 
@@ -26,10 +25,10 @@ const overviewRoute = createRoute({
   path: "/$projectId",
   component: OverviewPage,
 });
-const projectRedirectRoute = createRoute({
+const projectsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: ProjectRedirectPage,
+  component: ProjectsPage,
 });
 const tracesRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -61,18 +60,13 @@ const settingsRoute = createRoute({
   path: "/$projectId/settings",
   component: SettingsPage,
 });
-const workspaceRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/workspace",
-  component: WorkspacePage,
-});
 const acceptInvitationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/accept-invitation/$invitationId",
   component: AcceptInvitationPage,
 });
 const routeTree = rootRoute.addChildren([
-  projectRedirectRoute,
+  projectsRoute,
   overviewRoute,
   tracesRoute,
   traceRoute,
@@ -80,7 +74,6 @@ const routeTree = rootRoute.addChildren([
   sessionRoute,
   onboardingRoute,
   settingsRoute,
-  workspaceRoute,
   acceptInvitationRoute,
 ]);
 const router = createRouter({ routeTree });

@@ -177,7 +177,7 @@ try {
   console.log(`  Web:           ${config.PUBLIC_APP_URL}`);
   console.log(`  Login:         ${DEMO_EMAIL}`);
   console.log(`  Password:      ${DEMO_PASSWORD}`);
-  console.log(`  Workspace:     Acme AI`);
+  console.log(`  Team:          Acme AI`);
   console.log(`  Project:       Production Agents (${PROJECT_ID})`);
   console.log(`  Ingestion key: ${DEMO_INGESTION_KEY}`);
   console.log(

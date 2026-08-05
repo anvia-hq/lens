@@ -8,10 +8,10 @@ turns them into project-scoped trace timelines, session/user views, and latency/
 
 - Hono API and BullMQ worker on Node.js 24
 - React, Vite, Tailwind CSS, TanStack Query/Router
-- PostgreSQL for users, workspaces, projects, and ingestion keys
+- PostgreSQL for users, teams, projects, and ingestion keys
 - ClickHouse for spans and trace summaries
 - Redis for durable ingestion jobs and rate limits
-- Better Auth for email/password sessions and workspace organizations
+- Better Auth for email/password sessions and team membership
 
 ## UI system
 
@@ -38,14 +38,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open Lens at <http://localhost:3000> and Mailpit at <http://localhost:8025>.
+Open Lens at <http://localhost> and Mailpit at <http://localhost:8025>.
 Host ports are overridable through `WEB_PORT`, `API_PORT`, `POSTGRES_PORT`, `REDIS_PORT`,
 `CLICKHOUSE_HTTP_PORT`, `CLICKHOUSE_NATIVE_PORT`, `SMTP_PORT`, and `MAILPIT_UI_PORT`. When changing
 the web port, set `PUBLIC_APP_URL` and `WEB_ORIGIN` to the same browser-facing URL.
 
 ### Realistic demo data
 
-With the Compose stack running, seed a verified demo account, workspace, project, ingestion key,
+With the Compose stack running, seed a verified demo account, project, ingestion key,
 and 24 hours of realistic Anvia agent telemetry:
 
 ```sh
@@ -57,16 +57,18 @@ The command is safe to rerun: it refreshes only the dedicated demo project. Sign
 generation, and tool spans across support, billing, incident response, research, and risk
 workloads. It prints the reusable demo ingestion key when it completes.
 
-## Workspaces and teams
+## Projects and teams
 
-Open **Workspace** in the sidebar to create additional workspaces and projects. Workspaces are
-the team and access boundary; projects inside them have independent telemetry, settings, and
-ingestion keys. Owners and admins can invite teammates, assign member or admin roles, change
-roles, remove members, and cancel pending invitations.
+Every account uses one automatically managed team, so there is no workspace setup or switching.
+The root page is the project selector. Choose a project there to open its overview, traces,
+sessions, connection guide, and project settings. The selector also creates projects and its
+**Team** tab manages teammates. Projects have independent telemetry, settings, and ingestion
+keys. Owners and admins can invite teammates, assign member or admin roles, change roles, remove
+members, and cancel pending invitations.
 
 In development, invitation and verification messages are delivered to Mailpit. A teammate can
 open the invitation link, create and verify an account if needed, then accept or decline the
-invitation. Member access is read-only for workspace management, while admins can manage projects
+invitation. Member access is read-only for team management, while admins can manage projects
 and teammates.
 
 For application development with infrastructure in containers:

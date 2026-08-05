@@ -33,7 +33,7 @@ import {
   normalizeOtlpRequest,
   parseOtlpContentType,
 } from "@lens/telemetry";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
@@ -45,6 +45,7 @@ import { createIngestionKey, ingestionKeyPrefix, verifyIngestionKey } from "./se
 const gunzipAsync = promisify(gunzip);
 
 type SessionValue = Awaited<ReturnType<LensAuth["api"]["getSession"]>>;
+type SessionUser = NonNullable<SessionValue>["user"];
 type AppEnv = {
   Variables: {
     session: SessionValue;
@@ -212,55 +213,9 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     await next();
   });
 
-  app.get("/api/v1/workspaces", async (c) => {
+  app.get("/api/v1/team", async (c) => {
     const session = requiredSession(c);
-    const rows = await deps.postgres.db
-      .select({
-        id: organization.id,
-        name: organization.name,
-        slug: organization.slug,
-        role: member.role,
-        createdAt: organization.createdAt,
-      })
-      .from(member)
-      .innerJoin(organization, eq(member.organizationId, organization.id))
-      .where(eq(member.userId, session.user.id));
-    return c.json({
-      items: rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
-    });
-  });
-
-  app.post("/api/v1/workspaces", async (c) => {
-    const session = requiredSession(c);
-    const body = await safeJson(c);
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
-    const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
-    if (name.length < 1 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      return apiError(
-        c,
-        400,
-        "invalid_workspace",
-        "Workspace name and kebab-case slug are required",
-      );
-    }
-    const organizationId = randomUUID();
-    await deps.postgres.db.transaction(async (tx) => {
-      await tx.insert(organization).values({ id: organizationId, name, slug });
-      await tx.insert(member).values({
-        id: randomUUID(),
-        organizationId,
-        userId: session.user.id,
-        role: "owner",
-      });
-    });
-    return c.json({ id: organizationId, name, slug, role: "owner" }, 201);
-  });
-
-  app.get("/api/v1/workspaces/:workspaceId/directory", async (c) => {
-    const session = requiredSession(c);
-    const workspaceId = c.req.param("workspaceId");
-    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
-    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
+    const team = await ensureDefaultTeam(deps.postgres.db, session.user);
 
     const members = await deps.postgres.db
       .select({
@@ -274,8 +229,8 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
       })
       .from(member)
       .innerJoin(user, eq(member.userId, user.id))
-      .where(eq(member.organizationId, workspaceId));
-    const invitations = canManage(membership.role)
+      .where(eq(member.organizationId, team.organization.id));
+    const invitations = canManage(team.membership.role)
       ? await deps.postgres.db
           .select({
             id: invitation.id,
@@ -286,12 +241,13 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
             createdAt: invitation.createdAt,
           })
           .from(invitation)
-          .where(eq(invitation.organizationId, workspaceId))
+          .where(eq(invitation.organizationId, team.organization.id))
       : [];
 
     return c.json({
-      role: membership.role,
-      canManage: canManage(membership.role),
+      organizationId: team.organization.id,
+      role: team.membership.role,
+      canManage: canManage(team.membership.role),
       members: members.map((row) => ({
         ...row,
         isCurrentUser: row.userId === session.user.id,
@@ -305,12 +261,10 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     });
   });
 
-  app.patch("/api/v1/workspaces/:workspaceId/members/:memberId", async (c) => {
+  app.patch("/api/v1/team/members/:memberId", async (c) => {
     const session = requiredSession(c);
-    const workspaceId = c.req.param("workspaceId");
-    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
-    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
-    if (!canManage(membership.role))
+    const team = await ensureDefaultTeam(deps.postgres.db, session.user);
+    if (!canManage(team.membership.role))
       return apiError(c, 403, "forbidden", "Admin access is required");
     const body = await safeJson(c);
     const role = body?.role;
@@ -320,11 +274,16 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     const [target] = await deps.postgres.db
       .select()
       .from(member)
-      .where(and(eq(member.id, c.req.param("memberId")), eq(member.organizationId, workspaceId)))
+      .where(
+        and(
+          eq(member.id, c.req.param("memberId")),
+          eq(member.organizationId, team.organization.id),
+        ),
+      )
       .limit(1);
     if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
     if (target.role === "owner")
-      return apiError(c, 403, "owner_protected", "The workspace owner role cannot be changed");
+      return apiError(c, 403, "owner_protected", "The team owner role cannot be changed");
     const [updated] = await deps.postgres.db
       .update(member)
       .set({ role })
@@ -333,23 +292,26 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     return c.json({ id: updated?.id, role: updated?.role });
   });
 
-  app.delete("/api/v1/workspaces/:workspaceId/members/:memberId", async (c) => {
+  app.delete("/api/v1/team/members/:memberId", async (c) => {
     const session = requiredSession(c);
-    const workspaceId = c.req.param("workspaceId");
-    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
-    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
-    if (!canManage(membership.role))
+    const team = await ensureDefaultTeam(deps.postgres.db, session.user);
+    if (!canManage(team.membership.role))
       return apiError(c, 403, "forbidden", "Admin access is required");
     const [target] = await deps.postgres.db
       .select()
       .from(member)
-      .where(and(eq(member.id, c.req.param("memberId")), eq(member.organizationId, workspaceId)))
+      .where(
+        and(
+          eq(member.id, c.req.param("memberId")),
+          eq(member.organizationId, team.organization.id),
+        ),
+      )
       .limit(1);
     if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
     if (target.role === "owner")
-      return apiError(c, 403, "owner_protected", "The workspace owner cannot be removed");
+      return apiError(c, 403, "owner_protected", "The team owner cannot be removed");
     if (target.userId === session.user.id)
-      return apiError(c, 403, "self_removal", "Use leave workspace to remove yourself");
+      return apiError(c, 403, "self_removal", "The current user cannot remove themselves");
     await deps.postgres.db.delete(member).where(eq(member.id, target.id));
     return c.body(null, 204);
   });
@@ -372,7 +334,7 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
       .limit(1);
     if (row === undefined) return apiError(c, 404, "not_found", "Invitation not found");
     if (row.email.toLowerCase() !== session.user.email.toLowerCase()) {
-      const membership = await workspaceMembership(
+      const membership = await organizationMembership(
         deps.postgres.db,
         row.organizationId,
         session.user.id,
@@ -385,13 +347,13 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
 
   app.get("/api/v1/projects", async (c) => {
     const session = requiredSession(c);
+    const team = await ensureDefaultTeam(deps.postgres.db, session.user);
     const rows = await deps.postgres.db
-      .select({ project, role: member.role })
+      .select()
       .from(project)
-      .innerJoin(member, eq(project.organizationId, member.organizationId))
-      .where(eq(member.userId, session.user.id));
+      .where(eq(project.organizationId, team.organization.id));
     return c.json({
-      items: rows.map(({ project: row, role }) => ({ ...projectFromRow(row), role })),
+      items: rows.map((row) => ({ ...projectFromRow(row), role: team.membership.role })),
     });
   });
 
@@ -399,17 +361,13 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     const session = requiredSession(c);
     const parsed = createProjectSchema.safeParse(await safeJson(c));
     if (!parsed.success) return apiError(c, 400, "invalid_project", "Invalid project data");
-    const membership = await workspaceMembership(
-      deps.postgres.db,
-      parsed.data.workspaceId,
-      session.user.id,
-    );
-    if (!canManage(membership?.role))
+    const team = await ensureDefaultTeam(deps.postgres.db, session.user);
+    if (!canManage(team.membership.role))
       return apiError(c, 403, "forbidden", "Admin access is required");
     const [created] = await deps.postgres.db
       .insert(project)
       .values({
-        organizationId: parsed.data.workspaceId,
+        organizationId: team.organization.id,
         name: parsed.data.name,
         slug: parsed.data.slug,
       })
@@ -633,13 +591,48 @@ function requiredSession(c: Context<AppEnv>): NonNullable<SessionValue> {
   return session;
 }
 
-async function workspaceMembership(db: LensPostgres, workspaceId: string, userId: string) {
+async function organizationMembership(db: LensPostgres, organizationId: string, userId: string) {
   const [row] = await db
     .select()
     .from(member)
-    .where(and(eq(member.organizationId, workspaceId), eq(member.userId, userId)))
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
     .limit(1);
   return row;
+}
+
+async function defaultTeam(db: LensPostgres, userId: string) {
+  const [row] = await db
+    .select({ membership: member, organization })
+    .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
+    .where(eq(member.userId, userId))
+    .orderBy(asc(member.createdAt))
+    .limit(1);
+  return row;
+}
+
+async function ensureDefaultTeam(db: LensPostgres, user: SessionUser) {
+  const existing = await defaultTeam(db, user.id);
+  if (existing !== undefined) return existing;
+
+  const organizationId = randomUUID();
+  const slug = `lens-${createHash("sha256").update(user.id).digest("hex").slice(0, 16)}`;
+  await db.transaction(async (tx) => {
+    await tx.insert(organization).values({
+      id: organizationId,
+      name: `${user.name}'s Team`,
+      slug,
+    });
+    await tx.insert(member).values({
+      id: randomUUID(),
+      organizationId,
+      userId: user.id,
+      role: "owner",
+    });
+  });
+  const created = await defaultTeam(db, user.id);
+  if (created === undefined) throw new Error("Default team was not created");
+  return created;
 }
 
 async function requireProjectAccess(
@@ -698,7 +691,7 @@ async function withinRateLimit(redis: IORedis, projectId: string, limit: number)
 function projectFromRow(row: typeof project.$inferSelect): Project {
   return {
     id: row.id,
-    workspaceId: row.organizationId,
+    teamId: row.organizationId,
     name: row.name,
     slug: row.slug,
     state: row.state,

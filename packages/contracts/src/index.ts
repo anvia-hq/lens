@@ -74,7 +74,7 @@ export type ProjectSettings = {
 
 export type Project = {
   id: string;
-  workspaceId: string;
+  teamId: string;
   name: string;
   slug: string;
   state: "active" | "deleting";
@@ -188,7 +188,6 @@ export const projectSettingsSchema = z.object({
 });
 
 export const createProjectSchema = z.object({
-  workspaceId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
   slug: z
     .string()
