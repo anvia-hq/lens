@@ -13,6 +13,21 @@ turns them into project-scoped trace timelines, session/user views, and latency/
 - Redis for durable ingestion jobs and rate limits
 - Better Auth for email/password sessions and workspace organizations
 
+## UI system
+
+Reusable UI primitives live in `packages/ui`. The package contains the complete shadcn Base UI
+registry using the default Nova style, neutral semantic theme tokens, Tailwind CSS v4, and Lucide
+icons. The web app imports components through `@lens/ui/components/*` and the generated global
+theme through `@lens/ui/globals.css`.
+
+Lens-specific pages use standard Tailwind utilities and shadcn semantic colors. Keep application
+CSS, arbitrary utility values, and custom color tokens out of `apps/web`. To refresh the complete
+registry from the web workspace configuration, run:
+
+```sh
+pnpm dlx shadcn@latest add --all --overwrite -c apps/web -y
+```
+
 ## Start locally
 
 The complete stack runs through Docker Compose:

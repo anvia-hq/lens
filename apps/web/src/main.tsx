@@ -1,5 +1,8 @@
+import { Toaster } from "@lens/ui/components/toast";
+import { TooltipProvider } from "@lens/ui/components/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import "@lens/ui/globals.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -12,7 +15,7 @@ import {
   TracesPage,
   WorkspacePage,
 } from "./app";
-import "./styles.css";
+import { ThemeProvider } from "./components/theme-provider";
 
 const rootRoute = createRootRoute({ component: AppRoot });
 const overviewRoute = createRoute({
@@ -78,8 +81,14 @@ if (rootElement === null) throw new Error("Lens root element was not found");
 
 createRoot(rootElement).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster>
+          <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+          </QueryClientProvider>
+        </Toaster>
+      </TooltipProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

@@ -17,7 +17,9 @@
       "@lens/db": ["packages/db/src/index.ts"],
       "@lens/db/schema": ["packages/db/src/schema.ts"],
       "@lens/queue": ["packages/queue/src/index.ts"],
-      "@lens/telemetry": ["packages/telemetry/src/index.ts"]
+      "@lens/telemetry": ["packages/telemetry/src/index.ts"],
+      "@lens/ui/*": ["packages/ui/src/*"],
+      "@/*": ["apps/web/src/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,

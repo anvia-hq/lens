@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@lens/contracts": "workspace:*",
+    "@lens/ui": "workspace:*",
     "@tailwindcss/vite": "^4.1.0",
     "@tanstack/react-query": "^5.85.0",
     "@tanstack/react-router": "^1.131.0",
