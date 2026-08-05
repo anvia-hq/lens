@@ -167,12 +167,7 @@ try {
     await materializeTrace(clickhouse, PROJECT_ID, traceId);
   }
 
-  const metrics = await queryMetrics(
-    clickhouse,
-    PROJECT_ID,
-    new Date(now.getTime() - 24 * 60 * 60_000).toISOString(),
-    new Date(now.getTime() + 60_000).toISOString(),
-  );
+  const metrics = await queryMetrics(clickhouse, PROJECT_ID, "24h", now);
 
   console.log("Anvia Lens realistic demo data is ready.");
   console.log(`  Web:           ${config.PUBLIC_APP_URL}`);
@@ -183,7 +178,7 @@ try {
   console.log(`  Public key:    ${DEMO_PUBLIC_KEY}`);
   console.log(`  Secret key:    ${DEMO_SECRET_KEY}`);
   console.log(
-    `  Seeded:        ${metrics.traces} traces, ${metrics.spans} spans, ${metrics.errors} errors`,
+    `  Seeded:        ${metrics.current.traces} traces, ${metrics.current.spans} spans, ${metrics.current.errors} errors`,
   );
 } finally {
   await postgres.close();

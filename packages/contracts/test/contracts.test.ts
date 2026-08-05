@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decodeCursor, encodeCursor, projectSettingsSchema } from "../src/index";
+import {
+  decodeCursor,
+  encodeCursor,
+  metricsRangeSchema,
+  projectSettingsSchema,
+} from "../src/index";
 
 describe("contracts", () => {
   it("round-trips an opaque trace cursor", () => {
@@ -17,5 +22,12 @@ describe("contracts", () => {
     expect(
       projectSettingsSchema.safeParse({ retentionDays: 14, redactionPatterns: [] }).success,
     ).toBe(false);
+  });
+
+  it("accepts only supported overview ranges", () => {
+    expect(metricsRangeSchema.safeParse("24h").success).toBe(true);
+    expect(metricsRangeSchema.safeParse("7d").success).toBe(true);
+    expect(metricsRangeSchema.safeParse("30d").success).toBe(true);
+    expect(metricsRangeSchema.safeParse("90d").success).toBe(false);
   });
 });

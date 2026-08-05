@@ -6,6 +6,7 @@ import type { LensConfig } from "@lens/config";
 import {
   createApiKeySchema,
   createProjectSchema,
+  metricsRangeSchema,
   type Project,
   type ProjectApiKey,
   projectSettingsSchema,
@@ -562,9 +563,11 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
       requiredSession(c).user.id,
     );
     if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-    const to = c.req.query("to") ?? new Date().toISOString();
-    const from = c.req.query("from") ?? new Date(Date.now() - 86_400_000).toISOString();
-    return c.json(await queryMetrics(deps.clickhouse, projectId, from, to));
+    const range = metricsRangeSchema.safeParse(c.req.query("range") ?? "24h");
+    if (!range.success) {
+      return apiError(c, 400, "invalid_range", "Range must be one of 24h, 7d, or 30d");
+    }
+    return c.json(await queryMetrics(deps.clickhouse, projectId, range.data));
   });
 
   return app;

@@ -2,14 +2,17 @@ import type {
   CreatedProjectApiKey,
   CursorPage,
   Metrics,
+  MetricsRangePreset,
   Project,
   ProjectApiKey,
   SessionDetail,
   SessionSummary,
   SpanDetail,
+  SpanStatus,
   TraceDetail,
   TraceSummary,
 } from "@lens/contracts";
+import { metricsRangePresets } from "@lens/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import {
   AlertDialog,
@@ -36,6 +39,8 @@ import {
 import {
   type ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@lens/ui/components/chart";
@@ -65,7 +70,6 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@lens/ui/compon
 import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
-import { Separator } from "@lens/ui/components/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -128,7 +132,14 @@ import {
   Bolt as Zap,
 } from "@solar-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  useNavigate,
+  useParams,
+  useRouterState,
+  useSearch,
+} from "@tanstack/react-router";
 import {
   createColumnHelper,
   createSortedRowModel,
@@ -141,10 +152,21 @@ import {
   type FormEvent,
   type ReactNode,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useTheme } from "./components/theme-provider";
 import { api, queryString } from "./lib/api";
 import { authClient } from "./lib/auth";
@@ -181,9 +203,46 @@ type ProjectContextValue = {
   selectProject: (id: string) => void;
 };
 
+export type OverviewSearch = { range: MetricsRangePreset };
+export type TracesSearch = {
+  range: MetricsRangePreset;
+  status?: SpanStatus;
+  model?: string;
+  service?: string;
+  search?: string;
+};
+
+export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
+  return { range: parseMetricsRange(search.range) };
+}
+
+export function validateTracesSearch(search: Record<string, unknown>): TracesSearch {
+  const status = search.status;
+  return {
+    range: parseMetricsRange(search.range),
+    status: status === "ok" || status === "error" || status === "unset" ? status : undefined,
+    model: optionalSearchValue(search.model),
+    service: optionalSearchValue(search.service),
+    search: optionalSearchValue(search.search),
+  };
+}
+
 const ProjectContext = createContext<ProjectContextValue | null>(null);
-const chartConfig = {
+const throughputChartConfig = {
   traces: { label: "Traces", color: "var(--chart-2)" },
+  generations: { label: "Generations", color: "var(--chart-1)" },
+  traceErrors: { label: "Errors", color: "var(--destructive)" },
+} satisfies ChartConfig;
+const tokenChartConfig = {
+  inputTokens: { label: "Input tokens", color: "var(--chart-2)" },
+  outputTokens: { label: "Output tokens", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+const latencyChartConfig = {
+  generationDurationP50Ms: { label: "P50", color: "var(--chart-2)" },
+  generationDurationP95Ms: { label: "P95", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+const modelChartConfig = {
+  totalTokens: { label: "Total tokens", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 const dataTableFeatures = tableFeatures({
   rowSortingFeature,
@@ -339,7 +398,7 @@ function AuthenticatedApp(props: { user: { name: string; email: string } }) {
   const selectProject = (id: string) => {
     localStorage.setItem("lens-project", id);
     setSelectedId(id);
-    void navigate({ to: "/$projectId", params: { projectId: id } });
+    void navigate({ to: "/$projectId", params: { projectId: id }, search: { range: "24h" } });
   };
 
   return (
@@ -515,119 +574,658 @@ function ModeToggle() {
 
 export function OverviewPage() {
   const { project } = useProject();
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as OverviewSearch;
+  const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>(() =>
+    adaptiveRefreshInterval(search.range),
+  );
+  useEffect(() => setRefreshInterval(adaptiveRefreshInterval(search.range)), [search.range]);
   const metrics = useQuery({
-    queryKey: ["metrics", project.id],
-    queryFn: () =>
-      api<Metrics>(`/api/v1/projects/${project.id}/metrics?${queryString(timeRange(24))}`),
-    refetchInterval: 5_000,
+    queryKey: ["metrics", project.id, search.range],
+    queryFn: () => api<Metrics>(`/api/v1/projects/${project.id}/metrics?range=${search.range}`),
+    refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const value = metrics.data;
+  const setRange = (range: MetricsRangePreset) => {
+    void navigate({
+      to: "/$projectId",
+      params: { projectId: project.id },
+      search: { range },
+      replace: true,
+    });
+  };
   return (
     <Page
       title="Overview"
-      description="Agent traffic and performance during the last 24 hours"
-      action={<LiveBadge />}
+      description={
+        value
+          ? `${formatNumber(value.current.spans)} spans · ${formatNumber(value.current.activeUsers)} active users in this window`
+          : "LLM usage, model efficiency, and operational health"
+      }
+      action={
+        <div className="flex flex-wrap items-center gap-2">
+          <RangeSelector value={search.range} onChange={setRange} />
+          <LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />
+        </div>
+      }
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Traces" value={formatNumber(value?.traces)} icon={<Activity />} />
-        <MetricCard
-          label="Error rate"
-          value={formatPercent(value?.errorRate)}
-          icon={<AlertCircle />}
-          destructive={Boolean(value?.errors)}
-        />
-        <MetricCard
-          label="P95 latency"
-          value={formatDuration(value?.durationP95Ms)}
-          icon={<Clock3 />}
-        />
-        <MetricCard label="Total tokens" value={formatNumber(value?.totalTokens)} icon={<Zap />} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Trace volume</CardTitle>
-            <CardDescription>Hourly telemetry accepted by this project</CardDescription>
-          </CardHeader>
+      {metrics.isLoading ? (
+        <OverviewSkeleton />
+      ) : metrics.isError ? (
+        <ErrorAlert error={metrics.error} />
+      ) : !value || value.current.traces === 0 ? (
+        <Card>
           <CardContent>
-            {value?.series.length ? (
-              <ChartContainer className="h-72 w-full" config={chartConfig}>
+            <EmptyState
+              icon={<Sparkles />}
+              title="Waiting for your first trace"
+              text="Connect a Langfuse or OpenTelemetry exporter and activity will appear here."
+              action={
+                <Link
+                  className={buttonVariants()}
+                  to="/$projectId/onboarding"
+                  params={{ projectId: project.id }}
+                >
+                  Connect an app
+                </Link>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <ComparisonMetricCard
+              label="Total tokens"
+              value={formatNumber(value.current.totalTokens)}
+              current={value.current.totalTokens}
+              previous={value.previous.totalTokens}
+              icon={<Zap />}
+            />
+            <ComparisonMetricCard
+              label="Generations"
+              value={formatNumber(value.current.generations)}
+              current={value.current.generations}
+              previous={value.previous.generations}
+              icon={<Sparkles />}
+            />
+            <ComparisonMetricCard
+              label="Tokens / generation"
+              value={formatDecimal(value.current.tokensPerGeneration)}
+              current={value.current.tokensPerGeneration}
+              previous={value.previous.tokensPerGeneration}
+              icon={<Layers3 />}
+            />
+            <ComparisonMetricCard
+              label="Active models"
+              value={formatNumber(value.current.activeModels)}
+              current={value.current.activeModels}
+              previous={value.previous.activeModels}
+              icon={<Database />}
+            />
+            <ComparisonMetricCard
+              label="Traces"
+              value={formatNumber(value.current.traces)}
+              current={value.current.traces}
+              previous={value.previous.traces}
+              icon={<Activity />}
+            />
+            <ComparisonMetricCard
+              label="Error rate"
+              value={formatPercent(value.current.errorRate)}
+              current={value.current.errorRate}
+              previous={value.previous.errorRate}
+              deltaMode="points"
+              lowerIsBetter
+              icon={<AlertCircle />}
+            />
+            <ComparisonMetricCard
+              label="P95 generation latency"
+              value={formatDuration(value.current.generationDurationP95Ms)}
+              current={value.current.generationDurationP95Ms}
+              previous={value.previous.generationDurationP95Ms}
+              lowerIsBetter
+              icon={<Clock3 />}
+            />
+            <ComparisonMetricCard
+              label="Active sessions"
+              value={formatNumber(value.current.activeSessions)}
+              current={value.current.activeSessions}
+              previous={value.previous.activeSessions}
+              icon={<MessagesSquare />}
+            />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <OverviewChartCard title="Token usage" description="Input and output tokens over time">
+              <ChartContainer className="h-72 w-full" config={tokenChartConfig}>
                 <AreaChart data={value.series} margin={{ left: 0, right: 12 }}>
                   <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(item) =>
-                      new Date(item).toLocaleTimeString([], { hour: "2-digit" })
-                    }
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  {metricsXAxis(search.range)}
+                  <YAxis tickFormatter={formatCompactAxis} tickLine={false} axisLine={false} />
+                  {metricsTooltip(search.range)}
                   <Area
+                    dataKey="inputTokens"
+                    type="monotone"
+                    stackId="tokens"
+                    stroke="var(--color-inputTokens)"
+                    fill="var(--color-inputTokens)"
+                    fillOpacity={0.3}
+                    strokeWidth={2}
+                  />
+                  <Area
+                    dataKey="outputTokens"
+                    type="monotone"
+                    stackId="tokens"
+                    stroke="var(--color-outputTokens)"
+                    fill="var(--color-outputTokens)"
+                    fillOpacity={0.45}
+                    strokeWidth={2}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </AreaChart>
+              </ChartContainer>
+            </OverviewChartCard>
+
+            <OverviewChartCard
+              title="Throughput and errors"
+              description="Traces and LLM generations, with failed traces highlighted"
+            >
+              <ChartContainer className="h-72 w-full" config={throughputChartConfig}>
+                <LineChart data={value.series} margin={{ left: 0, right: 12 }}>
+                  <CartesianGrid vertical={false} />
+                  {metricsXAxis(search.range)}
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  {metricsTooltip(search.range)}
+                  <Line
+                    dataKey="generations"
+                    type="monotone"
+                    stroke="var(--color-generations)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
                     dataKey="traces"
                     type="monotone"
                     stroke="var(--color-traces)"
-                    fill="var(--color-traces)"
-                    fillOpacity={0.2}
                     strokeWidth={2}
+                    dot={false}
                   />
-                </AreaChart>
+                  <Line
+                    dataKey="traceErrors"
+                    type="monotone"
+                    stroke="var(--color-traceErrors)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </LineChart>
               </ChartContainer>
-            ) : (
-              <EmptyState
-                icon={<Sparkles />}
-                title="Waiting for your first trace"
-                text="Connect an OpenTelemetry exporter and activity will appear here."
-                action={
-                  <Link
-                    className={buttonVariants()}
-                    to="/$projectId/onboarding"
-                    params={{ projectId: project.id }}
-                  >
-                    Connect an app
-                  </Link>
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Usage</CardTitle>
-            <CardDescription>Telemetry processed in this window</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5">
-            <UsageRow label="Input tokens" value={formatNumber(value?.inputTokens)} />
-            <Separator />
-            <UsageRow label="Output tokens" value={formatNumber(value?.outputTokens)} />
-            <Separator />
-            <UsageRow label="Spans" value={formatNumber(value?.spans)} />
-          </CardContent>
-        </Card>
-      </div>
+            </OverviewChartCard>
+
+            <OverviewChartCard
+              title="Generation latency"
+              description="P50 and P95 latency for generation observations"
+            >
+              <ChartContainer className="h-72 w-full" config={latencyChartConfig}>
+                <LineChart data={value.series} margin={{ left: 0, right: 12 }}>
+                  <CartesianGrid vertical={false} />
+                  {metricsXAxis(search.range)}
+                  <YAxis
+                    tickFormatter={(item) => formatDuration(Number(item))}
+                    tickLine={false}
+                    axisLine={false}
+                    width={58}
+                  />
+                  {metricsTooltip(search.range, true)}
+                  <Line
+                    dataKey="generationDurationP95Ms"
+                    type="monotone"
+                    connectNulls={false}
+                    stroke="var(--color-generationDurationP95Ms)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    dataKey="generationDurationP50Ms"
+                    type="monotone"
+                    connectNulls={false}
+                    stroke="var(--color-generationDurationP50Ms)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </LineChart>
+              </ChartContainer>
+            </OverviewChartCard>
+
+            <OverviewChartCard
+              title="Tokens by model"
+              description="Share of total generation tokens"
+            >
+              <ChartContainer className="h-72 w-full" config={modelChartConfig}>
+                <BarChart
+                  data={value.models.map((model) => ({
+                    ...model,
+                    label: model.model ?? "Unknown model",
+                  }))}
+                  layout="vertical"
+                  margin={{ left: 8, right: 20 }}
+                >
+                  <CartesianGrid horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={formatCompactAxis}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    dataKey="label"
+                    type="category"
+                    width={118}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={truncateChartLabel}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent formatter={(item) => formatNumber(Number(item))} />
+                    }
+                  />
+                  <Bar dataKey="totalTokens" fill="var(--color-totalTokens)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            </OverviewChartCard>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-5">
+            <ModelBreakdownCard metrics={value} projectId={project.id} range={search.range} />
+            <ServiceBreakdownCard metrics={value} projectId={project.id} range={search.range} />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <TraceRankingCard
+              title="Token-heavy traces"
+              description="Highest token usage in this window"
+              traces={value.topTokenTraces}
+              projectId={project.id}
+            />
+            <TraceRankingCard
+              title="Recent failures"
+              description="Latest traces with an error"
+              traces={value.recentErrors}
+              projectId={project.id}
+              emptyText="No failed traces in this window."
+            />
+          </div>
+        </>
+      )}
     </Page>
+  );
+}
+
+export type RefreshInterval = "5s" | "10s" | "30s" | "Off";
+
+export function RangeSelector(props: {
+  value: MetricsRangePreset;
+  onChange: (range: MetricsRangePreset) => void;
+}) {
+  return (
+    <fieldset
+      className="flex rounded-md border bg-background p-0.5"
+      aria-label="Overview time range"
+    >
+      {metricsRangePresets.map((range) => (
+        <Button
+          key={range}
+          type="button"
+          size="sm"
+          variant={props.value === range ? "secondary" : "ghost"}
+          className="h-7 px-2.5"
+          aria-pressed={props.value === range}
+          onClick={() => props.onChange(range)}
+        >
+          {range}
+        </Button>
+      ))}
+    </fieldset>
+  );
+}
+
+export function ComparisonMetricCard(props: {
+  label: string;
+  value: string;
+  current: number;
+  previous: number;
+  icon: ReactNode;
+  deltaMode?: "relative" | "points";
+  lowerIsBetter?: boolean;
+}) {
+  const delta = comparisonDelta(props.current, props.previous, props.deltaMode ?? "relative");
+  const improved =
+    props.lowerIsBetter && delta.direction !== "flat" ? delta.direction === "down" : false;
+  const worsened =
+    props.lowerIsBetter && delta.direction !== "flat" ? delta.direction === "up" : false;
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription>{props.label}</CardDescription>
+        <CardAction>
+          <span className="flex size-8 items-center justify-center rounded-lg bg-muted">
+            {props.icon}
+          </span>
+        </CardAction>
+        <CardTitle className="text-2xl tabular-nums">{props.value}</CardTitle>
+        <p
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground",
+            improved && "text-emerald-600 dark:text-emerald-400",
+            worsened && "text-destructive",
+          )}
+        >
+          <span aria-hidden="true">{delta.label}</span>{" "}
+          <span className="text-muted-foreground" aria-hidden="true">
+            vs previous period
+          </span>
+          <span className="sr-only">{delta.accessibleLabel} compared with the previous period</span>
+        </p>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function OverviewChartCard(props: { title: string; description: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{props.title}</CardTitle>
+        <CardDescription>{props.description}</CardDescription>
+      </CardHeader>
+      <CardContent>{props.children}</CardContent>
+    </Card>
+  );
+}
+
+function ModelBreakdownCard(props: {
+  metrics: Metrics;
+  projectId: string;
+  range: MetricsRangePreset;
+}) {
+  return (
+    <Card className="xl:col-span-3">
+      <CardHeader>
+        <CardTitle>Model efficiency</CardTitle>
+        <CardDescription>Usage, latency, and reliability by generation model</CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Model</TableHead>
+                <TableHead className="text-right">Generations</TableHead>
+                <TableHead className="text-right">Token share</TableHead>
+                <TableHead className="text-right">Input</TableHead>
+                <TableHead className="text-right">Output</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Tokens / gen</TableHead>
+                <TableHead className="text-right">P95</TableHead>
+                <TableHead className="text-right">Errors</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.metrics.models.map((model) => (
+                <TableRow key={model.model ?? "unknown"}>
+                  <TableCell className="font-medium">
+                    {model.model ? (
+                      <Link
+                        className="hover:underline"
+                        to="/$projectId/traces"
+                        params={{ projectId: props.projectId }}
+                        search={{ range: props.range, model: model.model }}
+                      >
+                        {model.model}
+                      </Link>
+                    ) : (
+                      "Unknown model"
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(model.generations)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatPercent(model.tokenShare)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(model.inputTokens)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(model.outputTokens)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(model.totalTokens)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatDecimal(model.tokensPerGeneration)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatDuration(model.durationP95Ms)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatPercent(model.errorRate)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ServiceBreakdownCard(props: {
+  metrics: Metrics;
+  projectId: string;
+  range: MetricsRangePreset;
+}) {
+  return (
+    <Card className="xl:col-span-2">
+      <CardHeader>
+        <CardTitle>Services</CardTitle>
+        <CardDescription>Token load and trace health by service</CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service</TableHead>
+                <TableHead className="text-right">Traces</TableHead>
+                <TableHead className="text-right">Generations</TableHead>
+                <TableHead className="text-right">Tokens</TableHead>
+                <TableHead className="text-right">P95</TableHead>
+                <TableHead className="text-right">Errors</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.metrics.services.map((service) => (
+                <TableRow key={service.serviceName}>
+                  <TableCell className="max-w-48 font-medium">
+                    <Link
+                      className="block truncate hover:underline"
+                      to="/$projectId/traces"
+                      params={{ projectId: props.projectId }}
+                      search={{ range: props.range, service: service.serviceName }}
+                    >
+                      {service.serviceName}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(service.traces)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(service.generations)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(service.totalTokens)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatDuration(service.durationP95Ms)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatPercent(service.errorRate)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TraceRankingCard(props: {
+  title: string;
+  description: string;
+  traces: TraceSummary[];
+  projectId: string;
+  emptyText?: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{props.title}</CardTitle>
+        <CardDescription>{props.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-1">
+        {props.traces.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {props.emptyText ?? "No traces in this window."}
+          </p>
+        ) : (
+          props.traces.map((trace) => (
+            <Link
+              key={trace.traceId}
+              className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60"
+              to="/$projectId/traces/$traceId"
+              params={{ projectId: props.projectId, traceId: trace.traceId }}
+            >
+              <ObservationIcon kind={trace.generationCount > 0 ? "generation" : "span"} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{trace.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {trace.model ?? trace.serviceName} · {relativeTime(trace.startedAt)}
+                </span>
+              </span>
+              <span className="text-right">
+                <span className="block font-mono text-sm">{formatNumber(trace.totalTokens)}</span>
+                <span className="block text-xs text-muted-foreground">tokens</span>
+              </span>
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewSkeleton() {
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          "tokens",
+          "generations",
+          "efficiency",
+          "models",
+          "traces",
+          "errors",
+          "latency",
+          "sessions",
+        ].map((key) => (
+          <Skeleton className="h-32" key={key} />
+        ))}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {["token-chart", "throughput-chart", "latency-chart", "model-chart"].map((key) => (
+          <Skeleton className="h-96" key={key} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function metricsXAxis(range: MetricsRangePreset) {
+  return (
+    <XAxis
+      dataKey="timestamp"
+      tickFormatter={(item) => formatMetricTimestamp(String(item), range, false)}
+      minTickGap={24}
+      tickLine={false}
+      axisLine={false}
+    />
+  );
+}
+
+function metricsTooltip(range: MetricsRangePreset, duration = false) {
+  return (
+    <ChartTooltip
+      content={
+        <ChartTooltipContent
+          labelFormatter={(_label, payload) =>
+            formatMetricTimestamp(String(payload[0]?.payload?.timestamp ?? ""), range, true)
+          }
+          formatter={(item) =>
+            duration ? formatDuration(Number(item)) : formatNumber(Number(item))
+          }
+        />
+      }
+    />
   );
 }
 
 export function TracesPage() {
   const { project } = useProject();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const range = timeRange(24);
+  const navigate = useNavigate();
+  const filters = useSearch({ strict: false }) as TracesSearch;
+  const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
+  const range = timeRangeForPreset(filters.range);
+  const setFilters = (changes: Partial<TracesSearch>) => {
+    void navigate({
+      to: "/$projectId/traces",
+      params: { projectId: project.id },
+      search: { ...filters, ...changes },
+      replace: true,
+    });
+  };
   const traces = useQuery({
-    queryKey: ["traces", project.id, search, status],
+    queryKey: ["traces", project.id, filters],
     queryFn: () =>
       api<CursorPage<TraceSummary>>(
-        `/api/v1/projects/${project.id}/traces?${queryString({ ...range, search, status, limit: 100 })}`,
+        `/api/v1/projects/${project.id}/traces?${queryString({
+          ...range,
+          search: filters.search,
+          status: filters.status,
+          model: filters.model,
+          service: filters.service,
+          limit: 100,
+        })}`,
       ),
-    refetchInterval: 5_000,
+    refetchInterval: refreshMilliseconds(refreshInterval),
   });
   return (
     <Page
       title="Traces"
       description="Inspect agent runs, generations, tools, and service spans"
-      action={<LiveBadge />}
+      action={
+        <div className="flex flex-wrap items-center gap-2">
+          <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
+          <LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />
+        </div>
+      }
     >
       <Card>
         <CardHeader className="border-b">
@@ -638,17 +1236,44 @@ export function TracesPage() {
                 className="pl-8"
                 aria-label="Search traces"
                 placeholder="Search name or trace ID"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={filters.search ?? ""}
+                onChange={(event) => setFilters({ search: event.target.value || undefined })}
               />
             </div>
-            <NativeSelect value={status} onChange={(event) => setStatus(event.target.value)}>
+            <NativeSelect
+              value={filters.status ?? ""}
+              onChange={(event) =>
+                setFilters({ status: (event.target.value || undefined) as SpanStatus | undefined })
+              }
+            >
               <NativeSelectOption value="">All statuses</NativeSelectOption>
               <NativeSelectOption value="ok">Successful</NativeSelectOption>
               <NativeSelectOption value="error">Errors</NativeSelectOption>
               <NativeSelectOption value="unset">Unset</NativeSelectOption>
             </NativeSelect>
           </div>
+          {filters.model || filters.service ? (
+            <div className="flex flex-wrap gap-2 pt-3">
+              {filters.model ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFilters({ model: undefined })}
+                >
+                  Model: {filters.model} <X />
+                </Button>
+              ) : null}
+              {filters.service ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFilters({ service: undefined })}
+                >
+                  Service: {filters.service} <X />
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent className="px-0">
           {traces.isLoading ? (
@@ -753,6 +1378,7 @@ function TraceDataTable({ traces }: { traces: TraceSummary[] }) {
 export function SessionsPage() {
   const { project } = useProject();
   const [search, setSearch] = useState("");
+  const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
   const range = timeRange(24);
   const sessions = useQuery({
     queryKey: ["sessions", project.id, search],
@@ -760,13 +1386,13 @@ export function SessionsPage() {
       api<{ items: SessionSummary[] }>(
         `/api/v1/projects/${project.id}/sessions?${queryString({ ...range, search, limit: 100 })}`,
       ),
-    refetchInterval: 5_000,
+    refetchInterval: refreshMilliseconds(refreshInterval),
   });
   return (
     <Page
       title="Sessions"
       description="Follow related traces across an end-to-end user interaction"
-      action={<LiveBadge />}
+      action={<LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />}
     >
       <Card>
         <CardHeader className="border-b">
@@ -951,6 +1577,7 @@ export function TraceDetailPage() {
           className={buttonVariants({ variant: "outline" })}
           to="/$projectId/traces"
           params={{ projectId: project.id }}
+          search={{ range: "24h" }}
         >
           <ArrowLeft /> Back
         </Link>
@@ -2103,40 +2730,6 @@ function Page(props: {
   );
 }
 
-function MetricCard(props: {
-  label: string;
-  value: string;
-  icon: ReactNode;
-  destructive?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{props.label}</CardDescription>
-        <CardAction>
-          <span
-            className={cn(
-              "flex size-8 items-center justify-center rounded-lg bg-muted",
-              props.destructive && "text-destructive",
-            )}
-          >
-            {props.icon}
-          </span>
-        </CardAction>
-        <CardTitle className="text-2xl tabular-nums">{props.value}</CardTitle>
-      </CardHeader>
-    </Card>
-  );
-}
-
-function UsageRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-mono text-lg font-medium">{value}</span>
-    </div>
-  );
-}
 function SummaryCard({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Card size="sm">
@@ -2147,9 +2740,11 @@ function SummaryCard({ label, children }: { label: string; children: ReactNode }
     </Card>
   );
 }
-function LiveBadge() {
+function LiveBadge(props: {
+  interval: RefreshInterval;
+  onIntervalChange: (interval: RefreshInterval) => void;
+}) {
   const queryClient = useQueryClient();
-  const [interval, setInterval] = useState("5s");
 
   return (
     <div className="flex items-center">
@@ -2162,7 +2757,7 @@ function LiveBadge() {
       >
         <Refresh />
         <span className="size-2 rounded-full bg-primary" />
-        Live · {interval}
+        {props.interval === "Off" ? "Manual" : `Live · ${props.interval}`}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -2176,8 +2771,8 @@ function LiveBadge() {
           <ChevronDown />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-28">
-          {["5s", "10s", "30s", "Off"].map((value) => (
-            <DropdownMenuItem key={value} onClick={() => setInterval(value)}>
+          {(["5s", "10s", "30s", "Off"] satisfies RefreshInterval[]).map((value) => (
+            <DropdownMenuItem key={value} onClick={() => props.onIntervalChange(value)}>
               {value === "Off" ? "Auto refresh off" : `Every ${value}`}
             </DropdownMenuItem>
           ))}
@@ -2335,12 +2930,80 @@ function timeRange(hours: number) {
     to: new Date().toISOString(),
   };
 }
+function timeRangeForPreset(range: MetricsRangePreset) {
+  return timeRange(range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30);
+}
+function parseMetricsRange(value: unknown): MetricsRangePreset {
+  return metricsRangePresets.includes(value as MetricsRangePreset)
+    ? (value as MetricsRangePreset)
+    : "24h";
+}
+function optionalSearchValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInterval {
+  return range === "24h" ? "5s" : "30s";
+}
+export function refreshMilliseconds(interval: RefreshInterval): number | false {
+  return interval === "Off" ? false : Number.parseInt(interval, 10) * 1_000;
+}
+export function comparisonDelta(current: number, previous: number, mode: "relative" | "points") {
+  if (mode === "points") {
+    const change = (current - previous) * 100;
+    const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
+    const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+    return {
+      direction,
+      label: `${arrow} ${Math.abs(change).toFixed(1)} pp`,
+      accessibleLabel: `${Math.abs(change).toFixed(1)} percentage points ${direction}`,
+    } as const;
+  }
+  if (previous === 0 && current > 0) {
+    return { direction: "up", label: "New", accessibleLabel: "New activity" } as const;
+  }
+  const change = previous === 0 ? 0 : (current - previous) / Math.abs(previous);
+  const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
+  const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+  return {
+    direction,
+    label: `${arrow} ${Math.abs(change * 100).toFixed(1)}%`,
+    accessibleLabel: `${Math.abs(change * 100).toFixed(1)} percent ${direction}`,
+  } as const;
+}
 function formatNumber(value?: number) {
   return value === undefined
     ? "—"
     : new Intl.NumberFormat("en", { notation: value > 99_999 ? "compact" : "standard" }).format(
         value,
       );
+}
+function formatDecimal(value?: number) {
+  return value === undefined
+    ? "—"
+    : new Intl.NumberFormat("en", { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
+}
+function formatCompactAxis(value: number | string) {
+  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(
+    Number(value),
+  );
+}
+function formatMetricTimestamp(value: string, range: MetricsRangePreset, detailed: boolean) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  if (detailed) {
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  return range === "24h"
+    ? date.toLocaleTimeString([], { hour: "2-digit" })
+    : date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+function truncateChartLabel(value: string) {
+  return value.length > 18 ? `${value.slice(0, 17)}…` : value;
 }
 function formatPercent(value?: number) {
   return value === undefined ? "—" : `${(value * 100).toFixed(1)}%`;
@@ -2358,7 +3021,8 @@ function relativeTime(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 1_000));
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3_600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3_600)}h ago`;
+  if (seconds < 86_400) return `${Math.floor(seconds / 3_600)}h ago`;
+  return `${Math.floor(seconds / 86_400)}d ago`;
 }
 function slugify(value: string) {
   return value

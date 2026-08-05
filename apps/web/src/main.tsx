@@ -16,6 +16,8 @@ import {
   SettingsPage,
   TraceDetailPage,
   TracesPage,
+  validateOverviewSearch,
+  validateTracesSearch,
 } from "./app";
 import { ThemeProvider } from "./components/theme-provider";
 
@@ -23,6 +25,7 @@ const rootRoute = createRootRoute({ component: AppRoot });
 const overviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/$projectId",
+  validateSearch: validateOverviewSearch,
   component: OverviewPage,
 });
 const projectsRoute = createRoute({
@@ -33,6 +36,7 @@ const projectsRoute = createRoute({
 const tracesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/$projectId/traces",
+  validateSearch: validateTracesSearch,
   component: TracesPage,
 });
 const traceRoute = createRoute({

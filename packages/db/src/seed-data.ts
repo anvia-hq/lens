@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { JsonValue, NormalizedSpan, ObservationKind, SpanStatus } from "@lens/contracts";
 
-const TRACE_COUNT = 64;
+const TRACE_COUNT = 160;
 
 type Scenario = {
   traceName: string;
@@ -142,7 +142,7 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
     const userId = customerIds[index % customerIds.length] as string;
     const sessionId = `ses_${stableHex(`session:${Math.floor(index / 3)}`, 12)}`;
     const ticketId = `${scenario.team.toUpperCase().slice(0, 3)}-${1842 + index}`;
-    const ageMinutes = 18 + (TRACE_COUNT - index - 1) * 21;
+    const ageMinutes = index < 64 ? 18 + index * 21 : 24 * 60 + (index - 63) * 420;
     const startMs = now.getTime() - ageMinutes * 60_000;
     const totalMs = integer(`duration:${index}`, 1_900, 8_400);
     const failed = index % 9 === 4;
