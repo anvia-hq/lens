@@ -13,6 +13,7 @@ import {
   refreshMilliseconds,
   TraceExplorerTable,
   validateOverviewSearch,
+  validateTraceDetailSearch,
   validateTracesSearch,
 } from "./app";
 
@@ -70,6 +71,14 @@ describe("overview controls", () => {
   it("normalizes range and trace drilldown search parameters", () => {
     expect(validateOverviewSearch({ range: "7d" })).toEqual({ range: "7d" });
     expect(validateOverviewSearch({ range: "90d" })).toEqual({ range: "24h" });
+    expect(validateTraceDetailSearch({ view: "timeline", span: " span-1 " })).toEqual({
+      view: "timeline",
+      span: "span-1",
+    });
+    expect(validateTraceDetailSearch({ view: "graph", span: "" })).toEqual({
+      view: undefined,
+      span: undefined,
+    });
     expect(
       validateTracesSearch({ range: "30d", status: "error", model: " gpt-4.1 ", service: "" }),
     ).toEqual({

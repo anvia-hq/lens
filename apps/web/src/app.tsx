@@ -205,6 +205,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "./components/theme-provider";
+import { TraceDetailExplorer, type TraceSpanView } from "./components/trace-detail-explorer";
 import { api, queryString } from "./lib/api";
 import { authClient } from "./lib/auth";
 
@@ -241,6 +242,10 @@ type ProjectContextValue = {
 };
 
 export type OverviewSearch = { range: MetricsRangePreset };
+export type TraceDetailSearch = {
+  view?: TraceSpanView;
+  span?: string;
+};
 export const traceColumnIds = [
   "startedAt",
   "trace",
@@ -318,6 +323,13 @@ type ResolvedTracesSearch = TracesSearch & {
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
   return { range: parseMetricsRange(search.range) };
+}
+
+export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
+  return {
+    view: search.view === "timeline" ? "timeline" : undefined,
+    span: optionalSearchValue(search.span),
+  };
 }
 
 export function validateTracesSearch(search: Record<string, unknown>): TracesSearch {
@@ -2427,241 +2439,51 @@ export function SessionDetailPage() {
 export function TraceDetailPage() {
   const { project } = useProject();
   const { traceId } = useParams({ from: "/$projectId/traces/$traceId" });
+  const search = useSearch({ from: "/$projectId/traces/$traceId" });
+  const navigate = useNavigate();
   const trace = useQuery({
     queryKey: ["trace", project.id, traceId],
     queryFn: () => api<TraceDetail>(`/api/v1/projects/${project.id}/traces/${traceId}`),
     refetchInterval: 5_000,
   });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const detail = trace.data;
-  const selected = detail?.spans.find((span) => span.spanId === selectedId) ?? detail?.spans[0];
+  const selectedSpanExists =
+    search.span === undefined || detail?.spans.some((span) => span.spanId === search.span) === true;
+  useEffect(() => {
+    if (detail === undefined || selectedSpanExists) return;
+    void navigate({
+      to: "/$projectId/traces/$traceId",
+      params: { projectId: project.id, traceId },
+      search: { ...search, span: undefined },
+      replace: true,
+    });
+  }, [detail, navigate, project.id, search, selectedSpanExists, traceId]);
   if (trace.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading trace" contained />;
   if (detail === undefined)
     return <FullPageMessage icon={<AlertCircle />} text="Trace not found" contained />;
   return (
-    <Page
-      title={detail.summary.name}
-      description={`${detail.summary.serviceName} · ${detail.summary.traceId}`}
-      action={
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          to="/$projectId/traces"
-          params={{ projectId: project.id }}
-          search={{ range: "24h" }}
-        >
-          <ArrowLeft /> Back
-        </Link>
-      }
-    >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <SummaryCard label="Status">
-          <StatusBadge status={detail.summary.status} />
-        </SummaryCard>
-        <SummaryCard label="Duration">{formatDuration(detail.summary.durationMs)}</SummaryCard>
-        <SummaryCard label="Spans">{detail.summary.spanCount}</SummaryCard>
-        <SummaryCard label="Tokens">{formatNumber(detail.summary.totalTokens)}</SummaryCard>
-        <SummaryCard label="Reported cost">{formatCost(detail.summary.totalCost)}</SummaryCard>
-        <SummaryCard label="Session">
-          {detail.summary.sessionId ? (
-            <Link
-              className="font-mono hover:underline"
-              to="/$projectId/sessions/$sessionId"
-              params={{ projectId: project.id, sessionId: detail.summary.sessionId }}
-            >
-              {detail.summary.sessionId}
-            </Link>
-          ) : (
-            "—"
-          )}
-        </SummaryCard>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3 text-sm">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Runtime context
-        </span>
-        <Badge variant="secondary">{detail.summary.environment}</Badge>
-        <Badge variant="outline">
-          {detail.summary.serviceName}
-          {detail.summary.serviceVersion ? `@${detail.summary.serviceVersion}` : ""}
-        </Badge>
-        {detail.summary.release ? (
-          <Badge variant="outline">Release {detail.summary.release}</Badge>
-        ) : null}
-        {detail.summary.version ? (
-          <Badge variant="outline">Version {detail.summary.version}</Badge>
-        ) : null}
-        {detail.summary.userId ? (
-          <Badge variant="outline">User {detail.summary.userId}</Badge>
-        ) : null}
-        {detail.summary.tags.map((tag) => (
-          <Badge key={tag} variant="outline">
-            {tag}
-          </Badge>
-        ))}
-      </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Observations</CardTitle>
-            <CardDescription>Nested spans and relative execution time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-96">
-              <SpanTree
-                spans={detail.spans}
-                traceStart={detail.summary.startedAt}
-                traceDuration={detail.summary.durationMs}
-                selectedId={selected?.spanId}
-                onSelect={setSelectedId}
-              />
-            </ScrollArea>
-          </CardContent>
-        </Card>
-        <Card>{selected ? <SpanInspector span={selected} /> : null}</Card>
-      </div>
-    </Page>
-  );
-}
-
-function SpanTree(props: {
-  spans: SpanDetail[];
-  traceStart: string;
-  traceDuration: number;
-  selectedId?: string;
-  onSelect: (id: string) => void;
-}) {
-  const children = useMemo(() => {
-    const map = new Map<string | null, SpanDetail[]>();
-    const ids = new Set(props.spans.map((span) => span.spanId));
-    for (const span of props.spans) {
-      const parent = span.parentSpanId && ids.has(span.parentSpanId) ? span.parentSpanId : null;
-      map.set(parent, [...(map.get(parent) ?? []), span]);
-    }
-    return map;
-  }, [props.spans]);
-  const render = (parent: string | null, depth: number): ReactNode =>
-    (children.get(parent) ?? []).map((span) => {
-      const startMs = Number(BigInt(span.startTimeUnixNano) / 1_000_000n);
-      const traceStartMs = Date.parse(props.traceStart);
-      const left = props.traceDuration ? ((startMs - traceStartMs) / props.traceDuration) * 100 : 0;
-      const width = props.traceDuration
-        ? (Number(BigInt(span.durationNano)) / 1_000_000 / props.traceDuration) * 100
-        : 100;
-      return (
-        <div key={span.spanId}>
-          <button
-            type="button"
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted",
-              props.selectedId === span.spanId && "bg-muted",
-            )}
-            onClick={() => props.onSelect(span.spanId)}
-          >
-            <span
-              className="flex min-w-0 flex-1 items-center gap-2"
-              style={{ paddingInlineStart: depth * 16 }}
-            >
-              <ObservationIcon kind={span.observationKind} />
-              <span className="grid min-w-0">
-                <span className="truncate text-sm font-medium">{span.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {span.observationKind} · {span.serviceName}
-                </span>
-              </span>
-            </span>
-            <span className="relative hidden h-2 flex-1 rounded-full bg-muted-foreground/20 md:block">
-              <span
-                className="absolute h-full rounded-full bg-primary"
-                style={{
-                  left: `${Math.max(0, left)}%`,
-                  width: `${Math.max(1.5, Math.min(100, width))}%`,
-                }}
-              />
-            </span>
-            <span className="w-20 text-right font-mono text-xs text-muted-foreground">
-              {formatDuration(Number(BigInt(span.durationNano)) / 1_000_000)}
-            </span>
-          </button>
-          {render(span.spanId, depth + 1)}
-        </div>
-      );
-    });
-  return <div className="grid gap-1">{render(null, 0)}</div>;
-}
-
-function SpanInspector({ span }: { span: SpanDetail }) {
-  const [tab, setTab] = useState<"input" | "output" | "attributes" | "events" | "raw">("input");
-  const value =
-    tab === "input"
-      ? span.input
-      : tab === "output"
-        ? span.output
-        : tab === "attributes"
-          ? { resource: span.resourceAttributes, span: span.spanAttributes }
-          : tab === "events"
-            ? span.events
-            : span;
-  return (
-    <>
-      <CardHeader className="border-b">
-        <div className="flex items-center gap-3">
-          <ObservationIcon kind={span.observationKind} />
-          <div className="min-w-0 flex-1">
-            <CardTitle className="truncate">{span.name}</CardTitle>
-            <CardDescription>
-              {span.observationKind} · {span.scopeName || "unscoped"}
-            </CardDescription>
-          </div>
-          <StatusBadge status={span.status} />
-        </div>
-      </CardHeader>
-      <CardContent className="pt-1">
-        <Tabs value={tab} onValueChange={(item) => setTab(item as typeof tab)}>
-          <TabsList variant="line" className="w-full overflow-x-auto">
-            {(["input", "output", "attributes", "events", "raw"] as const).map((item) => (
-              <TabsTrigger key={item} value={item}>
-                {item}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <TabsContent value={tab} className="pt-3">
-            <ScrollArea className="h-72 rounded-lg bg-muted p-3">
-              <JsonView value={value} />
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      <CardFooter className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Clock3 className="size-3" />{" "}
-          {formatDuration(Number(BigInt(span.durationNano)) / 1_000_000)}
-        </span>
-        <span className="flex items-center gap-1">
-          <Braces className="size-3" /> {shortId(span.spanId)}
-        </span>
-        {span.model ? (
-          <span className="flex items-center gap-1">
-            <Sparkles className="size-3" /> {span.model}
-          </span>
-        ) : null}
-        {span.totalCost !== null ? (
-          <span className="flex items-center gap-1">
-            <Database className="size-3" /> {formatCost(span.totalCost)}
-          </span>
-        ) : null}
-      </CardFooter>
-    </>
-  );
-}
-
-function JsonView({ value }: { value: unknown }) {
-  if (value === null || value === undefined)
-    return <span className="text-sm text-muted-foreground">No data captured</span>;
-  return (
-    <pre className="whitespace-pre-wrap break-words font-mono text-xs">
-      {JSON.stringify(value, null, 2)}
-    </pre>
+    <TraceDetailExplorer
+      key={detail.summary.traceId}
+      detail={detail}
+      projectId={project.id}
+      selectedSpanId={search.span}
+      view={search.view ?? "tree"}
+      onSelectSpan={(span) => {
+        void navigate({
+          to: "/$projectId/traces/$traceId",
+          params: { projectId: project.id, traceId },
+          search: { ...search, span },
+        });
+      }}
+      onViewChange={(view) => {
+        void navigate({
+          to: "/$projectId/traces/$traceId",
+          params: { projectId: project.id, traceId },
+          search: { ...search, view: view === "tree" ? undefined : view },
+        });
+      }}
+    />
   );
 }
 

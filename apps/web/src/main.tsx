@@ -17,6 +17,7 @@ import {
   TraceDetailPage,
   TracesPage,
   validateOverviewSearch,
+  validateTraceDetailSearch,
   validateTracesSearch,
 } from "./app";
 import { ThemeProvider } from "./components/theme-provider";
@@ -42,6 +43,7 @@ const tracesRoute = createRoute({
 const traceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/$projectId/traces/$traceId",
+  validateSearch: validateTraceDetailSearch,
   component: TraceDetailPage,
 });
 const sessionsRoute = createRoute({
