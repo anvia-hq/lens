@@ -121,6 +121,12 @@ describe("OTLP ingestion", () => {
                 key: "langfuse.observation.usage_details",
                 value: { stringValue: '{"input":12,"output":4,"total":16}' },
               },
+              {
+                key: "langfuse.observation.cost_details",
+                value: {
+                  stringValue: '{"input":0.0012,"output":0.0008,"total":0.002}',
+                },
+              },
             ]
           : []),
         ...(kind === "span"
@@ -154,7 +160,15 @@ describe("OTLP ingestion", () => {
           resourceSpans: [
             {
               resource: {
-                attributes: [{ key: "service.name", value: { stringValue: "langfuse-app" } }],
+                attributes: [
+                  { key: "service.name", value: { stringValue: "langfuse-app" } },
+                  { key: "service.version", value: { stringValue: "2.4.1" } },
+                  {
+                    key: "deployment.environment.name",
+                    value: { stringValue: "production" },
+                  },
+                  { key: "langfuse.release", value: { stringValue: "2026.08.05" } },
+                ],
               },
               scopeSpans: [
                 {
@@ -182,6 +196,9 @@ describe("OTLP ingestion", () => {
       sessionId: "session-1",
       tags: ["production", "api"],
       version: "release-1",
+      environment: "production",
+      release: "2026.08.05",
+      serviceVersion: "2.4.1",
       status: "ok",
     });
     expect(result.spans[1]).toMatchObject({
@@ -189,6 +206,9 @@ describe("OTLP ingestion", () => {
       inputTokens: 12,
       outputTokens: 4,
       totalTokens: 16,
+      inputCost: 0.0012,
+      outputCost: 0.0008,
+      totalCost: 0.002,
       input: [{ role: "user", content: "hello" }],
       output: { text: "hello back" },
       status: "ok",

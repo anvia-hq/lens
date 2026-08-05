@@ -1,22 +1,23 @@
 import type { ClickHouseClient } from "@clickhouse/client";
-import {
-  type CursorPage,
-  decodeCursor,
-  encodeCursor,
-  type JsonValue,
-  type Metrics,
-  type MetricsBucket,
-  type MetricsRangePreset,
-  type MetricsSummary,
-  type NormalizedSpan,
-  type ObservationKind,
-  type SessionDetail,
-  type SessionSummary,
-  type SpanDetail,
-  type SpanStatus,
-  type TraceDetail,
-  type TraceFilters,
-  type TraceSummary,
+import type {
+  JsonValue,
+  Metrics,
+  MetricsBucket,
+  MetricsRangePreset,
+  MetricsSummary,
+  NormalizedSpan,
+  ObservationKind,
+  Page,
+  SessionDetail,
+  SessionSummary,
+  SpanDetail,
+  SpanStatus,
+  TraceDetail,
+  TraceFacets,
+  TraceFacetValue,
+  TraceFilters,
+  TraceSortField,
+  TraceSummary,
 } from "@lens/contracts";
 
 type SpanRow = {
@@ -45,10 +46,16 @@ type SpanRow = {
   session_id: string | null;
   tags: string[];
   version: string | null;
+  environment: string;
+  release: string | null;
+  service_version: string | null;
   model: string | null;
   input_tokens: string | number;
   output_tokens: string | number;
   total_tokens: string | number;
+  input_cost: string | number | null;
+  output_cost: string | number | null;
+  total_cost: string | number | null;
   input: string | null;
   output: string | null;
   ingested_at: string;
@@ -70,9 +77,16 @@ type SummaryRow = {
   session_id: string | null;
   tags: string[];
   model: string | null;
+  environment: string;
+  release: string | null;
+  version: string | null;
+  service_version: string | null;
   input_tokens: number | string;
   output_tokens: number | string;
   total_tokens: number | string;
+  input_cost: number | string | null;
+  output_cost: number | string | null;
+  total_cost: number | string | null;
   last_seen_at: string;
 };
 
@@ -126,10 +140,16 @@ export async function insertSpans(
       session_id: span.sessionId,
       tags: span.tags,
       version: span.version,
+      environment: span.environment,
+      release: span.release,
+      service_version: span.serviceVersion,
       model: span.model,
       input_tokens: span.inputTokens,
       output_tokens: span.outputTokens,
       total_tokens: span.totalTokens || span.inputTokens + span.outputTokens,
+      input_cost: span.inputCost,
+      output_cost: span.outputCost,
+      total_cost: span.totalCost,
       input: span.input === null ? null : JSON.stringify(span.input),
       output: span.output === null ? null : JSON.stringify(span.output),
       expires_at: span.expiresAt?.replace("T", " ").replace("Z", "") ?? "2299-12-31 23:59:59.999",
@@ -165,6 +185,12 @@ export async function materializeTrace(
   const outputTokens = spans
     .filter((span) => span.observation_kind === "generation")
     .reduce((sum, span) => sum + numeric(span.output_tokens), 0);
+  const costSpans = spans.filter(
+    (span) => span.observation_kind === "generation" || span.observation_kind === "embedding",
+  );
+  const inputCost = sumNullable(costSpans.map((span) => span.input_cost));
+  const outputCost = sumNullable(costSpans.map((span) => span.output_cost));
+  const totalCost = sumNullable(costSpans.map((span) => span.total_cost));
   const maxVersion = spans.reduce((max, span) => Math.max(max, Date.parse(span.ingested_at)), 0);
   const expiresAt = await currentTraceExpiration(client, projectId, traceId);
 
@@ -192,9 +218,17 @@ export async function materializeTrace(
         session_id: root.session_id ?? firstDefined(spans.map((span) => span.session_id)),
         tags: Array.from(new Set(spans.flatMap((span) => span.tags))),
         model: firstDefined(spans.map((span) => span.model)),
+        environment: root.environment || "default",
+        release: root.release ?? firstDefined(spans.map((span) => span.release)),
+        version: root.version ?? firstDefined(spans.map((span) => span.version)),
+        service_version:
+          root.service_version ?? firstDefined(spans.map((span) => span.service_version)),
         input_tokens: inputTokens,
         output_tokens: outputTokens,
         total_tokens: inputTokens + outputTokens,
+        input_cost: inputCost,
+        output_cost: outputCost,
+        total_cost: totalCost,
         last_seen_at: new Date().toISOString().replace("T", " ").replace("Z", ""),
         expires_at: expiresAt,
         summary_version: String(BigInt(Math.max(Date.now(), maxVersion)) * 1_000_000n),
@@ -221,11 +255,138 @@ async function currentTraceExpiration(
 export async function listTraces(
   client: ClickHouseClient,
   projectId: string,
-  options: TraceFilters & { cursor?: string; limit?: number },
-): Promise<CursorPage<TraceSummary>> {
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
-  const params: Record<string, string | number> = { projectId, limit: limit + 1 };
+  options: TraceFilters & {
+    page?: number;
+    pageSize?: number;
+    sort?: TraceSortField;
+    order?: "asc" | "desc";
+    sessionIdExact?: string;
+  },
+): Promise<Page<TraceSummary>> {
+  const page = Math.max(1, Math.trunc(options.page ?? 1));
+  const pageSize = [25, 50, 100].includes(options.pageSize ?? 50) ? (options.pageSize ?? 50) : 50;
+  const sort = options.sort ?? "startedAt";
+  const order = options.order ?? "desc";
+  const { filters, params } = traceWhere(projectId, options);
+  const sortExpression = traceSortColumns[sort];
+  const offset = (page - 1) * pageSize;
+  const [result, countResult] = await Promise.all([
+    client.query({
+      query: `SELECT * FROM trace_summaries FINAL
+              WHERE ${filters.join(" AND ")}
+              ORDER BY isNull(${sortExpression}) ASC, ${sortExpression} ${order.toUpperCase()}, started_at DESC, trace_id DESC
+              LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}`,
+      query_params: { ...params, pageSize, offset },
+      format: "JSONEachRow",
+    }),
+    client.query({
+      query: `SELECT count() AS total FROM trace_summaries FINAL
+              WHERE ${filters.join(" AND ")}`,
+      query_params: params,
+      format: "JSONEachRow",
+    }),
+  ]);
+  const rows = await result.json<SummaryRow>();
+  const counts = await countResult.json<{ total: number | string }>();
+  const total = numeric(counts[0]?.total);
+  return {
+    items: rows.map(summaryFromRow),
+    total,
+    page,
+    pageSize,
+    pageCount: total === 0 ? 0 : Math.ceil(total / pageSize),
+  };
+}
+
+type TraceFacet =
+  | "status"
+  | "service"
+  | "name"
+  | "model"
+  | "environment"
+  | "release"
+  | "version"
+  | "serviceVersion"
+  | "tag";
+
+const traceFacetColumns: Record<Exclude<TraceFacet, "tag">, string> = {
+  status: "status",
+  service: "service_name",
+  name: "name",
+  model: "model",
+  environment: "environment",
+  release: "release",
+  version: "version",
+  serviceVersion: "service_version",
+};
+
+const traceSortColumns: Record<TraceSortField, string> = {
+  startedAt: "started_at",
+  endedAt: "ended_at",
+  name: "name",
+  traceId: "trace_id",
+  serviceName: "service_name",
+  status: "status",
+  durationMs: "duration_ms",
+  spanCount: "span_count",
+  generationCount: "generation_count",
+  toolCount: "tool_count",
+  userId: "user_id",
+  sessionId: "session_id",
+  model: "model",
+  environment: "environment",
+  release: "release",
+  version: "version",
+  serviceVersion: "service_version",
+  inputTokens: "input_tokens",
+  outputTokens: "output_tokens",
+  totalTokens: "total_tokens",
+  inputCost: "input_cost",
+  outputCost: "output_cost",
+  totalCost: "total_cost",
+};
+
+export async function listTraceFacets(
+  client: ClickHouseClient,
+  projectId: string,
+  options: TraceFilters,
+): Promise<TraceFacets> {
+  const facets = Object.keys({ ...traceFacetColumns, tag: "tags" }) as TraceFacet[];
+  const values = await Promise.all(
+    facets.map(async (facet) => {
+      const { filters, params } = traceWhere(projectId, options, facet);
+      const result = await client.query({
+        query:
+          facet === "tag"
+            ? `SELECT tag AS value, count() AS count
+               FROM (SELECT tags FROM trace_summaries FINAL WHERE ${filters.join(" AND ")})
+               ARRAY JOIN tags AS tag
+               WHERE tag != ''
+               GROUP BY tag ORDER BY count DESC, value ASC LIMIT 50`
+            : `SELECT toString(${traceFacetColumns[facet]}) AS value, count() AS count
+               FROM trace_summaries FINAL
+               WHERE ${filters.join(" AND ")} AND ifNull(toString(${traceFacetColumns[facet]}), '') != ''
+               GROUP BY ${traceFacetColumns[facet]} ORDER BY count DESC, value ASC LIMIT 50`,
+        query_params: params,
+        format: "JSONEachRow",
+      });
+      const rows = await result.json<{ value: string; count: number | string }>();
+      return [
+        facet,
+        rows.map((row): TraceFacetValue => ({ value: row.value, count: numeric(row.count) })),
+      ] as const;
+    }),
+  );
+  return Object.fromEntries(values) as TraceFacets;
+}
+
+function traceWhere(
+  projectId: string,
+  options: TraceFilters & { sessionIdExact?: string },
+  omit?: TraceFacet,
+): { filters: string[]; params: Record<string, string | number | string[]> } {
   const filters = ["project_id = {projectId:UUID}"];
+  const params: Record<string, string | number | string[]> = { projectId };
   if (options.from !== undefined) {
     filters.push("started_at >= {from:DateTime64(3)}");
     params.from = clickHouseDateTimeParam(options.from);
@@ -234,54 +395,64 @@ export async function listTraces(
     filters.push("started_at <= {to:DateTime64(3)}");
     params.to = clickHouseDateTimeParam(options.to);
   }
-  for (const [field, column] of [
-    ["status", "status"],
-    ["service", "service_name"],
-    ["name", "name"],
-    ["model", "model"],
-    ["userId", "user_id"],
-    ["sessionId", "session_id"],
+  for (const [field, column, facet] of [
+    ["statuses", "status", "status"],
+    ["services", "service_name", "service"],
+    ["names", "name", "name"],
+    ["models", "model", "model"],
+    ["environments", "environment", "environment"],
+    ["releases", "release", "release"],
+    ["versions", "version", "version"],
+    ["serviceVersions", "service_version", "serviceVersion"],
   ] as const) {
     const value = options[field];
-    if (value !== undefined) {
-      filters.push(`${column} = {${field}:String}`);
+    if (value !== undefined && value.length > 0 && omit !== facet) {
+      filters.push(`${column} IN {${field}:Array(String)}`);
       params[field] = value;
     }
   }
-  if (options.tag !== undefined) {
-    filters.push("has(tags, {tag:String})");
-    params.tag = options.tag;
+  if (options.tags !== undefined && options.tags.length > 0 && omit !== "tag") {
+    filters.push("hasAny(tags, {tags:Array(String)})");
+    params.tags = options.tags;
+  }
+  for (const [field, column] of [
+    ["userId", "user_id"],
+    ["sessionId", "session_id"],
+    ["traceId", "trace_id"],
+  ] as const) {
+    const value = options[field];
+    if (value !== undefined) {
+      filters.push(
+        `positionCaseInsensitive(ifNull(toString(${column}), ''), {${field}:String}) > 0`,
+      );
+      params[field] = value;
+    }
+  }
+  if (options.sessionIdExact !== undefined) {
+    filters.push("session_id = {sessionIdExact:String}");
+    params.sessionIdExact = options.sessionIdExact;
   }
   if (options.search !== undefined) {
     filters.push(
-      "(positionCaseInsensitive(name, {search:String}) > 0 OR trace_id = {search:String})",
+      "(positionCaseInsensitive(name, {search:String}) > 0 OR positionCaseInsensitive(trace_id, {search:String}) > 0)",
     );
     params.search = options.search;
   }
-  if (options.cursor !== undefined) {
-    const cursor = decodeCursor(options.cursor);
-    if (cursor !== undefined) {
-      filters.push("(started_at, trace_id) < ({cursorTime:DateTime64(9)}, {cursorId:String})");
-      params.cursorTime = clickHouseDateTimeParam(cursor.startedAt);
-      params.cursorId = cursor.traceId;
+  for (const [field, column, operator] of [
+    ["minDurationMs", "duration_ms", ">="],
+    ["maxDurationMs", "duration_ms", "<="],
+    ["minTotalTokens", "total_tokens", ">="],
+    ["maxTotalTokens", "total_tokens", "<="],
+    ["minTotalCost", "total_cost", ">="],
+    ["maxTotalCost", "total_cost", "<="],
+  ] as const) {
+    const value = options[field];
+    if (value !== undefined) {
+      filters.push(`${column} ${operator} {${field}:Float64}`);
+      params[field] = value;
     }
   }
-  const result = await client.query({
-    query: `SELECT * FROM trace_summaries FINAL
-            WHERE ${filters.join(" AND ")}
-            ORDER BY started_at DESC, trace_id DESC
-            LIMIT {limit:UInt16}`,
-    query_params: params,
-    format: "JSONEachRow",
-  });
-  const rows = await result.json<SummaryRow>();
-  const hasMore = rows.length > limit;
-  const items = rows.slice(0, limit).map(summaryFromRow);
-  const last = items.at(-1);
-  return {
-    items,
-    nextCursor: hasMore && last !== undefined ? encodeCursor(last.startedAt, last.traceId) : null,
-  };
+  return { filters, params };
 }
 
 export async function getTrace(
@@ -356,7 +527,7 @@ export async function getSession(
   projectId: string,
   sessionId: string,
 ): Promise<SessionDetail | undefined> {
-  const traces = await listTraces(client, projectId, { sessionId, limit: 100 });
+  const traces = await listTraces(client, projectId, { sessionIdExact: sessionId, pageSize: 100 });
   if (traces.items.length === 0) return undefined;
   const startedAt = traces.items.reduce(
     (minimum, trace) => (trace.startedAt < minimum ? trace.startedAt : minimum),
@@ -698,6 +869,11 @@ function nullableNumeric(value: number | string | null | undefined): number | nu
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function sumNullable(values: Array<number | string | null>): number | null {
+  const present = values.map(nullableNumeric).filter((value): value is number => value !== null);
+  return present.length === 0 ? null : present.reduce((sum, value) => sum + value, 0);
+}
+
 export async function reconcileProjectRetention(
   client: ClickHouseClient,
   projectId: string,
@@ -776,10 +952,16 @@ function spanFromRow(row: SpanRow): SpanDetail {
     sessionId: row.session_id,
     tags: row.tags,
     version: row.version,
+    environment: row.environment || "default",
+    release: row.release,
+    serviceVersion: row.service_version,
     model: row.model,
     inputTokens: numeric(row.input_tokens),
     outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),
+    inputCost: nullableNumeric(row.input_cost),
+    outputCost: nullableNumeric(row.output_cost),
+    totalCost: nullableNumeric(row.total_cost),
     input: parseNullableJson(row.input),
     output: parseNullableJson(row.output),
     ingestedAt: ensureIso(row.ingested_at),
@@ -803,9 +985,16 @@ function summaryFromRow(row: SummaryRow): TraceSummary {
     sessionId: row.session_id,
     tags: row.tags,
     model: row.model,
+    environment: row.environment || "default",
+    release: row.release,
+    version: row.version,
+    serviceVersion: row.service_version,
     inputTokens: numeric(row.input_tokens),
     outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),
+    inputCost: nullableNumeric(row.input_cost),
+    outputCost: nullableNumeric(row.output_cost),
+    totalCost: nullableNumeric(row.total_cost),
     lastSeenAt: ensureIso(row.last_seen_at),
   };
 }

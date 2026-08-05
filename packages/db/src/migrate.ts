@@ -12,10 +12,23 @@ const clickhouse = createClickHouse(config);
 
 try {
   await migrate(postgres.db, { migrationsFolder: resolve(here, "../migrations/postgres") });
+  await clickhouse.command({
+    query: `CREATE TABLE IF NOT EXISTS schema_migrations
+            (filename String, applied_at DateTime64(3, 'UTC') DEFAULT now64(3))
+            ENGINE = MergeTree ORDER BY filename`,
+  });
+  const appliedResult = await clickhouse.query({
+    query: "SELECT DISTINCT filename FROM schema_migrations",
+    format: "JSONEachRow",
+  });
+  const applied = new Set(
+    (await appliedResult.json<{ filename: string }>()).map((row) => row.filename),
+  );
   const clickhouseFolder = resolve(here, "../migrations/clickhouse");
   for (const filename of (await readdir(clickhouseFolder))
     .filter((name) => name.endsWith(".sql"))
     .sort()) {
+    if (applied.has(filename)) continue;
     const sql = await readFile(resolve(clickhouseFolder, filename), "utf8");
     for (const statement of sql
       .split(/;\s*(?:\n|$)/)
@@ -23,6 +36,11 @@ try {
       .filter(Boolean)) {
       await clickhouse.command({ query: statement });
     }
+    await clickhouse.insert({
+      table: "schema_migrations",
+      format: "JSONEachRow",
+      values: [{ filename }],
+    });
   }
 } finally {
   await postgres.close();

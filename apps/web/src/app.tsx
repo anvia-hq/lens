@@ -1,8 +1,8 @@
 import type {
   CreatedProjectApiKey,
-  CursorPage,
   Metrics,
   MetricsRangePreset,
+  Page as PaginatedPage,
   Project,
   ProjectApiKey,
   SessionDetail,
@@ -10,9 +10,17 @@ import type {
   SpanDetail,
   SpanStatus,
   TraceDetail,
+  TraceFacets,
+  TraceSortField,
   TraceSummary,
 } from "@lens/contracts";
-import { metricsRangePresets } from "@lens/contracts";
+import { metricsRangePresets, traceSortFields } from "@lens/contracts";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@lens/ui/components/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import {
   AlertDialog,
@@ -26,6 +34,14 @@ import {
 } from "@lens/ui/components/alert-dialog";
 import { Avatar, AvatarFallback } from "@lens/ui/components/avatar";
 import { Badge } from "@lens/ui/components/badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@lens/ui/components/breadcrumb";
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import {
   Card,
@@ -44,6 +60,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@lens/ui/components/chart";
+import { Checkbox } from "@lens/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -54,8 +71,12 @@ import {
 } from "@lens/ui/components/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@lens/ui/components/dropdown-menu";
 import {
@@ -69,7 +90,20 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@lens/ui/components/pagination";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@lens/ui/components/resizable";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
+import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
 import {
   Sidebar,
   SidebarContent,
@@ -123,6 +157,7 @@ import {
   Refresh,
   Magnifer as Search,
   Settings,
+  Filter as SlidersHorizontal,
   Stars as Sparkles,
   Sun,
   Programming as TerminalSquare,
@@ -151,8 +186,10 @@ import {
   createContext,
   type FormEvent,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useState,
 } from "react";
@@ -204,12 +241,79 @@ type ProjectContextValue = {
 };
 
 export type OverviewSearch = { range: MetricsRangePreset };
+export const traceColumnIds = [
+  "startedAt",
+  "trace",
+  "status",
+  "durationMs",
+  "totalCost",
+  "model",
+  "totalTokens",
+  "environment",
+  "userId",
+  "sessionId",
+  "serviceName",
+  "release",
+  "version",
+  "serviceVersion",
+  "inputCost",
+  "outputCost",
+  "inputTokens",
+  "outputTokens",
+  "spanCount",
+  "generationCount",
+  "toolCount",
+  "tags",
+  "endedAt",
+  "traceId",
+] as const;
+export type TraceColumnId = (typeof traceColumnIds)[number];
+export const defaultTraceColumns: TraceColumnId[] = [
+  "startedAt",
+  "trace",
+  "status",
+  "durationMs",
+  "totalCost",
+  "model",
+  "totalTokens",
+  "environment",
+  "userId",
+  "sessionId",
+];
 export type TracesSearch = {
   range: MetricsRangePreset;
-  status?: SpanStatus;
-  model?: string;
-  service?: string;
+  statuses?: SpanStatus[];
+  services?: string[];
+  names?: string[];
+  models?: string[];
+  environments?: string[];
+  releases?: string[];
+  versions?: string[];
+  serviceVersions?: string[];
+  tags?: string[];
+  userId?: string;
+  sessionId?: string;
+  traceId?: string;
   search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+  sort?: TraceSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  columns?: TraceColumnId[];
+};
+
+type ResolvedTracesSearch = TracesSearch & {
+  sort: TraceSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  columns: TraceColumnId[];
 };
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
@@ -217,13 +321,34 @@ export function validateOverviewSearch(search: Record<string, unknown>): Overvie
 }
 
 export function validateTracesSearch(search: Record<string, unknown>): TracesSearch {
-  const status = search.status;
   return {
     range: parseMetricsRange(search.range),
-    status: status === "ok" || status === "error" || status === "unset" ? status : undefined,
-    model: optionalSearchValue(search.model),
-    service: optionalSearchValue(search.service),
+    statuses: searchValues(search.statuses ?? search.status).filter(
+      (value): value is SpanStatus => value === "ok" || value === "error" || value === "unset",
+    ),
+    services: searchValues(search.services ?? search.service),
+    names: searchValues(search.names),
+    models: searchValues(search.models ?? search.model),
+    environments: searchValues(search.environments),
+    releases: searchValues(search.releases),
+    versions: searchValues(search.versions),
+    serviceVersions: searchValues(search.serviceVersions),
+    tags: searchValues(search.tags),
+    userId: optionalSearchValue(search.userId),
+    sessionId: optionalSearchValue(search.sessionId),
+    traceId: optionalSearchValue(search.traceId),
     search: optionalSearchValue(search.search),
+    minDurationMs: optionalNonNegativeNumber(search.minDurationMs),
+    maxDurationMs: optionalNonNegativeNumber(search.maxDurationMs),
+    minTotalTokens: optionalNonNegativeNumber(search.minTotalTokens),
+    maxTotalTokens: optionalNonNegativeNumber(search.maxTotalTokens),
+    minTotalCost: optionalNonNegativeNumber(search.minTotalCost),
+    maxTotalCost: optionalNonNegativeNumber(search.maxTotalCost),
+    sort: isTraceSortField(search.sort) ? search.sort : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validTraceColumns(search.columns),
   };
 }
 
@@ -274,36 +399,160 @@ function sortableHeader(label: string) {
   };
 }
 
-const traceColumns = traceColumnHelper.columns([
-  traceColumnHelper.accessor("name", {
-    header: sortableHeader("Trace"),
-    cell: ({ row }) => <TraceNameCell trace={row.original} />,
-  }),
-  traceColumnHelper.accessor("serviceName", {
-    header: sortableHeader("Service"),
-  }),
-  traceColumnHelper.accessor("status", {
-    header: sortableHeader("Status"),
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  }),
-  traceColumnHelper.accessor("durationMs", {
-    header: sortableHeader("Duration"),
-    cell: ({ row }) => <span className="font-mono">{formatDuration(row.original.durationMs)}</span>,
-  }),
-  traceColumnHelper.accessor("totalTokens", {
-    header: sortableHeader("Tokens"),
-    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.totalTokens)}</span>,
-  }),
-  traceColumnHelper.accessor("startedAt", {
-    header: sortableHeader("Started"),
-    cell: ({ row }) => relativeTime(row.original.startedAt),
-  }),
-  traceColumnHelper.display({
-    id: "open",
-    header: () => <span className="sr-only">Open</span>,
-    cell: ({ row }) => <TraceOpenCell trace={row.original} />,
-  }),
-]);
+function traceTableColumns(options: {
+  visible: TraceColumnId[];
+  sort?: TraceSortField;
+  order?: "asc" | "desc";
+  onSort?: (sort: TraceSortField) => void;
+}) {
+  const header = (label: string, sort: TraceSortField) => () =>
+    options.onSort ? (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => options.onSort?.(sort)}
+        aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
+      >
+        {label}
+        <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
+      </Button>
+    ) : (
+      label
+    );
+  const columnsById = {
+    startedAt: traceColumnHelper.accessor("startedAt", {
+      header: header("Started", "startedAt"),
+      cell: ({ row }) => (
+        <span className="grid text-xs" title={row.original.startedAt}>
+          <span>{relativeTime(row.original.startedAt)}</span>
+          <span className="text-muted-foreground">{formatTimestamp(row.original.startedAt)}</span>
+        </span>
+      ),
+    }),
+    trace: traceColumnHelper.accessor("name", {
+      id: "trace",
+      header: header("Trace", "name"),
+      cell: ({ row }) => <TraceNameCell trace={row.original} />,
+    }),
+    status: traceColumnHelper.accessor("status", {
+      header: header("Status", "status"),
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    }),
+    durationMs: traceColumnHelper.accessor("durationMs", {
+      header: header("Latency", "durationMs"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatDuration(row.original.durationMs)}</span>
+      ),
+    }),
+    totalCost: traceColumnHelper.accessor("totalCost", {
+      header: header("Cost", "totalCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.totalCost)}</span>,
+    }),
+    model: traceColumnHelper.accessor("model", {
+      header: header("Model", "model"),
+      cell: ({ row }) => row.original.model ?? "—",
+    }),
+    totalTokens: traceColumnHelper.accessor("totalTokens", {
+      header: header("Tokens", "totalTokens"),
+      cell: ({ row }) => (
+        <span className="grid font-mono text-xs">
+          <span>{formatNumber(row.original.totalTokens)}</span>
+          <span className="text-muted-foreground">
+            {formatNumber(row.original.inputTokens)} in · {formatNumber(row.original.outputTokens)}{" "}
+            out
+          </span>
+        </span>
+      ),
+    }),
+    environment: traceColumnHelper.accessor("environment", {
+      header: header("Environment", "environment"),
+      cell: ({ row }) => <Badge variant="secondary">{row.original.environment}</Badge>,
+    }),
+    userId: traceColumnHelper.accessor("userId", {
+      header: header("User", "userId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
+    }),
+    sessionId: traceColumnHelper.accessor("sessionId", {
+      header: header("Session", "sessionId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.sessionId ?? "—"}</span>,
+    }),
+    serviceName: traceColumnHelper.accessor("serviceName", {
+      header: header("Service", "serviceName"),
+    }),
+    release: traceColumnHelper.accessor("release", {
+      header: header("Release", "release"),
+      cell: ({ row }) => row.original.release ?? "—",
+    }),
+    version: traceColumnHelper.accessor("version", {
+      header: header("Trace version", "version"),
+      cell: ({ row }) => row.original.version ?? "—",
+    }),
+    serviceVersion: traceColumnHelper.accessor("serviceVersion", {
+      header: header("Service version", "serviceVersion"),
+      cell: ({ row }) => row.original.serviceVersion ?? "—",
+    }),
+    inputCost: traceColumnHelper.accessor("inputCost", {
+      header: header("Input cost", "inputCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.inputCost)}</span>,
+    }),
+    outputCost: traceColumnHelper.accessor("outputCost", {
+      header: header("Output cost", "outputCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.outputCost)}</span>,
+    }),
+    inputTokens: traceColumnHelper.accessor("inputTokens", {
+      header: header("Input tokens", "inputTokens"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatNumber(row.original.inputTokens)}</span>
+      ),
+    }),
+    outputTokens: traceColumnHelper.accessor("outputTokens", {
+      header: header("Output tokens", "outputTokens"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatNumber(row.original.outputTokens)}</span>
+      ),
+    }),
+    spanCount: traceColumnHelper.accessor("spanCount", {
+      header: header("Spans", "spanCount"),
+    }),
+    generationCount: traceColumnHelper.accessor("generationCount", {
+      header: header("Generations", "generationCount"),
+    }),
+    toolCount: traceColumnHelper.accessor("toolCount", {
+      header: header("Tools", "toolCount"),
+    }),
+    tags: traceColumnHelper.accessor("tags", {
+      header: () => "Tags",
+      cell: ({ row }) => (
+        <div className="flex max-w-72 flex-wrap gap-1 whitespace-normal">
+          {row.original.tags.length === 0
+            ? "—"
+            : row.original.tags.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+        </div>
+      ),
+    }),
+    endedAt: traceColumnHelper.accessor("endedAt", {
+      header: header("Ended", "endedAt"),
+      cell: ({ row }) => relativeTime(row.original.endedAt),
+    }),
+    traceId: traceColumnHelper.accessor("traceId", {
+      header: header("Trace ID", "traceId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.traceId}</span>,
+    }),
+  };
+  return traceColumnHelper.columns([
+    ...options.visible.map((column) => columnsById[column]),
+    traceColumnHelper.display({
+      id: "open",
+      header: () => <span className="sr-only">Open</span>,
+      cell: ({ row }) => <TraceOpenCell trace={row.original} />,
+    }),
+  ] as Parameters<typeof traceColumnHelper.columns>[0]);
+}
 
 const sessionColumns = sessionColumnHelper.columns([
   sessionColumnHelper.accessor("sessionId", {
@@ -544,11 +793,78 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
 
 function AppHeader() {
   const { project } = useProject();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const params = useParams({ strict: false });
+  const projectRoot = `/${project.id}`;
+  const relativePath = pathname.slice(projectRoot.length).split("/").filter(Boolean);
+  const section = relativePath[0];
+  const sectionLabel =
+    section === "traces"
+      ? "Traces"
+      : section === "sessions"
+        ? "Sessions"
+        : section === "onboarding"
+          ? "Connect"
+          : section === "settings"
+            ? "Project settings"
+            : "Overview";
+  const detailId = relativePath[1];
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-background px-4">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{project.name}</p>
-      </div>
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbLink
+              className="truncate font-medium"
+              render={
+                <Link
+                  to="/$projectId"
+                  params={{ projectId: project.id }}
+                  search={{ range: "24h" }}
+                />
+              }
+            >
+              {project.name}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          {detailId ? (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  render={
+                    section === "traces" ? (
+                      <Link
+                        to="/$projectId/traces"
+                        params={{ projectId: project.id }}
+                        search={{ range: "24h" }}
+                      />
+                    ) : (
+                      <Link to="/$projectId/sessions" params={{ projectId: project.id }} />
+                    )
+                  }
+                >
+                  {sectionLabel}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbPage className="truncate font-mono text-xs">
+                  {"traceId" in params
+                    ? shortId(String(params.traceId))
+                    : "sessionId" in params
+                      ? String(params.sessionId)
+                      : detailId}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : (
+            <BreadcrumbItem>
+              <BreadcrumbPage>{sectionLabel}</BreadcrumbPage>
+            </BreadcrumbItem>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
     </header>
   );
 }
@@ -982,7 +1298,7 @@ function ModelBreakdownCard(props: {
                         className="hover:underline"
                         to="/$projectId/traces"
                         params={{ projectId: props.projectId }}
-                        search={{ range: props.range, model: model.model }}
+                        search={{ range: props.range, models: [model.model] }}
                       >
                         {model.model}
                       </Link>
@@ -1056,7 +1372,7 @@ function ServiceBreakdownCard(props: {
                       className="block truncate hover:underline"
                       to="/$projectId/traces"
                       params={{ projectId: props.projectId }}
-                      search={{ range: props.range, service: service.serviceName }}
+                      search={{ range: props.range, services: [service.serviceName] }}
                     >
                       {service.serviceName}
                     </Link>
@@ -1190,106 +1506,630 @@ function metricsTooltip(range: MetricsRangePreset, duration = false) {
 export function TracesPage() {
   const { project } = useProject();
   const navigate = useNavigate();
-  const filters = useSearch({ strict: false }) as TracesSearch;
+  const filters = useSearch({ strict: false }) as ResolvedTracesSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const range = timeRangeForPreset(filters.range);
-  const setFilters = (changes: Partial<TracesSearch>) => {
-    void navigate({
-      to: "/$projectId/traces",
-      params: { projectId: project.id },
-      search: { ...filters, ...changes },
-      replace: true,
-    });
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
+  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
+  const setFilters = useCallback(
+    (changes: Partial<TracesSearch>, resetPage = true) => {
+      void navigate({
+        to: "/$projectId/traces",
+        params: { projectId: project.id },
+        search: { ...filters, ...changes, page: resetPage ? 1 : (changes.page ?? filters.page) },
+        replace: true,
+      });
+    },
+    [filters, navigate, project.id],
+  );
+  useEffect(() => setSearchDraft(filters.search ?? ""), [filters.search]);
+  useEffect(() => {
+    if (searchDraft === (filters.search ?? "")) return;
+    const timeout = window.setTimeout(
+      () => setFilters({ search: searchDraft.trim() || undefined }),
+      300,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [searchDraft, filters.search, setFilters]);
+  const requestFilters = {
+    ...range,
+    status: filters.statuses,
+    service: filters.services,
+    name: filters.names,
+    model: filters.models,
+    environment: filters.environments,
+    release: filters.releases,
+    version: filters.versions,
+    serviceVersion: filters.serviceVersions,
+    tag: filters.tags,
+    userId: filters.userId,
+    sessionId: filters.sessionId,
+    traceId: filters.traceId,
+    search: filters.search,
+    minDurationMs: filters.minDurationMs,
+    maxDurationMs: filters.maxDurationMs,
+    minTotalTokens: filters.minTotalTokens,
+    maxTotalTokens: filters.maxTotalTokens,
+    minTotalCost: filters.minTotalCost,
+    maxTotalCost: filters.maxTotalCost,
   };
   const traces = useQuery({
     queryKey: ["traces", project.id, filters],
     queryFn: () =>
-      api<CursorPage<TraceSummary>>(
+      api<PaginatedPage<TraceSummary>>(
         `/api/v1/projects/${project.id}/traces?${queryString({
-          ...range,
-          search: filters.search,
-          status: filters.status,
-          model: filters.model,
-          service: filters.service,
-          limit: 100,
+          ...requestFilters,
+          page: filters.page,
+          pageSize: filters.pageSize,
+          sort: filters.sort,
+          order: filters.order,
         })}`,
       ),
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
-  return (
-    <Page
-      title="Traces"
-      description="Inspect agent runs, generations, tools, and service spans"
-      action={
-        <div className="flex flex-wrap items-center gap-2">
+  const facets = useQuery({
+    queryKey: ["trace-facets", project.id, requestFilters],
+    queryFn: () =>
+      api<TraceFacets>(
+        `/api/v1/projects/${project.id}/traces/facets?${queryString(requestFilters)}`,
+      ),
+    placeholderData: (previous) => previous,
+    refetchInterval: refreshMilliseconds(refreshInterval),
+  });
+  const activeFilterCount = traceActiveFilterCount(filters);
+  const clearFilters = () =>
+    setFilters({
+      statuses: [],
+      services: [],
+      names: [],
+      models: [],
+      environments: [],
+      releases: [],
+      versions: [],
+      serviceVersions: [],
+      tags: [],
+      userId: undefined,
+      sessionId: undefined,
+      traceId: undefined,
+      search: undefined,
+      minDurationMs: undefined,
+      maxDurationMs: undefined,
+      minTotalTokens: undefined,
+      maxTotalTokens: undefined,
+      minTotalCost: undefined,
+      maxTotalCost: undefined,
+    });
+  const table = (
+    <TraceExplorerTable
+      filters={filters}
+      searchDraft={searchDraft}
+      onSearchChange={setSearchDraft}
+      data={traces.data}
+      loading={traces.isLoading}
+      error={traces.error}
+      activeFilterCount={activeFilterCount}
+      onOpenMobileFilters={() => setMobileFiltersOpen(true)}
+      onChange={(changes, resetPage) => setFilters(changes, resetPage)}
+      actions={
+        <>
           <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
           <LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />
-        </div>
+        </>
       }
-    >
-      <Card>
-        <CardHeader className="border-b">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                aria-label="Search traces"
-                placeholder="Search name or trace ID"
-                value={filters.search ?? ""}
-                onChange={(event) => setFilters({ search: event.target.value || undefined })}
-              />
-            </div>
-            <NativeSelect
-              value={filters.status ?? ""}
-              onChange={(event) =>
-                setFilters({ status: (event.target.value || undefined) as SpanStatus | undefined })
-              }
-            >
-              <NativeSelectOption value="">All statuses</NativeSelectOption>
-              <NativeSelectOption value="ok">Successful</NativeSelectOption>
-              <NativeSelectOption value="error">Errors</NativeSelectOption>
-              <NativeSelectOption value="unset">Unset</NativeSelectOption>
-            </NativeSelect>
-          </div>
-          {filters.model || filters.service ? (
-            <div className="flex flex-wrap gap-2 pt-3">
-              {filters.model ? (
+    />
+  );
+  const filterPanel = (
+    <TraceFilterPanel
+      filters={filters}
+      facets={facets.data}
+      loading={facets.isLoading}
+      error={facets.error}
+      activeCount={activeFilterCount}
+      onChange={(changes) => setFilters(changes)}
+      onClear={clearFilters}
+      onCollapse={() => setFilterPanelCollapsed(true)}
+    />
+  );
+  return (
+    <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="hidden min-h-[620px] flex-1 overflow-hidden md:flex">
+        <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanel
+            key={filterPanelCollapsed ? "collapsed" : "expanded"}
+            id="trace-filters"
+            defaultSize={filterPanelCollapsed ? "40px" : "280px"}
+            minSize={filterPanelCollapsed ? "40px" : "200px"}
+            maxSize={filterPanelCollapsed ? "40px" : "420px"}
+            disabled={filterPanelCollapsed}
+          >
+            {filterPanelCollapsed ? (
+              <div className="flex h-full flex-col items-center border-r bg-muted/20 py-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilters({ model: undefined })}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Show filters"
+                  onClick={() => setFilterPanelCollapsed(false)}
                 >
-                  Model: {filters.model} <X />
+                  <SlidersHorizontal />
                 </Button>
-              ) : null}
-              {filters.service ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilters({ service: undefined })}
-                >
-                  Service: {filters.service} <X />
-                </Button>
-              ) : null}
-            </div>
+                {activeFilterCount > 0 ? (
+                  <Badge className="mt-2 px-1.5" variant="secondary">
+                    {activeFilterCount}
+                  </Badge>
+                ) : null}
+              </div>
+            ) : (
+              filterPanel
+            )}
+          </ResizablePanel>
+          {!filterPanelCollapsed ? <ResizableHandle withHandle /> : null}
+          <ResizablePanel id="trace-results" minSize="50%">
+            {table}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
+      <div className="overflow-hidden md:hidden">{table}</div>
+      <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+        <SheetContent side="bottom" className="h-[85svh] gap-0 p-0">
+          <SheetTitle className="sr-only">Trace filters</SheetTitle>
+          {filterPanel}
+        </SheetContent>
+      </Sheet>
+    </main>
+  );
+}
+
+const traceColumnLabels: Record<TraceColumnId, string> = {
+  startedAt: "Started",
+  trace: "Trace",
+  status: "Status",
+  durationMs: "Latency",
+  totalCost: "Total cost",
+  model: "Model",
+  totalTokens: "Total tokens",
+  environment: "Environment",
+  userId: "User",
+  sessionId: "Session",
+  serviceName: "Service",
+  release: "Release",
+  version: "Trace version",
+  serviceVersion: "Service version",
+  inputCost: "Input cost",
+  outputCost: "Output cost",
+  inputTokens: "Input tokens",
+  outputTokens: "Output tokens",
+  spanCount: "Spans",
+  generationCount: "Generations",
+  toolCount: "Tools",
+  tags: "Tags",
+  endedAt: "Ended",
+  traceId: "Trace ID",
+};
+
+export function TraceExplorerTable(props: {
+  filters: ResolvedTracesSearch;
+  searchDraft: string;
+  onSearchChange: (value: string) => void;
+  data?: PaginatedPage<TraceSummary>;
+  loading: boolean;
+  error: unknown;
+  activeFilterCount: number;
+  onOpenMobileFilters: () => void;
+  onChange: (changes: Partial<TracesSearch>, resetPage?: boolean) => void;
+  actions?: ReactNode;
+}) {
+  const sort = (field: TraceSortField) =>
+    props.onChange({
+      sort: field,
+      order: props.filters.sort === field && props.filters.order === "desc" ? "asc" : "desc",
+    });
+  return (
+    <div className="flex h-full min-w-0 flex-col bg-background">
+      <div className="flex flex-wrap items-center gap-2 border-b p-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          onClick={props.onOpenMobileFilters}
+        >
+          <SlidersHorizontal /> Filters
+          {props.activeFilterCount > 0 ? (
+            <Badge variant="secondary">{props.activeFilterCount}</Badge>
           ) : null}
-        </CardHeader>
-        <CardContent className="px-0">
-          {traces.isLoading ? (
-            <LoadingRows />
-          ) : traces.data?.items.length ? (
-            <TraceDataTable traces={traces.data.items} />
-          ) : (
-            <EmptyState
-              icon={<Activity />}
-              title="No traces found"
-              text="Try another filter or send telemetry to this project."
+        </Button>
+        <div className="relative min-w-52 flex-1">
+          <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            aria-label="Search traces"
+            placeholder="Search trace name or ID"
+            value={props.searchDraft}
+            onChange={(event) => props.onSearchChange(event.target.value)}
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+            Columns <ChevronDown />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-80 w-56 overflow-y-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Visible columns</DropdownMenuLabel>
+              {traceColumnIds.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column}
+                  checked={props.filters.columns.includes(column)}
+                  disabled={column === "trace"}
+                  onCheckedChange={(checked) =>
+                    props.onChange(
+                      {
+                        columns: checked
+                          ? traceColumnIds.filter(
+                              (item) => props.filters.columns.includes(item) || item === column,
+                            )
+                          : props.filters.columns.filter((item) => item !== column),
+                      },
+                      false,
+                    )
+                  }
+                >
+                  {traceColumnLabels[column]}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => props.onChange({ columns: defaultTraceColumns }, false)}
+            >
+              Reset columns
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {props.actions}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {props.error ? (
+          <div className="p-4">
+            <ErrorAlert error={props.error} />
+          </div>
+        ) : props.loading ? (
+          <LoadingRows />
+        ) : props.data?.items.length ? (
+          <TraceDataTable
+            traces={props.data.items}
+            visibleColumns={props.filters.columns}
+            sort={props.filters.sort}
+            order={props.filters.order}
+            onSort={sort}
+          />
+        ) : (
+          <EmptyState
+            icon={<Activity />}
+            title="No traces found"
+            text="Try another filter or send telemetry to this project."
+          />
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+        <span className="text-muted-foreground">
+          {props.data ? `${formatNumber(props.data.total)} traces` : "Loading traces"}
+        </span>
+        <div className="flex items-center gap-3">
+          <NativeSelect
+            aria-label="Rows per page"
+            value={String(props.filters.pageSize)}
+            onChange={(event) =>
+              props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
+            }
+          >
+            <NativeSelectOption value="25">25 rows</NativeSelectOption>
+            <NativeSelectOption value="50">50 rows</NativeSelectOption>
+            <NativeSelectOption value="100">100 rows</NativeSelectOption>
+          </NativeSelect>
+          <span className="whitespace-nowrap">
+            Page {props.filters.page} of {Math.max(1, props.data?.pageCount ?? 1)}
+          </span>
+          <Pagination className="w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  aria-disabled={props.filters.page <= 1}
+                  className={cn(props.filters.page <= 1 && "pointer-events-none opacity-50")}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    props.onChange({ page: Math.max(1, props.filters.page - 1) }, false);
+                  }}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  aria-disabled={props.filters.page >= (props.data?.pageCount ?? 0)}
+                  className={cn(
+                    props.filters.page >= (props.data?.pageCount ?? 0) &&
+                      "pointer-events-none opacity-50",
+                  )}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    props.onChange({ page: props.filters.page + 1 }, false);
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type TraceFacetFilterField =
+  | "statuses"
+  | "services"
+  | "names"
+  | "models"
+  | "environments"
+  | "releases"
+  | "versions"
+  | "serviceVersions"
+  | "tags";
+
+const traceFacetSections: Array<{
+  id: keyof TraceFacets;
+  field: TraceFacetFilterField;
+  label: string;
+}> = [
+  { id: "status", field: "statuses", label: "Status" },
+  { id: "environment", field: "environments", label: "Environment" },
+  { id: "name", field: "names", label: "Trace name" },
+  { id: "service", field: "services", label: "Service" },
+  { id: "model", field: "models", label: "Model" },
+  { id: "release", field: "releases", label: "Release" },
+  { id: "version", field: "versions", label: "Trace version" },
+  { id: "serviceVersion", field: "serviceVersions", label: "Service version" },
+  { id: "tag", field: "tags", label: "Tags" },
+];
+
+function TraceFilterPanel(props: {
+  filters: ResolvedTracesSearch;
+  facets?: TraceFacets;
+  loading: boolean;
+  error: unknown;
+  activeCount: number;
+  onChange: (changes: Partial<TracesSearch>) => void;
+  onClear: () => void;
+  onCollapse: () => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Filters</span>
+          {props.activeCount > 0 ? <Badge variant="secondary">{props.activeCount}</Badge> : null}
+        </div>
+        <div className="flex items-center gap-1">
+          {props.activeCount > 0 ? (
+            <Button variant="ghost" size="sm" onClick={props.onClear}>
+              Clear all
+            </Button>
+          ) : null}
+          <Button
+            className="hidden md:inline-flex"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Hide filters"
+            onClick={props.onCollapse}
+          >
+            <ArrowLeft />
+          </Button>
+        </div>
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="px-3 pb-5">
+          {props.error ? <ErrorAlert error={props.error} /> : null}
+          <Accordion multiple defaultValue={["status", "environment"]}>
+            {traceFacetSections.map((section) => {
+              const selected = props.filters[section.field] ?? [];
+              const options = props.facets?.[section.id] ?? [];
+              return (
+                <AccordionItem key={section.id} value={section.id}>
+                  <AccordionTrigger>
+                    <span className="flex items-center gap-2">
+                      {section.label}
+                      {selected.length > 0 ? (
+                        <Badge variant="secondary">{selected.length}</Badge>
+                      ) : null}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {props.loading ? (
+                      <div className="grid gap-2 py-1">
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-4/5" />
+                      </div>
+                    ) : options.length === 0 ? (
+                      <p className="py-1 text-xs text-muted-foreground">No values in this range.</p>
+                    ) : (
+                      <div className="grid gap-1">
+                        {options.map((option) => (
+                          <label
+                            key={option.value}
+                            htmlFor={`facet-${section.id}-${option.value}`}
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 hover:bg-muted"
+                          >
+                            <Checkbox
+                              id={`facet-${section.id}-${option.value}`}
+                              checked={selected.includes(option.value)}
+                              onCheckedChange={(checked) =>
+                                props.onChange({
+                                  [section.field]: checked
+                                    ? Array.from(new Set([...selected, option.value]))
+                                    : selected.filter((value) => value !== option.value),
+                                })
+                              }
+                            />
+                            <span className="min-w-0 flex-1 truncate" title={option.value}>
+                              {option.value}
+                            </span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatNumber(option.count)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+          <div className="grid gap-4 border-t pt-4">
+            <CommittedFilterInput
+              label="Trace ID contains"
+              value={props.filters.traceId}
+              placeholder="Trace ID"
+              onCommit={(traceId) => props.onChange({ traceId })}
             />
-          )}
-        </CardContent>
-      </Card>
-    </Page>
+            <CommittedFilterInput
+              label="User ID contains"
+              value={props.filters.userId}
+              placeholder="User ID"
+              onCommit={(userId) => props.onChange({ userId })}
+            />
+            <CommittedFilterInput
+              label="Session ID contains"
+              value={props.filters.sessionId}
+              placeholder="Session ID"
+              onCommit={(sessionId) => props.onChange({ sessionId })}
+            />
+            <TraceRangeFilter
+              label="Latency (ms)"
+              minimum={props.filters.minDurationMs}
+              maximum={props.filters.maxDurationMs}
+              onCommit={(minDurationMs, maxDurationMs) =>
+                props.onChange({ minDurationMs, maxDurationMs })
+              }
+            />
+            <TraceRangeFilter
+              label="Total tokens"
+              minimum={props.filters.minTotalTokens}
+              maximum={props.filters.maxTotalTokens}
+              integer
+              onCommit={(minTotalTokens, maxTotalTokens) =>
+                props.onChange({ minTotalTokens, maxTotalTokens })
+              }
+            />
+            <TraceRangeFilter
+              label="Total cost (USD)"
+              minimum={props.filters.minTotalCost}
+              maximum={props.filters.maxTotalCost}
+              step="0.0001"
+              onCommit={(minTotalCost, maxTotalCost) =>
+                props.onChange({ minTotalCost, maxTotalCost })
+              }
+            />
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function CommittedFilterInput(props: {
+  label: string;
+  value?: string;
+  placeholder: string;
+  onCommit: (value: string | undefined) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="grid gap-1.5 text-xs font-medium">
+      <label htmlFor={id}>{props.label}</label>
+      <Input
+        id={id}
+        key={props.value ?? ""}
+        defaultValue={props.value ?? ""}
+        placeholder={props.placeholder}
+        onBlur={(event) => props.onCommit(event.target.value.trim() || undefined)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+      />
+    </div>
+  );
+}
+
+function TraceRangeFilter(props: {
+  label: string;
+  minimum?: number;
+  maximum?: number;
+  integer?: boolean;
+  step?: string;
+  onCommit: (minimum: number | undefined, maximum: number | undefined) => void;
+}) {
+  const commit = (container: HTMLFieldSetElement) => {
+    const values = Array.from(container.querySelectorAll("input")).map((input) =>
+      input.value.length === 0 ? undefined : Number(input.value),
+    );
+    props.onCommit(values[0], values[1]);
+  };
+  return (
+    <fieldset
+      key={`${props.minimum ?? ""}-${props.maximum ?? ""}`}
+      className="grid gap-1.5 text-xs font-medium"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) commit(event.currentTarget);
+      }}
+    >
+      <legend>{props.label}</legend>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <Input
+          type="number"
+          min="0"
+          step={props.step ?? (props.integer ? "1" : "any")}
+          defaultValue={props.minimum}
+          placeholder="Min"
+        />
+        <span className="text-muted-foreground">to</span>
+        <Input
+          type="number"
+          min="0"
+          step={props.step ?? (props.integer ? "1" : "any")}
+          defaultValue={props.maximum}
+          placeholder="Max"
+        />
+      </div>
+    </fieldset>
+  );
+}
+
+function traceActiveFilterCount(filters: ResolvedTracesSearch): number {
+  const facets = [
+    filters.statuses,
+    filters.services,
+    filters.names,
+    filters.models,
+    filters.environments,
+    filters.releases,
+    filters.versions,
+    filters.serviceVersions,
+    filters.tags,
+  ];
+  return (
+    facets.filter((values) => (values?.length ?? 0) > 0).length +
+    [
+      filters.userId,
+      filters.sessionId,
+      filters.traceId,
+      filters.search,
+      filters.minDurationMs,
+      filters.maxDurationMs,
+      filters.minTotalTokens,
+      filters.maxTotalTokens,
+      filters.minTotalCost,
+      filters.maxTotalCost,
+    ].filter((value) => value !== undefined).length
   );
 }
 
@@ -1326,17 +2166,34 @@ function TraceOpenCell({ trace }: { trace: TraceSummary }) {
   );
 }
 
-function TraceDataTable({ traces }: { traces: TraceSummary[] }) {
+function TraceDataTable(props: {
+  traces: TraceSummary[];
+  visibleColumns?: TraceColumnId[];
+  sort?: TraceSortField;
+  order?: "asc" | "desc";
+  onSort?: (sort: TraceSortField) => void;
+}) {
+  const { project } = useProject();
+  const columns = useMemo(
+    () =>
+      traceTableColumns({
+        visible: props.visibleColumns ?? defaultTraceColumns,
+        sort: props.sort,
+        order: props.order,
+        onSort: props.onSort,
+      }),
+    [props.visibleColumns, props.sort, props.order, props.onSort],
+  );
   const table = useTable({
     features: dataTableFeatures,
-    columns: traceColumns,
-    data: traces,
+    columns,
+    data: props.traces,
     getRowId: (trace) => trace.traceId,
   });
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="min-h-0 w-full flex-1 overflow-auto">
       <Table className="w-full">
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10 bg-background">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
@@ -1362,11 +2219,25 @@ function TraceDataTable({ traces }: { traces: TraceSummary[] }) {
         <TableBody>
           {table.getRowModel().rows.map((row) => (
             <TableRow key={row.id}>
-              {row.getAllCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  <table.FlexRender cell={cell} />
-                </TableCell>
-              ))}
+              {row.getAllCells().map((cell) => {
+                const content = <table.FlexRender cell={cell} />;
+                return (
+                  <TableCell key={cell.id}>
+                    {cell.column.id === "trace" || cell.column.id === "open" ? (
+                      content
+                    ) : (
+                      <Link
+                        className="-m-2 block p-2 text-inherit"
+                        to="/$projectId/traces/$traceId"
+                        params={{ projectId: project.id, traceId: row.original.traceId }}
+                        aria-label={`Open ${row.original.name}`}
+                      >
+                        {content}
+                      </Link>
+                    )}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>
@@ -1583,13 +2454,14 @@ export function TraceDetailPage() {
         </Link>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <SummaryCard label="Status">
           <StatusBadge status={detail.summary.status} />
         </SummaryCard>
         <SummaryCard label="Duration">{formatDuration(detail.summary.durationMs)}</SummaryCard>
         <SummaryCard label="Spans">{detail.summary.spanCount}</SummaryCard>
         <SummaryCard label="Tokens">{formatNumber(detail.summary.totalTokens)}</SummaryCard>
+        <SummaryCard label="Reported cost">{formatCost(detail.summary.totalCost)}</SummaryCard>
         <SummaryCard label="Session">
           {detail.summary.sessionId ? (
             <Link
@@ -1603,6 +2475,30 @@ export function TraceDetailPage() {
             "—"
           )}
         </SummaryCard>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Runtime context
+        </span>
+        <Badge variant="secondary">{detail.summary.environment}</Badge>
+        <Badge variant="outline">
+          {detail.summary.serviceName}
+          {detail.summary.serviceVersion ? `@${detail.summary.serviceVersion}` : ""}
+        </Badge>
+        {detail.summary.release ? (
+          <Badge variant="outline">Release {detail.summary.release}</Badge>
+        ) : null}
+        {detail.summary.version ? (
+          <Badge variant="outline">Version {detail.summary.version}</Badge>
+        ) : null}
+        {detail.summary.userId ? (
+          <Badge variant="outline">User {detail.summary.userId}</Badge>
+        ) : null}
+        {detail.summary.tags.map((tag) => (
+          <Badge key={tag} variant="outline">
+            {tag}
+          </Badge>
+        ))}
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
@@ -1747,6 +2643,11 @@ function SpanInspector({ span }: { span: SpanDetail }) {
         {span.model ? (
           <span className="flex items-center gap-1">
             <Sparkles className="size-3" /> {span.model}
+          </span>
+        ) : null}
+        {span.totalCost !== null ? (
+          <span className="flex items-center gap-1">
+            <Database className="size-3" /> {formatCost(span.totalCost)}
           </span>
         ) : null}
       </CardFooter>
@@ -2941,6 +3842,36 @@ function parseMetricsRange(value: unknown): MetricsRangePreset {
 function optionalSearchValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
+function searchValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return Array.from(
+    new Set(
+      values
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
+}
+function optionalNonNegativeNumber(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+function positiveInteger(value: unknown, fallback: number): number {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+function isTraceSortField(value: unknown): value is TraceSortField {
+  return traceSortFields.includes(value as TraceSortField);
+}
+function validTraceColumns(value: unknown): TraceColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultTraceColumns;
+  selected.add("trace");
+  return traceColumnIds.filter((column) => selected.has(column));
+}
 export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInterval {
   return range === "24h" ? "5s" : "30s";
 }
@@ -3013,6 +3944,27 @@ function formatDuration(value?: number) {
   if (value < 1) return `${Math.round(value * 1_000)}µs`;
   if (value < 1_000) return `${Math.round(value)}ms`;
   return `${(value / 1_000).toFixed(2)}s`;
+}
+function formatCost(value: number | null | undefined) {
+  if (value === null || value === undefined) return "—";
+  if (value > 0 && value < 0.0001) return "<$0.0001";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: value < 0.01 ? 4 : 2,
+    maximumFractionDigits: value < 0.01 ? 6 : 4,
+  }).format(value);
+}
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : value;
 }
 function shortId(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;

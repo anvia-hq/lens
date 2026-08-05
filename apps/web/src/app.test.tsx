@@ -1,18 +1,22 @@
 // @vitest-environment happy-dom
 
 import { ChartContainer } from "@lens/ui/components/chart";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Area, AreaChart } from "recharts";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   adaptiveRefreshInterval,
   ComparisonMetricCard,
   comparisonDelta,
+  defaultTraceColumns,
   RangeSelector,
   refreshMilliseconds,
+  TraceExplorerTable,
   validateOverviewSearch,
   validateTracesSearch,
 } from "./app";
+
+afterEach(cleanup);
 
 describe("overview controls", () => {
   it("renders chart SVG geometry through the shared chart container", async () => {
@@ -70,10 +74,30 @@ describe("overview controls", () => {
       validateTracesSearch({ range: "30d", status: "error", model: " gpt-4.1 ", service: "" }),
     ).toEqual({
       range: "30d",
-      status: "error",
-      model: "gpt-4.1",
-      service: undefined,
+      statuses: ["error"],
+      services: [],
+      names: [],
+      models: ["gpt-4.1"],
+      environments: [],
+      releases: [],
+      versions: [],
+      serviceVersions: [],
+      tags: [],
+      userId: undefined,
+      sessionId: undefined,
+      traceId: undefined,
       search: undefined,
+      minDurationMs: undefined,
+      maxDurationMs: undefined,
+      minTotalTokens: undefined,
+      maxTotalTokens: undefined,
+      minTotalCost: undefined,
+      maxTotalCost: undefined,
+      sort: "startedAt",
+      order: "desc",
+      page: 1,
+      pageSize: 50,
+      columns: defaultTraceColumns,
     });
   });
 
@@ -84,6 +108,32 @@ describe("overview controls", () => {
     expect(screen.getByRole("button", { name: "7d" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "30d" }));
     expect(onChange).toHaveBeenCalledWith("30d");
+  });
+
+  it("opens the trace column chooser within a valid Base UI menu group", async () => {
+    render(
+      <TraceExplorerTable
+        filters={{
+          range: "24h",
+          sort: "startedAt",
+          order: "desc",
+          page: 1,
+          pageSize: 50,
+          columns: defaultTraceColumns,
+        }}
+        searchDraft=""
+        onSearchChange={() => undefined}
+        data={{ items: [], total: 0, page: 1, pageSize: 50, pageCount: 0 }}
+        loading={false}
+        error={null}
+        activeFilterCount={0}
+        onOpenMobileFilters={() => undefined}
+        onChange={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Columns/ }));
+    expect(await screen.findByText("Visible columns")).toBeTruthy();
   });
 
   it("uses adaptive refresh and meaningful comparison labels", () => {

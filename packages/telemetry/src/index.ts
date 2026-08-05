@@ -113,6 +113,10 @@ export function normalizeOtlpRequest(
           spanAttributes,
           "langfuse.observation.usage_details",
         );
+        const costs = reportedCosts(
+          jsonRecordAttribute(spanAttributes, "langfuse.observation.cost_details"),
+          spanAttributes,
+        );
         spans.push({
           projectId: options.projectId,
           traceId: span.traceId,
@@ -167,6 +171,16 @@ export function normalizeOtlpRequest(
           version:
             stringAttribute(spanAttributes, "langfuse.version") ??
             stringAttribute(spanAttributes, "anvia.trace.version"),
+          environment:
+            firstStringAttribute(spanAttributes, resourceAttributes, [
+              "langfuse.environment",
+              "deployment.environment.name",
+              "deployment.environment",
+            ]) ?? "default",
+          release: firstStringAttribute(spanAttributes, resourceAttributes, ["langfuse.release"]),
+          serviceVersion: firstStringAttribute(resourceAttributes, spanAttributes, [
+            "service.version",
+          ]),
           model:
             stringAttribute(spanAttributes, "langfuse.observation.model.name") ??
             stringAttribute(spanAttributes, "anvia.generation.model") ??
@@ -185,6 +199,9 @@ export function normalizeOtlpRequest(
           totalTokens:
             optionalNumberAttribute(spanAttributes, ["anvia.usage.total_tokens"]) ??
             usageNumber(usageDetails, ["total", "total_tokens"]),
+          inputCost: costs.input,
+          outputCost: costs.output,
+          totalCost: costs.total,
           input,
           output,
           expiresAt,
@@ -266,6 +283,18 @@ function stringAttribute(attributes: Record<string, JsonValue>, key: string): st
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function firstStringAttribute(
+  spanAttributes: Record<string, JsonValue>,
+  resourceAttributes: Record<string, JsonValue>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = stringAttribute(spanAttributes, key) ?? stringAttribute(resourceAttributes, key);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
 function stringArrayAttribute(attributes: Record<string, JsonValue>, key: string): string[] {
   const value = attributes[key];
   return Array.isArray(value)
@@ -299,6 +328,72 @@ function optionalNumberAttribute(
 function usageNumber(value: Record<string, JsonValue> | undefined, keys: string[]): number {
   if (value === undefined) return 0;
   return optionalNumberAttribute(value, keys) ?? 0;
+}
+
+function optionalDecimalAttribute(
+  attributes: Record<string, JsonValue>,
+  keys: string[],
+): number | undefined {
+  for (const key of keys) {
+    const value = attributes[key];
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && value.trim().length > 0
+          ? Number(value)
+          : Number.NaN;
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return undefined;
+}
+
+function reportedCosts(
+  details: Record<string, JsonValue> | undefined,
+  attributes: Record<string, JsonValue>,
+): { input: number | null; output: number | null; total: number | null } {
+  const scalarInput = optionalDecimalAttribute(attributes, ["anvia.usage.input_cost"]);
+  const scalarOutput = optionalDecimalAttribute(attributes, ["anvia.usage.output_cost"]);
+  const scalarTotal = optionalDecimalAttribute(attributes, [
+    "anvia.usage.total_cost",
+    "gen_ai.usage.cost",
+  ]);
+  if (details === undefined) {
+    return {
+      input: scalarInput ?? null,
+      output: scalarOutput ?? null,
+      total:
+        scalarTotal ??
+        (scalarInput !== undefined || scalarOutput !== undefined
+          ? (scalarInput ?? 0) + (scalarOutput ?? 0)
+          : null),
+    };
+  }
+
+  const entries = Object.entries(details).flatMap(([key, value]) => {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && value.trim().length > 0
+          ? Number(value)
+          : Number.NaN;
+    return Number.isFinite(parsed) && parsed >= 0 ? [[key, parsed] as const] : [];
+  });
+  const explicitTotal = optionalDecimalAttribute(details, ["total", "totalCost", "total_cost"]);
+  const buckets = entries.filter(
+    ([key]) => !["total", "totalcost", "total_cost"].includes(key.toLowerCase()),
+  );
+  const sumMatching = (part: "input" | "output") => {
+    const values = buckets.filter(([key]) => key.toLowerCase().includes(part));
+    return values.length === 0 ? null : values.reduce((sum, [, value]) => sum + value, 0);
+  };
+  return {
+    input: sumMatching("input") ?? scalarInput ?? null,
+    output: sumMatching("output") ?? scalarOutput ?? null,
+    total:
+      explicitTotal ??
+      scalarTotal ??
+      (buckets.length === 0 ? null : buckets.reduce((sum, [, value]) => sum + value, 0)),
+  };
 }
 
 function jsonRecordAttribute(

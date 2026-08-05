@@ -31,10 +31,14 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function queryString(values: Record<string, string | number | undefined>): string {
+export function queryString(
+  values: Record<string, string | number | Array<string | number> | undefined>,
+): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined && String(value).length > 0) params.set(key, String(value));
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && String(item).length > 0) params.append(key, String(item));
+    }
   }
   return params.toString();
 }

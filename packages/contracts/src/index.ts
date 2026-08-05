@@ -46,10 +46,16 @@ export type NormalizedSpan = {
   sessionId: string | null;
   tags: string[];
   version: string | null;
+  environment: string;
+  release: string | null;
+  serviceVersion: string | null;
   model: string | null;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  inputCost: number | null;
+  outputCost: number | null;
+  totalCost: number | null;
   input: JsonValue | null;
   output: JsonValue | null;
   expiresAt: string | null;
@@ -126,9 +132,16 @@ export type TraceSummary = {
   sessionId: string | null;
   tags: string[];
   model: string | null;
+  environment: string;
+  release: string | null;
+  version: string | null;
+  serviceVersion: string | null;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  inputCost: number | null;
+  outputCost: number | null;
+  totalCost: number | null;
   lastSeenAt: string;
 };
 
@@ -161,14 +174,74 @@ export type SessionDetail = {
 export type TraceFilters = {
   from?: string;
   to?: string;
-  status?: SpanStatus;
-  service?: string;
-  name?: string;
-  model?: string;
+  statuses?: SpanStatus[];
+  services?: string[];
+  names?: string[];
+  models?: string[];
+  environments?: string[];
+  releases?: string[];
+  versions?: string[];
+  serviceVersions?: string[];
   userId?: string;
   sessionId?: string;
-  tag?: string;
+  traceId?: string;
+  tags?: string[];
   search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+};
+
+export const traceSortFields = [
+  "startedAt",
+  "endedAt",
+  "name",
+  "traceId",
+  "serviceName",
+  "status",
+  "durationMs",
+  "spanCount",
+  "generationCount",
+  "toolCount",
+  "userId",
+  "sessionId",
+  "model",
+  "environment",
+  "release",
+  "version",
+  "serviceVersion",
+  "inputTokens",
+  "outputTokens",
+  "totalTokens",
+  "inputCost",
+  "outputCost",
+  "totalCost",
+] as const;
+export type TraceSortField = (typeof traceSortFields)[number];
+export type SortOrder = "asc" | "desc";
+
+export type Page<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+export type TraceFacetValue = { value: string; count: number };
+export type TraceFacets = {
+  status: TraceFacetValue[];
+  service: TraceFacetValue[];
+  name: TraceFacetValue[];
+  model: TraceFacetValue[];
+  environment: TraceFacetValue[];
+  release: TraceFacetValue[];
+  version: TraceFacetValue[];
+  serviceVersion: TraceFacetValue[];
+  tag: TraceFacetValue[];
 };
 
 export type CursorPage<T> = {

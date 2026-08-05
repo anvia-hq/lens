@@ -148,8 +148,12 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
     const failed = index % 9 === 4;
     const inputTokens = integer(`input:${index}`, 620, 4_800);
     const outputTokens = integer(`output:${index}`, 110, 980);
+    const environment =
+      index % 20 === 0 ? "development" : index % 7 === 0 ? "staging" : "production";
+    const release = `2026.08.${1 + (index % 3)}`;
+    const serviceVersion = `2026.08.${1 + (index % 4)}`;
     const tags = [
-      "production",
+      environment,
       scenario.team,
       scenario.channel,
       index % 5 === 0 ? "priority" : "standard",
@@ -166,8 +170,8 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
       scopeVersion: "0.1.0",
       resourceAttributes: {
         "service.name": scenario.serviceName,
-        "service.version": `2026.08.${1 + (index % 4)}`,
-        "deployment.environment.name": "production",
+        "service.version": serviceVersion,
+        "deployment.environment.name": environment,
         "cloud.region": index % 3 === 0 ? "ap-southeast-1" : "us-east-1",
       },
       links: [] as JsonValue[],
@@ -176,6 +180,9 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
       sessionId,
       tags,
       version: "2026-08",
+      environment,
+      release,
+      serviceVersion,
       expiresAt,
       ingestedAt,
       ingestVersion: String(BigInt(now.getTime()) * 1_000_000n + BigInt(index)),
@@ -200,6 +207,10 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
     }) => {
       const spanStartMs = startMs + Math.round(totalMs * args.from);
       const spanEndMs = startMs + Math.round(totalMs * args.to);
+      const costs =
+        args.observationKind === "generation" || args.observationKind === "embedding"
+          ? generationCosts(args.model ?? model, args.inputTokens ?? 0, args.outputTokens ?? 0)
+          : { input: null, output: null, total: null };
       spans.push({
         ...base,
         spanId: args.key === "root" ? rootSpanId : stableHex(`trace:${index}:${args.key}`, 16),
@@ -211,12 +222,25 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
         startTimeUnixNano: toNano(spanStartMs),
         endTimeUnixNano: toNano(spanEndMs),
         durationNano: String(BigInt(spanEndMs - spanStartMs) * 1_000_000n),
-        spanAttributes: args.attributes,
+        spanAttributes:
+          costs.total === null
+            ? args.attributes
+            : {
+                ...args.attributes,
+                "langfuse.observation.cost_details": JSON.stringify({
+                  input: costs.input,
+                  output: costs.output,
+                  total: costs.total,
+                }),
+              },
         events: args.events ?? [],
         model: args.model ?? null,
         inputTokens: args.inputTokens ?? 0,
         outputTokens: args.outputTokens ?? 0,
         totalTokens: (args.inputTokens ?? 0) + (args.outputTokens ?? 0),
+        inputCost: costs.input,
+        outputCost: costs.output,
+        totalCost: costs.total,
         input: args.input ?? null,
         output: args.output ?? null,
       });
@@ -372,6 +396,17 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
   }
 
   return { spans, traceIds };
+}
+
+function generationCosts(model: string, inputTokens: number, outputTokens: number) {
+  const [inputPerMillion, outputPerMillion] = model.startsWith("gpt-4.1")
+    ? [2, 8]
+    : model.startsWith("claude")
+      ? [3, 15]
+      : [0.3, 2.5];
+  const input = (inputTokens / 1_000_000) * inputPerMillion;
+  const output = (outputTokens / 1_000_000) * outputPerMillion;
+  return { input, output, total: input + output };
 }
 
 function generationAttributes(
