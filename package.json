@@ -1,0 +1,29 @@
+{
+  "name": "lens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.0.4",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "dev": "pnpm --parallel --filter @lens/api --filter @lens/worker --filter @lens/web dev",
+    "db:generate": "pnpm --filter @lens/db db:generate",
+    "db:migrate": "pnpm --filter @lens/db db:migrate",
+    "db:seed": "pnpm --filter @lens/db db:seed",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  }
+}

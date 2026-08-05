@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "examples/*"
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: true
+
+catalog:
+  zod: ^4.0.0
