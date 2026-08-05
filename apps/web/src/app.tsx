@@ -189,10 +189,10 @@ function Topbar() {
 
 export function OverviewPage() {
   const { project } = useProject();
-  const range = timeRange(24);
   const metrics = useQuery({
-    queryKey: ["metrics", project.id, range.from],
-    queryFn: () => api<Metrics>(`/api/v1/projects/${project.id}/metrics?${queryString(range)}`),
+    queryKey: ["metrics", project.id],
+    queryFn: () =>
+      api<Metrics>(`/api/v1/projects/${project.id}/metrics?${queryString(timeRange(24))}`),
     refetchInterval: 5_000,
   });
   const value = metrics.data;
