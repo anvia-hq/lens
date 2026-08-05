@@ -163,12 +163,79 @@ export type SessionSummary = {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  inputCost: number | null;
+  outputCost: number | null;
+  totalCost: number | null;
+  status: "success" | "error";
+  services: string[];
+  environments: string[];
+  models: string[];
+  tags: string[];
   lastSeenAt: string;
+};
+
+export type SessionTurnPayload = {
+  spanId: string;
+  spanName: string;
+  observationKind: ObservationKind;
+  value: JsonValue;
+};
+
+export type SessionTurn = {
+  trace: TraceSummary;
+  prompt: SessionTurnPayload | null;
+  response: SessionTurnPayload | null;
 };
 
 export type SessionDetail = {
   summary: SessionSummary;
   traces: TraceSummary[];
+  turns: SessionTurn[];
+};
+
+export type SessionStatus = "success" | "error";
+
+export type SessionFilters = {
+  from?: string;
+  to?: string;
+  statuses?: SessionStatus[];
+  users?: string[];
+  services?: string[];
+  models?: string[];
+  environments?: string[];
+  tags?: string[];
+  search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+};
+
+export const sessionSortFields = [
+  "startedAt",
+  "endedAt",
+  "sessionId",
+  "userId",
+  "status",
+  "durationMs",
+  "traceCount",
+  "errorCount",
+  "spanCount",
+  "totalTokens",
+  "totalCost",
+  "lastSeenAt",
+] as const;
+export type SessionSortField = (typeof sessionSortFields)[number];
+
+export type SessionFacets = {
+  status: TraceFacetValue[];
+  user: TraceFacetValue[];
+  service: TraceFacetValue[];
+  model: TraceFacetValue[];
+  environment: TraceFacetValue[];
+  tag: TraceFacetValue[];
 };
 
 export type TraceFilters = {

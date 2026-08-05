@@ -6,6 +6,9 @@ import type {
   Project,
   ProjectApiKey,
   SessionDetail,
+  SessionFacets,
+  SessionSortField,
+  SessionStatus,
   SessionSummary,
   SpanDetail,
   SpanStatus,
@@ -14,7 +17,7 @@ import type {
   TraceSortField,
   TraceSummary,
 } from "@lens/contracts";
-import { metricsRangePresets, traceSortFields } from "@lens/contracts";
+import { metricsRangePresets, sessionSortFields, traceSortFields } from "@lens/contracts";
 import {
   Accordion,
   AccordionContent,
@@ -204,6 +207,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { SessionConversation } from "./components/session-conversation";
 import { useTheme } from "./components/theme-provider";
 import { TraceDetailExplorer, type TraceSpanView } from "./components/trace-detail-explorer";
 import { api, queryString } from "./lib/api";
@@ -313,6 +317,61 @@ export type TracesSearch = {
   columns?: TraceColumnId[];
 };
 
+export const sessionColumnIds = [
+  "startedAt",
+  "session",
+  "status",
+  "userId",
+  "traceCount",
+  "spanCount",
+  "durationMs",
+  "totalTokens",
+  "totalCost",
+  "environments",
+  "services",
+  "lastSeenAt",
+] as const;
+export type SessionColumnId = (typeof sessionColumnIds)[number];
+export const defaultSessionColumns: SessionColumnId[] = [
+  "startedAt",
+  "session",
+  "status",
+  "userId",
+  "traceCount",
+  "durationMs",
+  "totalTokens",
+  "totalCost",
+];
+export type SessionsSearch = {
+  range: MetricsRangePreset;
+  statuses?: SessionStatus[];
+  users?: string[];
+  services?: string[];
+  models?: string[];
+  environments?: string[];
+  tags?: string[];
+  search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+  sort?: SessionSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  columns?: SessionColumnId[];
+};
+
+type ResolvedSessionsSearch = SessionsSearch & {
+  sort: SessionSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  columns: SessionColumnId[];
+};
+
 type ResolvedTracesSearch = TracesSearch & {
   sort: TraceSortField;
   order: "asc" | "desc";
@@ -329,6 +388,34 @@ export function validateTraceDetailSearch(search: Record<string, unknown>): Trac
   return {
     view: search.view === "timeline" ? "timeline" : undefined,
     span: optionalSearchValue(search.span),
+  };
+}
+
+export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    statuses: searchValues(search.statuses ?? search.status).filter(
+      (value): value is SessionStatus => value === "success" || value === "error",
+    ),
+    users: searchValues(search.users ?? search.user),
+    services: searchValues(search.services ?? search.service),
+    models: searchValues(search.models ?? search.model),
+    environments: searchValues(search.environments ?? search.environment),
+    tags: searchValues(search.tags ?? search.tag),
+    search: optionalSearchValue(search.search),
+    minDurationMs: optionalNonNegativeNumber(search.minDurationMs),
+    maxDurationMs: optionalNonNegativeNumber(search.maxDurationMs),
+    minTotalTokens: optionalNonNegativeNumber(search.minTotalTokens),
+    maxTotalTokens: optionalNonNegativeNumber(search.maxTotalTokens),
+    minTotalCost: optionalNonNegativeNumber(search.minTotalCost),
+    maxTotalCost: optionalNonNegativeNumber(search.maxTotalCost),
+    sort: sessionSortFields.includes(search.sort as SessionSortField)
+      ? (search.sort as SessionSortField)
+      : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validSessionColumns(search.columns),
   };
 }
 
@@ -387,29 +474,6 @@ const dataTableFeatures = tableFeatures({
 });
 const traceColumnHelper = createColumnHelper<typeof dataTableFeatures, TraceSummary>();
 const sessionColumnHelper = createColumnHelper<typeof dataTableFeatures, SessionSummary>();
-
-type SortableHeaderColumn = {
-  getIsSorted: () => false | "asc" | "desc";
-  getToggleSortingHandler: () => ((event: unknown) => void) | undefined;
-};
-
-function sortableHeader(label: string) {
-  return ({ column }: { column: SortableHeaderColumn }) => {
-    const direction = column.getIsSorted();
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3"
-        onClick={column.getToggleSortingHandler()}
-        aria-label={`Sort by ${label}${direction ? `, currently ${direction}` : ""}`}
-      >
-        {label}
-        <ArrowUpDown />
-      </Button>
-    );
-  };
-}
 
 function traceTableColumns(options: {
   visible: TraceColumnId[];
@@ -566,46 +630,115 @@ function traceTableColumns(options: {
   ] as Parameters<typeof traceColumnHelper.columns>[0]);
 }
 
-const sessionColumns = sessionColumnHelper.columns([
-  sessionColumnHelper.accessor("sessionId", {
-    header: sortableHeader("Session"),
-    cell: ({ row }) => <SessionNameCell session={row.original} />,
-  }),
-  sessionColumnHelper.accessor("userId", {
-    header: sortableHeader("User"),
-    cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
-  }),
-  sessionColumnHelper.accessor("traceCount", {
-    header: sortableHeader("Traces"),
-    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.traceCount)}</span>,
-  }),
-  sessionColumnHelper.accessor("errorCount", {
-    header: sortableHeader("Errors"),
-    cell: ({ row }) =>
-      row.original.errorCount > 0 ? (
-        <Badge variant="destructive">{row.original.errorCount}</Badge>
-      ) : (
-        <Badge variant="secondary">0</Badge>
+function sessionTableColumns(options: {
+  visible: SessionColumnId[];
+  sort: SessionSortField;
+  order: "asc" | "desc";
+  onSort: (sort: SessionSortField) => void;
+}) {
+  const header = (label: string, sort: SessionSortField) => () => (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-3"
+      onClick={() => options.onSort(sort)}
+      aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
+    >
+      {label}
+      <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
+    </Button>
+  );
+  const columnsById = {
+    startedAt: sessionColumnHelper.accessor("startedAt", {
+      header: header("Started", "startedAt"),
+      cell: ({ row }) => (
+        <span className="grid text-xs" title={row.original.startedAt}>
+          <span>{relativeTime(row.original.startedAt)}</span>
+          <span className="text-muted-foreground">{formatTimestamp(row.original.startedAt)}</span>
+        </span>
       ),
-  }),
-  sessionColumnHelper.accessor("durationMs", {
-    header: sortableHeader("Duration"),
-    cell: ({ row }) => <span className="font-mono">{formatDuration(row.original.durationMs)}</span>,
-  }),
-  sessionColumnHelper.accessor("totalTokens", {
-    header: sortableHeader("Tokens"),
-    cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.totalTokens)}</span>,
-  }),
-  sessionColumnHelper.accessor("startedAt", {
-    header: sortableHeader("Started"),
-    cell: ({ row }) => relativeTime(row.original.startedAt),
-  }),
-  sessionColumnHelper.display({
-    id: "open",
-    header: () => <span className="sr-only">Open</span>,
-    cell: ({ row }) => <SessionOpenCell session={row.original} />,
-  }),
-]);
+    }),
+    session: sessionColumnHelper.accessor("sessionId", {
+      id: "session",
+      header: header("Session", "sessionId"),
+      cell: ({ row }) => <SessionNameCell session={row.original} />,
+    }),
+    status: sessionColumnHelper.accessor("status", {
+      header: header("Status", "status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.status === "error" ? "destructive" : "secondary"}>
+          {row.original.status === "error" ? `${row.original.errorCount} errors` : "Success"}
+        </Badge>
+      ),
+    }),
+    userId: sessionColumnHelper.accessor("userId", {
+      header: header("User", "userId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
+    }),
+    traceCount: sessionColumnHelper.accessor("traceCount", {
+      header: header("Traces", "traceCount"),
+      cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.traceCount)}</span>,
+    }),
+    spanCount: sessionColumnHelper.accessor("spanCount", {
+      header: header("Spans", "spanCount"),
+      cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.spanCount)}</span>,
+    }),
+    durationMs: sessionColumnHelper.accessor("durationMs", {
+      header: header("Duration", "durationMs"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatDuration(row.original.durationMs)}</span>
+      ),
+    }),
+    totalTokens: sessionColumnHelper.accessor("totalTokens", {
+      header: header("Tokens", "totalTokens"),
+      cell: ({ row }) => (
+        <span className="grid font-mono text-xs">
+          <span>{formatNumber(row.original.totalTokens)}</span>
+          <span className="text-muted-foreground">
+            {formatNumber(row.original.inputTokens)} in · {formatNumber(row.original.outputTokens)}{" "}
+            out
+          </span>
+        </span>
+      ),
+    }),
+    totalCost: sessionColumnHelper.accessor("totalCost", {
+      header: header("Cost", "totalCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.totalCost)}</span>,
+    }),
+    environments: sessionColumnHelper.accessor("environments", {
+      header: () => "Environments",
+      cell: ({ row }) => <CompactValues values={row.original.environments} />,
+    }),
+    services: sessionColumnHelper.accessor("services", {
+      header: () => "Services",
+      cell: ({ row }) => <CompactValues values={row.original.services} />,
+    }),
+    lastSeenAt: sessionColumnHelper.accessor("lastSeenAt", {
+      header: header("Last seen", "lastSeenAt"),
+      cell: ({ row }) => relativeTime(row.original.lastSeenAt),
+    }),
+  };
+  return sessionColumnHelper.columns([
+    ...options.visible.map((column) => columnsById[column]),
+    sessionColumnHelper.display({
+      id: "open",
+      header: () => <span className="sr-only">Open</span>,
+      cell: ({ row }) => <SessionOpenCell session={row.original} />,
+    }),
+  ] as Parameters<typeof sessionColumnHelper.columns>[0]);
+}
+
+function CompactValues({ values }: { values: string[] }) {
+  if (values.length === 0) return "—";
+  return (
+    <div className="flex items-center gap-1">
+      <Badge variant="outline">{values[0]}</Badge>
+      {values.length > 1 ? (
+        <span className="text-xs text-muted-foreground">+{values.length - 1}</span>
+      ) : null}
+    </div>
+  );
+}
 
 function useProject(): ProjectContextValue {
   const context = useContext(ProjectContext);
@@ -852,7 +985,11 @@ function AppHeader() {
                         search={{ range: "24h" }}
                       />
                     ) : (
-                      <Link to="/$projectId/sessions" params={{ projectId: project.id }} />
+                      <Link
+                        to="/$projectId/sessions"
+                        params={{ projectId: project.id }}
+                        search={{ range: "24h" }}
+                      />
                     )
                   }
                 >
@@ -2260,53 +2397,166 @@ function TraceDataTable(props: {
 
 export function SessionsPage() {
   const { project } = useProject();
-  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
+  const filters = useSearch({ strict: false }) as ResolvedSessionsSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const range = timeRange(24);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
+  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
+  const setFilters = useCallback(
+    (changes: Partial<SessionsSearch>, resetPage = true) => {
+      void navigate({
+        to: "/$projectId/sessions",
+        params: { projectId: project.id },
+        search: { ...filters, ...changes, page: resetPage ? 1 : (changes.page ?? filters.page) },
+        replace: true,
+      });
+    },
+    [filters, navigate, project.id],
+  );
+  useEffect(() => setSearchDraft(filters.search ?? ""), [filters.search]);
+  useEffect(() => {
+    if (searchDraft === (filters.search ?? "")) return;
+    const timeout = window.setTimeout(
+      () => setFilters({ search: searchDraft.trim() || undefined }),
+      300,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [filters.search, searchDraft, setFilters]);
+  const requestFilters = {
+    ...range,
+    status: filters.statuses,
+    user: filters.users,
+    service: filters.services,
+    model: filters.models,
+    environment: filters.environments,
+    tag: filters.tags,
+    search: filters.search,
+    minDurationMs: filters.minDurationMs,
+    maxDurationMs: filters.maxDurationMs,
+    minTotalTokens: filters.minTotalTokens,
+    maxTotalTokens: filters.maxTotalTokens,
+    minTotalCost: filters.minTotalCost,
+    maxTotalCost: filters.maxTotalCost,
+  };
   const sessions = useQuery({
-    queryKey: ["sessions", project.id, search],
+    queryKey: ["sessions", project.id, filters],
     queryFn: () =>
-      api<{ items: SessionSummary[] }>(
-        `/api/v1/projects/${project.id}/sessions?${queryString({ ...range, search, limit: 100 })}`,
+      api<PaginatedPage<SessionSummary>>(
+        `/api/v1/projects/${project.id}/sessions?${queryString({
+          ...requestFilters,
+          page: filters.page,
+          pageSize: filters.pageSize,
+          sort: filters.sort,
+          order: filters.order,
+        })}`,
       ),
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
+  const facets = useQuery({
+    queryKey: ["session-facets", project.id, requestFilters],
+    queryFn: () =>
+      api<SessionFacets>(
+        `/api/v1/projects/${project.id}/sessions/facets?${queryString(requestFilters)}`,
+      ),
+    placeholderData: (previous) => previous,
+    refetchInterval: refreshMilliseconds(refreshInterval),
+  });
+  const activeFilterCount = sessionActiveFilterCount(filters);
+  const clearFilters = () =>
+    setFilters({
+      statuses: [],
+      users: [],
+      services: [],
+      models: [],
+      environments: [],
+      tags: [],
+      search: undefined,
+      minDurationMs: undefined,
+      maxDurationMs: undefined,
+      minTotalTokens: undefined,
+      maxTotalTokens: undefined,
+      minTotalCost: undefined,
+      maxTotalCost: undefined,
+    });
+  const table = (
+    <SessionExplorerTable
+      filters={filters}
+      searchDraft={searchDraft}
+      onSearchChange={setSearchDraft}
+      data={sessions.data}
+      loading={sessions.isLoading}
+      error={sessions.error}
+      activeFilterCount={activeFilterCount}
+      onOpenMobileFilters={() => setMobileFiltersOpen(true)}
+      onChange={(changes, resetPage) => setFilters(changes, resetPage)}
+      actions={
+        <>
+          <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
+          <LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />
+        </>
+      }
+    />
+  );
+  const filterPanel = (
+    <SessionFilterPanel
+      filters={filters}
+      facets={facets.data}
+      loading={facets.isLoading}
+      error={facets.error}
+      activeCount={activeFilterCount}
+      onChange={(changes) => setFilters(changes)}
+      onClear={clearFilters}
+      onCollapse={() => setFilterPanelCollapsed(true)}
+    />
+  );
   return (
-    <Page
-      title="Sessions"
-      description="Follow related traces across an end-to-end user interaction"
-      action={<LiveBadge interval={refreshInterval} onIntervalChange={setRefreshInterval} />}
-    >
-      <Card>
-        <CardHeader className="border-b">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                aria-label="Search sessions"
-                placeholder="Search session or user ID"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="px-0">
-          {sessions.isLoading ? (
-            <LoadingRows />
-          ) : sessions.data?.items.length ? (
-            <SessionDataTable sessions={sessions.data.items} />
-          ) : (
-            <EmptyState
-              icon={<MessagesSquare />}
-              title="No sessions found"
-              text="Sessions appear when traces include an OpenTelemetry session ID."
-            />
-          )}
-        </CardContent>
-      </Card>
-    </Page>
+    <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="hidden min-h-[620px] flex-1 overflow-hidden md:flex">
+        <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanel
+            key={filterPanelCollapsed ? "collapsed" : "expanded"}
+            id="session-filters"
+            defaultSize={filterPanelCollapsed ? "40px" : "280px"}
+            minSize={filterPanelCollapsed ? "40px" : "200px"}
+            maxSize={filterPanelCollapsed ? "40px" : "420px"}
+            disabled={filterPanelCollapsed}
+          >
+            {filterPanelCollapsed ? (
+              <div className="flex h-full flex-col items-center border-r bg-muted/20 py-2">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Show filters"
+                  onClick={() => setFilterPanelCollapsed(false)}
+                >
+                  <SlidersHorizontal />
+                </Button>
+                {activeFilterCount > 0 ? (
+                  <Badge className="mt-2 px-1.5" variant="secondary">
+                    {activeFilterCount}
+                  </Badge>
+                ) : null}
+              </div>
+            ) : (
+              filterPanel
+            )}
+          </ResizablePanel>
+          {!filterPanelCollapsed ? <ResizableHandle withHandle /> : null}
+          <ResizablePanel id="session-results" minSize="50%">
+            {table}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
+      <div className="overflow-hidden md:hidden">{table}</div>
+      <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+        <SheetContent side="bottom" className="h-[85svh] gap-0 p-0">
+          <SheetTitle className="sr-only">Session filters</SheetTitle>
+          {filterPanel}
+        </SheetContent>
+      </Sheet>
+    </main>
   );
 }
 
@@ -2338,17 +2588,206 @@ function SessionOpenCell({ session }: { session: SessionSummary }) {
   );
 }
 
-function SessionDataTable({ sessions }: { sessions: SessionSummary[] }) {
+const sessionColumnLabels: Record<SessionColumnId, string> = {
+  startedAt: "Started",
+  session: "Session",
+  status: "Status",
+  userId: "User",
+  traceCount: "Traces",
+  spanCount: "Spans",
+  durationMs: "Duration",
+  totalTokens: "Tokens",
+  totalCost: "Cost",
+  environments: "Environments",
+  services: "Services",
+  lastSeenAt: "Last seen",
+};
+
+export function SessionExplorerTable(props: {
+  filters: ResolvedSessionsSearch;
+  searchDraft: string;
+  onSearchChange: (value: string) => void;
+  data?: PaginatedPage<SessionSummary>;
+  loading: boolean;
+  error: unknown;
+  activeFilterCount: number;
+  onOpenMobileFilters: () => void;
+  onChange: (changes: Partial<SessionsSearch>, resetPage?: boolean) => void;
+  actions?: ReactNode;
+}) {
+  const sort = (field: SessionSortField) =>
+    props.onChange({
+      sort: field,
+      order: props.filters.sort === field && props.filters.order === "desc" ? "asc" : "desc",
+    });
+  return (
+    <div className="flex h-full min-w-0 flex-col bg-background">
+      <div className="flex flex-wrap items-center gap-2 border-b p-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          onClick={props.onOpenMobileFilters}
+        >
+          <SlidersHorizontal /> Filters
+          {props.activeFilterCount > 0 ? (
+            <Badge variant="secondary">{props.activeFilterCount}</Badge>
+          ) : null}
+        </Button>
+        <div className="relative min-w-52 flex-1">
+          <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            aria-label="Search sessions"
+            placeholder="Search session or user ID"
+            value={props.searchDraft}
+            onChange={(event) => props.onSearchChange(event.target.value)}
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+            Columns <ChevronDown />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-80 w-56 overflow-y-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Visible columns</DropdownMenuLabel>
+              {sessionColumnIds.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column}
+                  checked={props.filters.columns.includes(column)}
+                  disabled={column === "session"}
+                  onCheckedChange={(checked) =>
+                    props.onChange(
+                      {
+                        columns: checked
+                          ? sessionColumnIds.filter(
+                              (item) => props.filters.columns.includes(item) || item === column,
+                            )
+                          : props.filters.columns.filter((item) => item !== column),
+                      },
+                      false,
+                    )
+                  }
+                >
+                  {sessionColumnLabels[column]}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => props.onChange({ columns: defaultSessionColumns }, false)}
+            >
+              Reset columns
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {props.actions}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {props.error ? (
+          <div className="p-4">
+            <ErrorAlert error={props.error} />
+          </div>
+        ) : props.loading ? (
+          <LoadingRows />
+        ) : props.data?.items.length ? (
+          <SessionDataTable
+            sessions={props.data.items}
+            visibleColumns={props.filters.columns}
+            sort={props.filters.sort}
+            order={props.filters.order}
+            onSort={sort}
+          />
+        ) : (
+          <EmptyState
+            icon={<MessagesSquare />}
+            title="No sessions found"
+            text="Try another filter or send traces containing a session ID."
+          />
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+        <span className="text-muted-foreground">
+          {props.data ? `${formatNumber(props.data.total)} sessions` : "Loading sessions"}
+        </span>
+        <div className="flex items-center gap-3">
+          <NativeSelect
+            aria-label="Rows per page"
+            value={String(props.filters.pageSize)}
+            onChange={(event) =>
+              props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
+            }
+          >
+            <NativeSelectOption value="25">25 rows</NativeSelectOption>
+            <NativeSelectOption value="50">50 rows</NativeSelectOption>
+            <NativeSelectOption value="100">100 rows</NativeSelectOption>
+          </NativeSelect>
+          <span className="whitespace-nowrap">
+            Page {props.filters.page} of {Math.max(1, props.data?.pageCount ?? 1)}
+          </span>
+          <Pagination className="w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  aria-disabled={props.filters.page <= 1}
+                  className={cn(props.filters.page <= 1 && "pointer-events-none opacity-50")}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    props.onChange({ page: Math.max(1, props.filters.page - 1) }, false);
+                  }}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  aria-disabled={props.filters.page >= (props.data?.pageCount ?? 0)}
+                  className={cn(
+                    props.filters.page >= (props.data?.pageCount ?? 0) &&
+                      "pointer-events-none opacity-50",
+                  )}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    props.onChange({ page: props.filters.page + 1 }, false);
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionDataTable(props: {
+  sessions: SessionSummary[];
+  visibleColumns: SessionColumnId[];
+  sort: SessionSortField;
+  order: "asc" | "desc";
+  onSort: (sort: SessionSortField) => void;
+}) {
+  const { project } = useProject();
+  const columns = useMemo(
+    () =>
+      sessionTableColumns({
+        visible: props.visibleColumns,
+        sort: props.sort,
+        order: props.order,
+        onSort: props.onSort,
+      }),
+    [props.onSort, props.order, props.sort, props.visibleColumns],
+  );
   const table = useTable({
     features: dataTableFeatures,
-    columns: sessionColumns,
-    data: sessions,
+    columns,
+    data: props.sessions,
     getRowId: (session) => session.sessionId,
   });
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="min-h-0 w-full flex-1 overflow-auto">
       <Table className="w-full">
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10 bg-background">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
@@ -2374,16 +2813,199 @@ function SessionDataTable({ sessions }: { sessions: SessionSummary[] }) {
         <TableBody>
           {table.getRowModel().rows.map((row) => (
             <TableRow key={row.id}>
-              {row.getAllCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  <table.FlexRender cell={cell} />
-                </TableCell>
-              ))}
+              {row.getAllCells().map((cell) => {
+                const content = <table.FlexRender cell={cell} />;
+                return (
+                  <TableCell key={cell.id}>
+                    {cell.column.id === "session" || cell.column.id === "open" ? (
+                      content
+                    ) : (
+                      <Link
+                        className="-m-2 block p-2 text-inherit"
+                        to="/$projectId/sessions/$sessionId"
+                        params={{ projectId: project.id, sessionId: row.original.sessionId }}
+                        aria-label={`Open session ${row.original.sessionId}`}
+                      >
+                        {content}
+                      </Link>
+                    )}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+type SessionFacetFilterField =
+  | "statuses"
+  | "users"
+  | "services"
+  | "models"
+  | "environments"
+  | "tags";
+const sessionFacetSections: Array<{
+  id: keyof SessionFacets;
+  field: SessionFacetFilterField;
+  label: string;
+}> = [
+  { id: "status", field: "statuses", label: "Status" },
+  { id: "user", field: "users", label: "User" },
+  { id: "environment", field: "environments", label: "Environment" },
+  { id: "service", field: "services", label: "Service" },
+  { id: "model", field: "models", label: "Model" },
+  { id: "tag", field: "tags", label: "Tags" },
+];
+
+function SessionFilterPanel(props: {
+  filters: ResolvedSessionsSearch;
+  facets?: SessionFacets;
+  loading: boolean;
+  error: unknown;
+  activeCount: number;
+  onChange: (changes: Partial<SessionsSearch>) => void;
+  onClear: () => void;
+  onCollapse: () => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Filters</span>
+          {props.activeCount > 0 ? <Badge variant="secondary">{props.activeCount}</Badge> : null}
+        </div>
+        <div className="flex items-center gap-1">
+          {props.activeCount > 0 ? (
+            <Button variant="ghost" size="sm" onClick={props.onClear}>
+              Clear all
+            </Button>
+          ) : null}
+          <Button
+            className="hidden md:inline-flex"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Hide filters"
+            onClick={props.onCollapse}
+          >
+            <ArrowLeft />
+          </Button>
+        </div>
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="px-3 pb-5">
+          {props.error ? <ErrorAlert error={props.error} /> : null}
+          <Accordion multiple defaultValue={["status", "user", "environment"]}>
+            {sessionFacetSections.map((section) => {
+              const selected = props.filters[section.field] ?? [];
+              const options = props.facets?.[section.id] ?? [];
+              return (
+                <AccordionItem key={section.id} value={section.id}>
+                  <AccordionTrigger>
+                    <span className="flex items-center gap-2">
+                      {section.label}
+                      {selected.length > 0 ? (
+                        <Badge variant="secondary">{selected.length}</Badge>
+                      ) : null}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {props.loading ? (
+                      <div className="grid gap-2 py-1">
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-4/5" />
+                      </div>
+                    ) : options.length === 0 ? (
+                      <p className="py-1 text-xs text-muted-foreground">No values in this range.</p>
+                    ) : (
+                      <div className="grid gap-1">
+                        {options.map((option) => (
+                          <label
+                            key={option.value}
+                            htmlFor={`session-facet-${section.id}-${option.value}`}
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 hover:bg-muted"
+                          >
+                            <Checkbox
+                              id={`session-facet-${section.id}-${option.value}`}
+                              checked={selected.includes(option.value)}
+                              onCheckedChange={(checked) =>
+                                props.onChange({
+                                  [section.field]: checked
+                                    ? Array.from(new Set([...selected, option.value]))
+                                    : selected.filter((value) => value !== option.value),
+                                })
+                              }
+                            />
+                            <span className="min-w-0 flex-1 truncate" title={option.value}>
+                              {option.value}
+                            </span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatNumber(option.count)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+          <div className="grid gap-4 border-t pt-4">
+            <TraceRangeFilter
+              label="Duration (ms)"
+              minimum={props.filters.minDurationMs}
+              maximum={props.filters.maxDurationMs}
+              onCommit={(minDurationMs, maxDurationMs) =>
+                props.onChange({ minDurationMs, maxDurationMs })
+              }
+            />
+            <TraceRangeFilter
+              label="Total tokens"
+              minimum={props.filters.minTotalTokens}
+              maximum={props.filters.maxTotalTokens}
+              integer
+              onCommit={(minTotalTokens, maxTotalTokens) =>
+                props.onChange({ minTotalTokens, maxTotalTokens })
+              }
+            />
+            <TraceRangeFilter
+              label="Total cost (USD)"
+              minimum={props.filters.minTotalCost}
+              maximum={props.filters.maxTotalCost}
+              step="0.0001"
+              onCommit={(minTotalCost, maxTotalCost) =>
+                props.onChange({ minTotalCost, maxTotalCost })
+              }
+            />
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function sessionActiveFilterCount(filters: ResolvedSessionsSearch): number {
+  return (
+    [
+      filters.statuses,
+      filters.users,
+      filters.services,
+      filters.models,
+      filters.environments,
+      filters.tags,
+    ].filter((values) => (values?.length ?? 0) > 0).length +
+    [
+      filters.search,
+      filters.minDurationMs,
+      filters.maxDurationMs,
+      filters.minTotalTokens,
+      filters.maxTotalTokens,
+      filters.minTotalCost,
+      filters.maxTotalCost,
+    ].filter((value) => value !== undefined).length
   );
 }
 
@@ -2393,47 +3015,14 @@ export function SessionDetailPage() {
   const session = useQuery({
     queryKey: ["session", project.id, sessionId],
     queryFn: () => api<SessionDetail>(`/api/v1/projects/${project.id}/sessions/${sessionId}`),
-    refetchInterval: 5_000,
+    refetchInterval: 30_000,
   });
+  const detail = session.data;
   if (session.isLoading)
     return <FullPageMessage icon={<MessagesSquare />} text="Loading session" contained />;
-  if (session.data === undefined)
+  if (detail === undefined)
     return <FullPageMessage icon={<AlertCircle />} text="Session not found" contained />;
-  const detail = session.data;
-  return (
-    <Page
-      title={detail.summary.sessionId}
-      description={
-        detail.summary.userId ? `User ${detail.summary.userId}` : "Traces in this session"
-      }
-      action={
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          to="/$projectId/sessions"
-          params={{ projectId: project.id }}
-        >
-          <ArrowLeft /> Back
-        </Link>
-      }
-    >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard label="Traces">{formatNumber(detail.summary.traceCount)}</SummaryCard>
-        <SummaryCard label="Errors">{formatNumber(detail.summary.errorCount)}</SummaryCard>
-        <SummaryCard label="Spans">{formatNumber(detail.summary.spanCount)}</SummaryCard>
-        <SummaryCard label="Duration">{formatDuration(detail.summary.durationMs)}</SummaryCard>
-        <SummaryCard label="Tokens">{formatNumber(detail.summary.totalTokens)}</SummaryCard>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Traces</CardTitle>
-          <CardDescription>All traces carrying this session ID</CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <TraceDataTable traces={detail.traces} />
-        </CardContent>
-      </Card>
-    </Page>
-  );
+  return <SessionConversation detail={detail} projectId={project.id} />;
 }
 
 export function TraceDetailPage() {
@@ -3453,16 +4042,6 @@ function Page(props: {
   );
 }
 
-function SummaryCard({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle>{children}</CardTitle>
-      </CardHeader>
-    </Card>
-  );
-}
 function LiveBadge(props: {
   interval: RefreshInterval;
   onIntervalChange: (interval: RefreshInterval) => void;
@@ -3693,6 +4272,12 @@ function validTraceColumns(value: unknown): TraceColumnId[] {
   if (selected.size === 0) return defaultTraceColumns;
   selected.add("trace");
   return traceColumnIds.filter((column) => selected.has(column));
+}
+function validSessionColumns(value: unknown): SessionColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultSessionColumns;
+  selected.add("session");
+  return sessionColumnIds.filter((column) => selected.has(column));
 }
 export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInterval {
   return range === "24h" ? "5s" : "30s";

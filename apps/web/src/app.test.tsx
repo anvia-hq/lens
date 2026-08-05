@@ -8,11 +8,14 @@ import {
   adaptiveRefreshInterval,
   ComparisonMetricCard,
   comparisonDelta,
+  defaultSessionColumns,
   defaultTraceColumns,
   RangeSelector,
   refreshMilliseconds,
+  SessionExplorerTable,
   TraceExplorerTable,
   validateOverviewSearch,
+  validateSessionsSearch,
   validateTraceDetailSearch,
   validateTracesSearch,
 } from "./app";
@@ -79,6 +82,27 @@ describe("overview controls", () => {
       view: undefined,
       span: undefined,
     });
+    expect(validateSessionsSearch({ range: "7d", status: "error", user: " user-1 " })).toEqual({
+      range: "7d",
+      statuses: ["error"],
+      users: ["user-1"],
+      services: [],
+      models: [],
+      environments: [],
+      tags: [],
+      search: undefined,
+      minDurationMs: undefined,
+      maxDurationMs: undefined,
+      minTotalTokens: undefined,
+      maxTotalTokens: undefined,
+      minTotalCost: undefined,
+      maxTotalCost: undefined,
+      sort: "startedAt",
+      order: "desc",
+      page: 1,
+      pageSize: 50,
+      columns: defaultSessionColumns,
+    });
     expect(
       validateTracesSearch({ range: "30d", status: "error", model: " gpt-4.1 ", service: "" }),
     ).toEqual({
@@ -129,6 +153,32 @@ describe("overview controls", () => {
           page: 1,
           pageSize: 50,
           columns: defaultTraceColumns,
+        }}
+        searchDraft=""
+        onSearchChange={() => undefined}
+        data={{ items: [], total: 0, page: 1, pageSize: 50, pageCount: 0 }}
+        loading={false}
+        error={null}
+        activeFilterCount={0}
+        onOpenMobileFilters={() => undefined}
+        onChange={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Columns/ }));
+    expect(await screen.findByText("Visible columns")).toBeTruthy();
+  });
+
+  it("opens the session column chooser within a valid Base UI menu group", async () => {
+    render(
+      <SessionExplorerTable
+        filters={{
+          range: "24h",
+          sort: "startedAt",
+          order: "desc",
+          page: 1,
+          pageSize: 50,
+          columns: defaultSessionColumns,
         }}
         searchDraft=""
         onSearchChange={() => undefined}

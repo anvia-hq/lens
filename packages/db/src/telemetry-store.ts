@@ -9,7 +9,11 @@ import type {
   ObservationKind,
   Page,
   SessionDetail,
+  SessionFacets,
+  SessionFilters,
+  SessionSortField,
   SessionSummary,
+  SessionTurnPayload,
   SpanDetail,
   SpanStatus,
   TraceDetail,
@@ -103,7 +107,26 @@ type SessionSummaryRow = {
   input_tokens: number | string;
   output_tokens: number | string;
   total_tokens: number | string;
+  input_cost: number | string | null;
+  output_cost: number | string | null;
+  total_cost: number | string | null;
+  session_status: "success" | "error";
+  services: string[];
+  environments: string[];
+  models: string[];
+  tags: string[];
   last_seen_at: string;
+};
+
+type SessionConversationRow = {
+  trace_id: string;
+  span_id: string;
+  parent_span_id: string;
+  name: string;
+  observation_kind: ObservationKind;
+  start_time: string;
+  input: string | null;
+  output: string | null;
 };
 
 export async function insertSpans(
@@ -477,18 +500,179 @@ export async function getTrace(
 export async function listSessions(
   client: ClickHouseClient,
   projectId: string,
-  options: { from?: string; to?: string; search?: string; limit?: number },
-): Promise<SessionSummary[]> {
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
-  const params: Record<string, string | number> = { projectId, limit };
-  const filters = ["project_id = {projectId:UUID}", "session_id IS NOT NULL", "session_id != ''"];
+  options: SessionFilters & {
+    page?: number;
+    pageSize?: number;
+    sort?: SessionSortField;
+    order?: "asc" | "desc";
+  },
+): Promise<Page<SessionSummary>> {
+  const page = Math.max(1, Math.trunc(options.page ?? 1));
+  const pageSize = [25, 50, 100].includes(options.pageSize ?? 50) ? (options.pageSize ?? 50) : 50;
+  const sort = options.sort ?? "startedAt";
+  const order = options.order ?? "desc";
+  const offset = (page - 1) * pageSize;
+  const { aggregateFilters, filters, params } = sessionWhere(projectId, options);
+  const aggregate = sessionAggregateSql(aggregateFilters);
+  const sortExpression = sessionSortColumns[sort];
+  const [result, countResult] = await Promise.all([
+    client.query({
+      query: `SELECT * FROM (${aggregate}) AS sessions
+              WHERE ${filters.join(" AND ")}
+              ORDER BY isNull(${sortExpression}) ASC, ${sortExpression} ${order.toUpperCase()}, session_started_at DESC, session_id ASC
+              LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}`,
+      query_params: { ...params, pageSize, offset },
+      format: "JSONEachRow",
+    }),
+    client.query({
+      query: `SELECT count() AS total FROM (${aggregate}) AS sessions
+              WHERE ${filters.join(" AND ")}`,
+      query_params: params,
+      format: "JSONEachRow",
+    }),
+  ]);
+  const rows = await result.json<SessionSummaryRow>();
+  const counts = await countResult.json<{ total: number | string }>();
+  const total = numeric(counts[0]?.total);
+  return {
+    items: rows.map(sessionSummaryFromRow),
+    total,
+    page,
+    pageSize,
+    pageCount: total === 0 ? 0 : Math.ceil(total / pageSize),
+  };
+}
+
+type SessionFacet = "status" | "user" | "service" | "model" | "environment" | "tag";
+
+export async function listSessionFacets(
+  client: ClickHouseClient,
+  projectId: string,
+  options: SessionFilters,
+): Promise<SessionFacets> {
+  const facets: SessionFacet[] = ["status", "user", "service", "model", "environment", "tag"];
+  const values = await Promise.all(
+    facets.map(async (facet) => {
+      const { aggregateFilters, filters, params } = sessionWhere(projectId, options, facet);
+      const aggregate = sessionAggregateSql(aggregateFilters);
+      const arrayColumn = sessionFacetArrayColumns[facet];
+      const result = await client.query({
+        query:
+          arrayColumn === undefined
+            ? `SELECT toString(${facet === "user" ? "user_id" : "session_status"}) AS value, count() AS count
+               FROM (${aggregate}) AS sessions
+               WHERE ${filters.join(" AND ")} AND value != ''
+               GROUP BY value ORDER BY count DESC, value ASC LIMIT 50`
+            : `SELECT value, count() AS count
+               FROM (${aggregate}) AS sessions
+               ARRAY JOIN ${arrayColumn} AS value
+               WHERE ${filters.join(" AND ")} AND value != ''
+               GROUP BY value ORDER BY count DESC, value ASC LIMIT 50`,
+        query_params: params,
+        format: "JSONEachRow",
+      });
+      const rows = await result.json<{ value: string; count: number | string }>();
+      return [facet, rows.map((row) => ({ value: row.value, count: numeric(row.count) }))] as const;
+    }),
+  );
+  return Object.fromEntries(values) as SessionFacets;
+}
+
+const sessionSortColumns: Record<SessionSortField, string> = {
+  startedAt: "session_started_at",
+  endedAt: "session_ended_at",
+  sessionId: "session_id",
+  userId: "user_id",
+  status: "session_status",
+  durationMs: "duration_ms",
+  traceCount: "trace_count",
+  errorCount: "error_count",
+  spanCount: "span_count",
+  totalTokens: "total_tokens",
+  totalCost: "total_cost",
+  lastSeenAt: "last_seen_at",
+};
+
+const sessionFacetArrayColumns: Partial<Record<SessionFacet, string>> = {
+  service: "services",
+  model: "models",
+  environment: "environments",
+  tag: "tags",
+};
+
+function sessionAggregateSql(filters: string[]): string {
+  return `SELECT
+            project_id,
+            assumeNotNull(session_id) AS session_id,
+            argMax(user_id, started_at) AS user_id,
+            min(started_at) AS session_started_at,
+            max(ended_at) AS session_ended_at,
+            dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
+            count() AS trace_count,
+            countIf(status = 'error') AS error_count,
+            if(countIf(status = 'error') > 0, 'error', 'success') AS session_status,
+            sum(span_count) AS span_count,
+            sum(input_tokens) AS input_tokens,
+            sum(output_tokens) AS output_tokens,
+            sum(total_tokens) AS total_tokens,
+            sumOrNull(input_cost) AS input_cost,
+            sumOrNull(output_cost) AS output_cost,
+            sumOrNull(total_cost) AS total_cost,
+            arraySort(arrayFilter(value -> value != '', groupUniqArray(service_name))) AS services,
+            arraySort(arrayFilter(value -> value != '', groupUniqArray(environment))) AS environments,
+            arraySort(arrayFilter(value -> value != '', groupUniqArray(ifNull(model, '')))) AS models,
+            arraySort(arrayDistinct(arrayFlatten(groupArray(tags)))) AS tags,
+            max(last_seen_at) AS last_seen_at
+          FROM trace_summaries FINAL
+          WHERE ${filters.join(" AND ")}
+          GROUP BY project_id, session_id`;
+}
+
+function sessionWhere(
+  projectId: string,
+  options: SessionFilters,
+  omit?: SessionFacet,
+): {
+  aggregateFilters: string[];
+  filters: string[];
+  params: Record<string, string | number | string[]>;
+} {
+  const aggregateFilters = [
+    "project_id = {projectId:UUID}",
+    "session_id IS NOT NULL",
+    "session_id != ''",
+  ];
+  const filters = ["1"];
+  const params: Record<string, string | number | string[]> = { projectId };
   if (options.from !== undefined) {
-    filters.push("started_at >= {from:DateTime64(3)}");
+    aggregateFilters.push("started_at >= {from:DateTime64(3)}");
     params.from = clickHouseDateTimeParam(options.from);
   }
   if (options.to !== undefined) {
-    filters.push("started_at <= {to:DateTime64(3)}");
+    aggregateFilters.push("started_at <= {to:DateTime64(3)}");
     params.to = clickHouseDateTimeParam(options.to);
+  }
+  for (const [field, column, facet] of [
+    ["statuses", "session_status", "status"],
+    ["users", "user_id", "user"],
+  ] as const) {
+    const value = options[field];
+    if (value !== undefined && value.length > 0 && omit !== facet) {
+      filters.push(`${column} IN {${field}:Array(String)}`);
+      params[field] = value;
+    }
+  }
+  for (const [field, column, facet] of [
+    ["services", "services", "service"],
+    ["models", "models", "model"],
+    ["environments", "environments", "environment"],
+    ["tags", "tags", "tag"],
+  ] as const) {
+    const value = options[field];
+    if (value !== undefined && value.length > 0 && omit !== facet) {
+      filters.push(`hasAny(${column}, {${field}:Array(String)})`);
+      params[field] = value;
+    }
   }
   if (options.search !== undefined) {
     filters.push(
@@ -496,30 +680,21 @@ export async function listSessions(
     );
     params.search = options.search;
   }
-  const result = await client.query({
-    query: `SELECT
-              project_id,
-              assumeNotNull(session_id) AS session_id,
-              argMax(user_id, started_at) AS user_id,
-              min(started_at) AS session_started_at,
-              max(ended_at) AS session_ended_at,
-              dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
-              count() AS trace_count,
-              countIf(status = 'error') AS error_count,
-              sum(span_count) AS span_count,
-              sum(input_tokens) AS input_tokens,
-              sum(output_tokens) AS output_tokens,
-              sum(total_tokens) AS total_tokens,
-              max(last_seen_at) AS last_seen_at
-            FROM trace_summaries FINAL
-            WHERE ${filters.join(" AND ")}
-            GROUP BY project_id, session_id
-            ORDER BY session_started_at DESC, session_id ASC
-            LIMIT {limit:UInt16}`,
-    query_params: params,
-    format: "JSONEachRow",
-  });
-  return (await result.json<SessionSummaryRow>()).map(sessionSummaryFromRow);
+  for (const [field, column, operator] of [
+    ["minDurationMs", "duration_ms", ">="],
+    ["maxDurationMs", "duration_ms", "<="],
+    ["minTotalTokens", "total_tokens", ">="],
+    ["maxTotalTokens", "total_tokens", "<="],
+    ["minTotalCost", "total_cost", ">="],
+    ["maxTotalCost", "total_cost", "<="],
+  ] as const) {
+    const value = options[field];
+    if (value !== undefined) {
+      filters.push(`${column} ${operator} {${field}:Float64}`);
+      params[field] = value;
+    }
+  }
+  return { aggregateFilters, filters, params };
 }
 
 export async function getSession(
@@ -537,6 +712,16 @@ export async function getSession(
     (maximum, trace) => (trace.endedAt > maximum ? trace.endedAt : maximum),
     traces.items[0]?.endedAt ?? "",
   );
+  const conversationRows = await readSessionConversationRows(
+    client,
+    projectId,
+    traces.items.map((trace) => trace.traceId),
+  );
+  const rowsByTrace = new Map<string, SessionConversationRow[]>();
+  for (const row of conversationRows) {
+    rowsByTrace.set(row.trace_id, [...(rowsByTrace.get(row.trace_id) ?? []), row]);
+  }
+  const errorCount = traces.items.filter((trace) => trace.status === "error").length;
   return {
     summary: {
       projectId,
@@ -546,17 +731,29 @@ export async function getSession(
       endedAt,
       durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
       traceCount: traces.items.length,
-      errorCount: traces.items.filter((trace) => trace.status === "error").length,
+      errorCount,
       spanCount: traces.items.reduce((total, trace) => total + trace.spanCount, 0),
       inputTokens: traces.items.reduce((total, trace) => total + trace.inputTokens, 0),
       outputTokens: traces.items.reduce((total, trace) => total + trace.outputTokens, 0),
       totalTokens: traces.items.reduce((total, trace) => total + trace.totalTokens, 0),
+      inputCost: sumNullable(traces.items.map((trace) => trace.inputCost)),
+      outputCost: sumNullable(traces.items.map((trace) => trace.outputCost)),
+      totalCost: sumNullable(traces.items.map((trace) => trace.totalCost)),
+      status: errorCount > 0 ? "error" : "success",
+      services: uniqueStrings(traces.items.map((trace) => trace.serviceName)),
+      environments: uniqueStrings(traces.items.map((trace) => trace.environment)),
+      models: uniqueStrings(traces.items.map((trace) => trace.model)),
+      tags: uniqueStrings(traces.items.flatMap((trace) => trace.tags)),
       lastSeenAt: traces.items.reduce(
         (latest, trace) => (trace.lastSeenAt > latest ? trace.lastSeenAt : latest),
         traces.items[0]?.lastSeenAt ?? "",
       ),
     },
     traces: traces.items,
+    turns: [...traces.items]
+      .sort((left, right) => left.startedAt.localeCompare(right.startedAt))
+      .map((trace) => sessionTurn(trace, rowsByTrace.get(trace.traceId) ?? []))
+      .filter((turn) => turn.prompt !== null || turn.response !== null),
   };
 }
 
@@ -926,6 +1123,24 @@ async function readSpanRows(
   return result.json<SpanRow>();
 }
 
+async function readSessionConversationRows(
+  client: ClickHouseClient,
+  projectId: string,
+  traceIds: string[],
+): Promise<SessionConversationRow[]> {
+  if (traceIds.length === 0) return [];
+  const result = await client.query({
+    query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, start_time, input, output
+            FROM spans FINAL
+            WHERE project_id = {projectId:UUID} AND trace_id IN {traceIds:Array(String)}
+              AND (input IS NOT NULL OR output IS NOT NULL)
+            ORDER BY trace_id ASC, start_time ASC, span_id ASC`,
+    query_params: { projectId, traceIds },
+    format: "JSONEachRow",
+  });
+  return result.json<SessionConversationRow>();
+}
+
 function spanFromRow(row: SpanRow): SpanDetail {
   return {
     traceId: row.trace_id,
@@ -965,6 +1180,46 @@ function spanFromRow(row: SpanRow): SpanDetail {
     input: parseNullableJson(row.input),
     output: parseNullableJson(row.output),
     ingestedAt: ensureIso(row.ingested_at),
+  };
+}
+
+function sessionTurn(
+  trace: TraceSummary,
+  rows: SessionConversationRow[],
+): SessionDetail["turns"][number] {
+  const promptRow =
+    rows.find((row) => row.parent_span_id.length === 0 && row.input !== null) ??
+    rows.find((row) => row.input !== null);
+  const responseRow =
+    rows.find((row) => row.parent_span_id.length === 0 && row.output !== null) ??
+    [...rows]
+      .reverse()
+      .find(
+        (row) =>
+          row.output !== null &&
+          row.observation_kind !== "tool" &&
+          row.observation_kind !== "event",
+      ) ??
+    [...rows].reverse().find((row) => row.output !== null);
+  return {
+    trace,
+    prompt: conversationPayload(promptRow, "input"),
+    response: conversationPayload(responseRow, "output"),
+  };
+}
+
+function conversationPayload(
+  row: SessionConversationRow | undefined,
+  field: "input" | "output",
+): SessionTurnPayload | null {
+  if (row === undefined) return null;
+  const value = parseNullableJson(row[field]);
+  if (value === null) return null;
+  return {
+    spanId: row.span_id,
+    spanName: row.name,
+    observationKind: row.observation_kind,
+    value,
   };
 }
 
@@ -1013,8 +1268,22 @@ function sessionSummaryFromRow(row: SessionSummaryRow): SessionSummary {
     inputTokens: numeric(row.input_tokens),
     outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),
+    inputCost: nullableNumeric(row.input_cost),
+    outputCost: nullableNumeric(row.output_cost),
+    totalCost: nullableNumeric(row.total_cost),
+    status: row.session_status,
+    services: row.services,
+    environments: row.environments,
+    models: row.models,
+    tags: row.tags,
     lastSeenAt: ensureIso(row.last_seen_at),
   };
+}
+
+function uniqueStrings(values: Array<string | null>): string[] {
+  return Array.from(
+    new Set(values.filter((value): value is string => value !== null && value !== "")),
+  ).sort();
 }
 
 function numeric(value: number | string | null | undefined): number {

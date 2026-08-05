@@ -10,6 +10,9 @@ import {
   type Project,
   type ProjectApiKey,
   projectSettingsSchema,
+  type SessionFilters,
+  type SessionSortField,
+  sessionSortFields,
   type TraceFilters,
   type TraceSortField,
   traceSortFields,
@@ -19,6 +22,7 @@ import {
   getTrace,
   invitation,
   type LensPostgres,
+  listSessionFacets,
   listSessions,
   listTraceFacets,
   listTraces,
@@ -551,13 +555,22 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
       requiredSession(c).user.id,
     );
     if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-    const items = await listSessions(deps.clickhouse, projectId, {
-      from: c.req.query("from"),
-      to: c.req.query("to"),
-      search: c.req.query("search"),
-      limit: Number(c.req.query("limit") ?? 50),
-    });
-    return c.json({ items });
+    const parsed = sessionRequest(c);
+    if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+    return c.json(await listSessions(deps.clickhouse, projectId, parsed));
+  });
+
+  app.get("/api/v1/projects/:projectId/sessions/facets", async (c) => {
+    const projectId = c.req.param("projectId");
+    const access = await requireProjectAccess(
+      deps.postgres.db,
+      projectId,
+      requiredSession(c).user.id,
+    );
+    if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+    const parsed = sessionRequest(c);
+    if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+    return c.json(await listSessionFacets(deps.clickhouse, projectId, parsed));
   });
 
   app.get("/api/v1/projects/:projectId/sessions/:sessionId", async (c) => {
@@ -844,6 +857,94 @@ function traceRequest(c: Context):
     page,
     pageSize,
     sort: rawSort as TraceSortField,
+    order: rawOrder,
+  };
+}
+
+function sessionRequest(c: Context):
+  | (SessionFilters & {
+      page: number;
+      pageSize: number;
+      sort: SessionSortField;
+      order: "asc" | "desc";
+    })
+  | string {
+  const filters: SessionFilters = {};
+  for (const key of ["from", "to"] as const) {
+    const value = c.req.query(key);
+    if (value === undefined || value.length === 0) continue;
+    if (!Number.isFinite(Date.parse(value))) return `${key} must be an ISO date`;
+    filters[key] = value;
+  }
+  if (
+    filters.from !== undefined &&
+    filters.to !== undefined &&
+    Date.parse(filters.from) > Date.parse(filters.to)
+  ) {
+    return "from must not be after to";
+  }
+  for (const [queryKey, field] of [
+    ["status", "statuses"],
+    ["user", "users"],
+    ["service", "services"],
+    ["model", "models"],
+    ["environment", "environments"],
+    ["tag", "tags"],
+  ] as const) {
+    const values = (c.req.queries(queryKey) ?? []).map((value) => value.trim()).filter(Boolean);
+    if (values.length > 50) return `${queryKey} accepts at most 50 values`;
+    if (queryKey === "status" && values.some((value) => value !== "success" && value !== "error")) {
+      return "status must be success or error";
+    }
+    if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
+  }
+  const search = c.req.query("search")?.trim();
+  if (search !== undefined && search.length > 0) {
+    if (search.length > 256) return "search must be at most 256 characters";
+    filters.search = search;
+  }
+  for (const key of [
+    "minDurationMs",
+    "maxDurationMs",
+    "minTotalTokens",
+    "maxTotalTokens",
+    "minTotalCost",
+    "maxTotalCost",
+  ] as const) {
+    const raw = c.req.query(key);
+    if (raw === undefined || raw.length === 0) continue;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) return `${key} must be a non-negative number`;
+    filters[key] = value;
+  }
+  for (const [minimum, maximum] of [
+    ["minDurationMs", "maxDurationMs"],
+    ["minTotalTokens", "maxTotalTokens"],
+    ["minTotalCost", "maxTotalCost"],
+  ] as const) {
+    if (
+      filters[minimum] !== undefined &&
+      filters[maximum] !== undefined &&
+      filters[minimum] > filters[maximum]
+    ) {
+      return `${minimum} must not exceed ${maximum}`;
+    }
+  }
+  const page = Number(c.req.query("page") ?? 1);
+  if (!Number.isInteger(page) || page < 1 || page > 1_000_000)
+    return "page must be a positive integer";
+  const pageSize = Number(c.req.query("pageSize") ?? 50);
+  if (![25, 50, 100].includes(pageSize)) return "pageSize must be 25, 50, or 100";
+  const rawSort = c.req.query("sort") ?? "startedAt";
+  if (!sessionSortFields.includes(rawSort as SessionSortField))
+    return "Unsupported session sort field";
+  const rawOrder = c.req.query("order") ?? "desc";
+  if (rawOrder !== "asc" && rawOrder !== "desc") return "order must be asc or desc";
+  return {
+    ...filters,
+    page,
+    pageSize,
+    sort: rawSort as SessionSortField,
     order: rawOrder,
   };
 }

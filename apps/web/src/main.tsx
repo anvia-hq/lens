@@ -17,6 +17,7 @@ import {
   TraceDetailPage,
   TracesPage,
   validateOverviewSearch,
+  validateSessionsSearch,
   validateTraceDetailSearch,
   validateTracesSearch,
 } from "./app";
@@ -49,6 +50,7 @@ const traceRoute = createRoute({
 const sessionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/$projectId/sessions",
+  validateSearch: validateSessionsSearch,
   component: SessionsPage,
 });
 const sessionRoute = createRoute({
