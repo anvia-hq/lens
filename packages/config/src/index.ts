@@ -20,7 +20,7 @@ const envSchema = z.object({
   INGESTION_KEY_PEPPER: z.string().min(16).default("development-ingestion-key-pepper"),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().int().positive().default(1025),
-  SMTP_FROM: z.string().default("Lens <lens@localhost>"),
+  SMTP_FROM: z.string().default("Anvia Lens <lens@localhost>"),
   SMTP_SECURE: booleanString,
   OTLP_MAX_BODY_BYTES: z.coerce
     .number()
@@ -39,7 +39,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): LensConfig 
   if (source === process.env && cached !== undefined) return cached;
   const result = envSchema.safeParse(source);
   if (!result.success) {
-    throw new Error(`Invalid Lens configuration: ${z.prettifyError(result.error)}`);
+    throw new Error(`Invalid Anvia Lens configuration: ${z.prettifyError(result.error)}`);
   }
   if (source === process.env) cached = result.data;
   return result.data;

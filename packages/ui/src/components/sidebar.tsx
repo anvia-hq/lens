@@ -14,8 +14,8 @@ import { Skeleton } from "@lens/ui/components/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@lens/ui/components/tooltip";
 import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { cn } from "@lens/ui/lib/utils";
+import { SidebarMinimalistic as PanelLeftIcon } from "@solar-icons/react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";

@@ -17,7 +17,7 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
   };
 
   return betterAuth({
-    appName: "Lens",
+    appName: "Anvia Lens",
     baseURL: config.PUBLIC_APP_URL,
     secret: config.BETTER_AUTH_SECRET,
     trustedOrigins: [config.WEB_ORIGIN],
@@ -31,8 +31,8 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
       async sendResetPassword({ user, url }) {
         await send({
           to: user.email,
-          subject: "Reset your Lens password",
-          text: `Reset your Lens password: ${url}`,
+          subject: "Reset your Anvia Lens password",
+          text: `Reset your Anvia Lens password: ${url}`,
         });
       },
     },
@@ -41,8 +41,8 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
       async sendVerificationEmail({ user, url }) {
         await send({
           to: user.email,
-          subject: "Verify your Lens email",
-          text: `Verify your Lens account: ${url}`,
+          subject: "Verify your Anvia Lens email",
+          text: `Verify your Anvia Lens account: ${url}`,
         });
       },
     },
@@ -52,7 +52,7 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
           const invitationUrl = `${config.PUBLIC_APP_URL}/accept-invitation/${data.id}`;
           await send({
             to: data.email,
-            subject: `Join ${data.organization.name} on Lens`,
+            subject: `Join ${data.organization.name} on Anvia Lens`,
             text: `${data.inviter.user.name} invited you to ${data.organization.name}: ${invitationUrl}`,
           });
         },

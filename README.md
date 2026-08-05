@@ -1,6 +1,6 @@
-# Lens
+# Anvia Lens
 
-Lens is an OpenTelemetry-native trace explorer for AI agents. It accepts standard OTLP/HTTP
+Anvia Lens is an OpenTelemetry-native trace explorer for AI agents. It accepts standard OTLP/HTTP
 traces, enriches spans emitted by `@anvia/otel` and standard `gen_ai.*` instrumentation, and
 turns them into project-scoped trace timelines, session/user views, and latency/token analytics.
 
@@ -16,11 +16,11 @@ turns them into project-scoped trace timelines, session/user views, and latency/
 ## UI system
 
 Reusable UI primitives live in `packages/ui`. The package contains the complete shadcn Base UI
-registry using the default Nova style, neutral semantic theme tokens, Tailwind CSS v4, and Lucide
+registry using the default Nova style, neutral semantic theme tokens, Tailwind CSS v4, and Solar
 icons. The web app imports components through `@lens/ui/components/*` and the generated global
 theme through `@lens/ui/globals.css`.
 
-Lens-specific pages use standard Tailwind utilities and shadcn semantic colors. Keep application
+Anvia Lens-specific pages use standard Tailwind utilities and shadcn semantic colors. Keep application
 CSS, arbitrary utility values, and custom color tokens out of `apps/web`. To refresh the complete
 registry from the web workspace configuration, run:
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open Lens at <http://localhost> and Mailpit at <http://localhost:8025>.
+Open Anvia Lens at <http://localhost> and Mailpit at <http://localhost:8025>.
 Host ports are overridable through `WEB_PORT`, `API_PORT`, `POSTGRES_PORT`, `REDIS_PORT`,
 `CLICKHOUSE_HTTP_PORT`, `CLICKHOUSE_NATIVE_PORT`, `SMTP_PORT`, and `MAILPIT_UI_PORT`. When changing
 the web port, set `PUBLIC_APP_URL` and `WEB_ORIGIN` to the same browser-facing URL.
@@ -82,7 +82,7 @@ pnpm dev
 
 ## Send Anvia traces
 
-Create a project and ingestion key in Lens, then initialize OpenTelemetry before creating the
+Create a project and ingestion key in Anvia Lens, then initialize OpenTelemetry before creating the
 Anvia observer:
 
 ```ts
@@ -116,6 +116,6 @@ pnpm db:migrate # PostgreSQL and ClickHouse migrations
 pnpm db:seed    # Seed realistic demo data against configured databases
 ```
 
-Lens v1 accepts OTLP traces in protobuf or JSON, with optional gzip. Logs, metrics, OTLP/gRPC,
+Anvia Lens v1 accepts OTLP traces in protobuf or JSON, with optional gzip. Logs, metrics, OTLP/gRPC,
 public trace-read keys, scores, prompts, datasets, evaluations, and cost calculation are outside
 the current release.

@@ -91,7 +91,7 @@ const queryClient = new QueryClient({
 });
 
 const rootElement = document.getElementById("root");
-if (rootElement === null) throw new Error("Lens root element was not found");
+if (rootElement === null) throw new Error("Anvia Lens root element was not found");
 
 createRoot(rootElement).render(
   <StrictMode>

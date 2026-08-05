@@ -47,6 +47,12 @@ import {
   DialogTitle,
 } from "@lens/ui/components/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@lens/ui/components/dropdown-menu";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -87,6 +93,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/ta
 import { Textarea } from "@lens/ui/components/textarea";
 import { toast } from "@lens/ui/components/toast";
 import { cn } from "@lens/ui/lib/utils";
+import {
+  Pulse as Activity,
+  DangerCircle as AlertCircle,
+  ArrowLeft,
+  SortVertical as ArrowUpDown,
+  Code2 as Braces,
+  CheckCircle as Check,
+  AltArrowDown as ChevronDown,
+  AltArrowRight as ChevronRight,
+  RecordCircle as CircleDot,
+  ClockCircle as Clock3,
+  Copy,
+  Database,
+  Graph as Gauge,
+  Key as KeyRound,
+  Laptop,
+  Layers as Layers3,
+  Logout2 as LogOut,
+  UserPlus as MailPlus,
+  Dialog2 as MessagesSquare,
+  Moon,
+  AddCircle as Plus,
+  Refresh,
+  Magnifer as Search,
+  Settings,
+  Stars as Sparkles,
+  Sun,
+  Programming as TerminalSquare,
+  TrashBin2 as Trash2,
+  UsersGroupRounded as Users,
+  CloseCircle as X,
+  Bolt as Zap,
+} from "@solar-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import {
@@ -96,37 +135,6 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
-import {
-  Activity,
-  AlertCircle,
-  ArrowLeft,
-  ArrowUpDown,
-  Braces,
-  Check,
-  ChevronRight,
-  CircleDot,
-  Clock3,
-  Copy,
-  Database,
-  Gauge,
-  KeyRound,
-  Laptop,
-  Layers3,
-  LogOut,
-  MailPlus,
-  MessagesSquare,
-  Moon,
-  Plus,
-  Search,
-  Settings,
-  Sparkles,
-  Sun,
-  TerminalSquare,
-  Trash2,
-  Users,
-  X,
-  Zap,
-} from "lucide-react";
 import {
   createContext,
   type FormEvent,
@@ -290,7 +298,7 @@ function notify(title: string, type: "success" | "error" | "info" = "success") {
 
 export function AppRoot() {
   const session = authClient.useSession();
-  if (session.isPending) return <FullPageMessage icon={<Activity />} text="Opening Lens" />;
+  if (session.isPending) return <FullPageMessage icon={<Activity />} text="Opening Anvia Lens" />;
   if (session.data === null) return <AuthPage />;
   if (window.location.pathname.startsWith("/accept-invitation/")) return <Outlet />;
   return <AuthenticatedApp user={session.data.user} />;
@@ -316,7 +324,9 @@ function AuthenticatedApp(props: { user: { name: string; email: string } }) {
   if (projectsQuery.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading projects" />;
   if (projectsQuery.isError)
-    return <FullPageMessage icon={<AlertCircle />} text="Could not load your Lens projects" />;
+    return (
+      <FullPageMessage icon={<AlertCircle />} text="Could not load your Anvia Lens projects" />
+    );
   if (project === undefined) {
     return projects.length === 0 ? (
       <SetupPage />
@@ -353,10 +363,7 @@ function ProjectSelectorShell(props: { user: { name: string; email: string } }) 
     <div className="flex min-h-svh w-full flex-col bg-background">
       <header className="flex h-14 items-center border-b px-4 md:px-6">
         <Link className="flex items-center gap-2" to="/">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CircleDot className="size-4" />
-          </span>
-          <span className="font-heading text-sm font-medium">Lens</span>
+          <span className="font-heading text-lg font-semibold">Anvia Lens</span>
         </Link>
         <div className="ml-auto flex items-center gap-3">
           <span className="hidden text-sm text-muted-foreground sm:inline">{props.user.email}</span>
@@ -379,7 +386,7 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
   const { project } = useProject();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectRoot = `/${project.id}`;
-  const links = [
+  const observabilityLinks = [
     { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: Gauge },
     {
       to: "/$projectId/traces" as const,
@@ -393,6 +400,8 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
       label: "Sessions",
       icon: MessagesSquare,
     },
+  ];
+  const managementLinks = [
     {
       to: "/$projectId/onboarding" as const,
       path: `${projectRoot}/onboarding`,
@@ -406,41 +415,42 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
       icon: Settings,
     },
   ];
+  const renderLinks = (links: typeof observabilityLinks | typeof managementLinks) => (
+    <SidebarMenu className="gap-1">
+      {links.map(({ to, path, label, icon: Icon }) => {
+        const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
+        return (
+          <SidebarMenuItem key={to}>
+            <SidebarMenuButton
+              render={<Link to={to} params={{ projectId: project.id }} />}
+              isActive={active}
+              tooltip={label}
+            >
+              <Icon />
+              <span>{label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
   return (
-    <Sidebar collapsible="none">
+    <Sidebar className="border-r border-sidebar-border" collapsible="none">
       <SidebarHeader>
         <Link className="flex h-10 items-center gap-2 px-2" to="/">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CircleDot className="size-4" />
-          </span>
           <div className="grid min-w-0 group-data-collapsible-icon:hidden">
-            <span className="font-heading text-sm font-medium">Lens</span>
-            <span className="truncate text-xs text-muted-foreground">OpenTelemetry</span>
+            <span className="font-heading text-lg font-semibold">Anvia Lens</span>
           </div>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {links.map(({ to, path, label, icon: Icon }) => {
-                const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
-                return (
-                  <SidebarMenuItem key={to}>
-                    <SidebarMenuButton
-                      render={<Link to={to} params={{ projectId: project.id }} />}
-                      isActive={active}
-                      tooltip={label}
-                    >
-                      <Icon />
-                      <span>{label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
+          <SidebarGroupContent>{renderLinks(observabilityLinks)}</SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupContent>{renderLinks(managementLinks)}</SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
@@ -478,7 +488,6 @@ function AppHeader() {
     <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-background px-4">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{project.name}</p>
-        <p className="truncate text-xs text-muted-foreground">Current project</p>
       </div>
     </header>
   );
@@ -538,9 +547,6 @@ export function OverviewPage() {
           <CardHeader>
             <CardTitle>Trace volume</CardTitle>
             <CardDescription>Hourly telemetry accepted by this project</CardDescription>
-            <CardAction>
-              <Badge variant="outline">24 hours</Badge>
-            </CardAction>
           </CardHeader>
           <CardContent>
             {value?.series.length ? (
@@ -641,7 +647,6 @@ export function TracesPage() {
               <NativeSelectOption value="error">Errors</NativeSelectOption>
               <NativeSelectOption value="unset">Unset</NativeSelectOption>
             </NativeSelect>
-            <Badge variant="outline">Last 24 hours</Badge>
           </div>
         </CardHeader>
         <CardContent className="px-0">
@@ -775,7 +780,6 @@ export function SessionsPage() {
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
-            <Badge variant="outline">Last 24 hours</Badge>
           </div>
         </CardHeader>
         <CardContent className="px-0">
@@ -1153,7 +1157,7 @@ export function OnboardingPage() {
         <Step
           number="02"
           title="Configure your exporter"
-          text="Lens accepts OTLP JSON and protobuf over HTTP, including gzip."
+          text="Anvia Lens accepts OTLP JSON and protobuf over HTTP, including gzip."
         />
         <Step
           number="03"
@@ -1621,7 +1625,7 @@ export function ProjectsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this member?</AlertDialogTitle>
             <AlertDialogDescription>
-              They will immediately lose access to every project in Lens.
+              They will immediately lose access to every project in Anvia Lens.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1967,7 +1971,7 @@ function AuthPage() {
   return (
     <CenteredCard
       icon={<CircleDot />}
-      eyebrow="Welcome to Lens"
+      eyebrow="Welcome to Anvia Lens"
       title={mode === "login" ? "Sign in to continue" : "Create your account"}
       description="OpenTelemetry-native observability for AI systems."
     >
@@ -2042,7 +2046,7 @@ function CenteredCard(props: {
     <main className="flex min-h-svh items-center justify-center bg-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <span className="mx-auto flex size-10 items-center justify-center rounded-full border bg-background text-foreground">
             {props.icon}
           </span>
           <Badge className="mx-auto mt-2" variant="secondary">
@@ -2103,7 +2107,6 @@ function MetricCard(props: {
         </CardAction>
         <CardTitle className="text-2xl tabular-nums">{props.value}</CardTitle>
       </CardHeader>
-      <CardFooter className="text-xs text-muted-foreground">Last 24 hours</CardFooter>
     </Card>
   );
 }
@@ -2127,10 +2130,42 @@ function SummaryCard({ label, children }: { label: string; children: ReactNode }
   );
 }
 function LiveBadge() {
+  const queryClient = useQueryClient();
+  const [interval, setInterval] = useState("5s");
+
   return (
-    <Badge variant="outline">
-      <span className="size-2 rounded-full bg-primary" /> Live · 5s
-    </Badge>
+    <div className="flex items-center">
+      <Button
+        className="rounded-r-none border-r-0"
+        variant="outline"
+        size="sm"
+        onClick={() => void queryClient.invalidateQueries()}
+        title="Refresh now"
+      >
+        <Refresh />
+        <span className="size-2 rounded-full bg-primary" />
+        Live · {interval}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className={buttonVariants({
+            variant: "outline",
+            size: "sm",
+            className: "rounded-l-none px-1.5",
+          })}
+          aria-label="Refresh interval"
+        >
+          <ChevronDown />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-28">
+          {["5s", "10s", "30s", "Off"].map((value) => (
+            <DropdownMenuItem key={value} onClick={() => setInterval(value)}>
+              {value === "Off" ? "Auto refresh off" : `Every ${value}`}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 

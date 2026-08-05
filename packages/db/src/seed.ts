@@ -173,7 +173,7 @@ try {
     new Date(now.getTime() + 60_000).toISOString(),
   );
 
-  console.log("Lens realistic demo data is ready.");
+  console.log("Anvia Lens realistic demo data is ready.");
   console.log(`  Web:           ${config.PUBLIC_APP_URL}`);
   console.log(`  Login:         ${DEMO_EMAIL}`);
   console.log(`  Password:      ${DEMO_PASSWORD}`);

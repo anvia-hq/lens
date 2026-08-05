@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { Loader2Icon } from "lucide-react";
+import { Refresh as Loader2Icon } from "@solar-icons/react";
 
 function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   return (

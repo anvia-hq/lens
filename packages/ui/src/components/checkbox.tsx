@@ -3,7 +3,7 @@
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 
 import { cn } from "@lens/ui/lib/utils";
-import { CheckIcon } from "lucide-react";
+import { CheckCircle as CheckIcon } from "@solar-icons/react";
 
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (

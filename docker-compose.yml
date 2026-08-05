@@ -73,7 +73,7 @@ services:
       INGESTION_KEY_PEPPER: ${INGESTION_KEY_PEPPER:-development-ingestion-key-pepper}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-      SMTP_FROM: Lens <lens@localhost>
+      SMTP_FROM: Anvia Lens <lens@localhost>
     depends_on:
       postgres:
         condition: service_healthy

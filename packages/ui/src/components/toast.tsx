@@ -3,13 +3,13 @@ import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  OctagonXIcon,
-  TriangleAlertIcon,
-  XIcon,
-} from "lucide-react";
+  CheckCircle as CircleCheckIcon,
+  InfoCircle as InfoIcon,
+  Refresh as Loader2Icon,
+  DangerCircle as OctagonXIcon,
+  DangerTriangle as TriangleAlertIcon,
+  CloseCircle as XIcon,
+} from "@solar-icons/react";
 import type * as React from "react";
 
 const toast = ToastPrimitive.createToastManager();

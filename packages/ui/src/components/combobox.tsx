@@ -9,7 +9,11 @@ import {
   InputGroupInput,
 } from "@lens/ui/components/input-group";
 import { cn } from "@lens/ui/lib/utils";
-import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
+import {
+  CheckCircle as CheckIcon,
+  AltArrowDown as ChevronDownIcon,
+  CloseCircle as XIcon,
+} from "@solar-icons/react";
 import * as React from "react";
 
 const Combobox = ComboboxPrimitive.Root;

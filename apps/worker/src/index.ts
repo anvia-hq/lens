@@ -76,7 +76,7 @@ for (const worker of [ingestWorker, materializeWorker, maintenanceWorker]) {
   worker.on("error", (error) => logger.error({ queue: worker.name, error }, "queue error"));
 }
 
-logger.info("Lens worker started");
+logger.info("Anvia Lens worker started");
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "shutting down");

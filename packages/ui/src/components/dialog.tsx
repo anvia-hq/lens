@@ -4,7 +4,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
-import { XIcon } from "lucide-react";
+import { CloseCircle as XIcon } from "@solar-icons/react";
 import type * as React from "react";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {

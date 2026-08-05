@@ -1,6 +1,6 @@
 import { cn } from "@lens/ui/lib/utils";
+import { MinusCircle as MinusIcon } from "@solar-icons/react";
 import { OTPInput, OTPInputContext } from "input-otp";
-import { MinusIcon } from "lucide-react";
 import * as React from "react";
 
 function InputOTP({

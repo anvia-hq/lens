@@ -16,7 +16,7 @@ const auth = createAuth(postgres.db, config);
 const app = createApp({ config, postgres, clickhouse, redis, queues, auth });
 
 const server = serve({ fetch: app.fetch, port: config.API_PORT }, (info) => {
-  logger.info({ port: info.port }, "Lens API started");
+  logger.info({ port: info.port }, "Anvia Lens API started");
 });
 
 async function shutdown(signal: string): Promise<void> {

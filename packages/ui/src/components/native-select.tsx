@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { ChevronDownIcon } from "lucide-react";
+import { AltArrowDown as ChevronDownIcon } from "@solar-icons/react";
 import type * as React from "react";
 
 type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {

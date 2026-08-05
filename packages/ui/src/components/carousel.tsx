@@ -1,7 +1,10 @@
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
+import {
+  AltArrowLeft as ChevronLeftIcon,
+  AltArrowRight as ChevronRightIcon,
+} from "@solar-icons/react";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
 
 type CarouselApi = UseEmblaCarouselType[1];

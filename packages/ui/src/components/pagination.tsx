@@ -1,7 +1,11 @@
 import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
+import {
+  AltArrowLeft as ChevronLeftIcon,
+  AltArrowRight as ChevronRightIcon,
+  MenuDots as MoreHorizontalIcon,
+} from "@solar-icons/react";
 import type * as React from "react";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
