@@ -1,8 +1,9 @@
 # Anvia Lens
 
-Anvia Lens is an OpenTelemetry-native trace explorer for AI agents. It accepts standard OTLP/HTTP
-traces, enriches spans emitted by `@anvia/otel` and standard `gen_ai.*` instrumentation, and
-turns them into project-scoped trace timelines, session/user views, and latency/token analytics.
+Anvia Lens is a Langfuse-compatible, OpenTelemetry-native trace explorer for AI agents. Point an
+`@langfuse/otel` v5 processor at Lens by changing its base URL and API keys. Lens accepts the
+processor's OTLP/HTTP traces and turns the full Langfuse observation taxonomy into project-scoped
+trace timelines, session/user views, and latency/token analytics.
 
 ## Stack
 
@@ -45,8 +46,8 @@ the web port, set `PUBLIC_APP_URL` and `WEB_ORIGIN` to the same browser-facing U
 
 ### Realistic demo data
 
-With the Compose stack running, seed a verified demo account, project, ingestion key,
-and 24 hours of realistic Anvia agent telemetry:
+With the Compose stack running, seed a verified demo account, project, API key pair,
+and 24 hours of realistic AI agent telemetry:
 
 ```sh
 docker compose run --rm seed
@@ -55,7 +56,7 @@ docker compose run --rm seed
 The command is safe to rerun: it refreshes only the dedicated demo project. Sign in with
 `demo@lens.local` and password `LensDemo2026!`. The seed includes 64 traces and 448 agent,
 generation, and tool spans across support, billing, incident response, research, and risk
-workloads. It prints the reusable demo ingestion key when it completes.
+workloads. It prints the reusable demo public and secret keys when it completes.
 
 ## Projects and teams
 
@@ -80,29 +81,37 @@ pnpm db:migrate
 pnpm dev
 ```
 
-## Send Anvia traces
+## Send Langfuse OTLP traces
 
-Create a project and ingestion key in Anvia Lens, then initialize OpenTelemetry before creating the
-Anvia observer:
+Create a project key pair in Anvia Lens and configure the standard Langfuse environment variables.
+The base URL is the Lens origin; `@langfuse/otel` appends the ingestion path itself:
+
+```sh
+LANGFUSE_BASE_URL=http://localhost
+LANGFUSE_PUBLIC_KEY=pk-lens-...
+LANGFUSE_SECRET_KEY=sk-lens-...
+LANGFUSE_MEDIA_UPLOAD_ENABLED=false
+```
+
+Existing `@langfuse/otel` instrumentation then works unchanged:
 
 ```ts
-import { otel } from "@anvia/otel";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { LangfuseSpanProcessor } from "@langfuse/otel";
+import { startObservation } from "@langfuse/tracing";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
 const sdk = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({
-    url: "http://localhost:3000/v1/traces",
-    headers: { Authorization: `Bearer ${process.env.LENS_INGESTION_KEY}` },
-  }),
+  spanProcessors: [new LangfuseSpanProcessor()],
 });
 sdk.start();
 
-export const tracing = otel.create({ serviceName: "support-agent" });
+const agent = startObservation("support-agent", {}, { asType: "agent" });
+agent.end();
 ```
 
-Use `tracing` with `.observe(tracing)` on an Anvia agent. Short-lived processes must shut down or
-flush their OpenTelemetry SDK before exiting.
+The same variables work with `@anvia/langfuse`. Short-lived processes must flush or shut down their
+OpenTelemetry SDK before exiting. Lens does not implement Langfuse media storage yet, so applications
+that may capture base64 media should keep `LANGFUSE_MEDIA_UPLOAD_ENABLED=false`.
 
 ## Commands
 
@@ -116,6 +125,6 @@ pnpm db:migrate # PostgreSQL and ClickHouse migrations
 pnpm db:seed    # Seed realistic demo data against configured databases
 ```
 
-Anvia Lens v1 accepts OTLP traces in protobuf or JSON, with optional gzip. Logs, metrics, OTLP/gRPC,
-public trace-read keys, scores, prompts, datasets, evaluations, and cost calculation are outside
-the current release.
+Anvia Lens accepts the Langfuse v5 OTLP endpoint in protobuf or JSON, with optional gzip. Logs,
+metrics, OTLP/gRPC, media objects, public trace-read keys, scores, prompts, datasets, evaluations,
+and cost calculation are outside the current release.

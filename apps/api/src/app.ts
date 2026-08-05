@@ -40,7 +40,11 @@ import { requestId } from "hono/request-id";
 import type IORedis from "ioredis";
 import { Counter, Histogram, Registry } from "prom-client";
 import type { LensAuth } from "./auth.js";
-import { createIngestionKey, ingestionKeyPrefix, verifyIngestionKey } from "./security.js";
+import {
+  createIngestionCredentials,
+  parseBasicAuthorization,
+  verifyIngestionSecret,
+} from "./security.js";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -98,7 +102,7 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
 
   app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
 
-  app.post("/v1/traces", async (c) => {
+  app.post("/api/public/otel/v1/traces", async (c) => {
     const startedAt = performance.now();
     const contentType = parseOtlpContentType(c.req.header("content-type"));
     if (contentType === undefined) {
@@ -110,13 +114,15 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
         "Use application/json or application/x-protobuf",
       );
     }
-    const authorization = c.req.header("authorization");
-    const token = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : undefined;
-    if (token === undefined)
-      return apiError(c, 401, "unauthorized", "A project ingestion key is required");
+    const credentials = parseBasicAuthorization(c.req.header("authorization"));
+    if (credentials === undefined) {
+      c.header("WWW-Authenticate", 'Basic realm="Lens ingestion"');
+      return apiError(c, 401, "unauthorized", "Langfuse public and secret keys are required");
+    }
     const key = await authenticateIngestionKey(
       deps.postgres.db,
-      token,
+      credentials.publicKey,
+      credentials.secretKey,
       deps.config.INGESTION_KEY_PEPPER,
     );
     if (key === undefined || key.project.state !== "active") {
@@ -452,20 +458,20 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     if (!canManage(access.role)) return apiError(c, 403, "forbidden", "Admin access is required");
     const parsed = createApiKeySchema.safeParse(await safeJson(c));
     if (!parsed.success) return apiError(c, 400, "invalid_key", "A key name is required");
-    const generated = createIngestionKey(deps.config.INGESTION_KEY_PEPPER);
+    const generated = createIngestionCredentials(deps.config.INGESTION_KEY_PEPPER);
     const [created] = await deps.postgres.db
       .insert(projectApiKey)
       .values({
         projectId: access.project.id,
         name: parsed.data.name,
-        prefix: generated.prefix,
+        publicKey: generated.publicKey,
         secretHash: generated.hash,
         createdBy: session.user.id,
       })
       .returning();
     if (created === undefined)
       return apiError(c, 500, "create_failed", "Ingestion key was not created");
-    return c.json({ ...apiKeyFromRow(created), key: generated.key }, 201);
+    return c.json({ ...apiKeyFromRow(created), secretKey: generated.secretKey }, 201);
   });
 
   app.delete("/api/v1/projects/:projectId/keys/:keyId", async (c) => {
@@ -656,9 +662,12 @@ function canManage(role: string | undefined): boolean {
   return role === "owner" || role === "admin";
 }
 
-async function authenticateIngestionKey(db: LensPostgres, token: string, pepper: string) {
-  const prefix = ingestionKeyPrefix(token);
-  if (prefix === undefined) return undefined;
+async function authenticateIngestionKey(
+  db: LensPostgres,
+  publicKey: string,
+  secretKey: string,
+  pepper: string,
+) {
   const [row] = await db
     .select({
       apiKeyId: projectApiKey.id,
@@ -668,12 +677,12 @@ async function authenticateIngestionKey(db: LensPostgres, token: string, pepper:
     })
     .from(projectApiKey)
     .innerJoin(project, eq(projectApiKey.projectId, project.id))
-    .where(eq(projectApiKey.prefix, prefix))
+    .where(eq(projectApiKey.publicKey, publicKey))
     .limit(1);
   if (
     row === undefined ||
     row.revokedAt !== null ||
-    !verifyIngestionKey(token, row.secretHash, pepper)
+    !verifyIngestionSecret(secretKey, row.secretHash, pepper)
   ) {
     return undefined;
   }
@@ -709,7 +718,7 @@ function apiKeyFromRow(row: typeof projectApiKey.$inferSelect): ProjectApiKey {
     id: row.id,
     projectId: row.projectId,
     name: row.name,
-    prefix: row.prefix,
+    publicKey: row.publicKey,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     revokedAt: row.revokedAt?.toISOString() ?? null,

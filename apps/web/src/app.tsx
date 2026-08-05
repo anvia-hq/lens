@@ -1,4 +1,5 @@
 import type {
+  CreatedProjectApiKey,
   CursorPage,
   Metrics,
   Project,
@@ -1041,7 +1042,9 @@ function SpanTree(props: {
               <ObservationIcon kind={span.observationKind} />
               <span className="grid min-w-0">
                 <span className="truncate text-sm font-medium">{span.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{span.serviceName}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {span.observationKind} · {span.serviceName}
+                </span>
               </span>
             </span>
             <span className="relative hidden h-2 flex-1 rounded-full bg-muted-foreground/20 md:block">
@@ -1083,7 +1086,9 @@ function SpanInspector({ span }: { span: SpanDetail }) {
           <ObservationIcon kind={span.observationKind} />
           <div className="min-w-0 flex-1">
             <CardTitle className="truncate">{span.name}</CardTitle>
-            <CardDescription>{span.scopeName || "unscoped"}</CardDescription>
+            <CardDescription>
+              {span.observationKind} · {span.scopeName || "unscoped"}
+            </CardDescription>
           </div>
           <StatusBadge status={span.status} />
         </div>
@@ -1135,10 +1140,11 @@ function JsonView({ value }: { value: unknown }) {
 export function OnboardingPage() {
   const { project } = useProject();
   const [copied, setCopied] = useState<string | null>(null);
-  const endpoint = `${window.location.origin}/v1/traces`;
+  const baseUrl = window.location.origin;
   const snippets = {
-    environment: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${endpoint}\nOTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <YOUR_INGESTION_KEY>`,
-    anvía: `import { otel } from "@anvia/otel";\nimport { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";\nimport { NodeSDK } from "@opentelemetry/sdk-node";\n\nconst sdk = new NodeSDK({\n  traceExporter: new OTLPTraceExporter({\n    url: "${endpoint}",\n    headers: { Authorization: "Bearer <YOUR_INGESTION_KEY>" },\n  }),\n});\nsdk.start();\n\nconst tracing = otel.create({ serviceName: "my-agent" });`,
+    environment: `LANGFUSE_BASE_URL=${baseUrl}\nLANGFUSE_PUBLIC_KEY=<YOUR_PUBLIC_KEY>\nLANGFUSE_SECRET_KEY=<YOUR_SECRET_KEY>\nLANGFUSE_MEDIA_UPLOAD_ENABLED=false`,
+    langfuse: `import { LangfuseSpanProcessor } from "@langfuse/otel";\nimport { startObservation } from "@langfuse/tracing";\nimport { NodeSDK } from "@opentelemetry/sdk-node";\n\nconst sdk = new NodeSDK({\n  spanProcessors: [new LangfuseSpanProcessor()],\n});\nsdk.start();\n\nconst agent = startObservation("support-agent", {\n  input: { message: "Hello" },\n}, { asType: "agent" });\nagent.end();\nawait sdk.shutdown();`,
+    anvía: `import { langfuse } from "@anvia/langfuse";\n\nexport const tracing = langfuse.create({\n  serviceName: "my-agent",\n});\n\n// Pass tracing to an Anvia agent with .observe(tracing).\n// Call await tracing.shutdown() before a short-lived process exits.`,
   };
   const copy = async (key: string, value: string) => {
     await navigator.clipboard.writeText(value);
@@ -1147,7 +1153,10 @@ export function OnboardingPage() {
     setTimeout(() => setCopied(null), 1500);
   };
   return (
-    <Page title="Connect an application" description={`Send OTLP/HTTP traces to ${project.name}`}>
+    <Page
+      title="Connect an application"
+      description={`Send Langfuse OTLP traces to ${project.name}`}
+    >
       <div className="grid gap-4 lg:grid-cols-3">
         <Step
           number="01"
@@ -1157,7 +1166,7 @@ export function OnboardingPage() {
         <Step
           number="02"
           title="Configure your exporter"
-          text="Anvia Lens accepts OTLP JSON and protobuf over HTTP, including gzip."
+          text="Use the standard Langfuse base URL, public key, and secret key variables."
         />
         <Step
           number="03"
@@ -1168,7 +1177,8 @@ export function OnboardingPage() {
       <Tabs defaultValue="environment">
         <TabsList>
           <TabsTrigger value="environment">Environment</TabsTrigger>
-          <TabsTrigger value="anvia">Anvia + OpenTelemetry</TabsTrigger>
+          <TabsTrigger value="langfuse">Langfuse OTEL</TabsTrigger>
+          <TabsTrigger value="anvia">Anvia</TabsTrigger>
         </TabsList>
         <TabsContent value="environment">
           <CodeBlock
@@ -1178,9 +1188,17 @@ export function OnboardingPage() {
             onCopy={() => copy("env", snippets.environment)}
           />
         </TabsContent>
+        <TabsContent value="langfuse">
+          <CodeBlock
+            title="@langfuse/otel"
+            code={snippets.langfuse}
+            copied={copied === "langfuse"}
+            onCopy={() => copy("langfuse", snippets.langfuse)}
+          />
+        </TabsContent>
         <TabsContent value="anvia">
           <CodeBlock
-            title="Anvia + OpenTelemetry"
+            title="@anvia/langfuse"
             code={snippets.anvía}
             copied={copied === "anvia"}
             onCopy={() => copy("anvia", snippets.anvía)}
@@ -1733,7 +1751,7 @@ export function SettingsPage() {
     queryKey: ["keys", project.id],
     queryFn: () => api<{ items: ProjectApiKey[] }>(`/api/v1/projects/${project.id}/keys`),
   });
-  const [newKey, setNewKey] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState<CreatedProjectApiKey | null>(null);
   const [keyName, setKeyName] = useState("Development");
   const [retention, setRetention] = useState(
     project.settings.retentionDays === null ? "unlimited" : String(project.settings.retentionDays),
@@ -1741,12 +1759,12 @@ export function SettingsPage() {
   const [patterns, setPatterns] = useState(project.settings.redactionPatterns.join("\n"));
   const createKey = useMutation({
     mutationFn: () =>
-      api<ProjectApiKey & { key: string }>(`/api/v1/projects/${project.id}/keys`, {
+      api<CreatedProjectApiKey>(`/api/v1/projects/${project.id}/keys`, {
         method: "POST",
         body: JSON.stringify({ name: keyName }),
       }),
     onSuccess: (result) => {
-      setNewKey(result.key);
+      setNewKey(result);
       queryClient.invalidateQueries({ queryKey: ["keys", project.id] });
       notify("Ingestion key created");
     },
@@ -1792,14 +1810,14 @@ export function SettingsPage() {
               </Button>
             </div>
             {createKey.error ? <ErrorAlert error={createKey.error} /> : null}
-            {newKey ? <SecretReveal value={newKey} onClose={() => setNewKey(null)} /> : null}
+            {newKey ? <SecretReveal credentials={newKey} onClose={() => setNewKey(null)} /> : null}
             <div className="grid gap-2">
               {keys.data?.items.map((key) => (
                 <div className="flex items-center gap-3 rounded-lg border p-3" key={key.id}>
                   <span className="grid min-w-0 flex-1">
                     <span className="font-medium">{key.name}</span>
                     <span className="truncate font-mono text-xs text-muted-foreground">
-                      lens_ingest_{key.prefix}_••••••••
+                      {key.publicKey}
                     </span>
                   </span>
                   <StatusBadge status={key.revokedAt ? "error" : "ok"} />
@@ -2179,7 +2197,19 @@ function StatusBadge({ status }: { status: "ok" | "error" | "unset" }) {
 
 function ObservationIcon({ kind }: { kind: SpanDetail["observationKind"] }) {
   const Icon =
-    kind === "generation" ? Sparkles : kind === "tool" ? Zap : kind === "agent" ? Users : Layers3;
+    kind === "generation" || kind === "embedding"
+      ? Sparkles
+      : kind === "tool"
+        ? Zap
+        : kind === "agent" || kind === "chain"
+          ? Users
+          : kind === "retriever"
+            ? Search
+            : kind === "evaluator" || kind === "guardrail"
+              ? Check
+              : kind === "event"
+                ? Activity
+                : Layers3;
   return (
     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
       <Icon className="size-4" />
@@ -2220,26 +2250,29 @@ function CodeBlock(props: { title: string; code: string; copied: boolean; onCopy
   );
 }
 
-function SecretReveal(props: { value: string; onClose: () => void }) {
+function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const environment = `LANGFUSE_BASE_URL=${window.location.origin}\nLANGFUSE_PUBLIC_KEY=${props.credentials.publicKey}\nLANGFUSE_SECRET_KEY=${props.credentials.secretKey}\nLANGFUSE_MEDIA_UPLOAD_ENABLED=false`;
   return (
     <Alert>
       <AlertCircle />
       <AlertTitle>Copy this key now</AlertTitle>
       <AlertDescription className="grid gap-3">
-        <span>It will not be shown again.</span>
-        <code className="break-all rounded-lg bg-muted p-3 font-mono text-xs">{props.value}</code>
+        <span>The secret key will not be shown again.</span>
+        <code className="whitespace-pre-wrap break-all rounded-lg bg-muted p-3 font-mono text-xs">
+          {environment}
+        </code>
         <div className="flex gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={async () => {
-              await navigator.clipboard.writeText(props.value);
+              await navigator.clipboard.writeText(environment);
               setCopied(true);
             }}
           >
             {copied ? <Check /> : <Copy />}
-            {copied ? "Copied" : "Copy key"}
+            {copied ? "Copied" : "Copy environment"}
           </Button>
           <Button size="sm" variant="ghost" onClick={props.onClose}>
             <X /> Close

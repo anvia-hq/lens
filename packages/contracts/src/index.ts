@@ -3,7 +3,18 @@ import { z } from "zod";
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
-export const observationKinds = ["agent", "generation", "tool", "span"] as const;
+export const observationKinds = [
+  "span",
+  "generation",
+  "event",
+  "embedding",
+  "agent",
+  "tool",
+  "chain",
+  "retriever",
+  "evaluator",
+  "guardrail",
+] as const;
 export type ObservationKind = (typeof observationKinds)[number];
 
 export const spanStatuses = ["unset", "ok", "error"] as const;
@@ -87,10 +98,14 @@ export type ProjectApiKey = {
   id: string;
   projectId: string;
   name: string;
-  prefix: string;
+  publicKey: string;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+};
+
+export type CreatedProjectApiKey = ProjectApiKey & {
+  secretKey: string;
 };
 
 export type SpanDetail = Omit<NormalizedSpan, "projectId" | "expiresAt" | "ingestVersion">;

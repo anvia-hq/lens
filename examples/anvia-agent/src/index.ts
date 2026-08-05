@@ -1,30 +1,28 @@
-import { otel } from "@anvia/otel";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { NodeSDK } from "@opentelemetry/sdk-node";
+import { langfuse } from "@anvia/langfuse";
 
-const endpoint = process.env.LENS_OTLP_ENDPOINT ?? "http://localhost:3000/v1/traces";
-const ingestionKey = process.env.LENS_INGESTION_KEY;
+const baseUrl = process.env.LANGFUSE_BASE_URL ?? "http://localhost:3000";
+const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
+const secretKey = process.env.LANGFUSE_SECRET_KEY;
 
-if (ingestionKey === undefined) {
-  throw new Error("Set LENS_INGESTION_KEY to a project ingestion key from Lens");
+if (publicKey === undefined || secretKey === undefined) {
+  throw new Error("Set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY to a Lens key pair");
 }
 
-const sdk = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({
-    url: endpoint,
-    headers: { Authorization: `Bearer ${ingestionKey}` },
-  }),
-});
-
-sdk.start();
+// Lens currently stores trace payloads but not Langfuse media objects.
+process.env.LANGFUSE_MEDIA_UPLOAD_ENABLED ??= "false";
 
 // Pass this observer to an Anvia agent with `.observe(tracing)`.
-export const tracing = otel.create({ serviceName: "lens-anvia-example" });
+export const tracing = langfuse.create({
+  baseUrl,
+  publicKey,
+  secretKey,
+  serviceName: "lens-anvia-example",
+});
 
-console.log(`Anvia tracing is configured for ${endpoint}`);
+console.log(`Anvia Langfuse tracing is configured for ${baseUrl}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    void sdk.shutdown().then(() => process.exit(0));
+    void Promise.resolve(tracing.shutdown()).then(() => process.exit(0));
   });
 }

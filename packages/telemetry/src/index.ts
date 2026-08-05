@@ -1,4 +1,10 @@
-import type { JsonValue, NormalizedSpan, ObservationKind, SpanStatus } from "@lens/contracts";
+import {
+  type JsonValue,
+  type NormalizedSpan,
+  type ObservationKind,
+  observationKinds,
+  type SpanStatus,
+} from "@lens/contracts";
 import { decodeJsonRequest } from "./json.js";
 import { decodeProtobufRequest, encodeProtobufResponse } from "./protobuf.js";
 import type { OtlpExportRequest, OtlpKeyValue, OtlpSpan } from "./types.js";
@@ -99,9 +105,14 @@ export function normalizeOtlpRequest(
           stringAttribute(resourceAttributes, "service.name") ??
           stringAttribute(spanAttributes, "service.name") ??
           "unknown-service";
-        const observationKind = classifySpan(span, spanAttributes);
+        const langfuseKind = langfuseObservationKind(spanAttributes);
+        const observationKind = classifySpan(span, spanAttributes, langfuseKind);
         const input = extractedInput(observationKind, spanAttributes);
         const output = extractedOutput(observationKind, spanAttributes);
+        const usageDetails = jsonRecordAttribute(
+          spanAttributes,
+          "langfuse.observation.usage_details",
+        );
         spans.push({
           projectId: options.projectId,
           traceId: span.traceId,
@@ -111,8 +122,11 @@ export function normalizeOtlpRequest(
           name: span.name || "unnamed-span",
           kind: span.kind,
           observationKind,
-          status: spanStatus(span.status.code),
-          statusMessage: span.status.message,
+          status: spanStatus(span.status.code, spanAttributes, langfuseKind !== undefined),
+          statusMessage:
+            span.status.message ||
+            stringAttribute(spanAttributes, "langfuse.observation.status_message") ||
+            "",
           startTimeUnixNano: start.toString(),
           endTimeUnixNano: end.toString(),
           durationNano: (end - start).toString(),
@@ -135,28 +149,42 @@ export function normalizeOtlpRequest(
             droppedAttributesCount: link.droppedAttributesCount,
             flags: link.flags,
           })),
-          traceName: stringAttribute(spanAttributes, "anvia.trace.name"),
+          traceName:
+            stringAttribute(spanAttributes, "langfuse.trace.name") ??
+            stringAttribute(spanAttributes, "anvia.trace.name"),
           userId:
-            stringAttribute(spanAttributes, "anvia.trace.user_id") ??
-            stringAttribute(spanAttributes, "user.id"),
+            stringAttribute(spanAttributes, "user.id") ??
+            stringAttribute(spanAttributes, "langfuse.user.id") ??
+            stringAttribute(spanAttributes, "anvia.trace.user_id"),
           sessionId:
-            stringAttribute(spanAttributes, "anvia.trace.session_id") ??
-            stringAttribute(spanAttributes, "session.id"),
-          tags: stringArrayAttribute(spanAttributes, "anvia.trace.tags"),
-          version: stringAttribute(spanAttributes, "anvia.trace.version"),
+            stringAttribute(spanAttributes, "session.id") ??
+            stringAttribute(spanAttributes, "langfuse.session.id") ??
+            stringAttribute(spanAttributes, "anvia.trace.session_id"),
+          tags: firstStringArrayAttribute(spanAttributes, [
+            "langfuse.trace.tags",
+            "anvia.trace.tags",
+          ]),
+          version:
+            stringAttribute(spanAttributes, "langfuse.version") ??
+            stringAttribute(spanAttributes, "anvia.trace.version"),
           model:
+            stringAttribute(spanAttributes, "langfuse.observation.model.name") ??
             stringAttribute(spanAttributes, "anvia.generation.model") ??
             stringAttribute(spanAttributes, "gen_ai.request.model") ??
             stringAttribute(spanAttributes, "gen_ai.response.model"),
-          inputTokens: numberAttribute(spanAttributes, [
-            "anvia.usage.input_tokens",
-            "gen_ai.usage.input_tokens",
-          ]),
-          outputTokens: numberAttribute(spanAttributes, [
-            "anvia.usage.output_tokens",
-            "gen_ai.usage.output_tokens",
-          ]),
-          totalTokens: numberAttribute(spanAttributes, ["anvia.usage.total_tokens"]),
+          inputTokens:
+            optionalNumberAttribute(spanAttributes, [
+              "anvia.usage.input_tokens",
+              "gen_ai.usage.input_tokens",
+            ]) ?? usageNumber(usageDetails, ["input", "input_tokens", "prompt_tokens"]),
+          outputTokens:
+            optionalNumberAttribute(spanAttributes, [
+              "anvia.usage.output_tokens",
+              "gen_ai.usage.output_tokens",
+            ]) ?? usageNumber(usageDetails, ["output", "output_tokens", "completion_tokens"]),
+          totalTokens:
+            optionalNumberAttribute(spanAttributes, ["anvia.usage.total_tokens"]) ??
+            usageNumber(usageDetails, ["total", "total_tokens"]),
           input,
           output,
           expiresAt,
@@ -192,7 +220,12 @@ function attributesRecord(attributes: OtlpKeyValue[]): Record<string, JsonValue>
   );
 }
 
-function classifySpan(span: OtlpSpan, attributes: Record<string, JsonValue>): ObservationKind {
+function classifySpan(
+  span: OtlpSpan,
+  attributes: Record<string, JsonValue>,
+  langfuseKind: ObservationKind | undefined,
+): ObservationKind {
+  if (langfuseKind !== undefined) return langfuseKind;
   if (hasPrefix(attributes, "anvia.generation.")) return "generation";
   if (hasPrefix(attributes, "anvia.tool.")) return "tool";
   if (hasPrefix(attributes, "anvia.run.") || hasPrefix(attributes, "anvia.child_agent.")) {
@@ -209,9 +242,22 @@ function hasPrefix(attributes: Record<string, JsonValue>, prefix: string): boole
   return Object.keys(attributes).some((key) => key.startsWith(prefix));
 }
 
-function spanStatus(code: number): SpanStatus {
-  if (code === 2) return "error";
+function langfuseObservationKind(
+  attributes: Record<string, JsonValue>,
+): ObservationKind | undefined {
+  const value = stringAttribute(attributes, "langfuse.observation.type")?.toLowerCase();
+  return observationKinds.find((kind) => kind === value);
+}
+
+function spanStatus(
+  code: number,
+  attributes: Record<string, JsonValue>,
+  isLangfuseObservation: boolean,
+): SpanStatus {
+  const level = stringAttribute(attributes, "langfuse.observation.level")?.toUpperCase();
+  if (code === 2 || level === "ERROR") return "error";
   if (code === 1) return "ok";
+  if (isLangfuseObservation) return "ok";
   return "unset";
 }
 
@@ -227,13 +273,49 @@ function stringArrayAttribute(attributes: Record<string, JsonValue>, key: string
     : [];
 }
 
-function numberAttribute(attributes: Record<string, JsonValue>, keys: string[]): number {
+function firstStringArrayAttribute(
+  attributes: Record<string, JsonValue>,
+  keys: string[],
+): string[] {
+  for (const key of keys) {
+    const value = stringArrayAttribute(attributes, key);
+    if (value.length > 0) return value;
+  }
+  return [];
+}
+
+function optionalNumberAttribute(
+  attributes: Record<string, JsonValue>,
+  keys: string[],
+): number | undefined {
   for (const key of keys) {
     const value = attributes[key];
     if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
     if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
   }
-  return 0;
+  return undefined;
+}
+
+function usageNumber(value: Record<string, JsonValue> | undefined, keys: string[]): number {
+  if (value === undefined) return 0;
+  return optionalNumberAttribute(value, keys) ?? 0;
+}
+
+function jsonRecordAttribute(
+  attributes: Record<string, JsonValue>,
+  key: string,
+): Record<string, JsonValue> | undefined {
+  const value = attributes[key];
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) return value;
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, JsonValue>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function extractedInput(
@@ -242,10 +324,15 @@ function extractedInput(
 ): JsonValue | null {
   const keys =
     kind === "generation"
-      ? ["anvia.generation.input", "gen_ai.input.messages"]
+      ? [
+          "langfuse.observation.input",
+          "langfuse.trace.input",
+          "anvia.generation.input",
+          "gen_ai.input.messages",
+        ]
       : kind === "tool"
-        ? ["anvia.tool.args"]
-        : ["anvia.run.prompt"];
+        ? ["langfuse.observation.input", "langfuse.trace.input", "anvia.tool.args"]
+        : ["langfuse.observation.input", "langfuse.trace.input", "anvia.run.prompt"];
   return firstPayload(attributes, keys);
 }
 
@@ -255,10 +342,16 @@ function extractedOutput(
 ): JsonValue | null {
   const keys =
     kind === "generation"
-      ? ["anvia.generation.output", "anvia.generation.output_text", "gen_ai.output.messages"]
+      ? [
+          "langfuse.observation.output",
+          "langfuse.trace.output",
+          "anvia.generation.output",
+          "anvia.generation.output_text",
+          "gen_ai.output.messages",
+        ]
       : kind === "tool"
-        ? ["anvia.tool.result"]
-        : ["anvia.run.output"];
+        ? ["langfuse.observation.output", "langfuse.trace.output", "anvia.tool.result"]
+        : ["langfuse.observation.output", "langfuse.trace.output", "anvia.run.output"];
   return firstPayload(attributes, keys);
 }
 

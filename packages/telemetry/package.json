@@ -18,8 +18,11 @@
     "@lens/contracts": "workspace:*"
   },
   "devDependencies": {
+    "@langfuse/otel": "^5.10.0",
+    "@langfuse/tracing": "^5.10.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
     "@opentelemetry/sdk-trace-base": "^2.2.0",
     "@types/node": "^24.0.0",
     "tsup": "^8.5.0",

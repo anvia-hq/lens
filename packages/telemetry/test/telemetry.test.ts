@@ -80,6 +80,125 @@ describe("OTLP ingestion", () => {
     expect(result.spans[0]?.input).toEqual([{ role: "user", content: "hello" }]);
   });
 
+  it("preserves the complete Langfuse v5 observation taxonomy and attributes", () => {
+    const kinds = [
+      "span",
+      "generation",
+      "event",
+      "embedding",
+      "agent",
+      "tool",
+      "chain",
+      "retriever",
+      "evaluator",
+      "guardrail",
+    ] as const;
+    const spans = kinds.map((kind, index) => ({
+      traceId,
+      spanId: (index + 1).toString(16).padStart(16, "0"),
+      ...(index === 0 ? {} : { parentSpanId: "0000000000000001" }),
+      name: `langfuse.${kind}`,
+      kind: 1,
+      startTimeUnixNano: String(1_785_916_800_000_000_000n + BigInt(index) * 1_000_000n),
+      endTimeUnixNano: String(1_785_916_800_000_500_000n + BigInt(index) * 1_000_000n),
+      attributes: [
+        { key: "langfuse.observation.type", value: { stringValue: kind } },
+        ...(kind === "generation"
+          ? [
+              {
+                key: "langfuse.observation.input",
+                value: { stringValue: '[{"role":"user","content":"hello"}]' },
+              },
+              {
+                key: "langfuse.observation.output",
+                value: { stringValue: '{"text":"hello back"}' },
+              },
+              {
+                key: "langfuse.observation.model.name",
+                value: { stringValue: "gpt-test" },
+              },
+              {
+                key: "langfuse.observation.usage_details",
+                value: { stringValue: '{"input":12,"output":4,"total":16}' },
+              },
+            ]
+          : []),
+        ...(kind === "span"
+          ? [
+              { key: "langfuse.trace.name", value: { stringValue: "support request" } },
+              { key: "user.id", value: { stringValue: "user-1" } },
+              { key: "session.id", value: { stringValue: "session-1" } },
+              {
+                key: "langfuse.trace.tags",
+                value: {
+                  arrayValue: { values: [{ stringValue: "production" }, { stringValue: "api" }] },
+                },
+              },
+              { key: "langfuse.version", value: { stringValue: "release-1" } },
+            ]
+          : []),
+        ...(kind === "evaluator"
+          ? [
+              { key: "langfuse.observation.level", value: { stringValue: "ERROR" } },
+              {
+                key: "langfuse.observation.status_message",
+                value: { stringValue: "evaluation failed" },
+              },
+            ]
+          : []),
+      ],
+    }));
+    const request = decodeOtlpRequest(
+      new TextEncoder().encode(
+        JSON.stringify({
+          resourceSpans: [
+            {
+              resource: {
+                attributes: [{ key: "service.name", value: { stringValue: "langfuse-app" } }],
+              },
+              scopeSpans: [
+                {
+                  scope: { name: "langfuse-sdk", version: "5.10.0" },
+                  spans,
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+      "application/json",
+    );
+
+    const result = normalizeOtlpRequest(request, {
+      projectId: "00000000-0000-0000-0000-000000000001",
+      retentionDays: 30,
+      now: new Date("2026-08-05T00:00:00.000Z"),
+    });
+
+    expect(result.spans.map((span) => span.observationKind)).toEqual(kinds);
+    expect(result.spans[0]).toMatchObject({
+      traceName: "support request",
+      userId: "user-1",
+      sessionId: "session-1",
+      tags: ["production", "api"],
+      version: "release-1",
+      status: "ok",
+    });
+    expect(result.spans[1]).toMatchObject({
+      model: "gpt-test",
+      inputTokens: 12,
+      outputTokens: 4,
+      totalTokens: 16,
+      input: [{ role: "user", content: "hello" }],
+      output: { text: "hello back" },
+      status: "ok",
+    });
+    expect(result.spans[8]).toMatchObject({
+      status: "error",
+      statusMessage: "evaluation failed",
+    });
+  });
+
   it("decodes a binary protobuf export request", () => {
     const span = message([
       bytesField(1, hexBytes(traceId)),

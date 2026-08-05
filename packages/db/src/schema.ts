@@ -152,7 +152,7 @@ export const projectApiKey = pgTable(
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    prefix: text("prefix").notNull().unique(),
+    publicKey: text("public_key").notNull().unique(),
     secretHash: text("secret_hash").notNull(),
     createdBy: text("created_by")
       .notNull()

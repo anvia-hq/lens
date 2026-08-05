@@ -6,6 +6,7 @@ import {
   type JsonValue,
   type Metrics,
   type NormalizedSpan,
+  type ObservationKind,
   type SessionDetail,
   type SessionSummary,
   type SpanDetail,
@@ -23,7 +24,7 @@ type SpanRow = {
   trace_state: string;
   name: string;
   kind: number;
-  observation_kind: "agent" | "generation" | "tool" | "span";
+  observation_kind: ObservationKind;
   status: SpanStatus;
   status_message: string;
   start_time: string;

@@ -22,7 +22,8 @@ const ORGANIZATION_ID = "seed-org-acme-ai";
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const DEMO_EMAIL = "demo@lens.local";
 const DEMO_PASSWORD = "LensDemo2026!";
-const DEMO_INGESTION_KEY = "lens_ingest_demo2026_4Yp9Xq7Wm2Ns8Kd5Rt3Vh6Bj1Lc0ZaEeFuGiPoUyQ";
+const DEMO_PUBLIC_KEY = "pk-lens-demo-production-agents";
+const DEMO_SECRET_KEY = "sk-lens-demo-4Yp9Xq7Wm2Ns8Kd5Rt3Vh6Bj1Lc0ZaEeFuGiPoUyQ";
 
 const config = loadConfig();
 const postgres = createPostgres(config);
@@ -133,9 +134,9 @@ try {
         id: "22222222-2222-4222-8222-222222222222",
         projectId: PROJECT_ID,
         name: "Demo application",
-        prefix: "demo2026",
+        publicKey: DEMO_PUBLIC_KEY,
         secretHash: createHmac("sha256", config.INGESTION_KEY_PEPPER)
-          .update(DEMO_INGESTION_KEY)
+          .update(DEMO_SECRET_KEY)
           .digest("hex"),
         createdBy: DEMO_USER_ID,
         createdAt: new Date("2026-01-12T09:45:00.000Z"),
@@ -145,7 +146,7 @@ try {
         target: projectApiKey.id,
         set: {
           secretHash: createHmac("sha256", config.INGESTION_KEY_PEPPER)
-            .update(DEMO_INGESTION_KEY)
+            .update(DEMO_SECRET_KEY)
             .digest("hex"),
           revokedAt: null,
           lastUsedAt: new Date(now.getTime() - 18 * 60_000),
@@ -179,7 +180,8 @@ try {
   console.log(`  Password:      ${DEMO_PASSWORD}`);
   console.log(`  Team:          Acme AI`);
   console.log(`  Project:       Production Agents (${PROJECT_ID})`);
-  console.log(`  Ingestion key: ${DEMO_INGESTION_KEY}`);
+  console.log(`  Public key:    ${DEMO_PUBLIC_KEY}`);
+  console.log(`  Secret key:    ${DEMO_SECRET_KEY}`);
   console.log(
     `  Seeded:        ${metrics.traces} traces, ${metrics.spans} spans, ${metrics.errors} errors`,
   );
