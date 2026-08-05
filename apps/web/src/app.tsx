@@ -3,6 +3,8 @@ import type {
   Metrics,
   Project,
   ProjectApiKey,
+  SessionDetail,
+  SessionSummary,
   SpanDetail,
   TraceDetail,
   TraceSummary,
@@ -96,7 +98,14 @@ import { Textarea } from "@lens/ui/components/textarea";
 import { toast } from "@lens/ui/components/toast";
 import { cn } from "@lens/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useParams, useRouterState } from "@tanstack/react-router";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useNavigate,
+  useParams,
+  useRouterState,
+} from "@tanstack/react-router";
 import {
   Activity,
   AlertCircle,
@@ -115,6 +124,7 @@ import {
   Layers3,
   LogOut,
   MailPlus,
+  MessagesSquare,
   Moon,
   Plus,
   Search,
@@ -197,23 +207,37 @@ export function AppRoot() {
 }
 
 function AuthenticatedApp(props: { user: { name: string; email: string } }) {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false });
+  const routeProjectId = "projectId" in params ? params.projectId : undefined;
   const projectsQuery = useQuery({
     queryKey: ["projects"],
     queryFn: () => api<{ items: ProjectWithRole[] }>("/api/v1/projects"),
   });
   const projects = projectsQuery.data?.items ?? [];
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem("lens-project") ?? "");
-  const project = projects.find((item) => item.id === selectedId) ?? projects[0];
+  const project =
+    projects.find((item) => item.id === routeProjectId) ??
+    (routeProjectId === undefined
+      ? (projects.find((item) => item.id === selectedId) ?? projects[0])
+      : undefined);
 
   if (projectsQuery.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading projects" />;
   if (projectsQuery.isError)
     return <FullPageMessage icon={<AlertCircle />} text="Could not load your Lens workspace" />;
-  if (project === undefined) return <SetupPage />;
+  if (project === undefined) {
+    return projects.length === 0 ? (
+      <SetupPage />
+    ) : (
+      <FullPageMessage icon={<AlertCircle />} text="Project not found or access was removed" />
+    );
+  }
 
   const selectProject = (id: string) => {
     localStorage.setItem("lens-project", id);
     setSelectedId(id);
+    void navigate({ to: "/$projectId", params: { projectId: id } });
   };
 
   return (
@@ -229,14 +253,41 @@ function AuthenticatedApp(props: { user: { name: string; email: string } }) {
   );
 }
 
+export function ProjectRedirectPage() {
+  const { project } = useProject();
+  return <Navigate to="/$projectId" params={{ projectId: project.id }} replace />;
+}
+
 function AppSidebar(props: { user: { name: string; email: string } }) {
+  const { project } = useProject();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const projectRoot = `/${project.id}`;
   const links = [
-    { to: "/" as const, label: "Overview", icon: Gauge },
-    { to: "/traces" as const, label: "Traces", icon: Activity },
-    { to: "/onboarding" as const, label: "Connect", icon: TerminalSquare },
-    { to: "/workspace" as const, label: "Workspace", icon: Building2 },
-    { to: "/settings" as const, label: "Settings", icon: Settings },
+    { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: Gauge },
+    {
+      to: "/$projectId/traces" as const,
+      path: `${projectRoot}/traces`,
+      label: "Traces",
+      icon: Activity,
+    },
+    {
+      to: "/$projectId/sessions" as const,
+      path: `${projectRoot}/sessions`,
+      label: "Sessions",
+      icon: MessagesSquare,
+    },
+    {
+      to: "/$projectId/onboarding" as const,
+      path: `${projectRoot}/onboarding`,
+      label: "Connect",
+      icon: TerminalSquare,
+    },
+    {
+      to: "/$projectId/settings" as const,
+      path: `${projectRoot}/settings`,
+      label: "Settings",
+      icon: Settings,
+    },
   ];
   return (
     <Sidebar collapsible="icon">
@@ -256,17 +307,31 @@ function AppSidebar(props: { user: { name: string; email: string } }) {
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {links.map(({ to, label, icon: Icon }) => {
-                const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
+              {links.map(({ to, path, label, icon: Icon }) => {
+                const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
                 return (
                   <SidebarMenuItem key={to}>
-                    <SidebarMenuButton render={<Link to={to} />} isActive={active} tooltip={label}>
+                    <SidebarMenuButton
+                      render={<Link to={to} params={{ projectId: project.id }} />}
+                      isActive={active}
+                      tooltip={label}
+                    >
                       <Icon />
                       <span>{label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/workspace" />}
+                  isActive={pathname.startsWith("/workspace")}
+                  tooltip="Workspace"
+                >
+                  <Building2 />
+                  <span>Workspace</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -420,7 +485,11 @@ export function OverviewPage() {
                 title="Waiting for your first trace"
                 text="Connect an OpenTelemetry exporter and activity will appear here."
                 action={
-                  <Link className={buttonVariants()} to="/onboarding">
+                  <Link
+                    className={buttonVariants()}
+                    to="/$projectId/onboarding"
+                    params={{ projectId: project.id }}
+                  >
                     Connect an app
                   </Link>
                 }
@@ -527,13 +596,14 @@ export function TracesPage() {
 }
 
 function TraceRow({ trace }: { trace: TraceSummary }) {
+  const { project } = useProject();
   return (
     <TableRow>
       <TableCell>
         <Link
           className="flex items-center gap-3 font-medium hover:underline"
-          to="/traces/$traceId"
-          params={{ traceId: trace.traceId }}
+          to="/$projectId/traces/$traceId"
+          params={{ projectId: project.id, traceId: trace.traceId }}
         >
           <ObservationIcon kind={trace.generationCount > 0 ? "generation" : "span"} />
           <span className="grid">
@@ -554,8 +624,8 @@ function TraceRow({ trace }: { trace: TraceSummary }) {
       <TableCell>
         <Link
           className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          to="/traces/$traceId"
-          params={{ traceId: trace.traceId }}
+          to="/$projectId/traces/$traceId"
+          params={{ projectId: project.id, traceId: trace.traceId }}
           aria-label={`Open ${trace.name}`}
         >
           <ChevronRight />
@@ -565,9 +635,197 @@ function TraceRow({ trace }: { trace: TraceSummary }) {
   );
 }
 
+export function SessionsPage() {
+  const { project } = useProject();
+  const [search, setSearch] = useState("");
+  const range = timeRange(24);
+  const sessions = useQuery({
+    queryKey: ["sessions", project.id, search],
+    queryFn: () =>
+      api<{ items: SessionSummary[] }>(
+        `/api/v1/projects/${project.id}/sessions?${queryString({ ...range, search, limit: 100 })}`,
+      ),
+    refetchInterval: 5_000,
+  });
+  return (
+    <Page
+      title="Sessions"
+      description="Follow related traces across an end-to-end user interaction"
+      action={<LiveBadge />}
+    >
+      <Card>
+        <CardHeader className="border-b">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                aria-label="Search sessions"
+                placeholder="Search session or user ID"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <Badge variant="outline">Last 24 hours</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          {sessions.isLoading ? (
+            <LoadingRows />
+          ) : sessions.data?.items.length ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Session</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Traces</TableHead>
+                    <TableHead>Errors</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Tokens</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Open</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sessions.data.items.map((session) => (
+                    <SessionRow key={session.sessionId} session={session} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <EmptyState
+              icon={<MessagesSquare />}
+              title="No sessions found"
+              text="Sessions appear when traces include an OpenTelemetry session ID."
+            />
+          )}
+        </CardContent>
+      </Card>
+    </Page>
+  );
+}
+
+function SessionRow({ session }: { session: SessionSummary }) {
+  const { project } = useProject();
+  const destination = {
+    projectId: project.id,
+    sessionId: session.sessionId,
+  };
+  return (
+    <TableRow>
+      <TableCell>
+        <Link
+          className="flex items-center gap-3 font-medium hover:underline"
+          to="/$projectId/sessions/$sessionId"
+          params={destination}
+        >
+          <MessagesSquare className="size-4 text-muted-foreground" />
+          <span className="font-mono">{session.sessionId}</span>
+        </Link>
+      </TableCell>
+      <TableCell className="font-mono text-xs">{session.userId ?? "—"}</TableCell>
+      <TableCell className="font-mono">{formatNumber(session.traceCount)}</TableCell>
+      <TableCell>
+        {session.errorCount > 0 ? (
+          <Badge variant="destructive">{session.errorCount}</Badge>
+        ) : (
+          <Badge variant="secondary">0</Badge>
+        )}
+      </TableCell>
+      <TableCell className="font-mono">{formatDuration(session.durationMs)}</TableCell>
+      <TableCell className="font-mono">{formatNumber(session.totalTokens)}</TableCell>
+      <TableCell>{relativeTime(session.startedAt)}</TableCell>
+      <TableCell>
+        <Link
+          className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+          to="/$projectId/sessions/$sessionId"
+          params={destination}
+          aria-label={`Open session ${session.sessionId}`}
+        >
+          <ChevronRight />
+        </Link>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+export function SessionDetailPage() {
+  const { project } = useProject();
+  const { sessionId } = useParams({ from: "/$projectId/sessions/$sessionId" });
+  const session = useQuery({
+    queryKey: ["session", project.id, sessionId],
+    queryFn: () => api<SessionDetail>(`/api/v1/projects/${project.id}/sessions/${sessionId}`),
+    refetchInterval: 5_000,
+  });
+  if (session.isLoading)
+    return <FullPageMessage icon={<MessagesSquare />} text="Loading session" contained />;
+  if (session.data === undefined)
+    return <FullPageMessage icon={<AlertCircle />} text="Session not found" contained />;
+  const detail = session.data;
+  return (
+    <Page
+      title={detail.summary.sessionId}
+      description={
+        detail.summary.userId ? `User ${detail.summary.userId}` : "Traces in this session"
+      }
+      action={
+        <Link
+          className={buttonVariants({ variant: "outline" })}
+          to="/$projectId/sessions"
+          params={{ projectId: project.id }}
+        >
+          <ArrowLeft /> Back
+        </Link>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard label="Traces">{formatNumber(detail.summary.traceCount)}</SummaryCard>
+        <SummaryCard label="Errors">{formatNumber(detail.summary.errorCount)}</SummaryCard>
+        <SummaryCard label="Spans">{formatNumber(detail.summary.spanCount)}</SummaryCard>
+        <SummaryCard label="Duration">{formatDuration(detail.summary.durationMs)}</SummaryCard>
+        <SummaryCard label="Tokens">{formatNumber(detail.summary.totalTokens)}</SummaryCard>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Traces</CardTitle>
+          <CardDescription>All traces carrying this session ID</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Trace</TableHead>
+                  <TableHead>Service</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Tokens</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Open</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.traces.map((trace) => (
+                  <TraceRow key={trace.traceId} trace={trace} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </Page>
+  );
+}
+
 export function TraceDetailPage() {
   const { project } = useProject();
-  const { traceId } = useParams({ from: "/traces/$traceId" });
+  const { traceId } = useParams({ from: "/$projectId/traces/$traceId" });
   const trace = useQuery({
     queryKey: ["trace", project.id, traceId],
     queryFn: () => api<TraceDetail>(`/api/v1/projects/${project.id}/traces/${traceId}`),
@@ -585,7 +843,11 @@ export function TraceDetailPage() {
       title={detail.summary.name}
       description={`${detail.summary.serviceName} · ${detail.summary.traceId}`}
       action={
-        <Link className={buttonVariants({ variant: "outline" })} to="/traces">
+        <Link
+          className={buttonVariants({ variant: "outline" })}
+          to="/$projectId/traces"
+          params={{ projectId: project.id }}
+        >
           <ArrowLeft /> Back
         </Link>
       }
@@ -597,7 +859,19 @@ export function TraceDetailPage() {
         <SummaryCard label="Duration">{formatDuration(detail.summary.durationMs)}</SummaryCard>
         <SummaryCard label="Spans">{detail.summary.spanCount}</SummaryCard>
         <SummaryCard label="Tokens">{formatNumber(detail.summary.totalTokens)}</SummaryCard>
-        <SummaryCard label="Session">{detail.summary.sessionId ?? "—"}</SummaryCard>
+        <SummaryCard label="Session">
+          {detail.summary.sessionId ? (
+            <Link
+              className="font-mono hover:underline"
+              to="/$projectId/sessions/$sessionId"
+              params={{ projectId: project.id, sessionId: detail.summary.sessionId }}
+            >
+              {detail.summary.sessionId}
+            </Link>
+          ) : (
+            "—"
+          )}
+        </SummaryCard>
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>

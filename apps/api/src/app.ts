@@ -12,9 +12,11 @@ import {
   type TraceFilters,
 } from "@lens/contracts";
 import {
+  getSession,
   getTrace,
   invitation,
   type LensPostgres,
+  listSessions,
   listTraces,
   member,
   organization,
@@ -555,6 +557,37 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
     if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
     const trace = await getTrace(deps.clickhouse, projectId, c.req.param("traceId"));
     return trace === undefined ? apiError(c, 404, "not_found", "Trace not found") : c.json(trace);
+  });
+
+  app.get("/api/v1/projects/:projectId/sessions", async (c) => {
+    const projectId = c.req.param("projectId");
+    const access = await requireProjectAccess(
+      deps.postgres.db,
+      projectId,
+      requiredSession(c).user.id,
+    );
+    if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+    const items = await listSessions(deps.clickhouse, projectId, {
+      from: c.req.query("from"),
+      to: c.req.query("to"),
+      search: c.req.query("search"),
+      limit: Number(c.req.query("limit") ?? 50),
+    });
+    return c.json({ items });
+  });
+
+  app.get("/api/v1/projects/:projectId/sessions/:sessionId", async (c) => {
+    const projectId = c.req.param("projectId");
+    const access = await requireProjectAccess(
+      deps.postgres.db,
+      projectId,
+      requiredSession(c).user.id,
+    );
+    if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+    const session = await getSession(deps.clickhouse, projectId, c.req.param("sessionId"));
+    return session === undefined
+      ? apiError(c, 404, "not_found", "Session not found")
+      : c.json(session);
   });
 
   app.get("/api/v1/projects/:projectId/metrics", async (c) => {

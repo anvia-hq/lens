@@ -122,6 +122,27 @@ export type TraceDetail = {
   spans: SpanDetail[];
 };
 
+export type SessionSummary = {
+  projectId: string;
+  sessionId: string;
+  userId: string | null;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  traceCount: number;
+  errorCount: number;
+  spanCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  lastSeenAt: string;
+};
+
+export type SessionDetail = {
+  summary: SessionSummary;
+  traces: TraceSummary[];
+};
+
 export type TraceFilters = {
   from?: string;
   to?: string;

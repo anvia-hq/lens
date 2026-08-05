@@ -6,6 +6,8 @@ import {
   type JsonValue,
   type Metrics,
   type NormalizedSpan,
+  type SessionDetail,
+  type SessionSummary,
   type SpanDetail,
   type SpanStatus,
   type TraceDetail,
@@ -64,6 +66,22 @@ type SummaryRow = {
   session_id: string | null;
   tags: string[];
   model: string | null;
+  input_tokens: number | string;
+  output_tokens: number | string;
+  total_tokens: number | string;
+  last_seen_at: string;
+};
+
+type SessionSummaryRow = {
+  project_id: string;
+  session_id: string;
+  user_id: string | null;
+  session_started_at: string;
+  session_ended_at: string;
+  duration_ms: number | string;
+  trace_count: number | string;
+  error_count: number | string;
+  span_count: number | string;
   input_tokens: number | string;
   output_tokens: number | string;
   total_tokens: number | string;
@@ -281,6 +299,92 @@ export async function getTrace(
   return { summary: summaryFromRow(summary), spans: spans.map(spanFromRow) };
 }
 
+export async function listSessions(
+  client: ClickHouseClient,
+  projectId: string,
+  options: { from?: string; to?: string; search?: string; limit?: number },
+): Promise<SessionSummary[]> {
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  const params: Record<string, string | number> = { projectId, limit };
+  const filters = ["project_id = {projectId:UUID}", "session_id IS NOT NULL", "session_id != ''"];
+  if (options.from !== undefined) {
+    filters.push("started_at >= {from:DateTime64(3)}");
+    params.from = clickHouseDateTimeParam(options.from);
+  }
+  if (options.to !== undefined) {
+    filters.push("started_at <= {to:DateTime64(3)}");
+    params.to = clickHouseDateTimeParam(options.to);
+  }
+  if (options.search !== undefined) {
+    filters.push(
+      "(positionCaseInsensitive(session_id, {search:String}) > 0 OR positionCaseInsensitive(ifNull(user_id, ''), {search:String}) > 0)",
+    );
+    params.search = options.search;
+  }
+  const result = await client.query({
+    query: `SELECT
+              project_id,
+              assumeNotNull(session_id) AS session_id,
+              argMax(user_id, started_at) AS user_id,
+              min(started_at) AS session_started_at,
+              max(ended_at) AS session_ended_at,
+              dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
+              count() AS trace_count,
+              countIf(status = 'error') AS error_count,
+              sum(span_count) AS span_count,
+              sum(input_tokens) AS input_tokens,
+              sum(output_tokens) AS output_tokens,
+              sum(total_tokens) AS total_tokens,
+              max(last_seen_at) AS last_seen_at
+            FROM trace_summaries FINAL
+            WHERE ${filters.join(" AND ")}
+            GROUP BY project_id, session_id
+            ORDER BY session_started_at DESC, session_id ASC
+            LIMIT {limit:UInt16}`,
+    query_params: params,
+    format: "JSONEachRow",
+  });
+  return (await result.json<SessionSummaryRow>()).map(sessionSummaryFromRow);
+}
+
+export async function getSession(
+  client: ClickHouseClient,
+  projectId: string,
+  sessionId: string,
+): Promise<SessionDetail | undefined> {
+  const traces = await listTraces(client, projectId, { sessionId, limit: 100 });
+  if (traces.items.length === 0) return undefined;
+  const startedAt = traces.items.reduce(
+    (minimum, trace) => (trace.startedAt < minimum ? trace.startedAt : minimum),
+    traces.items[0]?.startedAt ?? "",
+  );
+  const endedAt = traces.items.reduce(
+    (maximum, trace) => (trace.endedAt > maximum ? trace.endedAt : maximum),
+    traces.items[0]?.endedAt ?? "",
+  );
+  return {
+    summary: {
+      projectId,
+      sessionId,
+      userId: traces.items.find((trace) => trace.userId !== null)?.userId ?? null,
+      startedAt,
+      endedAt,
+      durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
+      traceCount: traces.items.length,
+      errorCount: traces.items.filter((trace) => trace.status === "error").length,
+      spanCount: traces.items.reduce((total, trace) => total + trace.spanCount, 0),
+      inputTokens: traces.items.reduce((total, trace) => total + trace.inputTokens, 0),
+      outputTokens: traces.items.reduce((total, trace) => total + trace.outputTokens, 0),
+      totalTokens: traces.items.reduce((total, trace) => total + trace.totalTokens, 0),
+      lastSeenAt: traces.items.reduce(
+        (latest, trace) => (trace.lastSeenAt > latest ? trace.lastSeenAt : latest),
+        traces.items[0]?.lastSeenAt ?? "",
+      ),
+    },
+    traces: traces.items,
+  };
+}
+
 export async function queryMetrics(
   client: ClickHouseClient,
   projectId: string,
@@ -468,6 +572,24 @@ function summaryFromRow(row: SummaryRow): TraceSummary {
     sessionId: row.session_id,
     tags: row.tags,
     model: row.model,
+    inputTokens: numeric(row.input_tokens),
+    outputTokens: numeric(row.output_tokens),
+    totalTokens: numeric(row.total_tokens),
+    lastSeenAt: ensureIso(row.last_seen_at),
+  };
+}
+
+function sessionSummaryFromRow(row: SessionSummaryRow): SessionSummary {
+  return {
+    projectId: row.project_id,
+    sessionId: row.session_id,
+    userId: row.user_id,
+    startedAt: ensureIso(row.session_started_at),
+    endedAt: ensureIso(row.session_ended_at),
+    durationMs: numeric(row.duration_ms),
+    traceCount: numeric(row.trace_count),
+    errorCount: numeric(row.error_count),
+    spanCount: numeric(row.span_count),
     inputTokens: numeric(row.input_tokens),
     outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),

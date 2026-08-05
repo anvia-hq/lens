@@ -10,6 +10,9 @@ import {
   AppRoot,
   OnboardingPage,
   OverviewPage,
+  ProjectRedirectPage,
+  SessionDetailPage,
+  SessionsPage,
   SettingsPage,
   TraceDetailPage,
   TracesPage,
@@ -20,27 +23,42 @@ import { ThemeProvider } from "./components/theme-provider";
 const rootRoute = createRootRoute({ component: AppRoot });
 const overviewRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: "/$projectId",
   component: OverviewPage,
+});
+const projectRedirectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: ProjectRedirectPage,
 });
 const tracesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/traces",
+  path: "/$projectId/traces",
   component: TracesPage,
 });
 const traceRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/traces/$traceId",
+  path: "/$projectId/traces/$traceId",
   component: TraceDetailPage,
+});
+const sessionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/$projectId/sessions",
+  component: SessionsPage,
+});
+const sessionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/$projectId/sessions/$sessionId",
+  component: SessionDetailPage,
 });
 const onboardingRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/onboarding",
+  path: "/$projectId/onboarding",
   component: OnboardingPage,
 });
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/settings",
+  path: "/$projectId/settings",
   component: SettingsPage,
 });
 const workspaceRoute = createRoute({
@@ -54,9 +72,12 @@ const acceptInvitationRoute = createRoute({
   component: AcceptInvitationPage,
 });
 const routeTree = rootRoute.addChildren([
+  projectRedirectRoute,
   overviewRoute,
   tracesRoute,
   traceRoute,
+  sessionsRoute,
+  sessionRoute,
   onboardingRoute,
   settingsRoute,
   workspaceRoute,
