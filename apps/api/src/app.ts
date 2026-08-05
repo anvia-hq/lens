@@ -13,6 +13,7 @@ import {
 } from "@lens/contracts";
 import {
   getTrace,
+  invitation,
   type LensPostgres,
   listTraces,
   member,
@@ -21,6 +22,7 @@ import {
   project,
   projectApiKey,
   queryMetrics,
+  user,
 } from "@lens/db";
 import type { LensQueues } from "@lens/queue";
 import {
@@ -250,6 +252,133 @@ export function createApp(deps: ApiDependencies): Hono<AppEnv> {
       });
     });
     return c.json({ id: organizationId, name, slug, role: "owner" }, 201);
+  });
+
+  app.get("/api/v1/workspaces/:workspaceId/directory", async (c) => {
+    const session = requiredSession(c);
+    const workspaceId = c.req.param("workspaceId");
+    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
+    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
+
+    const members = await deps.postgres.db
+      .select({
+        id: member.id,
+        userId: member.userId,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: member.role,
+        createdAt: member.createdAt,
+      })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(eq(member.organizationId, workspaceId));
+    const invitations = canManage(membership.role)
+      ? await deps.postgres.db
+          .select({
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            status: invitation.status,
+            expiresAt: invitation.expiresAt,
+            createdAt: invitation.createdAt,
+          })
+          .from(invitation)
+          .where(eq(invitation.organizationId, workspaceId))
+      : [];
+
+    return c.json({
+      role: membership.role,
+      canManage: canManage(membership.role),
+      members: members.map((row) => ({
+        ...row,
+        isCurrentUser: row.userId === session.user.id,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      invitations: invitations.map((row) => ({
+        ...row,
+        expiresAt: row.expiresAt.toISOString(),
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
+  });
+
+  app.patch("/api/v1/workspaces/:workspaceId/members/:memberId", async (c) => {
+    const session = requiredSession(c);
+    const workspaceId = c.req.param("workspaceId");
+    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
+    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
+    if (!canManage(membership.role))
+      return apiError(c, 403, "forbidden", "Admin access is required");
+    const body = await safeJson(c);
+    const role = body?.role;
+    if (role !== "admin" && role !== "member") {
+      return apiError(c, 400, "invalid_role", "Role must be admin or member");
+    }
+    const [target] = await deps.postgres.db
+      .select()
+      .from(member)
+      .where(and(eq(member.id, c.req.param("memberId")), eq(member.organizationId, workspaceId)))
+      .limit(1);
+    if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
+    if (target.role === "owner")
+      return apiError(c, 403, "owner_protected", "The workspace owner role cannot be changed");
+    const [updated] = await deps.postgres.db
+      .update(member)
+      .set({ role })
+      .where(eq(member.id, target.id))
+      .returning();
+    return c.json({ id: updated?.id, role: updated?.role });
+  });
+
+  app.delete("/api/v1/workspaces/:workspaceId/members/:memberId", async (c) => {
+    const session = requiredSession(c);
+    const workspaceId = c.req.param("workspaceId");
+    const membership = await workspaceMembership(deps.postgres.db, workspaceId, session.user.id);
+    if (membership === undefined) return apiError(c, 404, "not_found", "Workspace not found");
+    if (!canManage(membership.role))
+      return apiError(c, 403, "forbidden", "Admin access is required");
+    const [target] = await deps.postgres.db
+      .select()
+      .from(member)
+      .where(and(eq(member.id, c.req.param("memberId")), eq(member.organizationId, workspaceId)))
+      .limit(1);
+    if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
+    if (target.role === "owner")
+      return apiError(c, 403, "owner_protected", "The workspace owner cannot be removed");
+    if (target.userId === session.user.id)
+      return apiError(c, 403, "self_removal", "Use leave workspace to remove yourself");
+    await deps.postgres.db.delete(member).where(eq(member.id, target.id));
+    return c.body(null, 204);
+  });
+
+  app.get("/api/v1/invitations/:invitationId", async (c) => {
+    const session = requiredSession(c);
+    const [row] = await deps.postgres.db
+      .select({
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        status: invitation.status,
+        expiresAt: invitation.expiresAt,
+        organizationId: organization.id,
+        organizationName: organization.name,
+      })
+      .from(invitation)
+      .innerJoin(organization, eq(invitation.organizationId, organization.id))
+      .where(eq(invitation.id, c.req.param("invitationId")))
+      .limit(1);
+    if (row === undefined) return apiError(c, 404, "not_found", "Invitation not found");
+    if (row.email.toLowerCase() !== session.user.email.toLowerCase()) {
+      const membership = await workspaceMembership(
+        deps.postgres.db,
+        row.organizationId,
+        session.user.id,
+      );
+      if (!canManage(membership?.role))
+        return apiError(c, 403, "forbidden", "This invitation belongs to another user");
+    }
+    return c.json({ ...row, expiresAt: row.expiresAt.toISOString() });
   });
 
   app.get("/api/v1/projects", async (c) => {
@@ -485,6 +614,9 @@ async function requireProjectAccess(
   projectId: string,
   userId: string,
 ): Promise<ProjectAccess | undefined> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+    return undefined;
+  }
   const [row] = await db
     .select({ project, role: member.role })
     .from(project)
@@ -598,7 +730,7 @@ async function safeJson(c: Context): Promise<Record<string, unknown> | undefined
 
 function apiError(
   c: Context,
-  status: 400 | 401 | 403 | 404 | 413 | 415 | 429 | 500 | 503,
+  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 500 | 503,
   code: string,
   message: string,
 ) {

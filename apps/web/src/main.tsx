@@ -3,12 +3,14 @@ import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tan
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  AcceptInvitationPage,
   AppRoot,
   OnboardingPage,
   OverviewPage,
   SettingsPage,
   TraceDetailPage,
   TracesPage,
+  WorkspacePage,
 } from "./app";
 import "./styles.css";
 
@@ -38,12 +40,24 @@ const settingsRoute = createRoute({
   path: "/settings",
   component: SettingsPage,
 });
+const workspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workspace",
+  component: WorkspacePage,
+});
+const acceptInvitationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accept-invitation/$invitationId",
+  component: AcceptInvitationPage,
+});
 const routeTree = rootRoute.addChildren([
   overviewRoute,
   tracesRoute,
   traceRoute,
   onboardingRoute,
   settingsRoute,
+  workspaceRoute,
+  acceptInvitationRoute,
 ]);
 const router = createRouter({ routeTree });
 

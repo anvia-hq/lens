@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ArrowLeft,
   Braces,
+  Building2,
   Check,
   ChevronRight,
   CircleDot,
@@ -24,11 +25,15 @@ import {
   KeyRound,
   Layers3,
   LogOut,
+  MailPlus,
   Menu,
+  Plus,
   Search,
   Settings,
   Sparkles,
   TerminalSquare,
+  Trash2,
+  UserCog,
   Users,
   X,
   Zap,
@@ -55,6 +60,30 @@ import { authClient } from "./lib/auth";
 
 type ProjectWithRole = Project & { role: string };
 type Workspace = { id: string; name: string; slug: string; role: string; createdAt: string };
+type WorkspaceMember = {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  image: string | null;
+  role: string;
+  createdAt: string;
+  isCurrentUser: boolean;
+};
+type WorkspaceInvitation = {
+  id: string;
+  email: string;
+  role: string | null;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+};
+type WorkspaceDirectory = {
+  role: string;
+  canManage: boolean;
+  members: WorkspaceMember[];
+  invitations: WorkspaceInvitation[];
+};
 
 type ProjectContextValue = {
   project: ProjectWithRole;
@@ -74,6 +103,7 @@ export function AppRoot() {
   const session = authClient.useSession();
   if (session.isPending) return <FullPageMessage icon={<Activity />} text="Opening Lens" />;
   if (session.data === null) return <AuthPage />;
+  if (window.location.pathname.startsWith("/accept-invitation/")) return <Outlet />;
   return <AuthenticatedApp user={session.data.user} />;
 }
 
@@ -119,6 +149,7 @@ function Sidebar(props: { user: { name: string; email: string } }) {
     { to: "/" as const, label: "Overview", icon: Gauge },
     { to: "/traces" as const, label: "Traces", icon: Activity },
     { to: "/onboarding" as const, label: "Connect", icon: TerminalSquare },
+    { to: "/workspace" as const, label: "Workspace", icon: Building2 },
     { to: "/settings" as const, label: "Settings", icon: Settings },
   ];
   return (
@@ -614,6 +645,479 @@ export function OnboardingPage() {
   );
 }
 
+export function WorkspacePage() {
+  const { project, projects, selectProject } = useProject();
+  const queryClient = useQueryClient();
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: () => api<{ items: Workspace[] }>("/api/v1/workspaces"),
+  });
+  const [workspaceId, setWorkspaceId] = useState(project.workspaceId);
+  const selectedWorkspace =
+    workspaces.data?.items.find((item) => item.id === workspaceId) ?? workspaces.data?.items[0];
+  const directory = useQuery({
+    queryKey: ["workspace-directory", selectedWorkspace?.id],
+    queryFn: () => api<WorkspaceDirectory>(`/api/v1/workspaces/${selectedWorkspace?.id}/directory`),
+    enabled: selectedWorkspace !== undefined,
+  });
+  const workspaceProjects = projects.filter((item) => item.workspaceId === selectedWorkspace?.id);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceSlug, setWorkspaceSlug] = useState("");
+  const [projectName, setProjectName] = useState("");
+  const [projectSlug, setProjectSlug] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+
+  const createWorkspace = useMutation({
+    mutationFn: () =>
+      api<Workspace>("/api/v1/workspaces", {
+        method: "POST",
+        body: JSON.stringify({ name: workspaceName, slug: workspaceSlug }),
+      }),
+    onSuccess: async (created) => {
+      setWorkspaceName("");
+      setWorkspaceSlug("");
+      setWorkspaceId(created.id);
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+  const createProject = useMutation({
+    mutationFn: () =>
+      api<Project>("/api/v1/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          workspaceId: selectedWorkspace?.id,
+          name: projectName,
+          slug: projectSlug,
+        }),
+      }),
+    onSuccess: async (created) => {
+      setProjectName("");
+      setProjectSlug("");
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      selectProject(created.id);
+    },
+  });
+  const deleteProject = useMutation({
+    mutationFn: (projectId: string) =>
+      api<void>(`/api/v1/projects/${projectId}`, { method: "DELETE" }),
+    onSuccess: async (_, deletedId) => {
+      const fallback = projects.find((item) => item.id !== deletedId && item.state === "active");
+      if (project.id === deletedId && fallback !== undefined) selectProject(fallback.id);
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+  const inviteMember = useMutation({
+    mutationFn: () =>
+      api<WorkspaceInvitation>("/api/auth/organization/invite-member", {
+        method: "POST",
+        body: JSON.stringify({
+          organizationId: selectedWorkspace?.id,
+          email: inviteEmail,
+          role: inviteRole,
+        }),
+      }),
+    onSuccess: async () => {
+      setInviteEmail("");
+      await queryClient.invalidateQueries({
+        queryKey: ["workspace-directory", selectedWorkspace?.id],
+      });
+    },
+  });
+  const updateRole = useMutation({
+    mutationFn: (input: { memberId: string; role: "admin" | "member" }) =>
+      api<{ id: string; role: string }>(
+        `/api/v1/workspaces/${selectedWorkspace?.id}/members/${input.memberId}`,
+        { method: "PATCH", body: JSON.stringify({ role: input.role }) },
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-directory", selectedWorkspace?.id],
+      }),
+  });
+  const removeMember = useMutation({
+    mutationFn: (memberId: string) =>
+      api<void>(`/api/v1/workspaces/${selectedWorkspace?.id}/members/${memberId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-directory", selectedWorkspace?.id],
+      }),
+  });
+  const cancelInvitation = useMutation({
+    mutationFn: (invitationId: string) =>
+      api<unknown>("/api/auth/organization/cancel-invitation", {
+        method: "POST",
+        body: JSON.stringify({ invitationId }),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-directory", selectedWorkspace?.id],
+      }),
+  });
+
+  const managementError =
+    createWorkspace.error ??
+    createProject.error ??
+    deleteProject.error ??
+    inviteMember.error ??
+    updateRole.error ??
+    removeMember.error ??
+    cancelInvitation.error;
+
+  return (
+    <Page
+      title="Workspace"
+      description="Manage workspaces, projects, teammates, roles, and invitations"
+      action={
+        <select
+          value={selectedWorkspace?.id ?? ""}
+          onChange={(event) => setWorkspaceId(event.target.value)}
+        >
+          {workspaces.data?.items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      }
+    >
+      {managementError ? (
+        <div className="management-error">
+          <AlertCircle size={15} /> {managementError.message}
+        </div>
+      ) : null}
+      <div className="workspace-grid">
+        <section className="panel management-card">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Organization</span>
+              <h2>{selectedWorkspace?.name ?? "Workspace"}</h2>
+            </div>
+            <Building2 size={19} />
+          </div>
+          <p className="muted">
+            You are a {directory.data?.role ?? selectedWorkspace?.role ?? "member"}. Create another
+            workspace for a separate organization or environment boundary.
+          </p>
+          <form
+            className="management-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createWorkspace.mutate();
+            }}
+          >
+            <input
+              required
+              placeholder="New workspace name"
+              value={workspaceName}
+              onChange={(event) => {
+                setWorkspaceName(event.target.value);
+                setWorkspaceSlug(slugify(event.target.value));
+              }}
+            />
+            <input
+              required
+              placeholder="workspace-slug"
+              value={workspaceSlug}
+              onChange={(event) => setWorkspaceSlug(event.target.value)}
+            />
+            <button className="button ghost" disabled={createWorkspace.isPending} type="submit">
+              <Plus size={14} /> Create workspace
+            </button>
+          </form>
+        </section>
+
+        <section className="panel management-card">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Isolation</span>
+              <h2>Projects</h2>
+            </div>
+            <Layers3 size={19} />
+          </div>
+          <p className="muted">
+            Each project has independent telemetry, settings, and ingestion keys.
+          </p>
+          {directory.data?.canManage ? (
+            <form
+              className="management-form project-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                createProject.mutate();
+              }}
+            >
+              <input
+                required
+                placeholder="New project name"
+                value={projectName}
+                onChange={(event) => {
+                  setProjectName(event.target.value);
+                  setProjectSlug(slugify(event.target.value));
+                }}
+              />
+              <input
+                required
+                placeholder="project-slug"
+                value={projectSlug}
+                onChange={(event) => setProjectSlug(event.target.value)}
+              />
+              <button className="button primary" disabled={createProject.isPending} type="submit">
+                <Plus size={14} /> Create project
+              </button>
+            </form>
+          ) : null}
+          <div className="management-list">
+            {workspaceProjects.map((item) => (
+              <div key={item.id}>
+                <button
+                  className="entity-main"
+                  type="button"
+                  onClick={() => selectProject(item.id)}
+                >
+                  <span className="entity-icon">
+                    <Layers3 size={15} />
+                  </span>
+                  <span>
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.slug} · {item.state}
+                    </small>
+                  </span>
+                </button>
+                {directory.data?.canManage ? (
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    title="Delete project"
+                    disabled={item.state === "deleting" || deleteProject.isPending}
+                    onClick={() => {
+                      if (window.confirm(`Delete ${item.name} and all of its telemetry?`)) {
+                        deleteProject.mutate(item.id);
+                      }
+                    }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            {workspaceProjects.length === 0 ? (
+              <p className="muted inset-copy">No projects yet.</p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="panel management-card wide">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Collaboration</span>
+              <h2>Team members</h2>
+            </div>
+            <Users size={19} />
+          </div>
+          {directory.data?.canManage ? (
+            <form
+              className="invite-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                inviteMember.mutate();
+              }}
+            >
+              <label>
+                Email address
+                <input
+                  required
+                  type="email"
+                  placeholder="teammate@company.com"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                />
+              </label>
+              <label>
+                Role
+                <select
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
+                >
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <button className="button primary" disabled={inviteMember.isPending} type="submit">
+                <MailPlus size={14} /> Send invitation
+              </button>
+            </form>
+          ) : (
+            <p className="muted inset-copy">Only workspace admins can invite or manage members.</p>
+          )}
+          <div className="member-list">
+            {directory.data?.members.map((item) => (
+              <div key={item.id}>
+                <div className="avatar">{item.name.slice(0, 1).toUpperCase()}</div>
+                <span className="member-copy">
+                  <strong>
+                    {item.name}
+                    {item.isCurrentUser ? " (you)" : ""}
+                  </strong>
+                  <small>
+                    {item.email} · joined {new Date(item.createdAt).toLocaleDateString()}
+                  </small>
+                </span>
+                {directory.data?.canManage && item.role !== "owner" ? (
+                  <select
+                    value={item.role}
+                    disabled={updateRole.isPending}
+                    onChange={(event) =>
+                      updateRole.mutate({
+                        memberId: item.id,
+                        role: event.target.value as "admin" | "member",
+                      })
+                    }
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                ) : (
+                  <span className="role-badge">
+                    <UserCog size={12} /> {item.role}
+                  </span>
+                )}
+                {directory.data?.canManage && item.role !== "owner" && !item.isCurrentUser ? (
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    title="Remove member"
+                    disabled={removeMember.isPending}
+                    onClick={() => removeMember.mutate(item.id)}
+                  >
+                    <X size={15} />
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            ))}
+          </div>
+          {directory.data?.canManage &&
+          directory.data.invitations.some((item) => item.status === "pending") ? (
+            <div className="pending-invitations">
+              <span className="eyebrow">Pending invitations</span>
+              {directory.data.invitations
+                .filter((item) => item.status === "pending")
+                .map((item) => (
+                  <div key={item.id}>
+                    <span>
+                      <strong>{item.email}</strong>
+                      <small>
+                        {item.role ?? "member"} · expires{" "}
+                        {new Date(item.expiresAt).toLocaleDateString()}
+                      </small>
+                    </span>
+                    <button
+                      className="button ghost"
+                      type="button"
+                      disabled={cancelInvitation.isPending}
+                      onClick={() => cancelInvitation.mutate(item.id)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ))}
+            </div>
+          ) : null}
+        </section>
+      </div>
+    </Page>
+  );
+}
+
+export function AcceptInvitationPage() {
+  const { invitationId } = useParams({ from: "/accept-invitation/$invitationId" });
+  const invitation = useQuery({
+    queryKey: ["invitation", invitationId],
+    queryFn: () =>
+      api<{
+        id: string;
+        email: string;
+        role: string | null;
+        status: string;
+        expiresAt: string;
+        organizationName: string;
+      }>(`/api/v1/invitations/${invitationId}`),
+  });
+  const accept = useMutation({
+    mutationFn: () =>
+      api<unknown>("/api/auth/organization/accept-invitation", {
+        method: "POST",
+        body: JSON.stringify({ invitationId }),
+      }),
+    onSuccess: () => window.location.assign("/"),
+  });
+  const reject = useMutation({
+    mutationFn: () =>
+      api<unknown>("/api/auth/organization/reject-invitation", {
+        method: "POST",
+        body: JSON.stringify({ invitationId }),
+      }),
+    onSuccess: () => window.location.assign("/"),
+  });
+
+  if (invitation.isLoading) {
+    return <FullPageMessage icon={<MailPlus />} text="Loading invitation" />;
+  }
+  if (invitation.isError || invitation.data === undefined) {
+    return <FullPageMessage icon={<AlertCircle />} text="This invitation is unavailable" />;
+  }
+  const detail = invitation.data;
+  const expired = Date.parse(detail.expiresAt) <= Date.now();
+  const actionable = detail.status === "pending" && !expired;
+  return (
+    <div className="invitation-layout">
+      <div className="invitation-card">
+        <span className="brand-mark">
+          <MailPlus size={18} />
+        </span>
+        <span className="eyebrow">Workspace invitation</span>
+        <h1>Join {detail.organizationName}</h1>
+        <p>
+          You were invited as <strong>{detail.role ?? "member"}</strong>. Accept to access every
+          project shared with this workspace.
+        </p>
+        {!actionable ? (
+          <div className="management-error">
+            <AlertCircle size={15} /> This invitation is {expired ? "expired" : detail.status}.
+          </div>
+        ) : null}
+        {(accept.error ?? reject.error) ? (
+          <div className="management-error">
+            <AlertCircle size={15} /> {(accept.error ?? reject.error)?.message}
+          </div>
+        ) : null}
+        <div className="invitation-actions">
+          <button
+            className="button primary"
+            type="button"
+            disabled={!actionable || accept.isPending}
+            onClick={() => accept.mutate()}
+          >
+            <Check size={15} /> Accept invitation
+          </button>
+          <button
+            className="button ghost"
+            type="button"
+            disabled={!actionable || reject.isPending}
+            onClick={() => reject.mutate()}
+          >
+            Decline
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const { project } = useProject();
   const queryClient = useQueryClient();
@@ -829,14 +1333,25 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     const result =
       mode === "signup"
-        ? await authClient.signUp.email({ name, email, password })
+        ? await authClient.signUp.email({
+            name,
+            email,
+            password,
+            callbackURL: window.location.href,
+          })
         : await authClient.signIn.email({ email, password });
     if (result.error) setError(result.error.message ?? "Authentication failed");
+    else if (mode === "signup") {
+      setNotice("Account created. Check your email to verify it, then sign in here.");
+      setMode("login");
+    }
   };
   return (
     <div className="auth-layout">
@@ -899,6 +1414,7 @@ function AuthPage() {
               {error}
             </div>
           ) : null}
+          {notice ? <div className="form-notice">{notice}</div> : null}
           <button className="button primary" type="submit">
             {mode === "login" ? "Sign in" : "Create account"}
             <ChevronRight size={16} />

@@ -18,10 +18,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => undefined)) as
-      | { error?: { message?: string } }
+      | { error?: { message?: string }; message?: string }
       | undefined;
     throw new ApiError(
-      body?.error?.message ?? `Request failed (${response.status})`,
+      body?.error?.message ?? body?.message ?? `Request failed (${response.status})`,
       response.status,
     );
   }

@@ -42,6 +42,18 @@ The command is safe to rerun: it refreshes only the dedicated demo project. Sign
 generation, and tool spans across support, billing, incident response, research, and risk
 workloads. It prints the reusable demo ingestion key when it completes.
 
+## Workspaces and teams
+
+Open **Workspace** in the sidebar to create additional workspaces and projects. Workspaces are
+the team and access boundary; projects inside them have independent telemetry, settings, and
+ingestion keys. Owners and admins can invite teammates, assign member or admin roles, change
+roles, remove members, and cancel pending invitations.
+
+In development, invitation and verification messages are delivered to Mailpit. A teammate can
+open the invitation link, create and verify an account if needed, then accept or decline the
+invitation. Member access is read-only for workspace management, while admins can manage projects
+and teammates.
+
 For application development with infrastructure in containers:
 
 ```sh

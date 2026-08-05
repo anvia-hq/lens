@@ -878,6 +878,218 @@ textarea:focus {
 .settings-card > .align-end {
   margin-left: auto;
 }
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+.management-card {
+  min-width: 0;
+  padding-bottom: 17px;
+}
+.management-card.wide {
+  grid-column: 1 / -1;
+}
+.management-card > p {
+  margin: 0 18px;
+  line-height: 1.6;
+}
+.management-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) auto;
+  gap: 8px;
+  margin: 16px 18px 0;
+}
+.management-form input,
+.invite-form input,
+.invite-form select,
+.member-list select {
+  min-width: 0;
+  padding: 9px 10px;
+}
+.management-list,
+.member-list {
+  display: grid;
+  margin-top: 16px;
+  border-top: 1px solid #27272a;
+}
+.management-list > div,
+.member-list > div {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #27272a;
+  padding: 9px 18px;
+}
+.management-list > div:last-child,
+.member-list > div:last-child {
+  border-bottom: 0;
+}
+.entity-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.entity-main:hover strong {
+  color: #a3ff12;
+}
+.entity-icon {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 31px;
+  border: 1px solid #343439;
+  border-radius: 8px;
+  color: #a1a1aa;
+  background: #19191c;
+}
+.entity-main > span:last-child,
+.member-copy,
+.pending-invitations > div > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.entity-main strong,
+.member-copy strong,
+.pending-invitations strong {
+  color: #e4e4e7;
+  font-size: 11px;
+}
+.entity-main small,
+.member-copy small,
+.pending-invitations small {
+  overflow: hidden;
+  color: #66666f;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.icon-button.danger,
+.button.danger {
+  color: #e97777;
+}
+.invite-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 140px auto;
+  align-items: end;
+  gap: 9px;
+  margin: 2px 18px 18px;
+}
+.invite-form label {
+  display: grid;
+  gap: 6px;
+  color: #777780;
+  font-size: 9px;
+  font-weight: 650;
+}
+.member-copy {
+  flex: 1;
+}
+.member-list select {
+  width: 110px;
+  font-size: 10px;
+}
+.role-badge {
+  min-width: 82px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #36363b;
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: #a1a1aa;
+  font-size: 9px;
+  text-transform: capitalize;
+}
+.pending-invitations {
+  display: grid;
+  gap: 0;
+  margin: 18px;
+  border: 1px solid #2e2e33;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.pending-invitations > .eyebrow {
+  padding: 11px 13px;
+  background: #151517;
+}
+.pending-invitations > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #29292d;
+  padding: 10px 13px;
+}
+.inset-copy {
+  padding-block: 12px;
+}
+.management-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #592d2d;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #f08b8b;
+  background: #211010;
+  font-size: 10px;
+}
+.workspace-grid > .management-error {
+  grid-column: 1 / -1;
+}
+.invitation-layout {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(163, 255, 18, 0.09), transparent 30%), #09090b;
+}
+.invitation-card {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 16px;
+  border: 1px solid #323237;
+  border-radius: 15px;
+  padding: 30px;
+  background: #111113;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.35);
+}
+.invitation-card .brand-mark {
+  margin-bottom: 4px;
+}
+.invitation-card h1 {
+  margin: -7px 0 0;
+  font-size: 29px;
+  letter-spacing: -0.045em;
+}
+.invitation-card p {
+  margin: 0;
+  color: #8c8c94;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.invitation-card p strong {
+  color: #d4d4d8;
+}
+.invitation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
 .auth-layout {
   min-height: 100vh;
   display: grid;
@@ -955,6 +1167,16 @@ textarea:focus {
   gap: 7px;
   color: #f08b8b;
   font-size: 10px;
+}
+
+.form-notice {
+  border: 1px solid rgba(163, 255, 18, 0.28);
+  border-radius: 8px;
+  background: rgba(163, 255, 18, 0.08);
+  color: #d8ff9c;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 0.7rem 0.8rem;
 }
 .signal-lines {
   position: absolute;
@@ -1119,11 +1341,22 @@ textarea:focus {
   }
   .metric-grid,
   .split-grid,
-  .settings-grid {
+  .settings-grid,
+  .workspace-grid {
     grid-template-columns: 1fr;
   }
   .settings-card.wide {
     grid-column: auto;
+  }
+  .management-card.wide {
+    grid-column: auto;
+  }
+  .management-form,
+  .invite-form {
+    grid-template-columns: 1fr;
+  }
+  .member-list > div {
+    flex-wrap: wrap;
   }
   .trace-summary-strip {
     grid-template-columns: repeat(2, 1fr);
