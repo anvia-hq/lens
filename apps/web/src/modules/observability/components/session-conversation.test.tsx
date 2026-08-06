@@ -3,7 +3,8 @@
 import type { SessionDetail } from "@lens/contracts";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { extractSessionMessageText, SessionConversation } from "./session-conversation";
+import { extractSessionMessageText } from "../utils/session";
+import { SessionConversation } from "./session-conversation";
 
 afterEach(cleanup);
 

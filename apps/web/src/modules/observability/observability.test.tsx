@@ -4,21 +4,16 @@ import { ChartContainer } from "@lens/ui/components/chart";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Area, AreaChart } from "recharts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  adaptiveRefreshInterval,
-  ComparisonMetricCard,
-  comparisonDelta,
-  defaultSessionColumns,
-  defaultTraceColumns,
-  RangeSelector,
-  refreshMilliseconds,
-  SessionExplorerTable,
-  TraceExplorerTable,
-  validateOverviewSearch,
-  validateSessionsSearch,
-  validateTraceDetailSearch,
-  validateTracesSearch,
-} from "./app";
+import { validateOverviewSearch } from "../../routes/overview";
+import { validateSessionsSearch } from "../../routes/sessions";
+import { validateTraceDetailSearch } from "../../routes/trace-detail";
+import { validateTracesSearch } from "../../routes/traces";
+import { ComparisonMetricCard } from "./components/comparison-metric-card";
+import { RangeSelector } from "./components/range-selector";
+import { SessionExplorerTable } from "./components/session-explorer-table";
+import { TraceExplorerTable } from "./components/trace-explorer-table";
+import { defaultSessionColumns, defaultTraceColumns } from "./types";
+import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
 
 afterEach(cleanup);
 

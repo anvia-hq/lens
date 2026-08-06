@@ -10,13 +10,13 @@ import {
   formattedPayloadRows,
   jsonSyntaxTokens,
   rawTraceJson,
-  SpanInspector,
   searchTraceSpans,
   spanTimelinePosition,
-  TraceDetailExplorer,
-  TraceNavigator,
   traceTimelineBounds,
-} from "./trace-detail-explorer";
+} from "../utils/trace-detail";
+import { SpanInspector } from "./span-inspector";
+import { TraceDetailExplorer } from "./trace-detail-explorer";
+import { TraceNavigator } from "./trace-navigator";
 
 afterEach(cleanup);
 

@@ -1,13 +1,6 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { type Theme, ThemeContext } from "../hooks/use-theme";
 
-export type Theme = "dark" | "light" | "system";
-
-type ThemeContextValue = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
 const storageKey = "lens-ui-theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -30,10 +23,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (context === null) throw new Error("useTheme must be used within ThemeProvider");
-  return context;
 }

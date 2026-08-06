@@ -1,0 +1,237 @@
+import type {
+  MetricsRangePreset,
+  SessionSortField,
+  SessionStatus,
+  SpanStatus,
+  TraceSortField,
+} from "@lens/contracts";
+import { metricsRangePresets, sessionSortFields, traceSortFields } from "@lens/contracts";
+import {
+  defaultSessionColumns,
+  defaultTraceColumns,
+  type OverviewSearch,
+  type RefreshInterval,
+  type ResolvedSessionsSearch,
+  type ResolvedTracesSearch,
+  type SessionColumnId,
+  type SessionsSearch,
+  sessionColumnIds,
+  type TraceColumnId,
+  type TraceDetailSearch,
+  type TracesSearch,
+  traceColumnIds,
+} from "./types";
+
+export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
+  return { range: parseMetricsRange(search.range) };
+}
+
+export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
+  return {
+    view: search.view === "timeline" ? "timeline" : undefined,
+    span: optionalSearchValue(search.span),
+  };
+}
+
+export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    statuses: searchValues(search.statuses ?? search.status).filter(
+      (value): value is SessionStatus => value === "success" || value === "error",
+    ),
+    users: searchValues(search.users ?? search.user),
+    services: searchValues(search.services ?? search.service),
+    models: searchValues(search.models ?? search.model),
+    environments: searchValues(search.environments ?? search.environment),
+    tags: searchValues(search.tags ?? search.tag),
+    search: optionalSearchValue(search.search),
+    minDurationMs: optionalNonNegativeNumber(search.minDurationMs),
+    maxDurationMs: optionalNonNegativeNumber(search.maxDurationMs),
+    minTotalTokens: optionalNonNegativeNumber(search.minTotalTokens),
+    maxTotalTokens: optionalNonNegativeNumber(search.maxTotalTokens),
+    minTotalCost: optionalNonNegativeNumber(search.minTotalCost),
+    maxTotalCost: optionalNonNegativeNumber(search.maxTotalCost),
+    sort: sessionSortFields.includes(search.sort as SessionSortField)
+      ? (search.sort as SessionSortField)
+      : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validSessionColumns(search.columns),
+  };
+}
+
+export function validateTracesSearch(search: Record<string, unknown>): TracesSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    statuses: searchValues(search.statuses ?? search.status).filter(
+      (value): value is SpanStatus => value === "ok" || value === "error" || value === "unset",
+    ),
+    services: searchValues(search.services ?? search.service),
+    names: searchValues(search.names),
+    models: searchValues(search.models ?? search.model),
+    environments: searchValues(search.environments),
+    releases: searchValues(search.releases),
+    versions: searchValues(search.versions),
+    serviceVersions: searchValues(search.serviceVersions),
+    tags: searchValues(search.tags),
+    userId: optionalSearchValue(search.userId),
+    sessionId: optionalSearchValue(search.sessionId),
+    traceId: optionalSearchValue(search.traceId),
+    search: optionalSearchValue(search.search),
+    minDurationMs: optionalNonNegativeNumber(search.minDurationMs),
+    maxDurationMs: optionalNonNegativeNumber(search.maxDurationMs),
+    minTotalTokens: optionalNonNegativeNumber(search.minTotalTokens),
+    maxTotalTokens: optionalNonNegativeNumber(search.maxTotalTokens),
+    minTotalCost: optionalNonNegativeNumber(search.minTotalCost),
+    maxTotalCost: optionalNonNegativeNumber(search.maxTotalCost),
+    sort: isTraceSortField(search.sort) ? search.sort : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validTraceColumns(search.columns),
+  };
+}
+
+export function timeRangeForPreset(range: MetricsRangePreset) {
+  const hours = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
+  return {
+    from: new Date(Date.now() - hours * 3_600_000).toISOString(),
+    to: new Date().toISOString(),
+  };
+}
+
+export function traceActiveFilterCount(filters: ResolvedTracesSearch): number {
+  const facets = [
+    filters.statuses,
+    filters.services,
+    filters.names,
+    filters.models,
+    filters.environments,
+    filters.releases,
+    filters.versions,
+    filters.serviceVersions,
+    filters.tags,
+  ];
+  return (
+    facets.filter((values) => (values?.length ?? 0) > 0).length +
+    [
+      filters.userId,
+      filters.sessionId,
+      filters.traceId,
+      filters.search,
+      filters.minDurationMs,
+      filters.maxDurationMs,
+      filters.minTotalTokens,
+      filters.maxTotalTokens,
+      filters.minTotalCost,
+      filters.maxTotalCost,
+    ].filter((value) => value !== undefined).length
+  );
+}
+
+export function sessionActiveFilterCount(filters: ResolvedSessionsSearch): number {
+  return (
+    [
+      filters.statuses,
+      filters.users,
+      filters.services,
+      filters.models,
+      filters.environments,
+      filters.tags,
+    ].filter((values) => (values?.length ?? 0) > 0).length +
+    [
+      filters.search,
+      filters.minDurationMs,
+      filters.maxDurationMs,
+      filters.minTotalTokens,
+      filters.maxTotalTokens,
+      filters.minTotalCost,
+      filters.maxTotalCost,
+    ].filter((value) => value !== undefined).length
+  );
+}
+
+export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInterval {
+  return range === "24h" ? "5s" : "30s";
+}
+
+export function refreshMilliseconds(interval: RefreshInterval): number | false {
+  return interval === "Off" ? false : Number.parseInt(interval, 10) * 1_000;
+}
+
+export function comparisonDelta(current: number, previous: number, mode: "relative" | "points") {
+  if (mode === "points") {
+    const change = (current - previous) * 100;
+    const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
+    const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+    return {
+      direction,
+      label: `${arrow} ${Math.abs(change).toFixed(1)} pp`,
+      accessibleLabel: `${Math.abs(change).toFixed(1)} percentage points ${direction}`,
+    } as const;
+  }
+  if (previous === 0 && current > 0) {
+    return { direction: "up", label: "New", accessibleLabel: "New activity" } as const;
+  }
+  const change = previous === 0 ? 0 : (current - previous) / Math.abs(previous);
+  const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
+  const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+  return {
+    direction,
+    label: `${arrow} ${Math.abs(change * 100).toFixed(1)}%`,
+    accessibleLabel: `${Math.abs(change * 100).toFixed(1)} percent ${direction}`,
+  } as const;
+}
+
+function parseMetricsRange(value: unknown): MetricsRangePreset {
+  return metricsRangePresets.includes(value as MetricsRangePreset)
+    ? (value as MetricsRangePreset)
+    : "24h";
+}
+
+function optionalSearchValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function searchValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return Array.from(
+    new Set(
+      values
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
+}
+
+function optionalNonNegativeNumber(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function positiveInteger(value: unknown, fallback: number): number {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function isTraceSortField(value: unknown): value is TraceSortField {
+  return traceSortFields.includes(value as TraceSortField);
+}
+
+function validTraceColumns(value: unknown): TraceColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultTraceColumns;
+  selected.add("trace");
+  return traceColumnIds.filter((column) => selected.has(column));
+}
+
+function validSessionColumns(value: unknown): SessionColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultSessionColumns;
+  selected.add("session");
+  return sessionColumnIds.filter((column) => selected.has(column));
+}

@@ -5,23 +5,17 @@ import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tan
 import "@lens/ui/globals.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  AcceptInvitationPage,
-  AppRoot,
-  OnboardingPage,
-  OverviewPage,
-  ProjectsPage,
-  SessionDetailPage,
-  SessionsPage,
-  SettingsPage,
-  TraceDetailPage,
-  TracesPage,
-  validateOverviewSearch,
-  validateSessionsSearch,
-  validateTraceDetailSearch,
-  validateTracesSearch,
-} from "./app";
 import { ThemeProvider } from "./components/theme-provider";
+import { AcceptInvitationPage } from "./routes/accept-invitation";
+import { OnboardingPage } from "./routes/onboarding";
+import { OverviewPage, validateOverviewSearch } from "./routes/overview";
+import { ProjectsPage } from "./routes/projects";
+import { AppRoot } from "./routes/root";
+import { SessionDetailPage } from "./routes/session-detail";
+import { SessionsPage, validateSessionsSearch } from "./routes/sessions";
+import { SettingsPage } from "./routes/settings";
+import { TraceDetailPage, validateTraceDetailSearch } from "./routes/trace-detail";
+import { TracesPage, validateTracesSearch } from "./routes/traces";
 
 const rootRoute = createRootRoute({ component: AppRoot });
 const overviewRoute = createRoute({
