@@ -1,15 +1,21 @@
 import { Pulse as Activity, DangerCircle as AlertCircle } from "@solar-icons/react";
-import { FullPageMessage } from "../components/full-page-message";
-import { TraceDetailExplorer } from "../modules/observability/components/trace-detail-explorer";
-import { useTraceDetail } from "../modules/observability/hooks/use-trace-detail";
-import type { TraceDetailSearch } from "../modules/observability/types";
-import { validateTraceDetailSearch as normalizeTraceDetailSearch } from "../modules/observability/utils";
+import { createFileRoute } from "@tanstack/react-router";
+import { FullPageMessage } from "../../../components/full-page-message";
+import { TraceDetailExplorer } from "../../../modules/observability/components/trace-detail-explorer";
+import { useTraceDetail } from "../../../modules/observability/hooks/use-trace-detail";
+import type { TraceDetailSearch } from "../../../modules/observability/types";
+import { validateTraceDetailSearch as normalizeTraceDetailSearch } from "../../../modules/observability/utils";
 
 export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
   return normalizeTraceDetailSearch(search);
 }
 
-export function TraceDetailPage() {
+export const Route = createFileRoute("/$projectId/traces/$traceId")({
+  validateSearch: validateTraceDetailSearch,
+  component: TraceDetailPage,
+});
+
+function TraceDetailPage() {
   const { changeView, detail, project, search, selectSpan, trace } = useTraceDetail();
   if (trace.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading trace" contained />;

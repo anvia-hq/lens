@@ -2,7 +2,13 @@
   "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!!**/dist", "!!**/coverage", "!!**/src/generated"]
+    "includes": [
+      "**",
+      "!!**/dist",
+      "!!**/coverage",
+      "!!**/src/generated",
+      "!!**/src/routeTree.gen.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
