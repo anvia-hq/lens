@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "cost_recalculations_org_active_idx" ON "cost_recalculations" USING btree ("organization_id") WHERE "cost_recalculations"."status" in ('queued', 'running');

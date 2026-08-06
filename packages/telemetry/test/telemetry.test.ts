@@ -119,7 +119,9 @@ describe("OTLP ingestion", () => {
               },
               {
                 key: "langfuse.observation.usage_details",
-                value: { stringValue: '{"input":12,"output":4,"total":16}' },
+                value: {
+                  stringValue: '{"input":12,"cached_input_tokens":5,"output":4,"total":16}',
+                },
               },
               {
                 key: "langfuse.observation.cost_details",
@@ -204,6 +206,7 @@ describe("OTLP ingestion", () => {
     expect(result.spans[1]).toMatchObject({
       model: "gpt-test",
       inputTokens: 12,
+      cachedInputTokens: 5,
       outputTokens: 4,
       totalTokens: 16,
       inputCost: 0.0012,

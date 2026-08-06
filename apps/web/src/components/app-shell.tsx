@@ -13,7 +13,8 @@ import { ProjectSelectorShell } from "./project-selector-shell";
 
 export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const isWorkspaceRoute = pathname === "/" || pathname === "/members";
+  const isWorkspaceRoute =
+    pathname === "/" || pathname === "/members" || pathname === "/llm-models";
   const { project, projects, projectsQuery } = useProjects();
 
   if (projectsQuery.isLoading)

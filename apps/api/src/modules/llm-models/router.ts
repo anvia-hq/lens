@@ -1,0 +1,184 @@
+import { costRecalculation, llmModelPrice } from "@lens/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { Hono } from "hono";
+import { appMembership } from "../../utils/access.js";
+import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import type { ApiDependencies, AppEnv } from "../../utils/types.js";
+import { modelPriceSchema, recalculationSchema, updateModelPriceSchema } from "./schema.js";
+import {
+  isUniqueViolation,
+  listOrganizationModels,
+  listOrganizationRecalculations,
+} from "./services.js";
+
+export const createLlmModelsRouter = (deps: ApiDependencies) =>
+  new Hono<AppEnv>()
+    .get("/", async (c) => {
+      const app = await membership(deps, requiredSession(c).user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      return c.json(
+        await listOrganizationModels(deps.postgres.db, deps.clickhouse, app.organization.id),
+      );
+    })
+    .get("/recalculations", async (c) => {
+      const app = await membership(deps, requiredSession(c).user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      return c.json(await listOrganizationRecalculations(deps.postgres.db, app.organization.id));
+    })
+    .post("/recalculations", async (c) => {
+      const session = requiredSession(c);
+      const app = await membership(deps, session.user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      const parsed = recalculationSchema.safeParse(await safeJson(c));
+      if (!parsed.success) {
+        return apiError(
+          c,
+          400,
+          "invalid_range",
+          parsed.error.issues[0]?.message ?? "Invalid range",
+        );
+      }
+      const active = await deps.postgres.db
+        .select({ id: costRecalculation.id })
+        .from(costRecalculation)
+        .where(
+          and(
+            eq(costRecalculation.organizationId, app.organization.id),
+            inArray(costRecalculation.status, ["queued", "running"]),
+          ),
+        )
+        .limit(1);
+      if (active.length > 0) {
+        return apiError(c, 409, "recalculation_active", "A recalculation is already active");
+      }
+      const prices = await deps.postgres.db
+        .select()
+        .from(llmModelPrice)
+        .where(eq(llmModelPrice.organizationId, app.organization.id));
+      if (prices.length === 0) {
+        return apiError(c, 400, "no_prices", "Configure at least one model price first");
+      }
+      let created: typeof costRecalculation.$inferSelect | undefined;
+      try {
+        [created] = await deps.postgres.db
+          .insert(costRecalculation)
+          .values({
+            organizationId: app.organization.id,
+            requestedBy: session.user.id,
+            from: parsed.data.from === undefined ? null : new Date(parsed.data.from),
+            to: parsed.data.to === undefined ? null : new Date(parsed.data.to),
+            priceSnapshot: prices.map((row) => ({
+              model: row.model,
+              inputPricePerMillion: Number(row.inputPricePerMillion),
+              cachedInputPricePerMillion:
+                row.cachedInputPricePerMillion === null
+                  ? null
+                  : Number(row.cachedInputPricePerMillion),
+              outputPricePerMillion: Number(row.outputPricePerMillion),
+            })),
+          })
+          .returning();
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return apiError(c, 409, "recalculation_active", "A recalculation is already active");
+        }
+        throw error;
+      }
+      if (created === undefined) {
+        return apiError(c, 500, "create_failed", "Recalculation was not created");
+      }
+      try {
+        await deps.queues.costs.add(
+          "recalculate-model-costs",
+          { recalculationId: created.id },
+          { jobId: `model-costs-${created.id}` },
+        );
+      } catch (error) {
+        await deps.postgres.db
+          .update(costRecalculation)
+          .set({
+            status: "failed",
+            completedAt: new Date(),
+            error: error instanceof Error ? error.message.slice(0, 2_000) : "Queue unavailable",
+          })
+          .where(eq(costRecalculation.id, created.id));
+        return apiError(c, 503, "queue_unavailable", "Could not queue recalculation");
+      }
+      return c.json({ id: created.id, status: created.status }, 202);
+    })
+    .post("/", async (c) => {
+      const app = await membership(deps, requiredSession(c).user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      const parsed = modelPriceSchema.safeParse(await safeJson(c));
+      if (!parsed.success) {
+        return apiError(c, 400, "invalid_price", "Invalid model price");
+      }
+      try {
+        const [created] = await deps.postgres.db
+          .insert(llmModelPrice)
+          .values({
+            organizationId: app.organization.id,
+            model: parsed.data.model,
+            ...priceValues(parsed.data),
+          })
+          .returning();
+        return c.json(created, 201);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return apiError(c, 409, "model_exists", "This model is already configured");
+        }
+        throw error;
+      }
+    })
+    .patch("/:modelId", async (c) => {
+      const app = await membership(deps, requiredSession(c).user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      const parsed = updateModelPriceSchema.safeParse(await safeJson(c));
+      if (!parsed.success) return apiError(c, 400, "invalid_price", "Invalid model price");
+      const [updated] = await deps.postgres.db
+        .update(llmModelPrice)
+        .set({ ...priceValues(parsed.data), updatedAt: new Date() })
+        .where(
+          and(
+            eq(llmModelPrice.id, c.req.param("modelId")),
+            eq(llmModelPrice.organizationId, app.organization.id),
+          ),
+        )
+        .returning();
+      if (updated === undefined) return apiError(c, 404, "not_found", "Model price not found");
+      return c.json(updated);
+    })
+    .delete("/:modelId", async (c) => {
+      const app = await membership(deps, requiredSession(c).user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      const [deleted] = await deps.postgres.db
+        .delete(llmModelPrice)
+        .where(
+          and(
+            eq(llmModelPrice.id, c.req.param("modelId")),
+            eq(llmModelPrice.organizationId, app.organization.id),
+          ),
+        )
+        .returning({ id: llmModelPrice.id });
+      if (deleted === undefined) return apiError(c, 404, "not_found", "Model price not found");
+      return c.body(null, 204);
+    });
+
+function membership(deps: ApiDependencies, userId: string) {
+  return appMembership(deps.postgres.db, userId);
+}
+
+function priceValues(input: {
+  inputPricePerMillion: number;
+  cachedInputPricePerMillion?: number | null;
+  outputPricePerMillion: number;
+}) {
+  return {
+    inputPricePerMillion: String(input.inputPricePerMillion),
+    cachedInputPricePerMillion:
+      input.cachedInputPricePerMillion === null || input.cachedInputPricePerMillion === undefined
+        ? null
+        : String(input.cachedInputPricePerMillion),
+    outputPricePerMillion: String(input.outputPricePerMillion),
+  };
+}

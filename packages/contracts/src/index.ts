@@ -51,6 +51,7 @@ export type NormalizedSpan = {
   serviceVersion: string | null;
   model: string | null;
   inputTokens: number;
+  cachedInputTokens: number;
   outputTokens: number;
   totalTokens: number;
   inputCost: number | null;
@@ -82,6 +83,52 @@ export type ReconcileRetentionJob = {
 
 export type DeleteProjectTelemetryJob = {
   projectId: string;
+};
+
+export type RecalculateModelCostsJob = {
+  recalculationId: string;
+};
+
+export type LlmModelPriceSnapshot = {
+  model: string;
+  inputPricePerMillion: number;
+  cachedInputPricePerMillion: number | null;
+  outputPricePerMillion: number;
+};
+
+export type LlmModel = {
+  id: string | null;
+  model: string;
+  observed: boolean;
+  inputPricePerMillion: number | null;
+  cachedInputPricePerMillion: number | null;
+  outputPricePerMillion: number | null;
+  updatedAt: string | null;
+};
+
+export type CostRecalculationStatus = "queued" | "running" | "completed" | "failed";
+
+export type CostRecalculation = {
+  id: string;
+  status: CostRecalculationStatus;
+  from: string | null;
+  to: string | null;
+  requestedBy: { id: string; name: string; email: string };
+  affectedSpans: number | null;
+  affectedTraces: number | null;
+  error: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type LlmModelsResponse = {
+  items: LlmModel[];
+};
+
+export type CostRecalculationsResponse = {
+  recalculations: CostRecalculation[];
+  hasActiveRecalculation: boolean;
 };
 
 export type ProjectSettings = {

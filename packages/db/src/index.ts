@@ -34,5 +34,6 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
   });
 }
 
+export * from "./model-costs.js";
 export * from "./schema.js";
 export * from "./telemetry-store.js";

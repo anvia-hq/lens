@@ -2,6 +2,7 @@ import type {
   DeleteProjectTelemetryJob,
   IngestTraceJob,
   MaterializeTraceJob,
+  RecalculateModelCostsJob,
   ReconcileRetentionJob,
 } from "@lens/contracts";
 import { Queue } from "bullmq";
@@ -11,12 +12,14 @@ export const queueNames = {
   ingest: "lens-ingest-traces",
   materialize: "lens-materialize-traces",
   maintenance: "lens-telemetry-maintenance",
+  costs: "lens-model-costs",
 } as const;
 
 export type LensQueues = {
   ingest: Queue<IngestTraceJob>;
   materialize: Queue<MaterializeTraceJob>;
   maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob>;
+  costs: Queue<RecalculateModelCostsJob>;
   close: () => Promise<void>;
 };
 
@@ -47,13 +50,18 @@ export function createQueues(redisUrl: string): LensQueues {
     queueNames.maintenance,
     { connection, defaultJobOptions },
   );
+  const costs = new Queue<RecalculateModelCostsJob>(queueNames.costs, {
+    connection,
+    defaultJobOptions,
+  });
 
   return {
     ingest,
     materialize,
     maintenance,
+    costs,
     async close() {
-      await Promise.all([ingest.close(), materialize.close(), maintenance.close()]);
+      await Promise.all([ingest.close(), materialize.close(), maintenance.close(), costs.close()]);
       connection.disconnect();
     },
   };

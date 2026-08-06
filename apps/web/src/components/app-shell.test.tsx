@@ -67,11 +67,14 @@ describe("AuthenticatedApp shell", () => {
     );
   });
 
-  it.each(["/", "/members"])("keeps the project rail off the %s workspace route", (pathname) => {
-    mocks.pathname = pathname;
-    render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
+  it.each(["/", "/members", "/llm-models"])(
+    "keeps the project rail off the %s workspace route",
+    (pathname) => {
+      mocks.pathname = pathname;
+      render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
 
-    expect(screen.queryByText("Project rail")).toBeNull();
-    expect(screen.getByText("Workspace shell")).toBeTruthy();
-  });
+      expect(screen.queryByText("Project rail")).toBeNull();
+      expect(screen.getByText("Workspace shell")).toBeTruthy();
+    },
+  );
 });

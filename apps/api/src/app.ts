@@ -6,6 +6,7 @@ import { createAuthRouter, createSetupRouter } from "./modules/auth/router.js";
 import { createSessionMiddleware } from "./modules/auth/services.js";
 import { createIngestionRouter } from "./modules/ingestion/router.js";
 import { createInvitationsRouter } from "./modules/invitations/router.js";
+import { createLlmModelsRouter } from "./modules/llm-models/router.js";
 import { createMembersRouter } from "./modules/members/router.js";
 import { createMetricsRouter } from "./modules/metrics/router.js";
 import { createProjectsRouter } from "./modules/projects/router.js";
@@ -39,6 +40,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/public/otel/v1/traces", createIngestionRouter(deps, metrics))
     .use("/api/v1/*", createSessionMiddleware(deps))
     .route("/api/v1/members", createMembersRouter(deps))
+    .route("/api/v1/llm-models", createLlmModelsRouter(deps))
     .route("/api/v1/projects", createProjectsRouter(deps))
     .route("/api/v1/projects", createApiKeysRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))

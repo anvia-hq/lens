@@ -18,6 +18,7 @@ import {
   UsersGroupRounded as Users,
 } from "@solar-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Database } from "lucide-react";
 import { authClient } from "../lib/auth";
 import type { AuthenticatedUser } from "../types";
 import { ModeToggle } from "./mode-toggle";
@@ -27,6 +28,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   const links = [
     { to: "/" as const, label: "Projects", icon: Layers3 },
     { to: "/members" as const, label: "Members", icon: Users },
+    { to: "/llm-models" as const, label: "LLM Models", icon: Database },
   ];
 
   return (

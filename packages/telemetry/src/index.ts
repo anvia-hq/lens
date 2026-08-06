@@ -117,6 +117,28 @@ export function normalizeOtlpRequest(
           jsonRecordAttribute(spanAttributes, "langfuse.observation.cost_details"),
           spanAttributes,
         );
+        const inputTokens =
+          optionalNumberAttribute(spanAttributes, [
+            "anvia.usage.input_tokens",
+            "gen_ai.usage.input_tokens",
+          ]) ?? usageNumber(usageDetails, ["input", "input_tokens", "prompt_tokens"]);
+        const cachedInputTokens = Math.min(
+          inputTokens,
+          optionalNumberAttribute(spanAttributes, [
+            "anvia.usage.cached_input_tokens",
+            "gen_ai.usage.cached_input_tokens",
+          ]) ??
+            usageNumber(usageDetails, [
+              "cached_input_tokens",
+              "cache_read_input_tokens",
+              "input_cache_read",
+            ]),
+        );
+        const outputTokens =
+          optionalNumberAttribute(spanAttributes, [
+            "anvia.usage.output_tokens",
+            "gen_ai.usage.output_tokens",
+          ]) ?? usageNumber(usageDetails, ["output", "output_tokens", "completion_tokens"]);
         spans.push({
           projectId: options.projectId,
           traceId: span.traceId,
@@ -186,16 +208,9 @@ export function normalizeOtlpRequest(
             stringAttribute(spanAttributes, "anvia.generation.model") ??
             stringAttribute(spanAttributes, "gen_ai.request.model") ??
             stringAttribute(spanAttributes, "gen_ai.response.model"),
-          inputTokens:
-            optionalNumberAttribute(spanAttributes, [
-              "anvia.usage.input_tokens",
-              "gen_ai.usage.input_tokens",
-            ]) ?? usageNumber(usageDetails, ["input", "input_tokens", "prompt_tokens"]),
-          outputTokens:
-            optionalNumberAttribute(spanAttributes, [
-              "anvia.usage.output_tokens",
-              "gen_ai.usage.output_tokens",
-            ]) ?? usageNumber(usageDetails, ["output", "output_tokens", "completion_tokens"]),
+          inputTokens,
+          cachedInputTokens,
+          outputTokens,
           totalTokens:
             optionalNumberAttribute(spanAttributes, ["anvia.usage.total_tokens"]) ??
             usageNumber(usageDetails, ["total", "total_tokens"]),

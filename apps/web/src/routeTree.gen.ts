@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectIdRouteRouteImport } from './routes/$projectId/route'
+import { Route as LlmModelsRouteImport } from './routes/llm-models'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdOnboardingRouteImport } from './routes/$projectId/onboarding'
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const ProjectIdRouteRoute = ProjectIdRouteRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmModelsRoute = LlmModelsRouteImport.update({
+  id: '/llm-models',
+  path: '/llm-models',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersRoute = MembersRouteImport.update({
@@ -82,6 +88,7 @@ const ProjectIdTracesTraceIdRoute = ProjectIdTracesTraceIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
+  '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
+  '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$projectId'
+    | '/llm-models'
     | '/members'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/llm-models'
     | '/members'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$projectId'
+    | '/llm-models'
     | '/members'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectIdRouteRoute: typeof ProjectIdRouteRouteWithChildren
+  LlmModelsRoute: typeof LlmModelsRoute
   MembersRoute: typeof MembersRoute
   AcceptInvitationInvitationIdRoute: typeof AcceptInvitationInvitationIdRoute
 }
@@ -180,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/$projectId'
       fullPath: '/$projectId'
       preLoaderRoute: typeof ProjectIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llm-models': {
+      id: '/llm-models'
+      path: '/llm-models'
+      fullPath: '/llm-models'
+      preLoaderRoute: typeof LlmModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/members': {
@@ -275,6 +295,7 @@ const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectIdRouteRoute: ProjectIdRouteRouteWithChildren,
+  LlmModelsRoute: LlmModelsRoute,
   MembersRoute: MembersRoute,
   AcceptInvitationInvitationIdRoute: AcceptInvitationInvitationIdRoute,
 }

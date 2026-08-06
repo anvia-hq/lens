@@ -293,6 +293,7 @@ function span(overrides: Partial<SpanDetail> = {}): SpanDetail {
     serviceVersion: null,
     model: null,
     inputTokens: 0,
+    cachedInputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
     inputCost: null,

@@ -55,6 +55,7 @@ type SpanRow = {
   service_version: string | null;
   model: string | null;
   input_tokens: string | number;
+  cached_input_tokens: string | number;
   output_tokens: string | number;
   total_tokens: string | number;
   input_cost: string | number | null;
@@ -168,6 +169,7 @@ export async function insertSpans(
       service_version: span.serviceVersion,
       model: span.model,
       input_tokens: span.inputTokens,
+      cached_input_tokens: span.cachedInputTokens ?? 0,
       output_tokens: span.outputTokens,
       total_tokens: span.totalTokens || span.inputTokens + span.outputTokens,
       input_cost: span.inputCost,
@@ -1172,6 +1174,7 @@ function spanFromRow(row: SpanRow): SpanDetail {
     serviceVersion: row.service_version,
     model: row.model,
     inputTokens: numeric(row.input_tokens),
+    cachedInputTokens: numeric(row.cached_input_tokens),
     outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),
     inputCost: nullableNumeric(row.input_cost),

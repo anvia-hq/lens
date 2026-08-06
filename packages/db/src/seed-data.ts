@@ -236,6 +236,7 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
         events: args.events ?? [],
         model: args.model ?? null,
         inputTokens: args.inputTokens ?? 0,
+        cachedInputTokens: 0,
         outputTokens: args.outputTokens ?? 0,
         totalTokens: (args.inputTokens ?? 0) + (args.outputTokens ?? 0),
         inputCost: costs.input,

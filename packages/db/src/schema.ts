@@ -1,8 +1,9 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -164,6 +165,80 @@ export const projectApiKey = pgTable(
   (table) => [index("project_api_keys_project_idx").on(table.projectId)],
 );
 
+export const llmModelPrice = pgTable(
+  "llm_model_prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    model: text("model").notNull(),
+    inputPricePerMillion: numeric("input_price_per_million", {
+      precision: 24,
+      scale: 12,
+    }).notNull(),
+    cachedInputPricePerMillion: numeric("cached_input_price_per_million", {
+      precision: 24,
+      scale: 12,
+    }),
+    outputPricePerMillion: numeric("output_price_per_million", {
+      precision: 24,
+      scale: 12,
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("llm_model_prices_org_model_idx").on(table.organizationId, table.model),
+    index("llm_model_prices_org_idx").on(table.organizationId),
+  ],
+);
+
+export const costRecalculationStatus = pgEnum("cost_recalculation_status", [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+]);
+
+export const costRecalculation = pgTable(
+  "cost_recalculations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    requestedBy: text("requested_by")
+      .notNull()
+      .references(() => user.id),
+    status: costRecalculationStatus("status").notNull().default("queued"),
+    from: timestamp("from", { withTimezone: true }),
+    to: timestamp("to", { withTimezone: true }),
+    priceSnapshot: jsonb("price_snapshot")
+      .$type<
+        Array<{
+          model: string;
+          inputPricePerMillion: number;
+          cachedInputPricePerMillion: number | null;
+          outputPricePerMillion: number;
+        }>
+      >()
+      .notNull(),
+    affectedSpans: text("affected_spans"),
+    affectedTraces: text("affected_traces"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("cost_recalculations_org_created_idx").on(table.organizationId, table.createdAt),
+    uniqueIndex("cost_recalculations_org_active_idx")
+      .on(table.organizationId)
+      .where(sql`${table.status} in ('queued', 'running')`),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -181,6 +256,8 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   projects: many(project),
+  llmModelPrices: many(llmModelPrice),
+  costRecalculations: many(costRecalculation),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -201,6 +278,21 @@ export const projectRelations = relations(project, ({ one, many }) => ({
 
 export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
   project: one(project, { fields: [projectApiKey.projectId], references: [project.id] }),
+}));
+
+export const llmModelPriceRelations = relations(llmModelPrice, ({ one }) => ({
+  organization: one(organization, {
+    fields: [llmModelPrice.organizationId],
+    references: [organization.id],
+  }),
+}));
+
+export const costRecalculationRelations = relations(costRecalculation, ({ one }) => ({
+  organization: one(organization, {
+    fields: [costRecalculation.organizationId],
+    references: [organization.id],
+  }),
+  requester: one(user, { fields: [costRecalculation.requestedBy], references: [user.id] }),
 }));
 
 export const authSchema = {
