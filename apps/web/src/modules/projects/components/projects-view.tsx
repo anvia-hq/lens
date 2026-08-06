@@ -39,20 +39,26 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/tabs";
 import {
+  AltArrowRight as ArrowRight,
   Layers as Layers3,
   UserPlus as MailPlus,
   AddCircle as Plus,
   TrashBin2 as Trash2,
-  UsersGroupRounded as Users,
   CloseCircle as X,
 } from "@solar-icons/react";
+import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { ProjectManagementState } from "../hooks/use-project-management";
-export function ProjectsView({ state }: { state: ProjectManagementState }) {
+export function ProjectsView({
+  state,
+  section,
+}: {
+  state: ProjectManagementState;
+  section: "projects" | "teams";
+}) {
   const {
     cancelInvitation,
     createProject,
@@ -65,13 +71,11 @@ export function ProjectsView({ state }: { state: ProjectManagementState }) {
     inviteMemberOpen,
     inviteRole,
     managementError,
-    project,
     projectName,
     projectSlug,
     projects,
     removeMember,
     removeMemberId,
-    selectProject,
     setCreateProjectOpen,
     setDeleteProjectId,
     setInviteEmail,
@@ -84,188 +88,186 @@ export function ProjectsView({ state }: { state: ProjectManagementState }) {
   } = state;
   return (
     <Page
-      className="mx-auto max-w-2xl"
-      title="Projects"
-      description="Choose a project to open its observability dashboard"
+      action={
+        directory.data?.canManage ? (
+          section === "projects" ? (
+            <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
+              <Plus /> Create project
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => setInviteMemberOpen(true)}>
+              <MailPlus /> Add member
+            </Button>
+          )
+        ) : null
+      }
+      className={section === "projects" ? "mx-auto max-w-6xl" : "mx-auto max-w-5xl"}
+      eyebrow="Workspace"
+      title={section === "projects" ? "Projects" : "Teams"}
+      description={
+        section === "projects"
+          ? "Choose a project to open its observability dashboard"
+          : "Manage the people who can access your team's projects"
+      }
     >
       {managementError ? <ErrorAlert error={managementError} /> : null}
-      <Tabs defaultValue="projects">
-        <TabsList>
-          <TabsTrigger value="projects">
-            <Layers3 /> Projects
-          </TabsTrigger>
-          <TabsTrigger value="members">
-            <Users /> Team
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="projects">
-          <Card>
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-              <CardDescription>
-                Telemetry, settings, and ingestion keys are isolated per project.
-              </CardDescription>
-              {directory.data?.canManage ? (
-                <CardAction>
-                  <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
-                    <Plus /> Create project
-                  </Button>
-                </CardAction>
-              ) : null}
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {projects.map((item) => (
-                <div className="flex items-center gap-3 rounded-lg border p-3" key={item.id}>
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted">
-                    <Layers3 className="size-4" />
-                  </span>
-                  <button
-                    className="grid min-w-0 flex-1 text-left"
-                    type="button"
-                    onClick={() => selectProject(item.id)}
-                  >
-                    <span className="truncate text-sm font-medium">{item.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {item.slug} · {item.state}
+      {section === "projects" ? (
+        projects.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {projects.map((item) => (
+              <Card key={item.id}>
+                <CardHeader>
+                  <CardTitle className="flex min-w-0 items-center gap-2">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted">
+                      <Layers3 className="size-4" />
                     </span>
-                  </button>
-                  {item.id === project.id ? <Badge>Current</Badge> : null}
+                    <span className="truncate">{item.name}</span>
+                  </CardTitle>
+                  <CardDescription className="truncate">{item.slug}</CardDescription>
                   {directory.data?.canManage ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Delete ${item.name}`}
-                      onClick={() => setDeleteProjectId(item.id)}
-                    >
-                      <Trash2 />
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-              {projects.length === 0 ? (
-                <EmptyState
-                  icon={<Layers3 />}
-                  title="No projects yet"
-                  text="Create your first telemetry project."
-                />
-              ) : null}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="members">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team members</CardTitle>
-              <CardDescription>
-                Owners and admins can invite people and update roles.
-              </CardDescription>
-              {directory.data?.canManage ? (
-                <CardAction>
-                  <Button size="sm" onClick={() => setInviteMemberOpen(true)}>
-                    <MailPlus /> Add member
-                  </Button>
-                </CardAction>
-              ) : null}
-            </CardHeader>
-            <CardContent className="px-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {directory.data?.members.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="size-8">
-                            <AvatarFallback>{item.name.slice(0, 1).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span className="grid">
-                            <span className="font-medium">
-                              {item.name}
-                              {item.isCurrentUser ? " (you)" : ""}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{item.email}</span>
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {directory.data?.canManage && item.role !== "owner" ? (
-                          <NativeSelect
-                            size="sm"
-                            value={item.role}
-                            disabled={updateRole.isPending}
-                            onChange={(event) =>
-                              updateRole.mutate({
-                                memberId: item.id,
-                                role: event.target.value as "admin" | "member",
-                              })
-                            }
-                          >
-                            <NativeSelectOption value="member">Member</NativeSelectOption>
-                            <NativeSelectOption value="admin">Admin</NativeSelectOption>
-                          </NativeSelect>
-                        ) : (
-                          <Badge variant="secondary">{item.role}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {directory.data?.canManage &&
-                        item.role !== "owner" &&
-                        !item.isCurrentUser ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Remove ${item.name}`}
-                            onClick={() => setRemoveMemberId(item.id)}
-                          >
-                            <X />
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-            {directory.data?.canManage &&
-            directory.data.invitations.some((item) => item.status === "pending") ? (
-              <CardFooter className="grid gap-2">
-                <p className="text-sm font-medium">Pending invitations</p>
-                {directory.data.invitations
-                  .filter((item) => item.status === "pending")
-                  .map((item) => (
-                    <div className="flex w-full items-center gap-3" key={item.id}>
-                      <span className="grid min-w-0 flex-1">
-                        <span className="truncate text-sm">{item.email}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {item.role ?? "member"} · expires{" "}
-                          {new Date(item.expiresAt).toLocaleDateString()}
-                        </span>
-                      </span>
+                    <CardAction>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={cancelInvitation.isPending}
-                        onClick={() => cancelInvitation.mutate(item.id)}
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete ${item.name}`}
+                        onClick={() => setDeleteProjectId(item.id)}
                       >
-                        Cancel
+                        <Trash2 />
                       </Button>
-                    </div>
-                  ))}
-              </CardFooter>
-            ) : null}
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    </CardAction>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{item.state}</Badge>
+                  <Badge variant="outline">{item.role}</Badge>
+                </CardContent>
+                <CardFooter className="justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    render={
+                      <Link
+                        to="/$projectId"
+                        params={{ projectId: item.id }}
+                        search={{ range: "24h" }}
+                      />
+                    }
+                  >
+                    Open project <ArrowRight />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Layers3 />}
+            title="No projects yet"
+            text="Create your first telemetry project."
+          />
+        )
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team members</CardTitle>
+            <CardDescription>Owners and admins can invite people and update roles.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {directory.data?.members.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          <AvatarFallback>{item.name.slice(0, 1).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="grid">
+                          <span className="font-medium">
+                            {item.name}
+                            {item.isCurrentUser ? " (you)" : ""}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{item.email}</span>
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {directory.data?.canManage && item.role !== "owner" ? (
+                        <NativeSelect
+                          size="sm"
+                          value={item.role}
+                          disabled={updateRole.isPending}
+                          onChange={(event) =>
+                            updateRole.mutate({
+                              memberId: item.id,
+                              role: event.target.value as "admin" | "member",
+                            })
+                          }
+                        >
+                          <NativeSelectOption value="member">Member</NativeSelectOption>
+                          <NativeSelectOption value="admin">Admin</NativeSelectOption>
+                        </NativeSelect>
+                      ) : (
+                        <Badge variant="secondary">{item.role}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {directory.data?.canManage && item.role !== "owner" && !item.isCurrentUser ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${item.name}`}
+                          onClick={() => setRemoveMemberId(item.id)}
+                        >
+                          <X />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          {directory.data?.canManage &&
+          directory.data.invitations.some((item) => item.status === "pending") ? (
+            <CardFooter className="grid gap-2">
+              <p className="text-sm font-medium">Pending invitations</p>
+              {directory.data.invitations
+                .filter((item) => item.status === "pending")
+                .map((item) => (
+                  <div className="flex w-full items-center gap-3" key={item.id}>
+                    <span className="grid min-w-0 flex-1">
+                      <span className="truncate text-sm">{item.email}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.role ?? "member"} · expires{" "}
+                        {new Date(item.expiresAt).toLocaleDateString()}
+                      </span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={cancelInvitation.isPending}
+                      onClick={() => cancelInvitation.mutate(item.id)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ))}
+            </CardFooter>
+          ) : null}
+        </Card>
+      )}
 
       <Dialog
         open={createProjectOpen}

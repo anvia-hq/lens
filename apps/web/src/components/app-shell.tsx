@@ -12,7 +12,8 @@ import { ProjectSelectorShell } from "./project-selector-shell";
 
 export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { project, projects, projectsQuery, selectProject } = useProjects();
+  const isWorkspaceRoute = pathname === "/" || pathname === "/teams";
+  const { project, projects, projectsQuery } = useProjects();
 
   if (projectsQuery.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading projects" />;
@@ -29,8 +30,8 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
   }
 
   return (
-    <ProjectContext.Provider value={{ project, projects, selectProject }}>
-      {pathname === "/" ? (
+    <ProjectContext.Provider value={{ project, projects }}>
+      {isWorkspaceRoute ? (
         <ProjectSelectorShell user={user} />
       ) : (
         <SidebarProvider className="h-svh min-h-0 overflow-hidden">

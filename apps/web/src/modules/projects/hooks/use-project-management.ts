@@ -1,5 +1,6 @@
 import type { Project } from "@lens/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../lib/api";
 import type { TeamDirectory, TeamInvitation } from "../types";
@@ -7,7 +8,8 @@ import { notify, slugify } from "../utils";
 import { useProject } from "./use-project";
 
 export function useProjectManagement() {
-  const { project, projects, selectProject } = useProject();
+  const { projects } = useProject();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const directory = useQuery({
     queryKey: ["team"],
@@ -38,7 +40,11 @@ export function useProjectManagement() {
       setProjectSlug("");
       setCreateProjectOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      selectProject(created.id);
+      await navigate({
+        to: "/$projectId",
+        params: { projectId: created.id },
+        search: { range: "24h" },
+      });
       notify("Project created");
     },
   });
@@ -114,13 +120,11 @@ export function useProjectManagement() {
     inviteMemberOpen,
     inviteRole,
     managementError,
-    project,
     projectName,
     projectSlug,
     projects,
     removeMember,
     removeMemberId,
-    selectProject,
     setCreateProjectOpen,
     setDeleteProjectId,
     setInviteEmail,

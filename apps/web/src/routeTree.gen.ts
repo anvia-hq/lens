@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectIdRouteRouteImport } from './routes/$projectId/route'
+import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdOnboardingRouteImport } from './routes/$projectId/onboarding'
 import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/settings'
@@ -28,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 const ProjectIdRouteRoute = ProjectIdRouteRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamsRoute = TeamsRouteImport.update({
+  id: '/teams',
+  path: '/teams',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
@@ -76,6 +82,7 @@ const ProjectIdTracesTraceIdRoute = ProjectIdTracesTraceIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
+  '/teams': typeof TeamsRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/teams': typeof TeamsRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
+  '/teams': typeof TeamsRoute
   '/$projectId/onboarding': typeof ProjectIdOnboardingRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$projectId'
+    | '/teams'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/teams'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$projectId'
+    | '/teams'
     | '/$projectId/onboarding'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
@@ -150,6 +162,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectIdRouteRoute: typeof ProjectIdRouteRouteWithChildren
+  TeamsRoute: typeof TeamsRoute
   AcceptInvitationInvitationIdRoute: typeof AcceptInvitationInvitationIdRoute
 }
 
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/$projectId'
       fullPath: '/$projectId'
       preLoaderRoute: typeof ProjectIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teams': {
+      id: '/teams'
+      path: '/teams'
+      fullPath: '/teams'
+      preLoaderRoute: typeof TeamsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$projectId/': {
@@ -255,6 +275,7 @@ const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectIdRouteRoute: ProjectIdRouteRouteWithChildren,
+  TeamsRoute: TeamsRoute,
   AcceptInvitationInvitationIdRoute: AcceptInvitationInvitationIdRoute,
 }
 export const routeTree = rootRouteImport

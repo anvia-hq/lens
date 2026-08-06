@@ -5,7 +5,6 @@ export type ProjectWithRole = Project & { role: string };
 export type ProjectContextValue = {
   project: ProjectWithRole;
   projects: ProjectWithRole[];
-  selectProject: (id: string) => void;
 };
 
 export type TeamMember = {

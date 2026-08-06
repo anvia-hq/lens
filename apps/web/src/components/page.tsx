@@ -2,6 +2,7 @@ import { cn } from "@lens/ui/lib/utils";
 import type { ReactNode } from "react";
 
 export function Page(props: {
+  eyebrow?: string;
   title: string;
   description: string;
   action?: ReactNode;
@@ -13,7 +14,7 @@ export function Page(props: {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="grid gap-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Observability
+            {props.eyebrow ?? "Observability"}
           </p>
           <h1 className="font-heading text-2xl font-medium tracking-tight">{props.title}</h1>
           <p className="text-sm text-muted-foreground">{props.description}</p>
