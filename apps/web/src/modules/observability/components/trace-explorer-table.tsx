@@ -23,6 +23,7 @@ import {
 import { cn } from "@lens/ui/lib/utils";
 import {
   Pulse as Activity,
+  ArrowsLeftRight,
   CaretDown as ChevronDown,
   MagnifyingGlass as Search,
   SlidersHorizontal,
@@ -50,6 +51,10 @@ export function TraceExplorerTable(props: {
   activeFilterCount: number;
   onOpenMobileFilters: () => void;
   onChange: (changes: Partial<TracesSearch>, resetPage?: boolean) => void;
+  selectedTraceIds?: string[];
+  onClearSelection?: () => void;
+  onCompare?: () => void;
+  onTraceSelectionChange?: (traceId: string, selected: boolean) => void;
   actions?: ReactNode;
 }) {
   const sort = (field: TraceSortField) =>
@@ -81,6 +86,19 @@ export function TraceExplorerTable(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
           />
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={(props.selectedTraceIds?.length ?? 0) < 2}
+          onClick={props.onCompare}
+        >
+          <ArrowsLeftRight /> Compare ({props.selectedTraceIds?.length ?? 0})
+        </Button>
+        {(props.selectedTraceIds?.length ?? 0) > 0 ? (
+          <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
+            Clear
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button className="h-8" variant="outline" size="sm" />}>
             Columns <ChevronDown />
@@ -134,6 +152,8 @@ export function TraceExplorerTable(props: {
             sort={props.filters.sort}
             order={props.filters.order}
             onSort={sort}
+            selectedTraceIds={props.selectedTraceIds}
+            onTraceSelectionChange={props.onTraceSelectionChange}
           />
         ) : (
           <EmptyState

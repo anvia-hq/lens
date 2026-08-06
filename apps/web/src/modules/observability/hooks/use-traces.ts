@@ -15,6 +15,7 @@ export function useTraces() {
   const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
+  const [selectedTraceIds, setSelectedTraceIds] = useState<string[]>([]);
   const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<TracesSearch>, resetPage = true) => {
@@ -104,6 +105,21 @@ export function useTraces() {
       minTotalCost: undefined,
       maxTotalCost: undefined,
     });
+  const toggleTraceSelection = (traceId: string, selected: boolean) => {
+    setSelectedTraceIds((current) => {
+      if (!selected) return current.filter((item) => item !== traceId);
+      if (current.includes(traceId) || current.length >= 4) return current;
+      return [...current, traceId];
+    });
+  };
+  const compareSelectedTraces = () => {
+    if (selectedTraceIds.length < 2) return;
+    void navigate({
+      to: "/$projectId/traces/compare",
+      params: { projectId: project.id },
+      search: { traceIds: selectedTraceIds },
+    });
+  };
 
   return {
     activeFilterCount,
@@ -114,11 +130,15 @@ export function useTraces() {
     mobileFiltersOpen,
     refreshInterval,
     searchDraft,
+    selectedTraceIds,
+    clearTraceSelection: () => setSelectedTraceIds([]),
+    compareSelectedTraces,
     setFilterPanelCollapsed,
     setFilters,
     setMobileFiltersOpen,
     setRefreshInterval,
     setSearchDraft,
+    toggleTraceSelection,
     traces,
   };
 }

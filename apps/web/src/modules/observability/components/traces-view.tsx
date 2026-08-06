@@ -17,17 +17,21 @@ export function TracesView({ state }: { state: TracesState }) {
   const {
     activeFilterCount,
     clearFilters,
+    clearTraceSelection,
+    compareSelectedTraces,
     facets,
     filterPanelCollapsed,
     filters,
     mobileFiltersOpen,
     refreshInterval,
     searchDraft,
+    selectedTraceIds,
     setFilterPanelCollapsed,
     setFilters,
     setMobileFiltersOpen,
     setRefreshInterval,
     setSearchDraft,
+    toggleTraceSelection,
     traces,
   } = state;
   const table = (
@@ -41,6 +45,10 @@ export function TracesView({ state }: { state: TracesState }) {
       activeFilterCount={activeFilterCount}
       onOpenMobileFilters={() => setMobileFiltersOpen(true)}
       onChange={(changes, resetPage) => setFilters(changes, resetPage)}
+      selectedTraceIds={selectedTraceIds}
+      onClearSelection={clearTraceSelection}
+      onCompare={compareSelectedTraces}
+      onTraceSelectionChange={toggleTraceSelection}
       actions={
         <>
           <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />

@@ -31,6 +31,10 @@ export type TraceDetailSearch = {
   span?: string;
 };
 
+export type TraceCompareSearch = {
+  traceIds: string[];
+};
+
 export const traceColumnIds = [
   "startedAt",
   "trace",

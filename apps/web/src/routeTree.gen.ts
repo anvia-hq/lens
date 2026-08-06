@@ -21,6 +21,7 @@ import { Route as ProjectIdSessionsIndexRouteImport } from './routes/$projectId/
 import { Route as ProjectIdSessionsSessionIdRouteImport } from './routes/$projectId/sessions/$sessionId'
 import { Route as ProjectIdTracesIndexRouteImport } from './routes/$projectId/traces/index'
 import { Route as ProjectIdTracesTraceIdRouteImport } from './routes/$projectId/traces/$traceId'
+import { Route as ProjectIdTracesCompareRouteImport } from './routes/$projectId/traces/compare'
 import { Route as ProjectIdUsersIndexRouteImport } from './routes/$projectId/users/index'
 import { Route as ProjectIdUsersUserIdRouteImport } from './routes/$projectId/users/$userId'
 
@@ -86,6 +87,11 @@ const ProjectIdTracesTraceIdRoute = ProjectIdTracesTraceIdRouteImport.update({
   path: '/traces/$traceId',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
+const ProjectIdTracesCompareRoute = ProjectIdTracesCompareRouteImport.update({
+  id: '/traces/compare',
+  path: '/traces/compare',
+  getParentRoute: () => ProjectIdRouteRoute,
+} as any)
 const ProjectIdUsersIndexRoute = ProjectIdUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/$projectId': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces': typeof ProjectIdTracesIndexRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/$projectId/'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/$projectId'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
     | '/$projectId/sessions'
     | '/$projectId/traces'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/$projectId/'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
@@ -289,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdTracesTraceIdRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
+    '/$projectId/traces/compare': {
+      id: '/$projectId/traces/compare'
+      path: '/traces/compare'
+      fullPath: '/$projectId/traces/compare'
+      preLoaderRoute: typeof ProjectIdTracesCompareRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
     '/$projectId/users/': {
       id: '/$projectId/users/'
       path: '/users'
@@ -312,6 +331,7 @@ interface ProjectIdRouteRouteChildren {
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
   ProjectIdSessionsSessionIdRoute: typeof ProjectIdSessionsSessionIdRoute
   ProjectIdTracesTraceIdRoute: typeof ProjectIdTracesTraceIdRoute
+  ProjectIdTracesCompareRoute: typeof ProjectIdTracesCompareRoute
   ProjectIdUsersUserIdRoute: typeof ProjectIdUsersUserIdRoute
   ProjectIdSessionsIndexRoute: typeof ProjectIdSessionsIndexRoute
   ProjectIdTracesIndexRoute: typeof ProjectIdTracesIndexRoute
@@ -324,6 +344,7 @@ const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdIndexRoute: ProjectIdIndexRoute,
   ProjectIdSessionsSessionIdRoute: ProjectIdSessionsSessionIdRoute,
   ProjectIdTracesTraceIdRoute: ProjectIdTracesTraceIdRoute,
+  ProjectIdTracesCompareRoute: ProjectIdTracesCompareRoute,
   ProjectIdUsersUserIdRoute: ProjectIdUsersUserIdRoute,
   ProjectIdSessionsIndexRoute: ProjectIdSessionsIndexRoute,
   ProjectIdTracesIndexRoute: ProjectIdTracesIndexRoute,

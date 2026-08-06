@@ -1,4 +1,5 @@
 import type { TraceSortField, TraceSummary } from "@lens/contracts";
+import { Checkbox } from "@lens/ui/components/checkbox";
 import {
   Table,
   TableBody,
@@ -20,6 +21,8 @@ export function TraceDataTable(props: {
   sort?: TraceSortField;
   order?: "asc" | "desc";
   onSort?: (sort: TraceSortField) => void;
+  selectedTraceIds?: string[];
+  onTraceSelectionChange?: (traceId: string, selected: boolean) => void;
 }) {
   const { project } = useObservabilityProject();
   const columns = useMemo(
@@ -38,12 +41,18 @@ export function TraceDataTable(props: {
     data: props.traces,
     getRowId: (trace) => trace.traceId,
   });
+  const selectable = props.onTraceSelectionChange !== undefined;
   return (
     <div className="min-h-0 w-full flex-1 overflow-auto">
       <Table className="w-full">
         <TableHeader className="sticky top-0 z-10 bg-background">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
+              {selectable ? (
+                <TableHead className="w-10">
+                  <span className="sr-only">Select traces</span>
+                </TableHead>
+              ) : null}
               {headerGroup.headers.map((header) => {
                 const direction = header.column.getIsSorted();
                 return (
@@ -65,29 +74,51 @@ export function TraceDataTable(props: {
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getAllCells().map((cell) => {
-                const content = <table.FlexRender cell={cell} />;
-                return (
-                  <TableCell key={cell.id}>
-                    {cell.column.id === "trace" || cell.column.id === "open" ? (
-                      content
-                    ) : (
-                      <Link
-                        className="-m-2 block p-2 text-inherit"
-                        to="/$projectId/traces/$traceId"
-                        params={{ projectId: project.id, traceId: row.original.traceId }}
-                        aria-label={`Open ${row.original.name}`}
-                      >
-                        {content}
-                      </Link>
-                    )}
+          {table.getRowModel().rows.map((row) => {
+            const selected = props.selectedTraceIds?.includes(row.original.traceId) ?? false;
+            const selectionLimitReached = (props.selectedTraceIds?.length ?? 0) >= 4;
+            return (
+              <TableRow key={row.id} data-state={selected ? "selected" : undefined}>
+                {selectable ? (
+                  <TableCell className="w-10">
+                    <Checkbox
+                      aria-label={`Select ${row.original.name}`}
+                      aria-disabled={!selected && selectionLimitReached}
+                      checked={selected}
+                      disabled={!selected && selectionLimitReached}
+                      title={
+                        !selected && selectionLimitReached
+                          ? "You can compare up to 4 traces"
+                          : undefined
+                      }
+                      onCheckedChange={(checked) =>
+                        props.onTraceSelectionChange?.(row.original.traceId, checked === true)
+                      }
+                    />
                   </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
+                ) : null}
+                {row.getAllCells().map((cell) => {
+                  const content = <table.FlexRender cell={cell} />;
+                  return (
+                    <TableCell key={cell.id}>
+                      {cell.column.id === "trace" || cell.column.id === "open" ? (
+                        content
+                      ) : (
+                        <Link
+                          className="-m-2 block p-2 text-inherit"
+                          to="/$projectId/traces/$traceId"
+                          params={{ projectId: project.id, traceId: row.original.traceId }}
+                          aria-label={`Open ${row.original.name}`}
+                        >
+                          {content}
+                        </Link>
+                      )}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

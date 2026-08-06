@@ -31,6 +31,7 @@ export function AppHeader() {
               ? "Project settings"
               : "Overview";
   const detailId = relativePath[1];
+  const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
       <Breadcrumb className="min-w-0 flex-1">
@@ -88,14 +89,16 @@ export function AppHeader() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="min-w-0">
-                <BreadcrumbPage className="truncate font-mono text-xs">
+                <BreadcrumbPage
+                  className={detailId === "compare" ? "truncate" : "truncate font-mono text-xs"}
+                >
                   {"traceId" in params
                     ? shortId(String(params.traceId))
                     : "sessionId" in params
                       ? String(params.sessionId)
                       : "userId" in params
                         ? String(params.userId)
-                        : detailId}
+                        : detailLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>

@@ -9,6 +9,7 @@ import { validateOverviewSearch } from "../../routes/$projectId";
 import { validateSessionsSearch } from "../../routes/$projectId/sessions";
 import { validateTracesSearch } from "../../routes/$projectId/traces";
 import { validateTraceDetailSearch } from "../../routes/$projectId/traces/$traceId";
+import { validateTraceCompareSearch } from "../../routes/$projectId/traces/compare";
 import { validateUsersSearch } from "../../routes/$projectId/users";
 import { validateUserDetailSearch } from "../../routes/$projectId/users/$userId";
 import { ComparisonMetricCard } from "./components/comparison-metric-card";
@@ -135,6 +136,18 @@ describe("overview controls", () => {
     });
   });
 
+  it("normalizes ordered comparison trace IDs and enforces the maximum", () => {
+    expect(
+      validateTraceCompareSearch({
+        traceIds: [" trace-1 ", "trace-2", "trace-1", "trace-3", "trace-4", "trace-5"],
+      }),
+    ).toEqual({ traceIds: ["trace-1", "trace-2", "trace-3", "trace-4"] });
+    expect(validateTraceCompareSearch({ traceIds: " trace-1 " })).toEqual({
+      traceIds: ["trace-1"],
+    });
+    expect(validateTraceCompareSearch({ traceIds: 42 })).toEqual({ traceIds: [] });
+  });
+
   it("selects ranges and exposes the active preset", () => {
     const onChange = vi.fn();
     render(<RangeSelector value="7d" onChange={onChange} />);
@@ -197,6 +210,42 @@ describe("overview controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Columns/ }));
     expect(await screen.findByText("Visible columns")).toBeTruthy();
+  });
+
+  it("enables comparison for two selected traces and clears the selection", () => {
+    const onCompare = vi.fn();
+    const onClearSelection = vi.fn();
+    const props = {
+      filters: {
+        range: "24h" as const,
+        sort: "startedAt" as const,
+        order: "desc" as const,
+        page: 1,
+        pageSize: 50 as const,
+        columns: defaultTraceColumns,
+      },
+      searchDraft: "",
+      onSearchChange: () => undefined,
+      data: { items: [], total: 0, page: 1, pageSize: 50, pageCount: 0 },
+      loading: false,
+      error: null,
+      activeFilterCount: 0,
+      onOpenMobileFilters: () => undefined,
+      onChange: () => undefined,
+      onCompare,
+      onClearSelection,
+    };
+    const { rerender } = render(<TraceExplorerTable {...props} selectedTraceIds={["trace-1"]} />);
+
+    expect(screen.getByRole("button", { name: /Compare \(1\)/ }).hasAttribute("disabled")).toBe(
+      true,
+    );
+    rerender(<TraceExplorerTable {...props} selectedTraceIds={["trace-1", "trace-2"]} />);
+    fireEvent.click(screen.getByRole("button", { name: /Compare \(2\)/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onCompare).toHaveBeenCalledOnce();
+    expect(onClearSelection).toHaveBeenCalledOnce();
   });
 
   it("opens the session column chooser within a valid Base UI menu group", async () => {

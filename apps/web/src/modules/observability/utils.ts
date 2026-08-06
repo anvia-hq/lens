@@ -24,6 +24,7 @@ import {
   type SessionsSearch,
   sessionColumnIds,
   type TraceColumnId,
+  type TraceCompareSearch,
   type TraceDetailSearch,
   type TracesSearch,
   traceColumnIds,
@@ -43,6 +44,10 @@ export function validateTraceDetailSearch(search: Record<string, unknown>): Trac
     view: search.view === "timeline" ? "timeline" : undefined,
     span: optionalSearchValue(search.span),
   };
+}
+
+export function validateTraceCompareSearch(search: Record<string, unknown>): TraceCompareSearch {
+  return { traceIds: searchValues(search.traceIds).slice(0, 4) };
 }
 
 export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
