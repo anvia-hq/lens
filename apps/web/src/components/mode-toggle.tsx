@@ -10,13 +10,13 @@ export function ModeToggle() {
     theme === "system" ? "System theme" : `${theme[0]?.toUpperCase()}${theme.slice(1)} theme`;
   return (
     <SidebarMenuButton
+      className="size-8 justify-center p-0"
       type="button"
       title={`${label}. Switch to ${nextTheme} theme`}
       aria-label={`${label}. Switch to ${nextTheme} theme`}
       onClick={() => setTheme(nextTheme)}
     >
       <Icon />
-      <span>{label}</span>
     </SidebarMenuButton>
   );
 }

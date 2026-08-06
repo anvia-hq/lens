@@ -33,9 +33,12 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
       <SidebarHeader className="pb-0">
-        <Link className="flex h-10 items-center gap-2 px-2" to="/">
-          <span className="font-heading text-lg font-semibold">Anvia Lens</span>
-        </Link>
+        <div className="flex h-10 items-center gap-2 px-2">
+          <Link className="min-w-0 flex-1" to="/">
+            <span className="font-heading text-lg font-semibold">Anvia Lens</span>
+          </Link>
+          <ModeToggle />
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="pt-0">
@@ -58,11 +61,6 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <ModeToggle />
-          </SidebarMenuItem>
-        </SidebarMenu>
         <div className="flex items-center gap-2 p-2">
           <Avatar className="size-8">
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
