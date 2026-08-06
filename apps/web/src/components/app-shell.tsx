@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from "../types";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { FullPageMessage } from "./full-page-message";
+import { ProjectRail } from "./project-rail";
 import { ProjectSelectorShell } from "./project-selector-shell";
 
 export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
@@ -35,6 +36,7 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
         <ProjectSelectorShell user={user} />
       ) : (
         <SidebarProvider className="h-svh min-h-0 overflow-hidden">
+          <ProjectRail />
           <AppSidebar user={user} />
           <SidebarInset className="h-svh min-h-0 overflow-y-auto">
             <AppHeader />
