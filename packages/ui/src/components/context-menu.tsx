@@ -2,7 +2,7 @@
 
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import { cn } from "@lens/ui/lib/utils";
-import { CheckCircle as CheckIcon, AltArrowRight as ChevronRightIcon } from "@solar-icons/react";
+import { Check as CheckIcon, CaretRight as ChevronRightIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {

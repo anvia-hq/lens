@@ -1,7 +1,7 @@
 import type { SessionTurnPayload } from "@lens/contracts";
 import { cn } from "@lens/ui/lib/utils";
+import { ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { extractSessionMessageText } from "../utils/session";

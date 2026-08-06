@@ -1,5 +1,8 @@
 import { cn } from "@lens/ui/lib/utils";
-import { GanttChartSquare, ListTree } from "lucide-react";
+import {
+  ChartBarHorizontal as GanttChartSquare,
+  TreeStructure as ListTree,
+} from "@phosphor-icons/react";
 import type { TraceSpanView } from "../types";
 import { labelText } from "../utils/trace-detail";
 

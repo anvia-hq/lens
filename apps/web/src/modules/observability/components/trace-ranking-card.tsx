@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@lens/ui/components/card";
-import { AltArrowRight as ChevronRight } from "@solar-icons/react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { formatNumber, relativeTime } from "../utils/observability-view";
 import { ObservationIcon } from "./observation-icon";

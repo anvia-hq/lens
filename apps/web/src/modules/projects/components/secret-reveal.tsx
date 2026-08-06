@@ -1,12 +1,7 @@
 import type { CreatedProjectApiKey } from "@lens/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import { Button } from "@lens/ui/components/button";
-import {
-  DangerCircle as AlertCircle,
-  CheckCircle as Check,
-  Copy,
-  CloseCircle as X,
-} from "@solar-icons/react";
+import { WarningCircle as AlertCircle, Check, Copy, X } from "@phosphor-icons/react";
 import { useState } from "react";
 
 export function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose: () => void }) {

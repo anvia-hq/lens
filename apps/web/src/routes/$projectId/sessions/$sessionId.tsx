@@ -1,4 +1,4 @@
-import { DangerCircle as AlertCircle, Dialog2 as MessagesSquare } from "@solar-icons/react";
+import { WarningCircle as AlertCircle, Chats as MessagesSquare } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FullPageMessage } from "../../../components/full-page-message";
 import { SessionConversation } from "../../../modules/observability/components/session-conversation";

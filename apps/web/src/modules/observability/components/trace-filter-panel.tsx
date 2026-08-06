@@ -10,7 +10,7 @@ import { Button } from "@lens/ui/components/button";
 import { Checkbox } from "@lens/ui/components/checkbox";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
 import { Skeleton } from "@lens/ui/components/skeleton";
-import { ArrowLeft } from "@solar-icons/react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { ResolvedTracesSearch, TracesSearch } from "../types";
 import { formatNumber, traceFacetSections } from "../utils/observability-view";

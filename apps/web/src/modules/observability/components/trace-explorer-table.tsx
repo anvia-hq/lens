@@ -23,10 +23,10 @@ import {
 import { cn } from "@lens/ui/lib/utils";
 import {
   Pulse as Activity,
-  AltArrowDown as ChevronDown,
-  Magnifer as Search,
-  Filter as SlidersHorizontal,
-} from "@solar-icons/react";
+  CaretDown as ChevronDown,
+  MagnifyingGlass as Search,
+  SlidersHorizontal,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

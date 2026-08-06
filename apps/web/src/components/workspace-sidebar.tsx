@@ -13,12 +13,12 @@ import {
   SidebarMenuItem,
 } from "@lens/ui/components/sidebar";
 import {
-  Layers as Layers3,
-  Logout2 as LogOut,
-  UsersGroupRounded as Users,
-} from "@solar-icons/react";
+  Database,
+  Stack as Layers3,
+  SignOut as LogOut,
+  UsersThree as Users,
+} from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Database } from "lucide-react";
 import { authClient } from "../lib/auth";
 import type { AuthenticatedUser } from "../types";
 import { ModeToggle } from "./mode-toggle";

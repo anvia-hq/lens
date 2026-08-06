@@ -29,11 +29,11 @@ import {
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  SortVertical as ArrowUpDown,
-  AltArrowDown as ChevronDown,
-  Magnifer as Search,
-  UsersGroupRounded as Users,
-} from "@solar-icons/react";
+  ArrowsDownUp as ArrowUpDown,
+  CaretDown as ChevronDown,
+  MagnifyingGlass as Search,
+  UsersThree as Users,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

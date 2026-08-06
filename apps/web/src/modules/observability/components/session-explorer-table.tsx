@@ -22,11 +22,11 @@ import {
 } from "@lens/ui/components/pagination";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  AltArrowDown as ChevronDown,
-  Dialog2 as MessagesSquare,
-  Magnifer as Search,
-  Filter as SlidersHorizontal,
-} from "@solar-icons/react";
+  CaretDown as ChevronDown,
+  Chats as MessagesSquare,
+  MagnifyingGlass as Search,
+  SlidersHorizontal,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

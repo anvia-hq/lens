@@ -1,13 +1,13 @@
 import type { SpanDetail } from "@lens/contracts";
 import {
   Pulse as Activity,
-  CheckCircle as Check,
-  Layers as Layers3,
-  Magnifer as Search,
-  Stars as Sparkles,
-  UsersGroupRounded as Users,
-  Bolt as Zap,
-} from "@solar-icons/react";
+  Check,
+  Stack as Layers3,
+  MagnifyingGlass as Search,
+  Sparkle as Sparkles,
+  UsersThree as Users,
+  Lightning as Zap,
+} from "@phosphor-icons/react";
 
 export function ObservationIcon({ kind }: { kind: SpanDetail["observationKind"] }) {
   const Icon =

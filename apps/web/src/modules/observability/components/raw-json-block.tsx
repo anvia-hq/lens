@@ -1,6 +1,6 @@
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy } from "@phosphor-icons/react";
 import { useState } from "react";
 import { jsonSyntaxTokens, rawTraceJson } from "../utils/trace-detail";
 

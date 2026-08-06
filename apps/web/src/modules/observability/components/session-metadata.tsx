@@ -1,6 +1,6 @@
 import type { SessionDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
-import { MessagesSquare } from "lucide-react";
+import { Chats as MessagesSquare } from "@phosphor-icons/react";
 import { formatCost, formatDuration, formatNumber, formatTimestamp } from "../utils/session";
 import { MetadataRow } from "./metadata-row";
 import { MetadataSection } from "./metadata-section";

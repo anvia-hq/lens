@@ -1,4 +1,4 @@
-import { Pulse as Activity } from "@solar-icons/react";
+import { Pulse as Activity } from "@phosphor-icons/react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { AuthenticatedApp } from "../components/app-shell";
 import { FullPageMessage } from "../components/full-page-message";

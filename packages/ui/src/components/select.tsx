@@ -3,10 +3,10 @@
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CheckCircle as CheckIcon,
-  AltArrowDown as ChevronDownIcon,
-  AltArrowUp as ChevronUpIcon,
-} from "@solar-icons/react";
+  Check as CheckIcon,
+  CaretDown as ChevronDownIcon,
+  CaretUp as ChevronUpIcon,
+} from "@phosphor-icons/react";
 import type * as React from "react";
 
 const Select = SelectPrimitive.Root;

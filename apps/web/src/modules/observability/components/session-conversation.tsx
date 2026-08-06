@@ -1,8 +1,16 @@
 import type { SessionDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { buttonVariants } from "@lens/ui/components/button";
+import {
+  Pulse as Activity,
+  Robot as Bot,
+  Clock as Clock3,
+  Coins,
+  ArrowSquareOut as ExternalLink,
+  ChatCircle as MessageCircle,
+  User,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Activity, Bot, Clock3, Coins, ExternalLink, MessageCircle, User } from "lucide-react";
 import {
   formatCost,
   formatDuration,

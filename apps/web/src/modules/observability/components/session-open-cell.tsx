@@ -1,6 +1,6 @@
 import type { SessionSummary } from "@lens/contracts";
 import { buttonVariants } from "@lens/ui/components/button";
-import { AltArrowRight as ChevronRight } from "@solar-icons/react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useObservabilityProject } from "../hooks/use-observability-project";
 

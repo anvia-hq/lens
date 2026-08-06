@@ -1,5 +1,5 @@
 import type { SessionSummary } from "@lens/contracts";
-import { Dialog2 as MessagesSquare } from "@solar-icons/react";
+import { Chats as MessagesSquare } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useObservabilityProject } from "../hooks/use-observability-project";
 

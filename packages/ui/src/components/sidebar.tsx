@@ -14,7 +14,7 @@ import { Skeleton } from "@lens/ui/components/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@lens/ui/components/tooltip";
 import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { cn } from "@lens/ui/lib/utils";
-import { SidebarMinimalistic as PanelLeftIcon } from "@solar-icons/react";
+import { SidebarSimple as PanelLeftIcon } from "@phosphor-icons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 

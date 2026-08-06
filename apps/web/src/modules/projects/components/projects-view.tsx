@@ -40,14 +40,14 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import {
-  AltArrowRight as ArrowRight,
+  CaretRight as ArrowRight,
   Copy,
-  Layers as Layers3,
+  Stack as Layers3,
   UserPlus as MailPlus,
-  AddCircle as Plus,
-  TrashBin2 as Trash2,
-  CloseCircle as X,
-} from "@solar-icons/react";
+  Plus,
+  Trash as Trash2,
+  X,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

@@ -3,10 +3,10 @@ import { Button } from "@lens/ui/components/button";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
 import {
-  DangerCircle as AlertCircle,
-  AltArrowRight as ChevronRight,
-  RecordCircle as CircleDot,
-} from "@solar-icons/react";
+  WarningCircle as AlertCircle,
+  CaretRight as ChevronRight,
+  DotOutline as CircleDot,
+} from "@phosphor-icons/react";
 import { CenteredCard } from "../../../components/centered-card";
 import { useProjectSetup } from "../hooks/use-project-setup";
 

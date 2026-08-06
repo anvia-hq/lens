@@ -1,7 +1,7 @@
 import { Button } from "@lens/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
-import { CheckCircle as Check, Copy } from "@solar-icons/react";
+import { Check, Copy } from "@phosphor-icons/react";
 
 export function CodeBlock(props: {
   title: string;

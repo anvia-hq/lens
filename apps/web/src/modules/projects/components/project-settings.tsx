@@ -12,12 +12,7 @@ import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
 import { Spinner } from "@lens/ui/components/spinner";
 import { Textarea } from "@lens/ui/components/textarea";
-import {
-  Code2 as Braces,
-  CheckCircle as Check,
-  Database,
-  Key as KeyRound,
-} from "@solar-icons/react";
+import { BracketsCurly as Braces, Check, Database, Key as KeyRound } from "@phosphor-icons/react";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { ProjectSettingsState } from "../hooks/use-project-settings";

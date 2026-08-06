@@ -1,12 +1,12 @@
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
+import { ArrowDown as ArrowDownIcon } from "@phosphor-icons/react";
 import {
   MessageScroller as MessageScrollerPrimitive,
   useMessageScroller,
   useMessageScrollerScrollable,
   useMessageScrollerVisibility,
 } from "@shadcn/react/message-scroller";
-import { ArrowDown as ArrowDownIcon } from "@solar-icons/react";
 import type * as React from "react";
 
 function MessageScrollerProvider(

@@ -9,14 +9,14 @@ import {
 } from "@lens/ui/components/chart";
 import {
   Pulse as Activity,
-  DangerCircle as AlertCircle,
-  ClockCircle as Clock3,
+  WarningCircle as AlertCircle,
+  Clock as Clock3,
   Database,
-  Layers as Layers3,
-  Dialog2 as MessagesSquare,
-  Stars as Sparkles,
-  Bolt as Zap,
-} from "@solar-icons/react";
+  Stack as Layers3,
+  Chats as MessagesSquare,
+  Sparkle as Sparkles,
+  Lightning as Zap,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import {
   Area,

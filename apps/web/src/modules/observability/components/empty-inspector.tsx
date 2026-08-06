@@ -1,4 +1,4 @@
-import { CircleDot } from "lucide-react";
+import { DotOutline as CircleDot } from "@phosphor-icons/react";
 
 export function EmptyInspector() {
   return (

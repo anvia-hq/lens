@@ -1,5 +1,11 @@
 import type { SpanDetail } from "@lens/contracts";
-import { Activity, Braces, Clock3, Database, Sparkles } from "lucide-react";
+import {
+  Pulse as Activity,
+  BracketsCurly as Braces,
+  Clock as Clock3,
+  Database,
+  Sparkle as Sparkles,
+} from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { TracePayloadView } from "../types";
 import {

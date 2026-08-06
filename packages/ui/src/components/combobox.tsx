@@ -10,10 +10,10 @@ import {
 } from "@lens/ui/components/input-group";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CheckCircle as CheckIcon,
-  AltArrowDown as ChevronDownIcon,
-  CloseCircle as XIcon,
-} from "@solar-icons/react";
+  Check as CheckIcon,
+  CaretDown as ChevronDownIcon,
+  X as XIcon,
+} from "@phosphor-icons/react";
 import * as React from "react";
 
 const Combobox = ComboboxPrimitive.Root;

@@ -1,5 +1,5 @@
 import { SidebarMenuButton } from "@lens/ui/components/sidebar";
-import { Laptop, Moon, Sun } from "@solar-icons/react";
+import { Laptop, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "../hooks/use-theme";
 
 export function ModeToggle() {

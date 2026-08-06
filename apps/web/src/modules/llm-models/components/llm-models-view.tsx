@@ -39,12 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import {
-  Calculator,
-  Pen as Pencil,
-  AddCircle as Plus,
-  TrashBin2 as Trash2,
-} from "@solar-icons/react";
+import { Calculator, Pencil, Plus, Trash as Trash2 } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

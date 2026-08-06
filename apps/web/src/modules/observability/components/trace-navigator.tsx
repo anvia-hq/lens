@@ -1,7 +1,11 @@
 import type { TraceDetail } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { Input } from "@lens/ui/components/input";
-import { ListTree, Search, UnfoldVertical } from "lucide-react";
+import {
+  TreeStructure as ListTree,
+  MagnifyingGlass as Search,
+  ArrowsOutLineVertical as UnfoldVertical,
+} from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { SpanTreeNode, TraceSpanView } from "../types";
 import { flattenSpanForest, searchTraceSpans, toggleCollapsed } from "../utils/trace-detail";

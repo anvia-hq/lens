@@ -14,13 +14,13 @@ import {
 } from "@lens/ui/components/sidebar";
 import {
   Pulse as Activity,
-  Graph as Gauge,
-  Logout2 as LogOut,
-  Dialog2 as MessagesSquare,
-  Settings,
-  Programming as TerminalSquare,
-  UsersGroupRounded as Users,
-} from "@solar-icons/react";
+  House,
+  SignOut as LogOut,
+  Chats as MessagesSquare,
+  Gear as Settings,
+  TerminalWindow as TerminalSquare,
+  UsersThree as Users,
+} from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import { useProject } from "../modules/projects/hooks/use-project";
@@ -32,7 +32,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectRoot = `/${project.id}`;
   const observabilityLinks = [
-    { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: Gauge },
+    { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: House },
     {
       to: "/$projectId/traces" as const,
       path: `${projectRoot}/traces`,

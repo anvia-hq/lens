@@ -4,7 +4,7 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
-import { CloseCircle as XIcon } from "@solar-icons/react";
+import { X as XIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {

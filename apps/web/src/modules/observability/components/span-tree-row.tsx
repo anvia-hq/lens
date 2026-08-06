@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import type { FlatSpanNode } from "../types";
 import { formatCost, formatDuration, formatNumber, spanDurationMs } from "../utils/trace-detail";
 import { TreeIndent } from "./tree-indent";

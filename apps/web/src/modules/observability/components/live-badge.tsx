@@ -5,7 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@lens/ui/components/dropdown-menu";
-import { AltArrowDown as ChevronDown, Refresh } from "@solar-icons/react";
+import { CaretDown as ChevronDown, ArrowClockwise as Refresh } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RefreshInterval } from "../types";
 

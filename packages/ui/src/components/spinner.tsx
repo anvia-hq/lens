@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { Refresh as Loader2Icon } from "@solar-icons/react";
+import { ArrowClockwise as Loader2Icon } from "@phosphor-icons/react";
 
 function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   return (

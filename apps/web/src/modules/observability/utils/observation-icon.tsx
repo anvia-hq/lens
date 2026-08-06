@@ -1,5 +1,12 @@
 import type { ObservationKind } from "@lens/contracts";
-import { Activity, Bot, CircleDot, ShieldCheck, Sparkles, Wrench } from "lucide-react";
+import {
+  Pulse as Activity,
+  Robot as Bot,
+  DotOutline as CircleDot,
+  ShieldCheckered as ShieldCheck,
+  Sparkle as Sparkles,
+  Wrench,
+} from "@phosphor-icons/react";
 
 export function observationIcon(kind: ObservationKind) {
   if (kind === "generation" || kind === "embedding") return Sparkles;

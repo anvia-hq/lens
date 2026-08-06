@@ -3,13 +3,13 @@ import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CheckCircle as CircleCheckIcon,
-  InfoCircle as InfoIcon,
-  Refresh as Loader2Icon,
-  DangerCircle as OctagonXIcon,
-  DangerTriangle as TriangleAlertIcon,
-  CloseCircle as XIcon,
-} from "@solar-icons/react";
+  Check as CircleCheckIcon,
+  Info as InfoIcon,
+  ArrowClockwise as Loader2Icon,
+  WarningCircle as OctagonXIcon,
+  Warning as TriangleAlertIcon,
+  X as XIcon,
+} from "@phosphor-icons/react";
 import type * as React from "react";
 
 const toast = ToastPrimitive.createToastManager();

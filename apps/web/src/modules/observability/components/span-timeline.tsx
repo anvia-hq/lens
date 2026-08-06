@@ -1,6 +1,6 @@
 import type { TraceDetail } from "@lens/contracts";
 import { cn } from "@lens/ui/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { FlatSpanNode } from "../types";
 import {

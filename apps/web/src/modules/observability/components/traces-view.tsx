@@ -6,7 +6,7 @@ import {
   ResizablePanelGroup,
 } from "@lens/ui/components/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
-import { Filter as SlidersHorizontal } from "@solar-icons/react";
+import { SlidersHorizontal } from "@phosphor-icons/react";
 import type { TracesState } from "../hooks/use-traces";
 import { LiveBadge } from "./live-badge";
 import { RangeSelector } from "./range-selector";
