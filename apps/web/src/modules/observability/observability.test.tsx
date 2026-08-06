@@ -15,6 +15,7 @@ import { ComparisonMetricCard } from "./components/comparison-metric-card";
 import { LiveBadge } from "./components/live-badge";
 import { RangeSelector } from "./components/range-selector";
 import { SessionExplorerTable } from "./components/session-explorer-table";
+import { StatusBadge } from "./components/status-badge";
 import { TraceExplorerTable } from "./components/trace-explorer-table";
 import { UserRangeSelector } from "./components/user-range-selector";
 import { defaultSessionColumns, defaultTraceColumns, defaultUserColumns } from "./types";
@@ -249,6 +250,16 @@ describe("overview controls", () => {
 
     expect(await screen.findByText("Refresh interval")).toBeTruthy();
     expect(screen.getByText("Every 10s")).toBeTruthy();
+  });
+
+  it("uses opaque borderless colors for status badges", () => {
+    const { rerender } = render(<StatusBadge status="ok" />);
+    expect(screen.getByText("Success").className).toContain("border-0");
+    expect(screen.getByText("Success").className).toContain("bg-emerald-200");
+
+    rerender(<StatusBadge status="error" />);
+    expect(screen.getByText("Error").className).toContain("border-0");
+    expect(screen.getByText("Error").className).toContain("bg-rose-200");
   });
 
   it("renders previous-period context on metric cards", () => {
