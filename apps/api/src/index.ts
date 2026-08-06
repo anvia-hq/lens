@@ -4,7 +4,7 @@ import { createClickHouse, createPostgres } from "@lens/db";
 import { createQueues, createRedisConnection } from "@lens/queue";
 import pino from "pino";
 import { createApp } from "./app.js";
-import { createAuth } from "./auth.js";
+import { createAuth } from "./modules/auth/services.js";
 
 const config = loadConfig();
 const logger = pino({ level: config.LOG_LEVEL, name: "lens-api" });

@@ -3,7 +3,7 @@ import {
   createIngestionCredentials,
   parseBasicAuthorization,
   verifyIngestionSecret,
-} from "../src/security";
+} from "../src/utils/security";
 
 describe("Langfuse-compatible project credentials", () => {
   it("creates a public key and stores a verifiable secret hash", () => {

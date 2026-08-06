@@ -4,7 +4,10 @@ import { authSchema } from "@lens/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
+import type { MiddlewareHandler } from "hono";
 import nodemailer from "nodemailer";
+import { apiError } from "../../utils/http.js";
+import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 
 export function createAuth(db: LensPostgres, config: LensConfig) {
   const mailer = nodemailer.createTransport({
@@ -62,3 +65,12 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
 }
 
 export type LensAuth = ReturnType<typeof createAuth>;
+
+export function createSessionMiddleware(deps: ApiDependencies): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const session = await deps.auth.api.getSession({ headers: c.req.raw.headers });
+    if (session === null) return apiError(c, 401, "unauthorized", "Sign in is required");
+    c.set("session", session);
+    await next();
+  };
+}
