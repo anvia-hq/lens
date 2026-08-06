@@ -163,9 +163,8 @@ export function traceTableColumns(options: {
     startedAt: traceColumnHelper.accessor("startedAt", {
       header: header("Started", "startedAt"),
       cell: ({ row }) => (
-        <span className="grid text-xs" title={row.original.startedAt}>
-          <span>{relativeTime(row.original.startedAt)}</span>
-          <span className="text-muted-foreground">{formatTimestamp(row.original.startedAt)}</span>
+        <span className="whitespace-nowrap text-xs" title={row.original.startedAt}>
+          {formatTimestamp(row.original.startedAt)}
         </span>
       ),
     }),
@@ -195,11 +194,10 @@ export function traceTableColumns(options: {
     totalTokens: traceColumnHelper.accessor("totalTokens", {
       header: header("Tokens", "totalTokens"),
       cell: ({ row }) => (
-        <span className="grid font-mono text-xs">
-          <span>{formatNumber(row.original.totalTokens)}</span>
+        <span className="whitespace-nowrap font-mono text-xs">
+          {formatNumber(row.original.totalTokens)}
           <span className="text-muted-foreground">
-            {formatNumber(row.original.inputTokens)} in · {formatNumber(row.original.outputTokens)}{" "}
-            out
+            {` · ${formatNumber(row.original.inputTokens)} in · ${formatNumber(row.original.outputTokens)} out`}
           </span>
         </span>
       ),
@@ -315,9 +313,8 @@ export function sessionTableColumns(options: {
     startedAt: sessionColumnHelper.accessor("startedAt", {
       header: header("Started", "startedAt"),
       cell: ({ row }) => (
-        <span className="grid text-xs" title={row.original.startedAt}>
-          <span>{relativeTime(row.original.startedAt)}</span>
-          <span className="text-muted-foreground">{formatTimestamp(row.original.startedAt)}</span>
+        <span className="whitespace-nowrap text-xs" title={row.original.startedAt}>
+          {formatTimestamp(row.original.startedAt)}
         </span>
       ),
     }),
@@ -355,11 +352,10 @@ export function sessionTableColumns(options: {
     totalTokens: sessionColumnHelper.accessor("totalTokens", {
       header: header("Tokens", "totalTokens"),
       cell: ({ row }) => (
-        <span className="grid font-mono text-xs">
-          <span>{formatNumber(row.original.totalTokens)}</span>
+        <span className="whitespace-nowrap font-mono text-xs">
+          {formatNumber(row.original.totalTokens)}
           <span className="text-muted-foreground">
-            {formatNumber(row.original.inputTokens)} in · {formatNumber(row.original.outputTokens)}{" "}
-            out
+            {` · ${formatNumber(row.original.inputTokens)} in · ${formatNumber(row.original.outputTokens)} out`}
           </span>
         </span>
       ),

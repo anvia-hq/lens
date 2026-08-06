@@ -52,15 +52,19 @@ export function TraceFilterPanel(props: {
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="px-3 pb-5">
-          {props.error ? <ErrorAlert error={props.error} /> : null}
+        <div>
+          {props.error ? (
+            <div className="mx-3 mt-3">
+              <ErrorAlert error={props.error} />
+            </div>
+          ) : null}
           <Accordion multiple defaultValue={["status", "environment"]}>
             {traceFacetSections.map((section) => {
               const selected = props.filters[section.field] ?? [];
               const options = props.facets?.[section.id] ?? [];
               return (
                 <AccordionItem key={section.id} value={section.id}>
-                  <AccordionTrigger>
+                  <AccordionTrigger className="px-3">
                     <span className="flex items-center gap-2">
                       {section.label}
                       {selected.length > 0 ? (
@@ -68,7 +72,7 @@ export function TraceFilterPanel(props: {
                       ) : null}
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="px-3">
                     {props.loading ? (
                       <div className="grid gap-2 py-1">
                         <Skeleton className="h-5 w-full" />
@@ -110,7 +114,7 @@ export function TraceFilterPanel(props: {
               );
             })}
           </Accordion>
-          <div className="grid gap-4 border-t pt-4">
+          <div className="grid gap-4 border-t px-3 pb-5 pt-4">
             <CommittedFilterInput
               label="Trace ID contains"
               value={props.filters.traceId}

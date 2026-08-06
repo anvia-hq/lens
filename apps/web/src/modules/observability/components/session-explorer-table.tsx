@@ -59,7 +59,7 @@ export function SessionExplorerTable(props: {
     });
   return (
     <div className="flex h-full min-w-0 flex-col bg-background">
-      <div className="flex flex-wrap items-center gap-2 border-b p-3">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 md:h-12 md:flex-nowrap md:py-0">
         <Button
           variant="outline"
           size="sm"
@@ -71,10 +71,10 @@ export function SessionExplorerTable(props: {
             <Badge variant="secondary">{props.activeFilterCount}</Badge>
           ) : null}
         </Button>
-        <div className="relative min-w-52 flex-1">
-          <Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
+        <div className="relative h-8 min-w-52 flex-1">
+          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="pl-8"
+            className="h-8 pl-8"
             aria-label="Search sessions"
             placeholder="Search session or user ID"
             value={props.searchDraft}
@@ -82,7 +82,7 @@ export function SessionExplorerTable(props: {
           />
         </div>
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+          <DropdownMenuTrigger render={<Button className="h-8" variant="outline" size="sm" />}>
             Columns <ChevronDown />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-80 w-56 overflow-y-auto">

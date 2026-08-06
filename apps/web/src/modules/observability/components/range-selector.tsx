@@ -8,7 +8,7 @@ export function RangeSelector(props: {
 }) {
   return (
     <fieldset
-      className="flex rounded-md border bg-background p-0.5"
+      className="flex h-8 rounded-md border bg-background p-px"
       aria-label="Overview time range"
     >
       {metricsRangePresets.map((range) => (

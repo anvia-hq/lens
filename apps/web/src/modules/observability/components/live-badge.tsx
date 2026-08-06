@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from "@lens/ui/components/button";
+import { Button } from "@lens/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ export function LiveBadge(props: {
   return (
     <div className="flex items-center">
       <Button
-        className="rounded-r-none border-r-0"
+        className="h-8 rounded-r-none border-r-0"
         variant="outline"
         size="sm"
         onClick={() => void queryClient.invalidateQueries()}
@@ -30,11 +30,13 @@ export function LiveBadge(props: {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
-          className={buttonVariants({
-            variant: "outline",
-            size: "sm",
-            className: "rounded-l-none px-1.5",
-          })}
+          render={
+            <Button
+              className="h-8 rounded-l-none border-border px-1.5"
+              variant="outline"
+              size="sm"
+            />
+          }
           aria-label="Refresh interval"
         >
           <ChevronDown />
