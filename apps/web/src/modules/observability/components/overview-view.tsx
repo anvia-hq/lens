@@ -77,7 +77,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
               action={
                 <Link
                   className={buttonVariants()}
-                  to="/$projectId/onboarding"
+                  to="/$projectId/connect"
                   params={{ projectId: project.id }}
                 >
                   Connect an app

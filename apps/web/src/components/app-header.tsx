@@ -25,7 +25,7 @@ export function AppHeader() {
         ? "Sessions"
         : section === "users"
           ? "Users"
-          : section === "onboarding"
+          : section === "connect"
             ? "Connect"
             : section === "settings"
               ? "Project settings"

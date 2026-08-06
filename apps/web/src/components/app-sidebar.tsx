@@ -25,6 +25,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
+import { AnviaLensLogo } from "./anvia-lens-logo";
 import { ModeToggle } from "./mode-toggle";
 
 export function AppSidebar({ user }: { user: AuthenticatedUser }) {
@@ -54,8 +55,8 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   ];
   const managementLinks = [
     {
-      to: "/$projectId/onboarding" as const,
-      path: `${projectRoot}/onboarding`,
+      to: "/$projectId/connect" as const,
+      path: `${projectRoot}/connect`,
       label: "Connect",
       icon: TerminalSquare,
     },
@@ -91,7 +92,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         <div className="flex h-10 items-center gap-2 px-2">
           <Link className="flex min-w-0 flex-1 items-center gap-2" to="/">
             <div className="grid min-w-0 group-data-collapsible-icon:hidden">
-              <span className="font-heading text-lg font-semibold">Anvia Lens</span>
+              <AnviaLensLogo />
             </div>
           </Link>
           <ModeToggle />

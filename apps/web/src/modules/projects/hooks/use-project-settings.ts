@@ -30,6 +30,16 @@ export function useProjectSettings() {
       notify("Ingestion key created");
     },
   });
+  const revokeKey = useMutation({
+    mutationFn: (keyId: string) =>
+      api<void>(`/api/v1/projects/${project.id}/keys/${keyId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["keys", project.id] });
+      notify("Ingestion key revoked");
+    },
+  });
   const saveSettings = useMutation({
     mutationFn: () =>
       api<Project>(`/api/v1/projects/${project.id}/settings`, {
@@ -54,7 +64,9 @@ export function useProjectSettings() {
     keys,
     newKey,
     patterns,
+    project,
     retention,
+    revokeKey,
     saveSettings,
     setKeyName,
     setNewKey,
