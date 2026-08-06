@@ -56,7 +56,7 @@ export function TraceDetailExplorer(props: {
   };
 
   return (
-    <main className="flex h-[calc(100svh-3.5rem)] min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       <TraceHeader detail={props.detail} projectId={props.projectId} />
       <div className="min-h-0 flex-1 overflow-hidden">
         {isMobile ? (
@@ -80,6 +80,7 @@ export function TraceDetailExplorer(props: {
           />
         ) : (
           <ResizablePanelGroup
+            className="min-h-0 overflow-hidden"
             id="trace-detail-layout"
             orientation="horizontal"
             defaultLayout={layout}
@@ -92,7 +93,13 @@ export function TraceDetailExplorer(props: {
               }
             }}
           >
-            <ResizablePanel id={NAVIGATION_PANEL_ID} defaultSize="36" minSize={280} maxSize="55">
+            <ResizablePanel
+              className="min-h-0 min-w-0 overflow-hidden"
+              id={NAVIGATION_PANEL_ID}
+              defaultSize="36"
+              minSize={280}
+              maxSize="55"
+            >
               <TraceNavigator
                 collapsed={collapsed}
                 detail={props.detail}
@@ -107,7 +114,12 @@ export function TraceDetailExplorer(props: {
               />
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel id={DETAIL_PANEL_ID} defaultSize="64" minSize={420}>
+            <ResizablePanel
+              className="min-h-0 min-w-0 overflow-hidden"
+              id={DETAIL_PANEL_ID}
+              defaultSize="64"
+              minSize={420}
+            >
               {selected === undefined ? (
                 <EmptyInspector />
               ) : (

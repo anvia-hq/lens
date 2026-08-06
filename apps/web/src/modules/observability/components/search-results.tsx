@@ -26,7 +26,7 @@ export function SearchResults(props: {
     );
   }
   return (
-    <ul className="h-full overflow-auto py-1" aria-label="Span search results">
+    <ul className="h-full overflow-auto overscroll-contain py-1" aria-label="Span search results">
       {props.results.map((span) => (
         <li key={span.spanId}>
           <button

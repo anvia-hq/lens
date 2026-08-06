@@ -71,7 +71,7 @@ export function flattenSpanForest(
         hasChildren: node.children.length > 0,
       });
       if (!collapsed.has(node.span.spanId)) {
-        visit(node.children, depth + 1, [...ancestorContinues, !isLastSibling]);
+        visit(node.children, depth + 1, depth === 0 ? [] : [...ancestorContinues, !isLastSibling]);
       }
     });
   };

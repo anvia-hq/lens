@@ -33,11 +33,6 @@ export function SpanTreeRow(props: {
           <span className="truncate text-xs font-medium text-current" title={span.name}>
             {span.name}
           </span>
-          <span className="flex min-w-0 gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
-            <span className="truncate">{span.observationKind}</span>
-            <span>·</span>
-            <span className="truncate">{span.model ?? span.serviceName}</span>
-          </span>
           <span className="flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
             <span>{formatDuration(spanDurationMs(span))}</span>
             {span.totalTokens > 0 ? <span>{formatNumber(span.totalTokens)} tok</span> : null}

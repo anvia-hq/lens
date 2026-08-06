@@ -23,7 +23,7 @@ export function SpanTimeline(props: {
 }) {
   const bounds = useMemo(() => traceTimelineBounds(props.detail), [props.detail]);
   return (
-    <section className="h-full overflow-auto" aria-label="Span timeline">
+    <section className="h-full overflow-auto overscroll-contain" aria-label="Span timeline">
       <div className="min-w-max" style={{ width: `${240 + TIMELINE_WIDTH}px` }}>
         <div className="sticky top-0 z-20 grid h-8 grid-cols-[240px_720px] border-b bg-background text-[10px] text-muted-foreground">
           <div className="sticky left-0 z-30 flex items-center border-r bg-background px-3 font-medium uppercase tracking-wide">

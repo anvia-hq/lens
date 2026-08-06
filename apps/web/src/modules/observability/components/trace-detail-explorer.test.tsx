@@ -113,11 +113,23 @@ describe("trace detail controls", () => {
     const subject = detail([
       span({ spanId: "root", name: "agent.run" }),
       span({
-        spanId: "child",
+        spanId: "turn-1",
         parentSpanId: "root",
+        name: "turn.1",
+        startTimeUnixNano: nano(10),
+      }),
+      span({
+        spanId: "generation",
+        parentSpanId: "turn-1",
         name: "model.generate",
         observationKind: "generation",
         startTimeUnixNano: nano(20),
+      }),
+      span({
+        spanId: "turn-2",
+        parentSpanId: "root",
+        name: "turn.2",
+        startTimeUnixNano: nano(30),
       }),
     ]);
     const forest = buildSpanForest(subject.spans);
@@ -147,6 +159,9 @@ describe("trace detail controls", () => {
     const { container } = render(<Harness />);
     expect(screen.getByText("model.generate")).toBeTruthy();
     expect(container.querySelector('[data-tree-line="elbow"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-tree-depth="2"] [data-tree-line="ancestor"]'),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Collapse agent.run" }));
     expect(screen.queryByText("model.generate")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand agent.run" }));

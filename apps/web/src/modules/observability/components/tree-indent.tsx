@@ -11,7 +11,6 @@ export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: b
       style={{ width: `${(row.depth + 1) * slot + 4}px` }}
     >
       {row.ancestorContinues
-        .slice(0, -1)
         .map((continues, level) => ({
           continues,
           key: `${row.span.spanId}:ancestor:${level}`,
@@ -28,27 +27,35 @@ export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: b
           ) : null,
         )}
       {row.depth > 0 ? (
-        <>
+        row.isLastSibling ? (
           <span
-            className="absolute top-0 w-px bg-border"
-            data-tree-line="branch"
+            className="absolute top-0 h-1/2 rounded-bl-sm border-b border-l border-border"
+            data-tree-line="elbow"
             style={{
               left: `${(row.depth - 1) * slot + 10}px`,
-              height: row.isLastSibling ? "50%" : "100%",
+              width: `${slot}px`,
             }}
           />
-          <span
-            className="absolute top-1/2 h-px bg-border"
-            data-tree-line="elbow"
-            style={{ left: `${(row.depth - 1) * slot + 10}px`, width: `${slot}px` }}
-          />
-        </>
+        ) : (
+          <>
+            <span
+              className="absolute inset-y-0 w-px bg-border"
+              data-tree-line="sibling-continuation"
+              style={{ left: `${(row.depth - 1) * slot + 10}px` }}
+            />
+            <span
+              className="absolute top-1/2 h-px bg-border"
+              data-tree-line="elbow"
+              style={{ left: `${(row.depth - 1) * slot + 10}px`, width: `${slot}px` }}
+            />
+          </>
+        )
       ) : null}
       {row.hasChildren && !collapsed ? (
         <span
-          className="absolute bottom-0 top-1/2 w-px bg-border"
+          className="absolute bottom-0 w-px bg-border"
           data-tree-line="children"
-          style={{ left: `${iconX + 10}px` }}
+          style={{ left: `${iconX + 10}px`, top: "calc(50% + 0.5rem)" }}
         />
       ) : null}
       <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${iconX + 2}px` }}>

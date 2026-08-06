@@ -79,7 +79,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
     </SidebarMenu>
   );
   return (
-    <Sidebar className="border-r border-sidebar-border" collapsible="none">
+    <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
       <SidebarHeader>
         <Link className="flex h-10 items-center gap-2 px-2" to="/">
           <div className="grid min-w-0 group-data-collapsible-icon:hidden">

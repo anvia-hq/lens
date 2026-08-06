@@ -93,7 +93,7 @@ export function SpanInspector(props: {
           {span.scopeName ? <span>Scope {span.scopeName}</span> : null}
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
         <div className="grid content-start gap-6 p-4 md:p-6">
           <PayloadSection title="Input" value={span.input} view={props.payloadView} />
           <PayloadSection title="Output" value={span.output} view={props.payloadView} />

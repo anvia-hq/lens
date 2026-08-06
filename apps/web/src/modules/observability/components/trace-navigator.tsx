@@ -44,10 +44,7 @@ export function TraceNavigator(props: {
     props.onCollapsedChange(everythingCollapsed ? new Set() : new Set(branchIds));
 
   return (
-    <section
-      className="flex h-full min-h-0 flex-col border-r bg-background"
-      aria-label="Trace spans"
-    >
+    <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Trace spans">
       <div className="flex shrink-0 items-center gap-1 border-b p-1.5">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -94,7 +91,11 @@ export function TraceNavigator(props: {
             onSelectSpan={props.onSelectSpan}
           />
         ) : (
-          <div className="h-full overflow-auto py-1" role="tree" aria-label="Span tree">
+          <div
+            className="h-full overflow-auto overscroll-contain px-2 py-1"
+            role="tree"
+            aria-label="Span tree"
+          >
             {rows.map((row) => (
               <SpanTreeRow
                 collapsed={props.collapsed.has(row.span.spanId)}

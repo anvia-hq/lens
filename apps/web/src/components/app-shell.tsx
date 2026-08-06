@@ -33,9 +33,9 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
       {pathname === "/" ? (
         <ProjectSelectorShell user={user} />
       ) : (
-        <SidebarProvider>
+        <SidebarProvider className="h-svh min-h-0 overflow-hidden">
           <AppSidebar user={user} />
-          <SidebarInset>
+          <SidebarInset className="h-svh min-h-0 overflow-y-auto">
             <AppHeader />
             <Outlet />
           </SidebarInset>
