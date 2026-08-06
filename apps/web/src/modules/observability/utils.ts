@@ -4,11 +4,18 @@ import type {
   SessionStatus,
   SpanStatus,
   TraceSortField,
+  UserSortField,
 } from "@lens/contracts";
-import { metricsRangePresets, sessionSortFields, traceSortFields } from "@lens/contracts";
+import {
+  metricsRangePresets,
+  sessionSortFields,
+  traceSortFields,
+  userSortFields,
+} from "@lens/contracts";
 import {
   defaultSessionColumns,
   defaultTraceColumns,
+  defaultUserColumns,
   type OverviewSearch,
   type RefreshInterval,
   type ResolvedSessionsSearch,
@@ -20,6 +27,11 @@ import {
   type TraceDetailSearch,
   type TracesSearch,
   traceColumnIds,
+  type UserColumnId,
+  type UserDetailSearch,
+  type UserRange,
+  type UsersSearch,
+  userColumnIds,
 } from "./types";
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
@@ -98,6 +110,44 @@ export function timeRangeForPreset(range: MetricsRangePreset) {
   return {
     from: new Date(Date.now() - hours * 3_600_000).toISOString(),
     to: new Date().toISOString(),
+  };
+}
+
+export function timeRangeForUserRange(range: UserRange) {
+  return range === "all" ? {} : timeRangeForPreset(range);
+}
+
+export function validateUsersSearch(search: Record<string, unknown>): UsersSearch {
+  return {
+    range: parseUserRange(search.range),
+    search: optionalSearchValue(search.search),
+    sort: userSortFields.includes(search.sort as UserSortField)
+      ? (search.sort as UserSortField)
+      : "lastSeenAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validUserColumns(search.columns),
+  };
+}
+
+export function validateUserDetailSearch(search: Record<string, unknown>): UserDetailSearch {
+  const tab = search.tab === "sessions" ? "sessions" : "traces";
+  const sort =
+    tab === "traces"
+      ? traceSortFields.includes(search.sort as TraceSortField)
+        ? (search.sort as TraceSortField)
+        : "startedAt"
+      : sessionSortFields.includes(search.sort as SessionSortField)
+        ? (search.sort as SessionSortField)
+        : "startedAt";
+  return {
+    range: parseUserRange(search.range),
+    tab,
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    sort,
+    order: search.order === "asc" ? "asc" : "desc",
   };
 }
 
@@ -190,6 +240,14 @@ function parseMetricsRange(value: unknown): MetricsRangePreset {
     : "24h";
 }
 
+function parseUserRange(value: unknown): UserRange {
+  return value === "all"
+    ? "all"
+    : metricsRangePresets.includes(value as MetricsRangePreset)
+      ? (value as MetricsRangePreset)
+      : "all";
+}
+
 function optionalSearchValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
@@ -234,4 +292,11 @@ function validSessionColumns(value: unknown): SessionColumnId[] {
   if (selected.size === 0) return defaultSessionColumns;
   selected.add("session");
   return sessionColumnIds.filter((column) => selected.has(column));
+}
+
+function validUserColumns(value: unknown): UserColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultUserColumns;
+  selected.add("userId");
+  return userColumnIds.filter((column) => selected.has(column));
 }

@@ -13,6 +13,7 @@ import { createProjectsRouter } from "./modules/projects/router.js";
 import { createSessionsRouter } from "./modules/sessions/router.js";
 import { createSystemRouter } from "./modules/system/router.js";
 import { createTracesRouter } from "./modules/traces/router.js";
+import { createUsersRouter } from "./modules/users/router.js";
 import { createIngestionMetrics } from "./utils/metrics.js";
 import type { ApiDependencies, AppEnv } from "./utils/types.js";
 
@@ -45,5 +46,6 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createApiKeysRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))
     .route("/api/v1/projects", createSessionsRouter(deps))
+    .route("/api/v1/projects", createUsersRouter(deps))
     .route("/api/v1/projects", createMetricsRouter(deps));
 }

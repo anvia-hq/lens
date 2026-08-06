@@ -21,6 +21,8 @@ import { Route as ProjectIdSessionsIndexRouteImport } from './routes/$projectId/
 import { Route as ProjectIdSessionsSessionIdRouteImport } from './routes/$projectId/sessions/$sessionId'
 import { Route as ProjectIdTracesIndexRouteImport } from './routes/$projectId/traces/index'
 import { Route as ProjectIdTracesTraceIdRouteImport } from './routes/$projectId/traces/$traceId'
+import { Route as ProjectIdUsersIndexRouteImport } from './routes/$projectId/users/index'
+import { Route as ProjectIdUsersUserIdRouteImport } from './routes/$projectId/users/$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -84,6 +86,16 @@ const ProjectIdTracesTraceIdRoute = ProjectIdTracesTraceIdRouteImport.update({
   path: '/traces/$traceId',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
+const ProjectIdUsersIndexRoute = ProjectIdUsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
+  getParentRoute: () => ProjectIdRouteRoute,
+} as any)
+const ProjectIdUsersUserIdRoute = ProjectIdUsersUserIdRouteImport.update({
+  id: '/users/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => ProjectIdRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,8 +108,10 @@ export interface FileRoutesByFullPath {
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
+  '/$projectId/users/': typeof ProjectIdUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,8 +123,10 @@ export interface FileRoutesByTo {
   '/$projectId': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces': typeof ProjectIdTracesIndexRoute
+  '/$projectId/users': typeof ProjectIdUsersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,8 +140,10 @@ export interface FileRoutesById {
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
+  '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
+  '/$projectId/users/': typeof ProjectIdUsersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,8 +158,10 @@ export interface FileRouteTypes {
     | '/$projectId/'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/users/$userId'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
+    | '/$projectId/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -153,8 +173,10 @@ export interface FileRouteTypes {
     | '/$projectId'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/users/$userId'
     | '/$projectId/sessions'
     | '/$projectId/traces'
+    | '/$projectId/users'
   id:
     | '__root__'
     | '/'
@@ -167,8 +189,10 @@ export interface FileRouteTypes {
     | '/$projectId/'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
+    | '/$projectId/users/$userId'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
+    | '/$projectId/users/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -265,6 +289,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdTracesTraceIdRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
+    '/$projectId/users/': {
+      id: '/$projectId/users/'
+      path: '/users'
+      fullPath: '/$projectId/users/'
+      preLoaderRoute: typeof ProjectIdUsersIndexRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/users/$userId': {
+      id: '/$projectId/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/$projectId/users/$userId'
+      preLoaderRoute: typeof ProjectIdUsersUserIdRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
   }
 }
 
@@ -274,8 +312,10 @@ interface ProjectIdRouteRouteChildren {
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
   ProjectIdSessionsSessionIdRoute: typeof ProjectIdSessionsSessionIdRoute
   ProjectIdTracesTraceIdRoute: typeof ProjectIdTracesTraceIdRoute
+  ProjectIdUsersUserIdRoute: typeof ProjectIdUsersUserIdRoute
   ProjectIdSessionsIndexRoute: typeof ProjectIdSessionsIndexRoute
   ProjectIdTracesIndexRoute: typeof ProjectIdTracesIndexRoute
+  ProjectIdUsersIndexRoute: typeof ProjectIdUsersIndexRoute
 }
 
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
@@ -284,8 +324,10 @@ const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdIndexRoute: ProjectIdIndexRoute,
   ProjectIdSessionsSessionIdRoute: ProjectIdSessionsSessionIdRoute,
   ProjectIdTracesTraceIdRoute: ProjectIdTracesTraceIdRoute,
+  ProjectIdUsersUserIdRoute: ProjectIdUsersUserIdRoute,
   ProjectIdSessionsIndexRoute: ProjectIdSessionsIndexRoute,
   ProjectIdTracesIndexRoute: ProjectIdTracesIndexRoute,
+  ProjectIdUsersIndexRoute: ProjectIdUsersIndexRoute,
 }
 
 const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(

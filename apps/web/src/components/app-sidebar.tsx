@@ -19,6 +19,7 @@ import {
   Dialog2 as MessagesSquare,
   Settings,
   Programming as TerminalSquare,
+  UsersGroupRounded as Users,
 } from "@solar-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
@@ -43,6 +44,12 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/sessions`,
       label: "Sessions",
       icon: MessagesSquare,
+    },
+    {
+      to: "/$projectId/users" as const,
+      path: `${projectRoot}/users`,
+      label: "Users",
+      icon: Users,
     },
   ];
   const managementLinks = [

@@ -43,7 +43,7 @@ export function parseTraceRequest(c: Context): TraceRequest | string {
     if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
   }
 
-  for (const key of ["userId", "sessionId", "traceId", "search"] as const) {
+  for (const key of ["userId", "exactUserId", "sessionId", "traceId", "search"] as const) {
     const value = c.req.query(key)?.trim();
     if (value === undefined || value.length === 0) continue;
     if (value.length > 256) return `${key} must be at most 256 characters`;

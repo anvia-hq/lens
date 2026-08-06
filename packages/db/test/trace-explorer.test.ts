@@ -19,6 +19,7 @@ describe("trace explorer queries", () => {
       models: ["gpt-4.1"],
       tags: ["production", "priority"],
       minTotalCost: 0.01,
+      exactUserId: "customer-1",
       page: 2,
       pageSize: 25,
       sort: "totalCost",
@@ -31,6 +32,7 @@ describe("trace explorer queries", () => {
     expect(listCall?.[0].query).toContain("model IN {models:Array(String)}");
     expect(listCall?.[0].query).toContain("hasAny(tags, {tags:Array(String)})");
     expect(listCall?.[0].query).toContain("total_cost >= {minTotalCost:Float64}");
+    expect(listCall?.[0].query).toContain("user_id = {exactUserId:String}");
     expect(listCall?.[0].query).toContain("total_cost ASC");
     expect(listCall?.[0].query_params).toMatchObject({ pageSize: 25, offset: 25 });
   });

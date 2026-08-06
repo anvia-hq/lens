@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseMemberRole } from "../src/modules/members/schema";
 import { parseSessionRequest } from "../src/modules/sessions/schema";
 import { parseTraceRequest } from "../src/modules/traces/schema";
+import { parseUserRequest } from "../src/modules/users/schema";
 
 async function parseRequest<T>(url: string, parser: Parameters<typeof parserApp>[0]): Promise<T> {
   const response = await parserApp(parser).request(url);
@@ -35,6 +36,30 @@ describe("API module schemas", () => {
     );
     expect(await parseRequest("/?status=success", parseTraceRequest)).toBe(
       "status must be ok, error, or unset",
+    );
+  });
+
+  it("parses exact trace users and user explorer queries", async () => {
+    expect(
+      await parseRequest<ReturnType<typeof parseTraceRequest>>(
+        "/?exactUserId=Customer%2FOne",
+        parseTraceRequest,
+      ),
+    ).toMatchObject({ filters: { exactUserId: "Customer/One" } });
+    expect(
+      await parseRequest<ReturnType<typeof parseUserRequest>>(
+        "/?search=customer&sort=totalCost&order=asc&pageSize=25",
+        parseUserRequest,
+      ),
+    ).toEqual({
+      search: "customer",
+      page: 1,
+      pageSize: 25,
+      sort: "totalCost",
+      order: "asc",
+    });
+    expect(await parseRequest("/?sort=startedAt", parseUserRequest)).toBe(
+      "Unsupported user sort field",
     );
   });
 

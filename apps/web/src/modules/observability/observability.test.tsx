@@ -8,11 +8,14 @@ import { validateOverviewSearch } from "../../routes/$projectId";
 import { validateSessionsSearch } from "../../routes/$projectId/sessions";
 import { validateTracesSearch } from "../../routes/$projectId/traces";
 import { validateTraceDetailSearch } from "../../routes/$projectId/traces/$traceId";
+import { validateUsersSearch } from "../../routes/$projectId/users";
+import { validateUserDetailSearch } from "../../routes/$projectId/users/$userId";
 import { ComparisonMetricCard } from "./components/comparison-metric-card";
 import { RangeSelector } from "./components/range-selector";
 import { SessionExplorerTable } from "./components/session-explorer-table";
 import { TraceExplorerTable } from "./components/trace-explorer-table";
-import { defaultSessionColumns, defaultTraceColumns } from "./types";
+import { UserRangeSelector } from "./components/user-range-selector";
+import { defaultSessionColumns, defaultTraceColumns, defaultUserColumns } from "./types";
 import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
 
 afterEach(cleanup);
@@ -136,6 +139,35 @@ describe("overview controls", () => {
     expect(screen.getByRole("button", { name: "7d" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "30d" }));
     expect(onChange).toHaveBeenCalledWith("30d");
+  });
+
+  it("normalizes user list and detail search state", () => {
+    expect(validateUsersSearch({})).toEqual({
+      range: "all",
+      search: undefined,
+      sort: "lastSeenAt",
+      order: "desc",
+      page: 1,
+      pageSize: 50,
+      columns: defaultUserColumns,
+    });
+    expect(validateUserDetailSearch({ range: "7d", tab: "sessions", sort: "totalCost" })).toEqual({
+      range: "7d",
+      tab: "sessions",
+      sort: "totalCost",
+      order: "desc",
+      page: 1,
+      pageSize: 50,
+    });
+    expect(validateUserDetailSearch({ tab: "traces", sort: "sessionId" }).sort).toBe("sessionId");
+  });
+
+  it("supports all-time user ranges", () => {
+    const onChange = vi.fn();
+    render(<UserRangeSelector value="all" onChange={onChange} />);
+    expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "24h" }));
+    expect(onChange).toHaveBeenCalledWith("24h");
   });
 
   it("opens the trace column chooser within a valid Base UI menu group", async () => {

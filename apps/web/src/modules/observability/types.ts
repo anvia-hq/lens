@@ -5,6 +5,7 @@ import type {
   SpanDetail,
   SpanStatus,
   TraceSortField,
+  UserSortField,
 } from "@lens/contracts";
 
 export type TraceSpanView = "tree" | "timeline";
@@ -167,3 +168,37 @@ export type ResolvedTracesSearch = TracesSearch & {
 };
 
 export type RefreshInterval = "5s" | "10s" | "30s" | "Off";
+
+export type UserRange = "all" | MetricsRangePreset;
+
+export const userColumnIds = [
+  "userId",
+  "firstSeenAt",
+  "lastSeenAt",
+  "traceCount",
+  "sessionCount",
+  "errorRate",
+  "totalTokens",
+  "totalCost",
+] as const;
+export type UserColumnId = (typeof userColumnIds)[number];
+export const defaultUserColumns: UserColumnId[] = [...userColumnIds];
+
+export type UsersSearch = {
+  range: UserRange;
+  search?: string;
+  sort: UserSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  columns: UserColumnId[];
+};
+
+export type UserDetailSearch = {
+  range: UserRange;
+  tab: "traces" | "sessions";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  sort?: TraceSortField | SessionSortField;
+  order: "asc" | "desc";
+};

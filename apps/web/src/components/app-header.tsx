@@ -7,6 +7,7 @@ import {
   BreadcrumbSeparator,
 } from "@lens/ui/components/breadcrumb";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
+import { defaultUserColumns } from "../modules/observability/types";
 import { useProject } from "../modules/projects/hooks/use-project";
 import { shortId } from "../utils/format";
 
@@ -22,11 +23,13 @@ export function AppHeader() {
       ? "Traces"
       : section === "sessions"
         ? "Sessions"
-        : section === "onboarding"
-          ? "Connect"
-          : section === "settings"
-            ? "Project settings"
-            : "Overview";
+        : section === "users"
+          ? "Users"
+          : section === "onboarding"
+            ? "Connect"
+            : section === "settings"
+              ? "Project settings"
+              : "Overview";
   const detailId = relativePath[1];
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
@@ -58,11 +61,24 @@ export function AppHeader() {
                         params={{ projectId: project.id }}
                         search={{ range: "24h" }}
                       />
-                    ) : (
+                    ) : section === "sessions" ? (
                       <Link
                         to="/$projectId/sessions"
                         params={{ projectId: project.id }}
                         search={{ range: "24h" }}
+                      />
+                    ) : (
+                      <Link
+                        to="/$projectId/users"
+                        params={{ projectId: project.id }}
+                        search={{
+                          range: "all",
+                          sort: "lastSeenAt",
+                          order: "desc",
+                          page: 1,
+                          pageSize: 50,
+                          columns: defaultUserColumns,
+                        }}
                       />
                     )
                   }
@@ -77,7 +93,9 @@ export function AppHeader() {
                     ? shortId(String(params.traceId))
                     : "sessionId" in params
                       ? String(params.sessionId)
-                      : detailId}
+                      : "userId" in params
+                        ? String(params.userId)
+                        : detailId}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>
