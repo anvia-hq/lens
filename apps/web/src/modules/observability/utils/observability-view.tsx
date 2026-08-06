@@ -613,29 +613,6 @@ export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInter
 export function refreshMilliseconds(interval: RefreshInterval): number | false {
   return interval === "Off" ? false : Number.parseInt(interval, 10) * 1_000;
 }
-export function comparisonDelta(current: number, previous: number, mode: "relative" | "points") {
-  if (mode === "points") {
-    const change = (current - previous) * 100;
-    const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
-    const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
-    return {
-      direction,
-      label: `${arrow} ${Math.abs(change).toFixed(1)} pp`,
-      accessibleLabel: `${Math.abs(change).toFixed(1)} percentage points ${direction}`,
-    } as const;
-  }
-  if (previous === 0 && current > 0) {
-    return { direction: "up", label: "New", accessibleLabel: "New activity" } as const;
-  }
-  const change = previous === 0 ? 0 : (current - previous) / Math.abs(previous);
-  const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
-  const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
-  return {
-    direction,
-    label: `${arrow} ${Math.abs(change * 100).toFixed(1)}%`,
-    accessibleLabel: `${Math.abs(change * 100).toFixed(1)} percent ${direction}`,
-  } as const;
-}
 export function formatNumber(value?: number) {
   return value === undefined
     ? "—"

@@ -18,17 +18,7 @@ import {
   Lightning as Zap,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
@@ -163,31 +153,20 @@ export function OverviewView({ state }: { state: OverviewState }) {
           <div className="grid gap-4 xl:grid-cols-2">
             <OverviewChartCard title="Token usage" description="Input and output tokens over time">
               <ChartContainer className="h-72 w-full" config={tokenChartConfig}>
-                <AreaChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
                   <YAxis tickFormatter={formatCompactAxis} tickLine={false} axisLine={false} />
                   {metricsTooltip(search.range)}
-                  <Area
-                    dataKey="inputTokens"
-                    type="monotone"
-                    stackId="tokens"
-                    stroke="var(--color-inputTokens)"
-                    fill="var(--color-inputTokens)"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
-                  <Area
+                  <Bar dataKey="inputTokens" stackId="tokens" fill="var(--color-inputTokens)" />
+                  <Bar
                     dataKey="outputTokens"
-                    type="monotone"
                     stackId="tokens"
-                    stroke="var(--color-outputTokens)"
                     fill="var(--color-outputTokens)"
-                    fillOpacity={0.45}
-                    strokeWidth={2}
+                    radius={[3, 3, 0, 0]}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </AreaChart>
+                </BarChart>
               </ChartContainer>
             </OverviewChartCard>
 
@@ -196,34 +175,24 @@ export function OverviewView({ state }: { state: OverviewState }) {
               description="Traces and LLM generations, with failed traces highlighted"
             >
               <ChartContainer className="h-72 w-full" config={throughputChartConfig}>
-                <LineChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                   {metricsTooltip(search.range)}
-                  <Line
+                  <Bar
                     dataKey="generations"
-                    type="monotone"
-                    stroke="var(--color-generations)"
-                    strokeWidth={2}
-                    dot={false}
+                    fill="var(--color-generations)"
+                    radius={[3, 3, 0, 0]}
                   />
-                  <Line
-                    dataKey="traces"
-                    type="monotone"
-                    stroke="var(--color-traces)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
+                  <Bar dataKey="traces" fill="var(--color-traces)" radius={[3, 3, 0, 0]} />
+                  <Bar
                     dataKey="traceErrors"
-                    type="monotone"
-                    stroke="var(--color-traceErrors)"
-                    strokeWidth={2}
-                    dot={false}
+                    fill="var(--color-traceErrors)"
+                    radius={[3, 3, 0, 0]}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </LineChart>
+                </BarChart>
               </ChartContainer>
             </OverviewChartCard>
 
@@ -232,7 +201,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
               description="P50 and P95 latency for generation observations"
             >
               <ChartContainer className="h-72 w-full" config={latencyChartConfig}>
-                <LineChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
                   <YAxis
@@ -242,24 +211,18 @@ export function OverviewView({ state }: { state: OverviewState }) {
                     width={58}
                   />
                   {metricsTooltip(search.range, true)}
-                  <Line
+                  <Bar
                     dataKey="generationDurationP95Ms"
-                    type="monotone"
-                    connectNulls={false}
-                    stroke="var(--color-generationDurationP95Ms)"
-                    strokeWidth={2}
-                    dot={false}
+                    fill="var(--color-generationDurationP95Ms)"
+                    radius={[3, 3, 0, 0]}
                   />
-                  <Line
+                  <Bar
                     dataKey="generationDurationP50Ms"
-                    type="monotone"
-                    connectNulls={false}
-                    stroke="var(--color-generationDurationP50Ms)"
-                    strokeWidth={2}
-                    dot={false}
+                    fill="var(--color-generationDurationP50Ms)"
+                    radius={[3, 3, 0, 0]}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </LineChart>
+                </BarChart>
               </ChartContainer>
             </OverviewChartCard>
 

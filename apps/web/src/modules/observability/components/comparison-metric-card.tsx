@@ -1,7 +1,7 @@
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { cn } from "@lens/ui/lib/utils";
 import type { ReactNode } from "react";
-import { comparisonDelta } from "../utils/observability-view";
+import { comparisonDelta } from "../utils";
 
 export function ComparisonMetricCard(props: {
   label: string;
@@ -14,9 +14,13 @@ export function ComparisonMetricCard(props: {
 }) {
   const delta = comparisonDelta(props.current, props.previous, props.deltaMode ?? "relative");
   const improved =
-    props.lowerIsBetter && delta.direction !== "flat" ? delta.direction === "down" : false;
+    delta.hasPreviousPeriodComparison && props.lowerIsBetter && delta.direction !== "flat"
+      ? delta.direction === "down"
+      : false;
   const worsened =
-    props.lowerIsBetter && delta.direction !== "flat" ? delta.direction === "up" : false;
+    delta.hasPreviousPeriodComparison && props.lowerIsBetter && delta.direction !== "flat"
+      ? delta.direction === "up"
+      : false;
   return (
     <Card>
       <CardHeader>
@@ -34,11 +38,19 @@ export function ComparisonMetricCard(props: {
             worsened && "text-destructive",
           )}
         >
-          <span aria-hidden="true">{delta.label}</span>{" "}
-          <span className="text-muted-foreground" aria-hidden="true">
-            vs previous period
+          <span aria-hidden="true">{delta.label}</span>
+          {delta.hasPreviousPeriodComparison ? (
+            <>
+              {" "}
+              <span className="text-muted-foreground" aria-hidden="true">
+                vs previous period
+              </span>
+            </>
+          ) : null}
+          <span className="sr-only">
+            {delta.accessibleLabel}
+            {delta.hasPreviousPeriodComparison ? " compared with the previous period" : ""}
           </span>
-          <span className="sr-only">{delta.accessibleLabel} compared with the previous period</span>
         </p>
       </CardHeader>
     </Card>

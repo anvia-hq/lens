@@ -219,10 +219,16 @@ export function comparisonDelta(current: number, previous: number, mode: "relati
       direction,
       label: `${arrow} ${Math.abs(change).toFixed(1)} pp`,
       accessibleLabel: `${Math.abs(change).toFixed(1)} percentage points ${direction}`,
+      hasPreviousPeriodComparison: true,
     } as const;
   }
   if (previous === 0 && current > 0) {
-    return { direction: "up", label: "New", accessibleLabel: "New activity" } as const;
+    return {
+      direction: "up",
+      label: "No prior baseline",
+      accessibleLabel: "No prior baseline",
+      hasPreviousPeriodComparison: false,
+    } as const;
   }
   const change = previous === 0 ? 0 : (current - previous) / Math.abs(previous);
   const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
@@ -231,6 +237,7 @@ export function comparisonDelta(current: number, previous: number, mode: "relati
     direction,
     label: `${arrow} ${Math.abs(change * 100).toFixed(1)}%`,
     accessibleLabel: `${Math.abs(change * 100).toFixed(1)} percent ${direction}`,
+    hasPreviousPeriodComparison: true,
   } as const;
 }
 

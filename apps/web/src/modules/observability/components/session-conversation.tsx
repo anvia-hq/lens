@@ -25,7 +25,7 @@ import { StatusPill } from "./status-pill";
 export function SessionConversation(props: { detail: SessionDetail; projectId: string }) {
   const summary = props.detail.summary;
   return (
-    <main className="grid h-[calc(100svh-3.5rem)] min-h-0 w-full flex-1 overflow-auto bg-muted/10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
+    <main className="grid h-[calc(100svh-3.5rem)] min-h-0 w-full flex-1 overflow-auto bg-background lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_24rem]">
       <section className="min-w-0 lg:overflow-auto">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur md:px-8">
           <div>
@@ -75,7 +75,7 @@ export function SessionConversation(props: { detail: SessionDetail; projectId: s
                     Open trace <ExternalLink />
                   </Link>
                 </div>
-                <div className="grid gap-4">
+                <div className="grid gap-5">
                   <ConversationMessage
                     label="User"
                     icon={<User />}

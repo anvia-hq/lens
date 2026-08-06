@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { ChartContainer } from "@lens/ui/components/chart";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Area, AreaChart } from "recharts";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,7 @@ import { validateTraceDetailSearch } from "../../routes/$projectId/traces/$trace
 import { validateUsersSearch } from "../../routes/$projectId/users";
 import { validateUserDetailSearch } from "../../routes/$projectId/users/$userId";
 import { ComparisonMetricCard } from "./components/comparison-metric-card";
+import { LiveBadge } from "./components/live-badge";
 import { RangeSelector } from "./components/range-selector";
 import { SessionExplorerTable } from "./components/session-explorer-table";
 import { TraceExplorerTable } from "./components/trace-explorer-table";
@@ -227,8 +229,26 @@ describe("overview controls", () => {
     expect(adaptiveRefreshInterval("30d")).toBe("30s");
     expect(refreshMilliseconds("10s")).toBe(10_000);
     expect(refreshMilliseconds("Off")).toBe(false);
-    expect(comparisonDelta(10, 0, "relative").label).toBe("New");
+    expect(comparisonDelta(10, 0, "relative")).toMatchObject({
+      label: "No prior baseline",
+      accessibleLabel: "No prior baseline",
+      hasPreviousPeriodComparison: false,
+    });
     expect(comparisonDelta(0.08, 0.1, "points").label).toBe("↓ 2.0 pp");
+  });
+
+  it("opens the refresh interval menu", async () => {
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LiveBadge interval="5s" onIntervalChange={() => undefined} />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh interval" }));
+
+    expect(await screen.findByText("Refresh interval")).toBeTruthy();
+    expect(screen.getByText("Every 10s")).toBeTruthy();
   });
 
   it("renders previous-period context on metric cards", () => {
@@ -245,5 +265,23 @@ describe("overview controls", () => {
     expect(screen.getByText("Total tokens")).toBeTruthy();
     expect(screen.getByText("1,200")).toBeTruthy();
     expect(screen.getByText(/20.0 percent up/)).toBeTruthy();
+  });
+
+  it("renders a standalone message when there is no prior baseline", () => {
+    render(
+      <ComparisonMetricCard
+        label="Generations"
+        value="10"
+        current={10}
+        previous={0}
+        icon={<span>icon</span>}
+      />,
+    );
+
+    expect(
+      screen.getByText("No prior baseline", { selector: '[aria-hidden="true"]' }),
+    ).toBeTruthy();
+    expect(screen.queryByText("vs previous period")).toBeNull();
+    expect(screen.queryByText(/compared with the previous period/)).toBeNull();
   });
 });

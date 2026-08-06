@@ -1,5 +1,4 @@
 import type { SessionTurnPayload } from "@lens/contracts";
-import { cn } from "@lens/ui/lib/utils";
 import { ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -15,18 +14,11 @@ export function ConversationMessage(props: {
   traceId: string;
 }) {
   return (
-    <section
-      className={cn(
-        "grid min-w-0 gap-2 rounded-xl border px-4 py-3",
-        props.tone === "user"
-          ? "ml-auto w-[min(90%,48rem)] bg-muted/40"
-          : "mr-auto w-full bg-background",
-      )}
-    >
+    <section className="grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 gap-y-2">
+      <span className="row-span-2 grid size-7 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-3.5">
+        {props.icon}
+      </span>
       <div className="flex min-w-0 items-center gap-2 text-xs font-medium">
-        <span className="grid size-6 place-items-center rounded-full bg-foreground text-background [&_svg]:size-3">
-          {props.icon}
-        </span>
         <span>{props.label}</span>
         {props.payload ? (
           <Link
@@ -42,7 +34,7 @@ export function ConversationMessage(props: {
         ) : null}
       </div>
       {props.payload ? (
-        <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">
+        <p className="m-0 min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
           {extractSessionMessageText(props.payload.value, props.tone)}
         </p>
       ) : (
