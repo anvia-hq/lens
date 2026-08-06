@@ -62,7 +62,7 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
     state.recalculate.error;
   return (
     <Page
-      className="mx-auto max-w-7xl"
+      className="mx-auto max-w-6xl"
       eyebrow="Anvia Lens"
       title="LLM Models"
       description="Configure organization-wide USD pricing per million tokens."

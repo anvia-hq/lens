@@ -21,6 +21,7 @@ import {
 import { ConversationMessage } from "./conversation-message";
 import { MetricPill } from "./metric-pill";
 import { SessionMetadata } from "./session-metadata";
+import { StatusPill } from "./status-pill";
 export function SessionConversation(props: { detail: SessionDetail; projectId: string }) {
   const summary = props.detail.summary;
   return (
@@ -59,9 +60,7 @@ export function SessionConversation(props: { detail: SessionDetail; projectId: s
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Turn {index + 1}
                       </span>
-                      <Badge variant={turn.trace.status === "error" ? "destructive" : "outline"}>
-                        {turn.trace.status === "ok" ? "Success" : turn.trace.status}
-                      </Badge>
+                      <StatusPill status={turn.trace.status} />
                     </div>
                     <p className="mt-1 truncate text-sm font-medium">{turn.trace.name}</p>
                     <p className="font-mono text-[11px] text-muted-foreground">

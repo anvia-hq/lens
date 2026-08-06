@@ -1,10 +1,10 @@
 import type { SessionDetail } from "@lens/contracts";
-import { Badge } from "@lens/ui/components/badge";
 import { Chats as MessagesSquare } from "@phosphor-icons/react";
 import { formatCost, formatDuration, formatNumber, formatTimestamp } from "../utils/session";
 import { MetadataRow } from "./metadata-row";
 import { MetadataSection } from "./metadata-section";
 import { MetadataValues } from "./metadata-values";
+import { SessionStatusBadge } from "./session-status-badge";
 export function SessionMetadata({ detail }: { detail: SessionDetail }) {
   const summary = detail.summary;
   return (
@@ -24,9 +24,7 @@ export function SessionMetadata({ detail }: { detail: SessionDetail }) {
 
         <MetadataSection title="Overview">
           <MetadataRow label="Status">
-            <Badge variant={summary.status === "error" ? "destructive" : "secondary"}>
-              {summary.status === "error" ? `${summary.errorCount} errors` : "Success"}
-            </Badge>
+            <SessionStatusBadge summary={summary} />
           </MetadataRow>
           <MetadataRow label="User">
             <span className="break-all font-mono">{summary.userId ?? "—"}</span>

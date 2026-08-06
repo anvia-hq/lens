@@ -57,6 +57,14 @@ describe("session conversation", () => {
     expect(screen.getByRole("heading", { name: "Usage" })).toBeTruthy();
     expect(screen.getByText("No conversation payloads captured")).toBeTruthy();
   });
+
+  it("keeps successful session status outcome-only when child spans failed", () => {
+    const detail = emptySession();
+    detail.summary.spanErrorCount = 3;
+    render(<SessionConversation detail={detail} projectId="project-1" />);
+    expect(screen.getByText("Success")).toBeTruthy();
+    expect(screen.queryByText(/recovered/i)).toBeNull();
+  });
 });
 
 function emptySession(): SessionDetail {
@@ -70,6 +78,7 @@ function emptySession(): SessionDetail {
       durationMs: 1_000,
       traceCount: 1,
       errorCount: 0,
+      spanErrorCount: 0,
       spanCount: 1,
       inputTokens: 10,
       outputTokens: 5,

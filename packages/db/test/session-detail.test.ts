@@ -11,7 +11,7 @@ describe("session queries", () => {
       json: async () =>
         sql.includes("count() AS total")
           ? [{ total: "26" }]
-          : [sessionRow({ session_status: "error", error_count: "2" })],
+          : [sessionRow({ session_status: "error", failed_trace_count: "2" })],
     }));
     const page = await listSessions({ query } as unknown as ClickHouseClient, projectId, {
       statuses: ["error"],
@@ -31,6 +31,8 @@ describe("session queries", () => {
       environments: ["production"],
     });
     const listCall = query.mock.calls.find(([options]) => options.query.includes("SELECT * FROM"));
+    expect(listCall?.[0].query).toContain("countIf(status = 'error') AS failed_trace_count");
+    expect(listCall?.[0].query).toContain("sum(error_count) AS span_error_count");
     expect(listCall?.[0].query).toContain("status IN {statuses:Array(String)}");
     expect(listCall?.[0].query).toContain("hasAny(environments, {environments:Array(String)})");
     expect(listCall?.[0].query).toContain("total_cost ASC");
@@ -129,7 +131,8 @@ function sessionRow(overrides: Record<string, unknown> = {}) {
     session_ended_at: "2026-08-05 00:00:03.000",
     duration_ms: "3000",
     trace_count: "2",
-    error_count: "0",
+    failed_trace_count: "0",
+    span_error_count: "0",
     session_status: "success",
     span_count: "3",
     input_tokens: "10",
@@ -160,6 +163,7 @@ function traceRow() {
     span_count: "2",
     generation_count: "1",
     tool_count: "1",
+    error_count: "0",
     user_id: "user-1",
     session_id: "session-1",
     tags: ["chat"],

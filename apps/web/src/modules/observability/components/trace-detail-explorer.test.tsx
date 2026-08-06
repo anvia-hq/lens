@@ -131,6 +131,14 @@ describe("trace detail controls", () => {
         name: "turn.2",
         startTimeUnixNano: nano(30),
       }),
+      span({
+        spanId: "failed-tool",
+        parentSpanId: "turn-2",
+        name: "tool.read_file",
+        observationKind: "tool",
+        status: "error",
+        startTimeUnixNano: nano(40),
+      }),
     ]);
     const forest = buildSpanForest(subject.spans);
 
@@ -174,6 +182,9 @@ describe("trace detail controls", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Timeline view" }));
     expect(screen.getByRole("region", { name: "Span timeline" })).toBeTruthy();
+    const failedToolRow = screen.getByText("tool.read_file").closest("button");
+    expect(failedToolRow?.querySelector(".bg-amber-600")).toBeTruthy();
+    expect(screen.getByText("ERROR")).toBeTruthy();
   });
 
   it("switches the whole selected-span preview between formatted and JSON", () => {
@@ -232,6 +243,7 @@ function detail(spans: SpanDetail[]): TraceDetail {
       spanCount: spans.length,
       generationCount: spans.filter((item) => item.observationKind === "generation").length,
       toolCount: spans.filter((item) => item.observationKind === "tool").length,
+      errorCount: spans.filter((item) => item.status === "error").length,
       userId: null,
       sessionId: "session-1",
       tags: [],

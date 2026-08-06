@@ -25,6 +25,7 @@ import { XAxis } from "recharts";
 import { CompactValues } from "../components/compact-values";
 import { SessionNameCell } from "../components/session-name-cell";
 import { SessionOpenCell } from "../components/session-open-cell";
+import { SessionStatusBadge } from "../components/session-status-badge";
 import { StatusBadge } from "../components/status-badge";
 import { TraceNameCell } from "../components/trace-name-cell";
 import { TraceOpenCell } from "../components/trace-open-cell";
@@ -325,11 +326,7 @@ export function sessionTableColumns(options: {
     }),
     status: sessionColumnHelper.accessor("status", {
       header: header("Status", "status"),
-      cell: ({ row }) => (
-        <Badge variant={row.original.status === "error" ? "destructive" : "secondary"}>
-          {row.original.status === "error" ? `${row.original.errorCount} errors` : "Success"}
-        </Badge>
-      ),
+      cell: ({ row }) => <SessionStatusBadge summary={row.original} />,
     }),
     userId: sessionColumnHelper.accessor("userId", {
       header: header("User", "userId"),

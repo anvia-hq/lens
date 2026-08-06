@@ -101,7 +101,7 @@ export async function recalculateModelCosts(
     query: `INSERT INTO trace_summaries
             (
               project_id, trace_id, name, service_name, status, started_at, ended_at, duration_ms,
-              span_count, generation_count, tool_count, user_id, session_id, tags, model,
+              span_count, generation_count, tool_count, error_count, user_id, session_id, tags, model,
               environment, release, version, service_version,
               input_tokens, output_tokens, total_tokens, input_cost, output_cost, total_cost,
               last_seen_at, expires_at, summary_version
@@ -109,7 +109,7 @@ export async function recalculateModelCosts(
             SELECT
               summary.project_id, summary.trace_id, summary.name, summary.service_name,
               summary.status, summary.started_at, summary.ended_at, summary.duration_ms,
-              summary.span_count, summary.generation_count, summary.tool_count, summary.user_id,
+              summary.span_count, summary.generation_count, summary.tool_count, summary.error_count, summary.user_id,
               summary.session_id, summary.tags, summary.model, summary.environment, summary.release,
               summary.version, summary.service_version, summary.input_tokens, summary.output_tokens,
               summary.total_tokens, costs.input_cost, costs.output_cost, costs.total_cost,

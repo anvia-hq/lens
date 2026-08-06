@@ -59,7 +59,10 @@ export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: b
         />
       ) : null}
       <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${iconX + 2}px` }}>
-        <ObservationGlyph kind={row.span.observationKind} status={row.span.status} />
+        <ObservationGlyph
+          kind={row.span.observationKind}
+          status={row.span.observationKind === "tool" ? undefined : row.span.status}
+        />
       </span>
     </span>
   );

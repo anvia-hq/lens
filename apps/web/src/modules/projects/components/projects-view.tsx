@@ -110,7 +110,7 @@ export function ProjectsView({
           )
         ) : null
       }
-      className={section === "projects" ? "mx-auto max-w-6xl" : "mx-auto max-w-5xl"}
+      className="mx-auto max-w-6xl"
       eyebrow="Anvia Lens"
       title={section === "projects" ? "Projects" : "Members"}
       description={

@@ -175,6 +175,7 @@ export type TraceSummary = {
   spanCount: number;
   generationCount: number;
   toolCount: number;
+  errorCount: number;
   userId: string | null;
   sessionId: string | null;
   tags: string[];
@@ -206,6 +207,7 @@ export type SessionSummary = {
   durationMs: number;
   traceCount: number;
   errorCount: number;
+  spanErrorCount: number;
   spanCount: number;
   inputTokens: number;
   outputTokens: number;

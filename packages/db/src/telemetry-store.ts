@@ -81,6 +81,7 @@ type SummaryRow = {
   span_count: number | string;
   generation_count: number | string;
   tool_count: number | string;
+  error_count: number | string;
   user_id: string | null;
   session_id: string | null;
   tags: string[];
@@ -106,7 +107,8 @@ type SessionSummaryRow = {
   session_ended_at: string;
   duration_ms: number | string;
   trace_count: number | string;
-  error_count: number | string;
+  failed_trace_count: number | string;
+  span_error_count: number | string;
   span_count: number | string;
   input_tokens: number | string;
   output_tokens: number | string;
@@ -222,7 +224,6 @@ export async function materializeTrace(
     (maximum, span) => (span.end_time > maximum ? span.end_time : maximum),
     root.end_time,
   );
-  const error = spans.some((span) => span.status === "error");
   const inputTokens = spans
     .filter((span) => span.observation_kind === "generation")
     .reduce((sum, span) => sum + numeric(span.input_tokens), 0);
@@ -247,7 +248,7 @@ export async function materializeTrace(
         trace_id: traceId,
         name: root.trace_name ?? root.name,
         service_name: root.service_name,
-        status: error ? "error" : spans.every((span) => span.status === "ok") ? "ok" : "unset",
+        status: root.status,
         started_at: startedAt,
         ended_at: endedAt,
         duration_ms: Math.max(
@@ -258,6 +259,7 @@ export async function materializeTrace(
         span_count: spans.length,
         generation_count: spans.filter((span) => span.observation_kind === "generation").length,
         tool_count: spans.filter((span) => span.observation_kind === "tool").length,
+        error_count: spans.filter((span) => span.status === "error").length,
         user_id: root.user_id ?? firstDefined(spans.map((span) => span.user_id)),
         session_id: root.session_id ?? firstDefined(spans.map((span) => span.session_id)),
         tags: Array.from(new Set(spans.flatMap((span) => span.tags))),
@@ -611,7 +613,7 @@ const sessionSortColumns: Record<SessionSortField, string> = {
   status: "session_status",
   durationMs: "duration_ms",
   traceCount: "trace_count",
-  errorCount: "error_count",
+  errorCount: "failed_trace_count",
   spanCount: "span_count",
   totalTokens: "total_tokens",
   totalCost: "total_cost",
@@ -634,7 +636,8 @@ function sessionAggregateSql(filters: string[]): string {
             max(ended_at) AS session_ended_at,
             dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
             count() AS trace_count,
-            countIf(status = 'error') AS error_count,
+            countIf(status = 'error') AS failed_trace_count,
+            sum(error_count) AS span_error_count,
             if(countIf(status = 'error') > 0, 'error', 'success') AS session_status,
             sum(span_count) AS span_count,
             sum(input_tokens) AS input_tokens,
@@ -747,6 +750,7 @@ export async function getSession(
     rowsByTrace.set(row.trace_id, [...(rowsByTrace.get(row.trace_id) ?? []), row]);
   }
   const errorCount = traces.items.filter((trace) => trace.status === "error").length;
+  const spanErrorCount = traces.items.reduce((total, trace) => total + trace.errorCount, 0);
   return {
     summary: {
       projectId,
@@ -757,6 +761,7 @@ export async function getSession(
       durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
       traceCount: traces.items.length,
       errorCount,
+      spanErrorCount,
       spanCount: traces.items.reduce((total, trace) => total + trace.spanCount, 0),
       inputTokens: traces.items.reduce((total, trace) => total + trace.inputTokens, 0),
       outputTokens: traces.items.reduce((total, trace) => total + trace.outputTokens, 0),
@@ -1381,6 +1386,7 @@ function summaryFromRow(row: SummaryRow): TraceSummary {
     spanCount: numeric(row.span_count),
     generationCount: numeric(row.generation_count),
     toolCount: numeric(row.tool_count),
+    errorCount: numeric(row.error_count),
     userId: row.user_id,
     sessionId: row.session_id,
     tags: row.tags,
@@ -1408,7 +1414,8 @@ function sessionSummaryFromRow(row: SessionSummaryRow): SessionSummary {
     endedAt: ensureIso(row.session_ended_at),
     durationMs: numeric(row.duration_ms),
     traceCount: numeric(row.trace_count),
-    errorCount: numeric(row.error_count),
+    errorCount: numeric(row.failed_trace_count),
+    spanErrorCount: numeric(row.span_error_count),
     spanCount: numeric(row.span_count),
     inputTokens: numeric(row.input_tokens),
     outputTokens: numeric(row.output_tokens),

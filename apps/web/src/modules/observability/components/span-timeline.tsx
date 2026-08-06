@@ -1,4 +1,5 @@
 import type { TraceDetail } from "@lens/contracts";
+import { Badge } from "@lens/ui/components/badge";
 import { cn } from "@lens/ui/lib/utils";
 import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { useMemo } from "react";
@@ -68,6 +69,14 @@ export function SpanTimeline(props: {
                   <span className="min-w-0 flex-1 truncate py-2 pr-1 text-[11px] font-medium">
                     {row.span.name}
                   </span>
+                  {row.span.status === "error" ? (
+                    <Badge
+                      className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                      variant="destructive"
+                    >
+                      ERROR
+                    </Badge>
+                  ) : null}
                 </button>
                 {row.hasChildren ? (
                   <button
