@@ -6,7 +6,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -33,14 +32,13 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
 
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
-      <SidebarHeader>
+      <SidebarHeader className="pb-0">
         <Link className="flex h-10 items-center gap-2 px-2" to="/">
           <span className="font-heading text-lg font-semibold">Anvia Lens</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Anvia Lens</SidebarGroupLabel>
+        <SidebarGroup className="pt-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {links.map(({ to, label, icon: Icon }) => (

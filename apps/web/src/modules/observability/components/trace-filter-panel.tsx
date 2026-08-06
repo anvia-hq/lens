@@ -15,7 +15,6 @@ import { ErrorAlert } from "../../../components/error-alert";
 import type { ResolvedTracesSearch, TracesSearch } from "../types";
 import { formatNumber, traceFacetSections } from "../utils/observability-view";
 import { CommittedFilterInput } from "./committed-filter-input";
-import { TraceRangeFilter } from "./trace-range-filter";
 
 export function TraceFilterPanel(props: {
   filters: ResolvedTracesSearch;
@@ -132,32 +131,6 @@ export function TraceFilterPanel(props: {
               value={props.filters.sessionId}
               placeholder="Session ID"
               onCommit={(sessionId) => props.onChange({ sessionId })}
-            />
-            <TraceRangeFilter
-              label="Latency (ms)"
-              minimum={props.filters.minDurationMs}
-              maximum={props.filters.maxDurationMs}
-              onCommit={(minDurationMs, maxDurationMs) =>
-                props.onChange({ minDurationMs, maxDurationMs })
-              }
-            />
-            <TraceRangeFilter
-              label="Total tokens"
-              minimum={props.filters.minTotalTokens}
-              maximum={props.filters.maxTotalTokens}
-              integer
-              onCommit={(minTotalTokens, maxTotalTokens) =>
-                props.onChange({ minTotalTokens, maxTotalTokens })
-              }
-            />
-            <TraceRangeFilter
-              label="Total cost (USD)"
-              minimum={props.filters.minTotalCost}
-              maximum={props.filters.maxTotalCost}
-              step="0.0001"
-              onCommit={(minTotalCost, maxTotalCost) =>
-                props.onChange({ minTotalCost, maxTotalCost })
-              }
             />
           </div>
         </div>

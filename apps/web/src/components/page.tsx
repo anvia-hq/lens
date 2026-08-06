@@ -13,9 +13,11 @@ export function Page(props: {
     <main className={cn("flex w-full flex-1 flex-col gap-6 p-4 md:p-6", props.className)}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="grid gap-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {props.eyebrow ?? "Observability"}
-          </p>
+          {props.eyebrow ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {props.eyebrow}
+            </p>
+          ) : null}
           <h1 className="font-heading text-2xl font-medium tracking-tight">{props.title}</h1>
           <p className="text-sm text-muted-foreground">{props.description}</p>
         </div>

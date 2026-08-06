@@ -87,7 +87,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   );
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
-      <SidebarHeader>
+      <SidebarHeader className="pb-0">
         <Link className="flex h-10 items-center gap-2 px-2" to="/">
           <div className="grid min-w-0 group-data-collapsible-icon:hidden">
             <span className="font-heading text-lg font-semibold">Anvia Lens</span>
@@ -95,11 +95,11 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="py-1">
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(observabilityLinks)}</SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
+        <SidebarGroup className="py-1">
           <SidebarGroupLabel>Management</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(managementLinks)}</SidebarGroupContent>
         </SidebarGroup>

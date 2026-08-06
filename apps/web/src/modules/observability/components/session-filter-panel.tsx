@@ -14,7 +14,6 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { ResolvedSessionsSearch, SessionsSearch } from "../types";
 import { formatNumber, sessionFacetSections } from "../utils/observability-view";
-import { TraceRangeFilter } from "./trace-range-filter";
 
 export function SessionFilterPanel(props: {
   filters: ResolvedSessionsSearch;
@@ -113,34 +112,6 @@ export function SessionFilterPanel(props: {
               );
             })}
           </Accordion>
-          <div className="grid gap-4 border-t px-3 pb-5 pt-4">
-            <TraceRangeFilter
-              label="Duration (ms)"
-              minimum={props.filters.minDurationMs}
-              maximum={props.filters.maxDurationMs}
-              onCommit={(minDurationMs, maxDurationMs) =>
-                props.onChange({ minDurationMs, maxDurationMs })
-              }
-            />
-            <TraceRangeFilter
-              label="Total tokens"
-              minimum={props.filters.minTotalTokens}
-              maximum={props.filters.maxTotalTokens}
-              integer
-              onCommit={(minTotalTokens, maxTotalTokens) =>
-                props.onChange({ minTotalTokens, maxTotalTokens })
-              }
-            />
-            <TraceRangeFilter
-              label="Total cost (USD)"
-              minimum={props.filters.minTotalCost}
-              maximum={props.filters.maxTotalCost}
-              step="0.0001"
-              onCommit={(minTotalCost, maxTotalCost) =>
-                props.onChange({ minTotalCost, maxTotalCost })
-              }
-            />
-          </div>
         </div>
       </ScrollArea>
     </div>
