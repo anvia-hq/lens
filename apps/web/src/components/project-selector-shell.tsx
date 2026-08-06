@@ -10,7 +10,7 @@ export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
       <WorkspaceSidebar user={user} />
       <SidebarInset className="h-svh min-h-0 overflow-y-auto">
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
-          <span className="font-medium">{pathname === "/teams" ? "Teams" : "Projects"}</span>
+          <span className="font-medium">{pathname === "/members" ? "Members" : "Projects"}</span>
         </header>
         <Outlet />
       </SidebarInset>

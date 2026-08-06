@@ -1,4 +1,6 @@
-export type AuthMode = "login" | "signup";
+export type AuthMode = "login" | "bootstrap";
+
+export type SetupStatus = { initialized: boolean };
 
 export type InvitationDetail = {
   id: string;
@@ -6,5 +8,4 @@ export type InvitationDetail = {
   role: string | null;
   status: string;
   expiresAt: string;
-  organizationName: string;
 };

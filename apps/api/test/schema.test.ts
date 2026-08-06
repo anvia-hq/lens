@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
+import { parseMemberRole } from "../src/modules/members/schema";
 import { parseSessionRequest } from "../src/modules/sessions/schema";
-import { parseMemberRole } from "../src/modules/teams/schema";
 import { parseTraceRequest } from "../src/modules/traces/schema";
 
 async function parseRequest<T>(url: string, parser: Parameters<typeof parserApp>[0]): Promise<T> {
@@ -57,7 +57,7 @@ describe("API module schemas", () => {
     );
   });
 
-  it("accepts only mutable team roles", () => {
+  it("accepts only mutable member roles", () => {
     expect(parseMemberRole("admin")).toBe("admin");
     expect(parseMemberRole("member")).toBe("member");
     expect(parseMemberRole("owner")).toBeUndefined();

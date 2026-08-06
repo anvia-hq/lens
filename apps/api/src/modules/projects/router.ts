@@ -1,7 +1,7 @@
 import { project, projectApiKey } from "@lens/db";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { canManage, ensureDefaultTeam, requireProjectAccess } from "../../utils/access.js";
+import { appMembership, canManage, requireProjectAccess } from "../../utils/access.js";
 import { apiError, requiredSession, safeJson } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { createProjectSchema, projectSettingsSchema } from "./schema.js";
@@ -11,27 +11,29 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
     .get("/", async (c) => {
       const session = requiredSession(c);
-      const team = await ensureDefaultTeam(deps.postgres.db, session.user);
+      const app = await appMembership(deps.postgres.db, session.user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
       const rows = await deps.postgres.db
         .select()
         .from(project)
-        .where(eq(project.organizationId, team.organization.id));
+        .where(eq(project.organizationId, app.organization.id));
       return c.json({
-        items: rows.map((row) => ({ ...projectFromRow(row), role: team.membership.role })),
+        items: rows.map((row) => ({ ...projectFromRow(row), role: app.membership.role })),
       });
     })
     .post("/", async (c) => {
       const session = requiredSession(c);
       const parsed = createProjectSchema.safeParse(await safeJson(c));
       if (!parsed.success) return apiError(c, 400, "invalid_project", "Invalid project data");
-      const team = await ensureDefaultTeam(deps.postgres.db, session.user);
-      if (!canManage(team.membership.role)) {
+      const app = await appMembership(deps.postgres.db, session.user.id);
+      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      if (!canManage(app.membership.role)) {
         return apiError(c, 403, "forbidden", "Admin access is required");
       }
       const [created] = await deps.postgres.db
         .insert(project)
         .values({
-          organizationId: team.organization.id,
+          organizationId: app.organization.id,
           name: parsed.data.name,
           slug: parsed.data.slug,
         })

@@ -1,5 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import { Button } from "@lens/ui/components/button";
+import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
+import { Input } from "@lens/ui/components/input";
 import {
   DangerCircle as AlertCircle,
   CheckCircle as Check,
@@ -15,12 +17,11 @@ export function InvitationCard({ state }: { state: InvitationState }) {
   return (
     <CenteredCard
       icon={<MailPlus />}
-      eyebrow="Team invitation"
-      title={`Join ${detail.organizationName}`}
+      eyebrow="Member invitation"
+      title="Join Anvia Lens"
       description={
         <>
-          You were invited as <strong>{detail.role ?? "member"}</strong>. Accept to access this
-          team&apos;s projects.
+          <strong>{detail.email}</strong> was invited as a {detail.role ?? "member"}.
         </>
       }
     >
@@ -34,23 +35,62 @@ export function InvitationCard({ state }: { state: InvitationState }) {
         </Alert>
       ) : null}
       {state.error ? <ErrorAlert error={state.error} /> : null}
-      <div className="flex gap-2">
-        <Button
-          className="flex-1"
-          disabled={!state.actionable || state.accept.isPending}
-          onClick={() => state.accept.mutate()}
+      {state.actionable ? (
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            state.submit();
+          }}
         >
-          <Check /> Accept
-        </Button>
-        <Button
-          className="flex-1"
-          variant="outline"
-          disabled={!state.actionable || state.reject.isPending}
-          onClick={() => state.reject.mutate()}
-        >
-          Decline
-        </Button>
-      </div>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="invitation-name">Name</FieldLabel>
+              <Input
+                id="invitation-name"
+                required
+                autoFocus
+                autoComplete="name"
+                value={state.name}
+                onChange={(event) => state.setName(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="invitation-password">Password</FieldLabel>
+              <Input
+                id="invitation-password"
+                required
+                minLength={8}
+                type="password"
+                autoComplete="new-password"
+                value={state.password}
+                onChange={(event) => state.setPassword(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="invitation-password-confirmation">Confirm password</FieldLabel>
+              <Input
+                id="invitation-password-confirmation"
+                required
+                minLength={8}
+                type="password"
+                autoComplete="new-password"
+                value={state.passwordConfirmation}
+                onChange={(event) => state.setPasswordConfirmation(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          {state.validationError ? (
+            <Alert variant="destructive">
+              <AlertCircle />
+              <AlertDescription>{state.validationError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Button type="submit" disabled={state.claim.isPending}>
+            <Check /> Create account and join
+          </Button>
+        </form>
+      ) : null}
     </CenteredCard>
   );
 }

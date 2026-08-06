@@ -9,10 +9,10 @@ trace timelines, session/user views, and latency/token analytics.
 
 - Hono API and BullMQ worker on Node.js 24
 - React, Vite, Tailwind CSS, TanStack Query/Router
-- PostgreSQL for users, teams, projects, and ingestion keys
+- PostgreSQL for users, membership, projects, and ingestion keys
 - ClickHouse for spans and trace summaries
 - Redis for durable ingestion jobs and rate limits
-- Better Auth for email/password sessions and team membership
+- Better Auth for invitation-only email/password sessions and membership
 
 ## UI system
 
@@ -58,19 +58,20 @@ The command is safe to rerun: it refreshes only the dedicated demo project. Sign
 generation, and tool spans across support, billing, incident response, research, and risk
 workloads. It prints the reusable demo public and secret keys when it completes.
 
-## Projects and teams
+## Projects and members
 
-Every account uses one automatically managed team, so there is no workspace setup or switching.
+Anvia Lens is the workspace, so there is no workspace setup or switching. On an empty installation,
+the first person creates the owner account from the sign-in screen. Public registration closes as
+soon as that account exists.
+
 The root page is the project selector. Choose a project there to open its overview, traces,
-sessions, connection guide, and project settings. The selector also creates projects and its
-**Team** tab manages teammates. Projects have independent telemetry, settings, and ingestion
-keys. Owners and admins can invite teammates, assign member or admin roles, change roles, remove
-members, and cancel pending invitations.
+sessions, connection guide, and project settings. The **Members** page manages access. Owners and
+admins create seven-day invitation links for member or admin roles, then copy and share those links
+directly. No invitation email is sent. The invited person opens the link, enters their name and a
+password, and receives their account and membership in one step. Invitations are single-use.
 
-In development, invitation and verification messages are delivered to Mailpit. A teammate can
-open the invitation link, create and verify an account if needed, then accept or decline the
-invitation. Member access is read-only for team management, while admins can manage projects
-and teammates.
+Every account can have only one membership. Member access is read-only for membership management,
+while admins can manage projects and members. SMTP remains available for password-reset messages.
 
 For application development with infrastructure in containers:
 

@@ -41,6 +41,7 @@ import {
 } from "@lens/ui/components/table";
 import {
   AltArrowRight as ArrowRight,
+  Copy,
   Layers as Layers3,
   UserPlus as MailPlus,
   AddCircle as Plus,
@@ -52,12 +53,14 @@ import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { ProjectManagementState } from "../hooks/use-project-management";
+import { notify } from "../utils";
+
 export function ProjectsView({
   state,
   section,
 }: {
   state: ProjectManagementState;
-  section: "projects" | "teams";
+  section: "projects" | "members";
 }) {
   const {
     cancelInvitation,
@@ -86,6 +89,12 @@ export function ProjectsView({
     setRemoveMemberId,
     updateRole,
   } = state;
+  const invitationUrl = (invitationId: string) =>
+    new URL(`/accept-invitation/${invitationId}`, window.location.origin).toString();
+  const copyInvitation = async (invitationId: string) => {
+    await navigator.clipboard.writeText(invitationUrl(invitationId));
+    notify("Invitation link copied");
+  };
   return (
     <Page
       action={
@@ -102,12 +111,12 @@ export function ProjectsView({
         ) : null
       }
       className={section === "projects" ? "mx-auto max-w-6xl" : "mx-auto max-w-5xl"}
-      eyebrow="Workspace"
-      title={section === "projects" ? "Projects" : "Teams"}
+      eyebrow="Anvia Lens"
+      title={section === "projects" ? "Projects" : "Members"}
       description={
         section === "projects"
           ? "Choose a project to open its observability dashboard"
-          : "Manage the people who can access your team's projects"
+          : "Manage the people who can access Anvia Lens"
       }
     >
       {managementError ? <ErrorAlert error={managementError} /> : null}
@@ -169,7 +178,7 @@ export function ProjectsView({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Team members</CardTitle>
+            <CardTitle>Members</CardTitle>
             <CardDescription>Owners and admins can invite people and update roles.</CardDescription>
           </CardHeader>
           <CardContent className="px-0">
@@ -257,6 +266,13 @@ export function ProjectsView({
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => void copyInvitation(item.id)}
+                    >
+                      <Copy /> Copy link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       disabled={cancelInvitation.isPending}
                       onClick={() => cancelInvitation.mutate(item.id)}
                     >
@@ -332,50 +348,68 @@ export function ProjectsView({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add team member</DialogTitle>
+            <DialogTitle>Add member</DialogTitle>
             <DialogDescription>
-              Send an invitation to give someone access to the team's projects.
+              Create a private invitation link to share with the new member.
             </DialogDescription>
           </DialogHeader>
           {inviteMember.error ? <ErrorAlert error={inviteMember.error} /> : null}
-          <form
-            id="invite-member-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              inviteMember.mutate();
-            }}
-          >
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="invite-email">Email</FieldLabel>
-                <Input
-                  id="invite-email"
-                  required
-                  autoFocus
-                  type="email"
-                  placeholder="teammate@company.com"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="invite-role">Role</FieldLabel>
-                <NativeSelect
-                  id="invite-role"
-                  value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
-                  className="w-full"
+          {inviteMember.data ? (
+            <Field>
+              <FieldLabel htmlFor="invitation-link">Invitation link</FieldLabel>
+              <div className="flex gap-2">
+                <Input id="invitation-link" readOnly value={invitationUrl(inviteMember.data.id)} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void copyInvitation(inviteMember.data.id)}
                 >
-                  <NativeSelectOption value="member">Member</NativeSelectOption>
-                  <NativeSelectOption value="admin">Admin</NativeSelectOption>
-                </NativeSelect>
-              </Field>
-            </FieldGroup>
-          </form>
+                  <Copy /> Copy
+                </Button>
+              </div>
+            </Field>
+          ) : (
+            <form
+              id="invite-member-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                inviteMember.mutate();
+              }}
+            >
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+                  <Input
+                    id="invite-email"
+                    required
+                    autoFocus
+                    type="email"
+                    placeholder="teammate@company.com"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+                  <NativeSelect
+                    id="invite-role"
+                    value={inviteRole}
+                    onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="member">Member</NativeSelectOption>
+                    <NativeSelectOption value="admin">Admin</NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+              </FieldGroup>
+            </form>
+          )}
           <DialogFooter showCloseButton>
-            <Button form="invite-member-form" type="submit" disabled={inviteMember.isPending}>
-              <MailPlus /> Send invitation
-            </Button>
+            {inviteMember.data ? null : (
+              <Button form="invite-member-form" type="submit" disabled={inviteMember.isPending}>
+                <MailPlus /> Create invitation
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

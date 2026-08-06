@@ -7,7 +7,7 @@ export type ProjectContextValue = {
   projects: ProjectWithRole[];
 };
 
-export type TeamMember = {
+export type Member = {
   id: string;
   userId: string;
   name: string;
@@ -18,7 +18,7 @@ export type TeamMember = {
   isCurrentUser: boolean;
 };
 
-export type TeamInvitation = {
+export type MemberInvitation = {
   id: string;
   email: string;
   role: string | null;
@@ -27,10 +27,10 @@ export type TeamInvitation = {
   createdAt: string;
 };
 
-export type TeamDirectory = {
+export type MemberDirectory = {
   organizationId: string;
   role: string;
   canManage: boolean;
-  members: TeamMember[];
-  invitations: TeamInvitation[];
+  members: Member[];
+  invitations: MemberInvitation[];
 };

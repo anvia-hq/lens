@@ -10,13 +10,17 @@ export const Route = createRootRoute({ component: AppRoot });
 
 function AppRoot() {
   const session = useAuthSession();
+  if (window.location.pathname.startsWith("/accept-invitation/")) return <Outlet />;
   if (session.isPending) return <FullPageMessage icon={<Activity />} text="Opening Anvia Lens" />;
   if (session.data === null) return <AuthPage />;
-  if (window.location.pathname.startsWith("/accept-invitation/")) return <Outlet />;
   return <AuthenticatedApp user={session.data.user} />;
 }
 
 function AuthPage() {
   const state = useAuthForm();
+  if (state.setup.isLoading)
+    return <FullPageMessage icon={<Activity />} text="Checking Anvia Lens setup" />;
+  if (state.setup.isError)
+    return <FullPageMessage icon={<Activity />} text="Unable to check Anvia Lens setup" />;
   return <AuthForm state={state} />;
 }

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../lib/api";
-import type { TeamDirectory, TeamInvitation } from "../types";
+import type { MemberDirectory, MemberInvitation } from "../types";
 import { notify, slugify } from "../utils";
 import { useProject } from "./use-project";
 
@@ -12,8 +12,8 @@ export function useProjectManagement() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const directory = useQuery({
-    queryKey: ["team"],
-    queryFn: () => api<TeamDirectory>("/api/v1/team"),
+    queryKey: ["members"],
+    queryFn: () => api<MemberDirectory>("/api/v1/members"),
   });
   const [projectName, setProjectNameState] = useState("");
   const [projectSlug, setProjectSlug] = useState("");
@@ -28,7 +28,7 @@ export function useProjectManagement() {
     setProjectNameState(value);
     setProjectSlug(slugify(value));
   };
-  const invalidateDirectory = () => queryClient.invalidateQueries({ queryKey: ["team"] });
+  const invalidateDirectory = () => queryClient.invalidateQueries({ queryKey: ["members"] });
   const createProject = useMutation({
     mutationFn: () =>
       api<Project>("/api/v1/projects", {
@@ -59,7 +59,7 @@ export function useProjectManagement() {
   });
   const inviteMember = useMutation({
     mutationFn: () =>
-      api<TeamInvitation>("/api/auth/organization/invite-member", {
+      api<MemberInvitation>("/api/auth/organization/invite-member", {
         method: "POST",
         body: JSON.stringify({
           organizationId: directory.data?.organizationId,
@@ -69,14 +69,13 @@ export function useProjectManagement() {
       }),
     onSuccess: async () => {
       setInviteEmail("");
-      setInviteMemberOpen(false);
       await invalidateDirectory();
-      notify("Invitation sent");
+      notify("Invitation created");
     },
   });
   const updateRole = useMutation({
     mutationFn: (input: { memberId: string; role: "admin" | "member" }) =>
-      api<{ id: string; role: string }>(`/api/v1/team/members/${input.memberId}`, {
+      api<{ id: string; role: string }>(`/api/v1/members/${input.memberId}`, {
         method: "PATCH",
         body: JSON.stringify({ role: input.role }),
       }),
@@ -87,7 +86,7 @@ export function useProjectManagement() {
   });
   const removeMember = useMutation({
     mutationFn: (memberId: string) =>
-      api<void>(`/api/v1/team/members/${memberId}`, { method: "DELETE" }),
+      api<void>(`/api/v1/members/${memberId}`, { method: "DELETE" }),
     onSuccess: async () => {
       setRemoveMemberId(null);
       await invalidateDirectory();

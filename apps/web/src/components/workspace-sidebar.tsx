@@ -26,7 +26,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const links = [
     { to: "/" as const, label: "Projects", icon: Layers3 },
-    { to: "/teams" as const, label: "Teams", icon: Users },
+    { to: "/members" as const, label: "Members", icon: Users },
   ];
 
   return (
@@ -38,7 +38,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>Anvia Lens</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {links.map(({ to, label, icon: Icon }) => (
