@@ -15,6 +15,12 @@
     "db:generate": "pnpm --filter @lens/db db:generate",
     "db:migrate": "pnpm --filter @lens/db db:migrate",
     "db:seed": "pnpm --filter @lens/db db:seed",
+    "example:anvia": "pnpm --filter @lens/example-anvia-agent basics:01",
+    "example:anvia:context": "pnpm --filter @lens/example-anvia-agent basics:02",
+    "example:anvia:tools": "pnpm --filter @lens/example-anvia-agent tools:01",
+    "example:anvia:eval": "pnpm --filter @lens/example-anvia-agent evaluations:01",
+    "example:anvia:judge": "pnpm --filter @lens/example-anvia-agent evaluations:02",
+    "example:anvia:release": "pnpm --filter @lens/example-anvia-agent release:01",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck"
   },

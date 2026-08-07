@@ -113,6 +113,9 @@ Pass `tracing` to an agent with `.observe(tracing)` and `evalReporter` to `runEv
 isolated OpenTelemetry providers, so it does not register global providers or capture unrelated
 application telemetry.
 
+The [native Anvia examples](examples/anvia-agent/README.md) provide a runnable live-model learning
+path from a first trace through tool calls, evaluation runs, LLM judges, comparisons, and gates.
+
 ## Send Langfuse OTLP traces
 
 Create a project key pair in Anvia Lens and configure the standard Langfuse environment variables.

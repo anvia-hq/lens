@@ -213,11 +213,20 @@ importers:
   examples/anvia-agent:
     dependencies:
       '@anvia/core':
-        specifier: ^0.7.1
-        version: 0.7.1
-      '@anvia/langfuse':
-        specifier: ^0.4.0
-        version: 0.4.0(@anvia/core@0.7.1)(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.220.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))
+        specifier: ^0.24.0
+        version: 0.24.0
+      '@anvia/lens':
+        specifier: ^0.2.0
+        version: 0.2.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)
+      '@anvia/openai':
+        specifier: ^0.5.0
+        version: 0.5.0(@anvia/core@0.24.0)(zod@4.4.3)
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -453,13 +462,24 @@ importers:
 
 packages:
 
-  '@anvia/core@0.7.1':
-    resolution: {integrity: sha512-RE14WGqaHvPu7iVQngHutFWPFF2Li/kFZNHKTQch78GNTQkUqm6oYRUaGcNhWxuC3iUHyWq5NbKiTJc/pOwxnA==}
+  '@anvia/core@0.24.0':
+    resolution: {integrity: sha512-Iq4BA94dZWAj4CkeZrI2p7M/681zg/uaqv/0l3kjolhG259o/wh2gZ64Q8DZTGVT4c9O2p/9egx2uD81rMw1Nw==}
 
-  '@anvia/langfuse@0.4.0':
-    resolution: {integrity: sha512-lRQIwVNHxvsMvhfEhZXGV3N8j8xBGGB+qlE+aXL8nOvv9dCwuuY+9+ozj1/NM5ZFz4AfmbcIGOxaxm6EwoDOhQ==}
+  '@anvia/lens@0.2.0':
+    resolution: {integrity: sha512-x/b1MMag1bGc5FPOD96/pwYGqx5PeoRCgvI98FRoYPcDqE2Ye8UvlmiGfjZWxe/g2sDeKwnBUs9zKcGpq8sEgw==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@anvia/core': '>=0.23.0 <1.0.0'
+
+  '@anvia/openai@0.5.0':
+    resolution: {integrity: sha512-7afZvj3Ft25nEcoNgp9M2bCUYoHL66x3eHU+ihBvv4QIg06eVqPR9rFelCgiU0coCZdUTGZG2YwNS8UXQsaVUw==}
     peerDependencies:
       '@anvia/core': '>=0.7.1 <1.0.0'
+
+  '@anvia/otel@0.5.0':
+    resolution: {integrity: sha512-bv4U7BmL+0EszDE3Dc/esDb3X7WbxrBI04tuXzNuE+/shAM3jkpVIBBXR+FU+y2uEN0/AjWcBHDOjm+smuWs0Q==}
+    peerDependencies:
+      '@anvia/core': '>=0.23.0 <1.0.0'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -3827,6 +3847,26 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
+  openai@6.49.0:
+    resolution: {integrity: sha512-aYCc0C6L864eR6WSYIwQGyXriw/nIyZx0ObvhzOEVuk0zoBDpynjSbrionWI7q65B5H8jJX0DXR9snEzM6bfPg==}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   ora@8.2.0:
     resolution: {integrity: sha512-weP+BZ8MVNnlCm8c0Qdc1WSWq4Qn7I+9CJGm7Qali6g44e/PUzbjNqJX5NJ9ljlNMosfJvg1fKEGILklK9cwnw==}
     engines: {node: '>=18'}
@@ -4707,7 +4747,7 @@ packages:
 
 snapshots:
 
-  '@anvia/core@0.7.1':
+  '@anvia/core@0.24.0':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
       pdfjs-dist: 6.2.108
@@ -4718,20 +4758,35 @@ snapshots:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@anvia/langfuse@0.4.0(@anvia/core@0.7.1)(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.220.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))':
+  '@anvia/lens@0.2.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)':
     dependencies:
-      '@anvia/core': 0.7.1
-      '@langfuse/otel': 5.10.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.220.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))
-      '@langfuse/tracing': 5.10.0(@opentelemetry/api@1.9.1)
+      '@anvia/core': 0.24.0
+      '@anvia/otel': 0.5.0(@anvia/core@0.24.0)
+      '@opentelemetry/exporter-logs-otlp-http': 0.220.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-http': 0.220.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node': 0.220.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/sdk-logs': 0.220.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-base': 2.10.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-node': 2.9.0(@opentelemetry/api@1.9.1)
     transitivePeerDependencies:
       - '@opentelemetry/api'
-      - '@opentelemetry/core'
-      - '@opentelemetry/exporter-trace-otlp-http'
-      - '@opentelemetry/sdk-trace-base'
-      - supports-color
+
+  '@anvia/openai@0.5.0(@anvia/core@0.24.0)(zod@4.4.3)':
+    dependencies:
+      '@anvia/core': 0.24.0
+      openai: 6.49.0(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
+      - ws
+      - zod
+
+  '@anvia/otel@0.5.0(@anvia/core@0.24.0)':
+    dependencies:
+      '@anvia/core': 0.24.0
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/api-logs': 0.220.0
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -7607,6 +7662,10 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  openai@6.49.0(zod@4.4.3):
+    optionalDependencies:
+      zod: 4.4.3
 
   ora@8.2.0:
     dependencies:

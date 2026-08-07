@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["01_basics", "02_tools", "03_evaluations", "04_release", "_shared"]
 }
