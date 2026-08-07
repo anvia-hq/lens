@@ -14,6 +14,7 @@ import {
 } from "@lens/ui/components/sidebar";
 import {
   Pulse as Activity,
+  Flask,
   House,
   SignOut as LogOut,
   Chats as MessagesSquare,
@@ -39,6 +40,12 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/traces`,
       label: "Traces",
       icon: Activity,
+    },
+    {
+      to: "/$projectId/evaluations" as const,
+      path: `${projectRoot}/evaluations`,
+      label: "Evaluations",
+      icon: Flask,
     },
     {
       to: "/$projectId/sessions" as const,

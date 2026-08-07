@@ -4,6 +4,9 @@ import type {
   OtlpExportRequest,
   OtlpKeyValue,
   OtlpLink,
+  OtlpLogRecord,
+  OtlpLogsExportRequest,
+  OtlpResourceLogs,
   OtlpResourceSpans,
   OtlpScopeSpans,
   OtlpSpan,
@@ -119,4 +122,49 @@ function resourceSpans(value: unknown): OtlpResourceSpans {
 export function decodeJsonRequest(bytes: Uint8Array): OtlpExportRequest {
   const source = record(JSON.parse(new TextDecoder().decode(bytes)));
   return { resourceSpans: array(source.resourceSpans).map(resourceSpans) };
+}
+
+function logRecord(value: unknown): OtlpLogRecord {
+  const source = record(value);
+  return {
+    timeUnixNano: text(source.timeUnixNano) || String(source.timeUnixNano ?? 0),
+    observedTimeUnixNano:
+      text(source.observedTimeUnixNano) || String(source.observedTimeUnixNano ?? 0),
+    severityNumber: number(source.severityNumber),
+    severityText: text(source.severityText),
+    body: anyValue(source.body),
+    attributes: array(source.attributes).map(keyValue),
+    droppedAttributesCount: number(source.droppedAttributesCount),
+    flags: number(source.flags),
+    traceId: text(source.traceId).toLowerCase(),
+    spanId: text(source.spanId).toLowerCase(),
+    eventName: text(source.eventName),
+  };
+}
+
+function resourceLogs(value: unknown): OtlpResourceLogs {
+  const source = record(value);
+  const resource = record(source.resource);
+  return {
+    resource: { attributes: array(resource.attributes).map(keyValue) },
+    scopeLogs: array(source.scopeLogs ?? source.instrumentationLibraryLogs).map((entry) => {
+      const scopeSource = record(entry);
+      const scope = record(scopeSource.scope);
+      return {
+        scope: {
+          name: text(scope.name),
+          version: text(scope.version),
+          attributes: array(scope.attributes).map(keyValue),
+        },
+        logRecords: array(scopeSource.logRecords).map(logRecord),
+        schemaUrl: text(scopeSource.schemaUrl),
+      };
+    }),
+    schemaUrl: text(source.schemaUrl),
+  };
+}
+
+export function decodeJsonLogsRequest(bytes: Uint8Array): OtlpLogsExportRequest {
+  const source = record(JSON.parse(new TextDecoder().decode(bytes)));
+  return { resourceLogs: array(source.resourceLogs).map(resourceLogs) };
 }

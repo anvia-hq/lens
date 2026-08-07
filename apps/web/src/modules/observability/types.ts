@@ -1,4 +1,6 @@
 import type {
+  EvaluationOutcome,
+  EvaluationSortField,
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
@@ -25,6 +27,34 @@ export type FlatSpanNode = {
 };
 
 export type OverviewSearch = { range: MetricsRangePreset };
+
+export type EvaluationsSearch = {
+  view?: "runs" | "compare" | "results" | "gates";
+  runId?: string;
+  candidateRunId?: string;
+  baselineRunId?: string;
+  gateId?: string;
+  status?: "running" | "completed" | "failed";
+  range: MetricsRangePreset;
+  suite?: string;
+  metric?: string;
+  outcome?: EvaluationOutcome;
+  environment?: string;
+  release?: string;
+  search?: string;
+  sort?: EvaluationSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+};
+
+export type ResolvedEvaluationsSearch = EvaluationsSearch & {
+  view: "runs" | "compare" | "results" | "gates";
+  sort: EvaluationSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+};
 
 export type TraceDetailSearch = {
   view?: TraceSpanView;

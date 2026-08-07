@@ -34,6 +34,9 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
   });
 }
 
+export * from "./evaluation-run-store.js";
+export * from "./evaluation-store.js";
 export * from "./model-costs.js";
+export * from "./quality-gate-store.js";
 export * from "./schema.js";
 export * from "./telemetry-store.js";

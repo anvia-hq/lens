@@ -1,9 +1,17 @@
 # Anvia Lens
 
-Anvia Lens is a Langfuse-compatible, OpenTelemetry-native trace explorer for AI agents. Point an
-`@langfuse/otel` v5 processor at Lens by changing its base URL and API keys. Lens accepts the
-processor's OTLP/HTTP traces and turns the full Langfuse observation taxonomy into project-scoped
-trace timelines, session/user views, and latency/token analytics.
+Anvia Lens is an OpenTelemetry-native quality and trace explorer for AI agents. Native Anvia apps
+use `@anvia/lens` for safe-by-default tracing and correlated evaluation reporting. Existing
+Langfuse applications can point an `@langfuse/otel` v5 processor at Lens by changing its base URL
+and API keys.
+
+Lens turns OTLP/HTTP traces and standard `gen_ai.evaluation.result` log events into project-scoped
+trace timelines, session/user views, latency/token analytics, and an evaluation dashboard grouped
+by metric, suite, environment, and release.
+
+Native Anvia evaluation lifecycle events also create first-class runs. Completed runs from the same
+suite and environment can be compared across releases, including quality, p95 latency, and token
+deltas. Owners and admins can save named quality gates and apply them during a comparison.
 
 ## Stack
 
@@ -82,6 +90,29 @@ pnpm db:migrate
 pnpm dev
 ```
 
+## Connect a native Anvia application
+
+Create a project key pair in Anvia Lens, then configure the native package:
+
+```sh
+ANVIA_LENS_BASE_URL=http://localhost
+ANVIA_LENS_PUBLIC_KEY=pk-lens-...
+ANVIA_LENS_SECRET_KEY=sk-lens-...
+ANVIA_LENS_SERVICE_NAME=support-agent
+ANVIA_LENS_ENVIRONMENT=development
+```
+
+```ts
+import { createLensEvalReporter, lens } from "@anvia/lens";
+
+export const tracing = lens.create();
+export const evalReporter = createLensEvalReporter(tracing);
+```
+
+Pass `tracing` to an agent with `.observe(tracing)` and `evalReporter` to `runEvalSuite`. Lens uses
+isolated OpenTelemetry providers, so it does not register global providers or capture unrelated
+application telemetry.
+
 ## Send Langfuse OTLP traces
 
 Create a project key pair in Anvia Lens and configure the standard Langfuse environment variables.
@@ -126,6 +157,8 @@ pnpm db:migrate # PostgreSQL and ClickHouse migrations
 pnpm db:seed    # Seed realistic demo data against configured databases
 ```
 
-Anvia Lens accepts the Langfuse v5 OTLP endpoint in protobuf or JSON, with optional gzip. Logs,
-metrics, OTLP/gRPC, media objects, public trace-read keys, scores, prompts, datasets, evaluations,
-and cost calculation are outside the current release.
+Anvia Lens accepts OTLP/HTTP traces and logs in protobuf or JSON, with optional gzip. Log ingestion
+currently retains evaluation result events and ignores unrelated application logs. Metrics,
+OTLP/gRPC, media objects, public trace-read keys, prompt management, datasets, server-side
+evaluation execution, automatic gate evaluation, CI commands, and cost calculation are outside the
+current release.

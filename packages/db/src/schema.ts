@@ -1,7 +1,9 @@
+import type { QualityGateRule } from "@lens/contracts";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   numeric,
   pgEnum,
@@ -165,6 +167,31 @@ export const projectApiKey = pgTable(
   (table) => [index("project_api_keys_project_idx").on(table.projectId)],
 );
 
+export const qualityGate = pgTable(
+  "quality_gates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    suiteName: text("suite_name").notNull(),
+    environment: text("environment").notNull(),
+    minimumCaseCount: integer("minimum_case_count").notNull().default(1),
+    rules: jsonb("rules").$type<QualityGateRule[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("quality_gates_project_name_idx").on(table.projectId, table.name),
+    index("quality_gates_project_suite_idx").on(
+      table.projectId,
+      table.suiteName,
+      table.environment,
+    ),
+  ],
+);
+
 export const llmModelPrice = pgTable(
   "llm_model_prices",
   {
@@ -274,10 +301,15 @@ export const projectRelations = relations(project, ({ one, many }) => ({
     references: [organization.id],
   }),
   apiKeys: many(projectApiKey),
+  qualityGates: many(qualityGate),
 }));
 
 export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
   project: one(project, { fields: [projectApiKey.projectId], references: [project.id] }),
+}));
+
+export const qualityGateRelations = relations(qualityGate, ({ one }) => ({
+  project: one(project, { fields: [qualityGate.projectId], references: [project.id] }),
 }));
 
 export const llmModelPriceRelations = relations(llmModelPrice, ({ one }) => ({

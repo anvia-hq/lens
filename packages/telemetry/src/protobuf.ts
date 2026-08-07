@@ -4,6 +4,9 @@ import type {
   OtlpExportRequest,
   OtlpKeyValue,
   OtlpLink,
+  OtlpLogRecord,
+  OtlpLogsExportRequest,
+  OtlpResourceLogs,
   OtlpResourceSpans,
   OtlpScopeSpans,
   OtlpSpan,
@@ -318,6 +321,92 @@ export function encodeProtobufResponse(rejectedSpans = 0, errorMessage = ""): Ui
   if (rejectedSpans === 0 && errorMessage.length === 0) return new Uint8Array();
   const partial: number[] = [];
   if (rejectedSpans > 0) partial.push(8, ...writeVarint(BigInt(rejectedSpans)));
+  if (errorMessage.length > 0) {
+    const message = new TextEncoder().encode(errorMessage);
+    partial.push(18, ...writeVarint(BigInt(message.length)), ...message);
+  }
+  return Uint8Array.from([10, ...writeVarint(BigInt(partial.length)), ...partial]);
+}
+
+function decodeLogRecord(reader: Reader): OtlpLogRecord {
+  const record: OtlpLogRecord = {
+    timeUnixNano: "0",
+    observedTimeUnixNano: "0",
+    severityNumber: 0,
+    severityText: "",
+    body: null,
+    attributes: [],
+    droppedAttributesCount: 0,
+    flags: 0,
+    traceId: "",
+    spanId: "",
+    eventName: "",
+  };
+  while (!reader.done) {
+    const { field, wire } = reader.tag();
+    if (field === 1) record.timeUnixNano = reader.fixed64().toString();
+    else if (field === 2) record.observedTimeUnixNano = reader.fixed64().toString();
+    else if (field === 3) record.severityNumber = Number(reader.varint());
+    else if (field === 4) record.severityText = reader.string();
+    else if (field === 5) record.body = reader.message(decodeAnyValue);
+    else if (field === 6) record.attributes.push(reader.message(decodeKeyValue));
+    else if (field === 7) record.droppedAttributesCount = Number(reader.varint());
+    else if (field === 8) record.flags = wire === 5 ? reader.fixed32() : Number(reader.varint());
+    else if (field === 9) record.traceId = hex(reader.data());
+    else if (field === 10) record.spanId = hex(reader.data());
+    else if (field === 11) record.eventName = reader.string();
+    else reader.skip(wire);
+  }
+  return record;
+}
+
+function decodeScopeLogs(reader: Reader): OtlpResourceLogs["scopeLogs"][number] {
+  const scopeLogs: OtlpResourceLogs["scopeLogs"][number] = {
+    scope: { name: "", version: "", attributes: [] },
+    logRecords: [],
+    schemaUrl: "",
+  };
+  while (!reader.done) {
+    const { field, wire } = reader.tag();
+    if (field === 1) scopeLogs.scope = reader.message(decodeScope);
+    else if (field === 2) scopeLogs.logRecords.push(reader.message(decodeLogRecord));
+    else if (field === 3) scopeLogs.schemaUrl = reader.string();
+    else reader.skip(wire);
+  }
+  return scopeLogs;
+}
+
+function decodeResourceLogs(reader: Reader): OtlpResourceLogs {
+  const resourceLogs: OtlpResourceLogs = {
+    resource: { attributes: [] },
+    scopeLogs: [],
+    schemaUrl: "",
+  };
+  while (!reader.done) {
+    const { field, wire } = reader.tag();
+    if (field === 1) resourceLogs.resource = reader.message(decodeResource);
+    else if (field === 2) resourceLogs.scopeLogs.push(reader.message(decodeScopeLogs));
+    else if (field === 3) resourceLogs.schemaUrl = reader.string();
+    else reader.skip(wire);
+  }
+  return resourceLogs;
+}
+
+export function decodeProtobufLogsRequest(bytes: Uint8Array): OtlpLogsExportRequest {
+  const request: OtlpLogsExportRequest = { resourceLogs: [] };
+  const reader = new Reader(bytes);
+  while (!reader.done) {
+    const { field, wire } = reader.tag();
+    if (field === 1) request.resourceLogs.push(reader.message(decodeResourceLogs));
+    else reader.skip(wire);
+  }
+  return request;
+}
+
+export function encodeProtobufLogsResponse(rejectedLogRecords = 0, errorMessage = ""): Uint8Array {
+  if (rejectedLogRecords === 0 && errorMessage.length === 0) return new Uint8Array();
+  const partial: number[] = [];
+  if (rejectedLogRecords > 0) partial.push(8, ...writeVarint(BigInt(rejectedLogRecords)));
   if (errorMessage.length > 0) {
     const message = new TextEncoder().encode(errorMessage);
     partial.push(18, ...writeVarint(BigInt(message.length)), ...message);

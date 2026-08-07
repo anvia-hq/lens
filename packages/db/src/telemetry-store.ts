@@ -26,6 +26,7 @@ import type {
   UserSortField,
   UserSummary,
 } from "@lens/contracts";
+import { listEvaluationsForTrace } from "./evaluation-store.js";
 
 type SpanRow = {
   project_id: string;
@@ -520,8 +521,11 @@ export async function getTrace(
   const summaries = await summaryResult.json<SummaryRow>();
   const summary = summaries[0];
   if (summary === undefined) return undefined;
-  const spans = await readSpanRows(client, projectId, traceId);
-  return { summary: summaryFromRow(summary), spans: spans.map(spanFromRow) };
+  const [spans, evaluations] = await Promise.all([
+    readSpanRows(client, projectId, traceId),
+    listEvaluationsForTrace(client, projectId, traceId),
+  ]);
+  return { summary: summaryFromRow(summary), spans: spans.map(spanFromRow), evaluations };
 }
 
 export async function listSessions(
@@ -1241,6 +1245,18 @@ export async function reconcileProjectRetention(
     query: `ALTER TABLE trace_summaries UPDATE expires_at = ${summaryExpression} WHERE project_id = {projectId:UUID}`,
     query_params: { projectId },
   });
+  const evaluationExpression =
+    retentionDays === null
+      ? "toDateTime64('2299-12-31 23:59:59.999', 3, 'UTC')"
+      : `addDays(toDateTime64(timestamp, 3), ${Math.max(1, Math.trunc(retentionDays))})`;
+  await client.command({
+    query: `ALTER TABLE evaluation_results UPDATE expires_at = ${evaluationExpression} WHERE project_id = {projectId:UUID}`,
+    query_params: { projectId },
+  });
+  await client.command({
+    query: `ALTER TABLE evaluation_runs UPDATE expires_at = ${summaryExpression} WHERE project_id = {projectId:UUID}`,
+    query_params: { projectId },
+  });
 }
 
 export async function deleteProjectTelemetry(
@@ -1253,6 +1269,14 @@ export async function deleteProjectTelemetry(
   });
   await client.command({
     query: "ALTER TABLE trace_summaries DELETE WHERE project_id = {projectId:UUID}",
+    query_params: { projectId },
+  });
+  await client.command({
+    query: "ALTER TABLE evaluation_results DELETE WHERE project_id = {projectId:UUID}",
+    query_params: { projectId },
+  });
+  await client.command({
+    query: "ALTER TABLE evaluation_runs DELETE WHERE project_id = {projectId:UUID}",
     query_params: { projectId },
   });
 }

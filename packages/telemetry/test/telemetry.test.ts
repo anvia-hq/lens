@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  decodeOtlpLogsRequest,
   decodeOtlpRequest,
+  encodeOtlpLogsResponse,
   encodeOtlpResponse,
   globMatch,
+  normalizeOtlpLogsRequest,
   normalizeOtlpRequest,
 } from "../src/index";
 
@@ -275,6 +278,159 @@ describe("OTLP ingestion", () => {
     expect(globMatch("metadata.*", "metadata.secret")).toBe(true);
     expect(globMatch("*.api_key", "provider.API_KEY")).toBe(true);
     expect(globMatch("*.password", "metadata.token")).toBe(false);
+  });
+
+  it("normalizes standard evaluation logs with Anvia correlation attributes", () => {
+    const request = decodeOtlpLogsRequest(
+      new TextEncoder().encode(
+        JSON.stringify({
+          resourceLogs: [
+            {
+              resource: {
+                attributes: [
+                  { key: "service.name", value: { stringValue: "support-service" } },
+                  {
+                    key: "deployment.environment.name",
+                    value: { stringValue: "production" },
+                  },
+                  { key: "anvia.release", value: { stringValue: "2026.08.07" } },
+                ],
+              },
+              scopeLogs: [
+                {
+                  logRecords: [
+                    {
+                      timeUnixNano: "1786089599000000000",
+                      eventName: "anvia.eval.run.started",
+                      attributes: [
+                        { key: "anvia.eval.run.id", value: { stringValue: "run-1" } },
+                        { key: "anvia.eval.run.status", value: { stringValue: "running" } },
+                        {
+                          key: "anvia.eval.run.started_at",
+                          value: { stringValue: "2026-08-07T00:00:00.000Z" },
+                        },
+                        { key: "anvia.eval.suite.name", value: { stringValue: "release-gate" } },
+                        { key: "anvia.eval.run.case_count", value: { intValue: "1" } },
+                        {
+                          key: "anvia.eval.run.metric_names",
+                          value: {
+                            arrayValue: { values: [{ stringValue: "correctness" }] },
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      timeUnixNano: "1786089600000000000",
+                      eventName: "gen_ai.evaluation.result",
+                      traceId,
+                      spanId,
+                      attributes: [
+                        {
+                          key: "gen_ai.evaluation.name",
+                          value: { stringValue: "correctness" },
+                        },
+                        { key: "gen_ai.evaluation.score.value", value: { doubleValue: 0.93 } },
+                        { key: "anvia.eval.outcome", value: { stringValue: "pass" } },
+                        { key: "anvia.eval.data_type", value: { stringValue: "NUMERIC" } },
+                        { key: "anvia.eval.suite.name", value: { stringValue: "release-gate" } },
+                        { key: "anvia.eval.case.id", value: { stringValue: "case-42" } },
+                        { key: "anvia.eval.run.id", value: { stringValue: "run-1" } },
+                        { key: "anvia.eval.case.metadata", value: { stringValue: "hidden" } },
+                      ],
+                    },
+                    {
+                      timeUnixNano: "1786089601000000000",
+                      eventName: "anvia.eval.run.finished",
+                      attributes: [
+                        { key: "anvia.eval.run.id", value: { stringValue: "run-1" } },
+                        { key: "anvia.eval.run.status", value: { stringValue: "completed" } },
+                        {
+                          key: "anvia.eval.run.started_at",
+                          value: { stringValue: "2026-08-07T00:00:00.000Z" },
+                        },
+                        {
+                          key: "anvia.eval.run.completed_at",
+                          value: { stringValue: "2026-08-07T00:00:01.000Z" },
+                        },
+                        { key: "anvia.eval.suite.name", value: { stringValue: "release-gate" } },
+                        { key: "anvia.eval.run.case_count", value: { intValue: "1" } },
+                        { key: "anvia.eval.run.passed", value: { intValue: "1" } },
+                        { key: "anvia.eval.run.failed", value: { intValue: "0" } },
+                        { key: "anvia.eval.run.invalid", value: { intValue: "0" } },
+                      ],
+                    },
+                    { eventName: "application.log", attributes: [] },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+      "application/json",
+    );
+    const result = normalizeOtlpLogsRequest(request, {
+      projectId: "00000000-0000-0000-0000-000000000001",
+      retentionDays: 30,
+      redactionPatterns: ["anvia.eval.*.metadata"],
+      now: new Date("2026-08-07T00:00:00.000Z"),
+    });
+    expect(result).toMatchObject({ rejectedLogRecords: 0, ignoredLogRecords: 1 });
+    expect(result.evaluations[0]).toMatchObject({
+      runId: "run-1",
+      traceId,
+      observationId: spanId,
+      metricName: "correctness",
+      suiteName: "release-gate",
+      caseId: "case-42",
+      numericValue: 0.93,
+      outcome: "pass",
+      serviceName: "support-service",
+      environment: "production",
+      release: "2026.08.07",
+      metadata: { "anvia.eval.case.metadata": "[REDACTED]" },
+    });
+    expect(result.runs).toHaveLength(2);
+    expect(result.runs[1]).toMatchObject({
+      id: "run-1",
+      status: "completed",
+      suiteName: "release-gate",
+      caseCount: 1,
+      passed: 1,
+      environment: "production",
+      release: "2026.08.07",
+      stateVersion: 2,
+    });
+  });
+
+  it("decodes protobuf evaluation logs and partial-success responses", () => {
+    const record = message([
+      fixed64Field(1, 1_786_089_600_000_000_000n),
+      messageField(6, keyValue("gen_ai.evaluation.name", stringAny("toxicity"))),
+      messageField(6, keyValue("gen_ai.evaluation.score.label", stringAny("safe"))),
+      messageField(6, keyValue("anvia.eval.outcome", stringAny("pass"))),
+      bytesField(9, hexBytes(traceId)),
+      bytesField(10, hexBytes(spanId)),
+      stringField(11, "gen_ai.evaluation.result"),
+    ]);
+    const request = decodeOtlpLogsRequest(
+      message([messageField(1, message([messageField(2, message([messageField(2, record)]))]))]),
+      "application/x-protobuf",
+    );
+    const result = normalizeOtlpLogsRequest(request, {
+      projectId: "00000000-0000-0000-0000-000000000001",
+      retentionDays: null,
+    });
+    expect(result.evaluations[0]).toMatchObject({
+      metricName: "toxicity",
+      categoricalValue: "safe",
+      traceId,
+      observationId: spanId,
+      outcome: "pass",
+    });
+    expect(encodeOtlpLogsResponse("application/x-protobuf", 1, "bad").byteLength).toBeGreaterThan(
+      0,
+    );
   });
 });
 

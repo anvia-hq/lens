@@ -1,5 +1,6 @@
 import type {
   DeleteProjectTelemetryJob,
+  IngestEvaluationsJob,
   IngestTraceJob,
   MaterializeTraceJob,
   RecalculateModelCostsJob,
@@ -10,6 +11,7 @@ import IORedis from "ioredis";
 
 export const queueNames = {
   ingest: "lens-ingest-traces",
+  evaluations: "lens-ingest-evaluations",
   materialize: "lens-materialize-traces",
   maintenance: "lens-telemetry-maintenance",
   costs: "lens-model-costs",
@@ -17,6 +19,7 @@ export const queueNames = {
 
 export type LensQueues = {
   ingest: Queue<IngestTraceJob>;
+  evaluations: Queue<IngestEvaluationsJob>;
   materialize: Queue<MaterializeTraceJob>;
   maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob>;
   costs: Queue<RecalculateModelCostsJob>;
@@ -42,6 +45,10 @@ export function createQueues(redisUrl: string): LensQueues {
     connection,
     defaultJobOptions,
   });
+  const evaluations = new Queue<IngestEvaluationsJob>(queueNames.evaluations, {
+    connection,
+    defaultJobOptions,
+  });
   const materialize = new Queue<MaterializeTraceJob>(queueNames.materialize, {
     connection,
     defaultJobOptions,
@@ -57,11 +64,18 @@ export function createQueues(redisUrl: string): LensQueues {
 
   return {
     ingest,
+    evaluations,
     materialize,
     maintenance,
     costs,
     async close() {
-      await Promise.all([ingest.close(), materialize.close(), maintenance.close(), costs.close()]);
+      await Promise.all([
+        ingest.close(),
+        evaluations.close(),
+        materialize.close(),
+        maintenance.close(),
+        costs.close(),
+      ]);
       connection.disconnect();
     },
   };

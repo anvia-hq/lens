@@ -47,3 +47,31 @@ export type OtlpResourceSpans = {
 };
 
 export type OtlpExportRequest = { resourceSpans: OtlpResourceSpans[] };
+
+export type OtlpLogRecord = {
+  timeUnixNano: string;
+  observedTimeUnixNano: string;
+  severityNumber: number;
+  severityText: string;
+  body: JsonValue;
+  attributes: OtlpKeyValue[];
+  droppedAttributesCount: number;
+  flags: number;
+  traceId: string;
+  spanId: string;
+  eventName: string;
+};
+
+export type OtlpScopeLogs = {
+  scope: { name: string; version: string; attributes: OtlpKeyValue[] };
+  logRecords: OtlpLogRecord[];
+  schemaUrl: string;
+};
+
+export type OtlpResourceLogs = {
+  resource: { attributes: OtlpKeyValue[] };
+  scopeLogs: OtlpScopeLogs[];
+  schemaUrl: string;
+};
+
+export type OtlpLogsExportRequest = { resourceLogs: OtlpResourceLogs[] };

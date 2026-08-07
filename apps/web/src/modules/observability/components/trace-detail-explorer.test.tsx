@@ -231,6 +231,7 @@ describe("trace detail controls", () => {
 
 function detail(spans: SpanDetail[]): TraceDetail {
   return {
+    evaluations: [],
     summary: {
       projectId: "00000000-0000-0000-0000-000000000001",
       traceId: "trace-1",

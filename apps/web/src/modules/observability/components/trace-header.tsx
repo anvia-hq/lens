@@ -71,6 +71,22 @@ export function TraceHeader({ detail, projectId }: { detail: TraceDetail; projec
           ))}
         </div>
       ) : null}
+      {detail.evaluations.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3">
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Evaluations</span>
+          {detail.evaluations.map((evaluation) => (
+            <Badge
+              key={evaluation.id}
+              variant="outline"
+              title={evaluation.explanation ?? undefined}
+            >
+              {evaluation.metricName}:{" "}
+              {evaluation.numericValue ?? evaluation.categoricalValue ?? evaluation.outcome}
+              <span className="text-muted-foreground">({evaluation.outcome})</span>
+            </Badge>
+          ))}
+        </div>
+      ) : null}
     </header>
   );
 }

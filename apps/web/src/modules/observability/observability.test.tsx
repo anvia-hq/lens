@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { Area, AreaChart } from "recharts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { validateOverviewSearch } from "../../routes/$projectId";
+import { validateEvaluationsSearch } from "../../routes/$projectId/evaluations";
 import { validateSessionsSearch } from "../../routes/$projectId/sessions";
 import { validateTracesSearch } from "../../routes/$projectId/traces";
 import { validateTraceDetailSearch } from "../../routes/$projectId/traces/$traceId";
@@ -134,6 +135,23 @@ describe("overview controls", () => {
       pageSize: 50,
       columns: defaultTraceColumns,
     });
+  });
+
+  it("normalizes evaluation workspace views and comparison identifiers", () => {
+    expect(
+      validateEvaluationsSearch({
+        view: "compare",
+        candidateRunId: " candidate ",
+        baselineRunId: " baseline ",
+        gateId: " gate ",
+      }),
+    ).toMatchObject({
+      view: "compare",
+      candidateRunId: "candidate",
+      baselineRunId: "baseline",
+      gateId: "gate",
+    });
+    expect(validateEvaluationsSearch({ view: "unsupported" }).view).toBe("runs");
   });
 
   it("normalizes ordered comparison trace IDs and enforces the maximum", () => {

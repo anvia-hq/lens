@@ -1,6 +1,7 @@
 import { loadConfig } from "@lens/config";
 import type {
   DeleteProjectTelemetryJob,
+  IngestEvaluationsJob,
   IngestTraceJob,
   MaterializeTraceJob,
   RecalculateModelCostsJob,
@@ -12,6 +13,8 @@ import {
   createClickHouse,
   createPostgres,
   deleteProjectTelemetry,
+  insertEvaluationRuns,
+  insertEvaluations,
   insertSpans,
   llmModelPrice,
   materializeTrace,
@@ -31,6 +34,7 @@ const postgres = createPostgres(config);
 const queues = createQueues(config.REDIS_URL);
 const ingestConnection = createRedisConnection(config.REDIS_URL);
 const materializeConnection = createRedisConnection(config.REDIS_URL);
+const evaluationConnection = createRedisConnection(config.REDIS_URL);
 const maintenanceConnection = createRedisConnection(config.REDIS_URL);
 const costsConnection = createRedisConnection(config.REDIS_URL);
 
@@ -99,6 +103,22 @@ const materializeWorker = new Worker<MaterializeTraceJob>(
   { connection: materializeConnection, concurrency: 8 },
 );
 
+const evaluationWorker = new Worker<IngestEvaluationsJob>(
+  queueNames.evaluations,
+  async (job) => {
+    const runs = job.data.runs ?? [];
+    await Promise.all([
+      insertEvaluations(clickhouse, job.data.evaluations),
+      insertEvaluationRuns(clickhouse, runs),
+    ]);
+    logger.info(
+      { jobId: job.id, evaluations: job.data.evaluations.length, runs: runs.length },
+      "ingested evaluation batch",
+    );
+  },
+  { connection: evaluationConnection, concurrency: 8 },
+);
+
 const maintenanceWorker = new Worker<ReconcileRetentionJob | DeleteProjectTelemetryJob>(
   queueNames.maintenance,
   async (job) => {
@@ -163,7 +183,13 @@ const costsWorker = new Worker<RecalculateModelCostsJob>(
   { connection: costsConnection, concurrency: 1 },
 );
 
-for (const worker of [ingestWorker, materializeWorker, maintenanceWorker, costsWorker]) {
+for (const worker of [
+  ingestWorker,
+  evaluationWorker,
+  materializeWorker,
+  maintenanceWorker,
+  costsWorker,
+]) {
   worker.on("failed", (job, error) => {
     logger.error({ jobId: job?.id, queue: worker.name, error }, "queue job failed");
   });
@@ -176,11 +202,13 @@ async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "shutting down");
   await Promise.all([
     ingestWorker.close(),
+    evaluationWorker.close(),
     materializeWorker.close(),
     maintenanceWorker.close(),
     costsWorker.close(),
   ]);
   ingestConnection.disconnect();
+  evaluationConnection.disconnect();
   materializeConnection.disconnect();
   maintenanceConnection.disconnect();
   costsConnection.disconnect();

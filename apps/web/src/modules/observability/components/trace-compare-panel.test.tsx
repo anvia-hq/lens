@@ -41,6 +41,7 @@ const baseMs = Date.parse("2026-08-05T00:00:00.000Z");
 function detail(): TraceDetail {
   const spans = [span()];
   return {
+    evaluations: [],
     summary: {
       projectId: "project-1",
       traceId: "trace-1",

@@ -1,4 +1,6 @@
 import type {
+  EvaluationOutcome,
+  EvaluationSortField,
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
@@ -7,6 +9,8 @@ import type {
   UserSortField,
 } from "@lens/contracts";
 import {
+  evaluationOutcomes,
+  evaluationSortFields,
   metricsRangePresets,
   sessionSortFields,
   traceSortFields,
@@ -16,6 +20,7 @@ import {
   defaultSessionColumns,
   defaultTraceColumns,
   defaultUserColumns,
+  type EvaluationsSearch,
   type OverviewSearch,
   type RefreshInterval,
   type ResolvedSessionsSearch,
@@ -34,6 +39,38 @@ import {
   type UsersSearch,
   userColumnIds,
 } from "./types";
+
+export function validateEvaluationsSearch(search: Record<string, unknown>): EvaluationsSearch {
+  const rawOutcome = optionalSearchValue(search.outcome);
+  const rawView = optionalSearchValue(search.view);
+  const rawStatus = optionalSearchValue(search.status);
+  return {
+    view: rawView === "compare" || rawView === "results" || rawView === "gates" ? rawView : "runs",
+    runId: optionalSearchValue(search.runId),
+    candidateRunId: optionalSearchValue(search.candidateRunId),
+    baselineRunId: optionalSearchValue(search.baselineRunId),
+    gateId: optionalSearchValue(search.gateId),
+    status:
+      rawStatus === "running" || rawStatus === "completed" || rawStatus === "failed"
+        ? rawStatus
+        : undefined,
+    range: parseMetricsRange(search.range),
+    suite: optionalSearchValue(search.suite),
+    metric: optionalSearchValue(search.metric),
+    outcome: evaluationOutcomes.includes(rawOutcome as EvaluationOutcome)
+      ? (rawOutcome as EvaluationOutcome)
+      : undefined,
+    environment: optionalSearchValue(search.environment),
+    release: optionalSearchValue(search.release),
+    search: optionalSearchValue(search.search),
+    sort: evaluationSortFields.includes(search.sort as EvaluationSortField)
+      ? (search.sort as EvaluationSortField)
+      : "timestamp",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+  };
+}
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
   return { range: parseMetricsRange(search.range) };

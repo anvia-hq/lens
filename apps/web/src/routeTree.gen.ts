@@ -15,6 +15,7 @@ import { Route as LlmModelsRouteImport } from './routes/llm-models'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
+import { Route as ProjectIdEvaluationsRouteImport } from './routes/$projectId/evaluations'
 import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/settings'
 import { Route as AcceptInvitationInvitationIdRouteImport } from './routes/accept-invitation/$invitationId'
 import { Route as ProjectIdSessionsIndexRouteImport } from './routes/$projectId/sessions/index'
@@ -53,6 +54,11 @@ const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
 const ProjectIdConnectRoute = ProjectIdConnectRouteImport.update({
   id: '/connect',
   path: '/connect',
+  getParentRoute: () => ProjectIdRouteRoute,
+} as any)
+const ProjectIdEvaluationsRoute = ProjectIdEvaluationsRouteImport.update({
+  id: '/evaluations',
+  path: '/evaluations',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
 const ProjectIdSettingsRoute = ProjectIdSettingsRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId': typeof ProjectIdIndexRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
+    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
+    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
+    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       path: '/connect'
       fullPath: '/$projectId/connect'
       preLoaderRoute: typeof ProjectIdConnectRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations': {
+      id: '/$projectId/evaluations'
+      path: '/evaluations'
+      fullPath: '/$projectId/evaluations'
+      preLoaderRoute: typeof ProjectIdEvaluationsRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
     '/$projectId/settings': {
@@ -327,6 +346,7 @@ declare module '@tanstack/react-router' {
 
 interface ProjectIdRouteRouteChildren {
   ProjectIdConnectRoute: typeof ProjectIdConnectRoute
+  ProjectIdEvaluationsRoute: typeof ProjectIdEvaluationsRoute
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
   ProjectIdSessionsSessionIdRoute: typeof ProjectIdSessionsSessionIdRoute
@@ -340,6 +360,7 @@ interface ProjectIdRouteRouteChildren {
 
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdConnectRoute: ProjectIdConnectRoute,
+  ProjectIdEvaluationsRoute: ProjectIdEvaluationsRoute,
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
   ProjectIdSessionsSessionIdRoute: ProjectIdSessionsSessionIdRoute,

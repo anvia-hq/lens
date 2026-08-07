@@ -18,7 +18,25 @@ export function createIngestionMetrics() {
     help: "OTLP request acceptance latency",
     registers: [registry],
   });
-  return { registry, accepted, rejected, duration };
+  const evaluationsAccepted = new Counter({
+    name: "lens_ingest_evaluations_accepted_total",
+    help: "Accepted OTLP evaluation results",
+    registers: [registry],
+  });
+  const evaluationLogsRejected = new Counter({
+    name: "lens_ingest_evaluation_logs_rejected_total",
+    help: "Rejected OTLP evaluation log requests or records",
+    labelNames: ["reason"],
+    registers: [registry],
+  });
+  return {
+    registry,
+    accepted,
+    rejected,
+    duration,
+    evaluationsAccepted,
+    evaluationLogsRejected,
+  };
 }
 
 export type IngestionMetrics = ReturnType<typeof createIngestionMetrics>;

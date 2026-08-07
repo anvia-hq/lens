@@ -76,6 +76,85 @@ export type MaterializeTraceJob = {
   traceId: string;
 };
 
+export const evaluationOutcomes = ["pass", "fail", "invalid", "unknown"] as const;
+export type EvaluationOutcome = (typeof evaluationOutcomes)[number];
+
+export type EvaluationResult = {
+  projectId: string;
+  id: string;
+  runId: string | null;
+  timestamp: string;
+  traceId: string | null;
+  observationId: string | null;
+  responseId: string | null;
+  suiteName: string;
+  caseId: string | null;
+  metricName: string;
+  outcome: EvaluationOutcome;
+  dataType: "NUMERIC" | "CATEGORICAL" | "BOOLEAN" | null;
+  numericValue: number | null;
+  categoricalValue: string | null;
+  explanation: string | null;
+  configId: string | null;
+  serviceName: string;
+  environment: string;
+  release: string | null;
+  metadata: Record<string, JsonValue>;
+  expiresAt: string | null;
+  ingestedAt: string;
+  ingestVersion: string;
+};
+
+export const evaluationRunStatuses = ["running", "completed", "failed"] as const;
+export type EvaluationRunStatus = (typeof evaluationRunStatuses)[number];
+
+export type EvaluationRun = {
+  projectId: string;
+  id: string;
+  status: EvaluationRunStatus;
+  suiteName: string;
+  startedAt: string;
+  completedAt: string | null;
+  durationMs: number | null;
+  caseCount: number;
+  metricNames: string[];
+  passed: number | null;
+  failed: number | null;
+  invalid: number | null;
+  serviceName: string;
+  environment: string;
+  release: string | null;
+  datasetName: string | null;
+  datasetVersion: string | null;
+  metadata: Record<string, JsonValue>;
+  expiresAt: string | null;
+  ingestedAt: string;
+  ingestVersion: string;
+  stateVersion: 1 | 2;
+};
+
+export type EvaluationRunSummary = EvaluationRun & {
+  results: number;
+  actualPassed: number;
+  actualFailed: number;
+  actualInvalid: number;
+  actualUnknown: number;
+  passRate: number;
+  evaluatedCases: number;
+  evaluatedTraces: number;
+  p95LatencyMs: number | null;
+  averageTotalTokens: number | null;
+  traceCoverage: number;
+};
+
+export type IngestEvaluationsJob = {
+  projectId: string;
+  ingestId: string;
+  receivedAt: string;
+  evaluations: EvaluationResult[];
+  runs: EvaluationRun[];
+};
+
 export type ReconcileRetentionJob = {
   projectId: string;
   retentionDays: number | null;
@@ -196,6 +275,215 @@ export type TraceSummary = {
 export type TraceDetail = {
   summary: TraceSummary;
   spans: SpanDetail[];
+  evaluations: EvaluationResult[];
+};
+
+export type EvaluationFilters = {
+  from?: string;
+  to?: string;
+  suites?: string[];
+  metrics?: string[];
+  outcomes?: EvaluationOutcome[];
+  environments?: string[];
+  releases?: string[];
+  traceId?: string;
+  runIds?: string[];
+  search?: string;
+};
+
+export type EvaluationRunFilters = {
+  from?: string;
+  to?: string;
+  suites?: string[];
+  statuses?: EvaluationRunStatus[];
+  environments?: string[];
+  releases?: string[];
+  search?: string;
+};
+
+export type EvaluationRunDetail = {
+  run: EvaluationRunSummary;
+  metrics: EvaluationMetricBreakdown[];
+  results: EvaluationResult[];
+};
+
+export type ComparisonValue = {
+  candidate: number | null;
+  baseline: number | null;
+  delta: number | null;
+  percentChange: number | null;
+};
+
+export type EvaluationMetricComparison = {
+  metricName: string;
+  candidate: EvaluationMetricBreakdown | null;
+  baseline: EvaluationMetricBreakdown | null;
+  passRateDelta: number | null;
+  averageScoreDelta: number | null;
+};
+
+export type EvaluationCaseChange = {
+  caseId: string;
+  metricName: string;
+  classification: "regressed" | "improved" | "new_failure" | "removed";
+  candidateOutcome: EvaluationOutcome | null;
+  baselineOutcome: EvaluationOutcome | null;
+  candidateValue: number | string | null;
+  baselineValue: number | string | null;
+  candidateTraceId: string | null;
+  baselineTraceId: string | null;
+};
+
+export const qualityGateRuleSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("evaluation_threshold"),
+      metricName: z.string().trim().min(1).max(128),
+      measure: z.enum(["pass_rate", "average_score"]),
+      operator: z.enum(["gte", "lte"]),
+      value: z.number().finite(),
+    }),
+    z.object({
+      type: z.literal("evaluation_regression"),
+      metricName: z.string().trim().min(1).max(128),
+      measure: z.enum(["pass_rate", "average_score"]),
+      direction: z.enum(["decrease", "increase"]),
+      maxAbsoluteChange: z.number().finite().nonnegative(),
+    }),
+    z.object({
+      type: z.literal("operational_regression"),
+      measure: z.enum(["p95_latency_ms", "average_total_tokens"]),
+      maxIncreasePercent: z.number().finite().nonnegative(),
+    }),
+  ])
+  .superRefine((rule, context) => {
+    const value =
+      rule.type === "evaluation_threshold"
+        ? rule.value
+        : rule.type === "evaluation_regression"
+          ? rule.maxAbsoluteChange
+          : undefined;
+    if (rule.type !== "operational_regression" && rule.measure === "pass_rate") {
+      if (value === undefined || value < 0 || value > 1) {
+        context.addIssue({ code: "custom", message: "Pass-rate values must be between 0 and 1" });
+      }
+    }
+  });
+export type QualityGateRule = z.infer<typeof qualityGateRuleSchema>;
+
+export const qualityGateInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  suiteName: z.string().trim().min(1).max(128),
+  environment: z.string().trim().min(1).max(128),
+  minimumCaseCount: z.number().int().min(1).max(1_000_000),
+  rules: z.array(qualityGateRuleSchema).min(1).max(25),
+});
+export type QualityGateInput = z.infer<typeof qualityGateInputSchema>;
+
+export type QualityGate = QualityGateInput & {
+  id: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QualityGateRuleResult = {
+  rule: QualityGateRule | { type: "minimum_case_count"; value: number };
+  verdict: "pass" | "fail" | "insufficient_data";
+  message: string;
+  candidateValue: number | null;
+  baselineValue: number | null;
+};
+
+export type QualityGateEvaluation = {
+  gate: QualityGate;
+  verdict: "pass" | "fail" | "insufficient_data";
+  rules: QualityGateRuleResult[];
+};
+
+export type EvaluationRunComparison = {
+  candidate: EvaluationRunSummary;
+  baseline: EvaluationRunSummary;
+  passRate: ComparisonValue;
+  p95LatencyMs: ComparisonValue;
+  averageTotalTokens: ComparisonValue;
+  metrics: EvaluationMetricComparison[];
+  caseChanges: EvaluationCaseChange[];
+  caseChangeCounts: Record<EvaluationCaseChange["classification"], number>;
+  warnings: string[];
+  gate: QualityGateEvaluation | null;
+};
+
+export const evaluationSortFields = [
+  "timestamp",
+  "suiteName",
+  "caseId",
+  "metricName",
+  "outcome",
+  "numericValue",
+  "environment",
+  "release",
+] as const;
+export type EvaluationSortField = (typeof evaluationSortFields)[number];
+
+export type EvaluationFacets = {
+  suite: TraceFacetValue[];
+  metric: TraceFacetValue[];
+  outcome: TraceFacetValue[];
+  environment: TraceFacetValue[];
+  release: TraceFacetValue[];
+};
+
+export type EvaluationMetricBreakdown = {
+  metricName: string;
+  results: number;
+  passed: number;
+  failed: number;
+  invalid: number;
+  unknown: number;
+  passRate: number;
+  averageNumericValue: number | null;
+};
+
+export type EvaluationSuiteBreakdown = {
+  suiteName: string;
+  results: number;
+  passed: number;
+  failed: number;
+  invalid: number;
+  unknown: number;
+  passRate: number;
+};
+
+export type EvaluationMetricPoint = {
+  timestamp: string;
+  results: number;
+  passed: number;
+  failed: number;
+  invalid: number;
+  unknown: number;
+  passRate: number;
+};
+
+export type EvaluationOverview = {
+  range: {
+    preset: MetricsRangePreset;
+    bucket: MetricsBucket;
+    from: string;
+    to: string;
+  };
+  summary: {
+    results: number;
+    passed: number;
+    failed: number;
+    invalid: number;
+    unknown: number;
+    passRate: number;
+    evaluatedTraces: number;
+  };
+  series: EvaluationMetricPoint[];
+  metrics: EvaluationMetricBreakdown[];
+  suites: EvaluationSuiteBreakdown[];
 };
 
 export type SessionSummary = {

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
+import { parseRunRequest } from "../src/modules/evaluation-runs/schema";
 import { parseMemberRole } from "../src/modules/members/schema";
 import { parseSessionRequest } from "../src/modules/sessions/schema";
 import { parseTraceRequest } from "../src/modules/traces/schema";
@@ -87,5 +88,23 @@ describe("API module schemas", () => {
     expect(parseMemberRole("member")).toBe("member");
     expect(parseMemberRole("owner")).toBeUndefined();
     expect(parseMemberRole(undefined)).toBeUndefined();
+  });
+
+  it("parses evaluation run filters and rejects invalid statuses", async () => {
+    expect(
+      await parseRequest<ReturnType<typeof parseRunRequest>>(
+        "/?suite=release-gate&status=completed&environment=production&pageSize=100",
+        parseRunRequest,
+      ),
+    ).toEqual({
+      suites: ["release-gate"],
+      statuses: ["completed"],
+      environments: ["production"],
+      page: 1,
+      pageSize: 100,
+    });
+    expect(await parseRequest("/?status=unknown", parseRunRequest)).toBe(
+      "status must be running, completed, or failed",
+    );
   });
 });

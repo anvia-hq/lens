@@ -19,7 +19,7 @@ const setupSteps = [
   },
   {
     title: "Add the credentials",
-    text: "Expose the Langfuse environment variables to your app.",
+    text: "Expose the Anvia Lens environment variables to your app.",
   },
   {
     title: "Instrument your runtime",
@@ -37,7 +37,7 @@ export function ConnectContent({ state }: { state: ConnectState }) {
     <Page
       eyebrow="Data ingestion"
       title="Connect your application"
-      description={`Send Langfuse-compatible telemetry to ${project.name}`}
+      description={`Send native Anvia or Langfuse-compatible telemetry to ${project.name}`}
       action={
         <Link
           className={buttonVariants({ variant: "outline" })}
@@ -115,10 +115,10 @@ export function ConnectContent({ state }: { state: ConnectState }) {
                 description="Initialize one tracing integration at application startup."
                 id="connect-instrumentation"
               />
-              <Tabs defaultValue="langfuse">
+              <Tabs defaultValue="anvia">
                 <TabsList className="w-full sm:w-fit">
+                  <TabsTrigger value="anvia">Anvia Lens</TabsTrigger>
                   <TabsTrigger value="langfuse">Langfuse SDK</TabsTrigger>
-                  <TabsTrigger value="anvia">Anvia SDK</TabsTrigger>
                 </TabsList>
                 <TabsContent value="langfuse">
                   <CodeBlock
@@ -131,8 +131,8 @@ export function ConnectContent({ state }: { state: ConnectState }) {
                 </TabsContent>
                 <TabsContent value="anvia">
                   <CodeBlock
-                    title="Anvia tracing"
-                    description="@anvia/langfuse"
+                    title="Native tracing and evaluations"
+                    description="@anvia/lens"
                     code={snippets.anvia}
                     copied={copied === "anvia"}
                     onCopy={() => copy("anvia", snippets.anvia)}
