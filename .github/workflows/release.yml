@@ -1,0 +1,115 @@
+name: Create release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable semantic version without the v prefix, for example 0.2.0
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release request
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          version="${REQUESTED_VERSION#v}"
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Create releases from main, not $GITHUB_REF" >&2
+            exit 1
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a stable semantic version such as 0.2.0, received: $version" >&2
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          if [[ "$package_version" != "$version" ]]; then
+            echo "Update package.json to $version before creating this release; found $package_version" >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v${version}" >/dev/null 2>&1; then
+            echo "Tag v${version} already exists" >&2
+            exit 1
+          fi
+
+          ci_result="$(gh run list \
+            --workflow ci.yml \
+            --commit "$GITHUB_SHA" \
+            --event push \
+            --limit 1 \
+            --json status,conclusion \
+            --jq '.[0] | "\(.status):\(.conclusion)"')"
+
+          if [[ "$ci_result" != "completed:success" ]]; then
+            echo "CI for $GITHUB_SHA is not green; current result: ${ci_result:-not found}" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish and verify images
+    needs: validate
+    uses: ./.github/workflows/publish-images.yml
+    with:
+      version: ${{ needs.validate.outputs.version }}
+    secrets: inherit
+
+  release:
+    name: Create GitHub release
+    needs:
+      - validate
+      - publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.sha }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "Lens v${VERSION}" \
+            --generate-notes
+
+      - name: Write release summary
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          {
+            echo "## Lens v${VERSION}"
+            echo
+            echo "Published and smoke-tested:"
+            echo "- \`ghcr.io/${GITHUB_REPOSITORY_OWNER}/lens:${VERSION}\`"
+            echo "- \`ghcr.io/${GITHUB_REPOSITORY_OWNER}/lens-web:${VERSION}\`"
+            echo
+            echo "Promoted \`${VERSION%.*}\` and \`latest\` after the smoke test passed."
+          } >> "$GITHUB_STEP_SUMMARY"
