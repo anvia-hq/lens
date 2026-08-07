@@ -1,4 +1,4 @@
-import type { EvaluationRunSummary, QualityGate } from "@lens/contracts";
+import type { EvaluationRunSummary, QualityGate, QualityGateEvaluation } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { Field, FieldLabel } from "@lens/ui/components/field";
@@ -18,6 +18,7 @@ import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { EvaluationCompareState } from "../hooks/use-evaluation-workspace";
 import { formatTimestamp, shortId } from "../utils/trace-detail";
+import { EvaluationStatusBadge } from "./evaluation-status-badge";
 
 export function EvaluationCompareView({ state }: { state: EvaluationCompareState }) {
   const allRuns = state.runs.data?.items ?? [];
@@ -246,7 +247,11 @@ function DeltaCard(props: {
   );
 }
 
-function GateVerdict(props: { gate: QualityGate; verdict: string; messages: string[] }) {
+function GateVerdict(props: {
+  gate: QualityGate;
+  verdict: QualityGateEvaluation["verdict"];
+  messages: string[];
+}) {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -254,17 +259,7 @@ function GateVerdict(props: { gate: QualityGate; verdict: string; messages: stri
           <CardTitle>{props.gate.name}</CardTitle>
           <p className="text-sm text-muted-foreground">{props.messages.join(" · ")}</p>
         </div>
-        <Badge
-          variant={
-            props.verdict === "pass"
-              ? "secondary"
-              : props.verdict === "fail"
-                ? "destructive"
-                : "outline"
-          }
-        >
-          {props.verdict.replaceAll("_", " ")}
-        </Badge>
+        <EvaluationStatusBadge status={props.verdict} />
       </CardHeader>
     </Card>
   );

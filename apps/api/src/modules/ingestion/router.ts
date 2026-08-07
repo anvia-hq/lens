@@ -87,7 +87,6 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: IngestionM
       const normalized = normalizeOtlpRequest(request, {
         projectId: key.project.id,
         retentionDays,
-        redactionPatterns: key.project.redactionPatterns,
       });
       if (normalized.spans.length > 0) {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");

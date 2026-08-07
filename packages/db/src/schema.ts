@@ -137,7 +137,6 @@ export const project = pgTable(
     slug: text("slug").notNull(),
     state: projectState("state").notNull().default("active"),
     retentionDays: text("retention_days").notNull().default("30"),
-    redactionPatterns: jsonb("redaction_patterns").$type<string[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

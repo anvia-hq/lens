@@ -2,24 +2,20 @@ import { Alert, AlertDescription } from "@lens/ui/components/alert";
 import { Button } from "@lens/ui/components/button";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import {
-  WarningCircle as AlertCircle,
-  CaretRight as ChevronRight,
-  DotOutline as CircleDot,
-} from "@phosphor-icons/react";
+import { WarningCircle as AlertCircle, CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { CenteredCard } from "../../../components/centered-card";
 import type { AuthFormState } from "../hooks/use-auth-form";
 
 export function AuthForm({ state }: { state: AuthFormState }) {
   return (
     <CenteredCard
-      icon={<CircleDot />}
-      eyebrow="Welcome to Anvia Lens"
-      title={state.mode === "login" ? "Sign in to continue" : "Create the owner account"}
+      branded
+      eyebrow={state.mode === "login" ? "Sign in" : "First-time setup"}
+      title={state.mode === "login" ? "Welcome back" : "Set up Anvia Lens"}
       description={
         state.mode === "login"
-          ? "Use the account created for you by an invitation."
-          : "Set up the first Anvia Lens administrator."
+          ? "Sign in to your Anvia Lens workspace."
+          : "Create the owner account for this installation."
       }
     >
       <form className="grid gap-4" onSubmit={state.submit}>
@@ -32,6 +28,8 @@ export function AuthForm({ state }: { state: AuthFormState }) {
               value={state.name}
               onChange={(event) => state.setName(event.target.value)}
               autoComplete="name"
+              autoFocus
+              placeholder="Your name"
             />
           </Field>
         ) : null}
@@ -44,6 +42,8 @@ export function AuthForm({ state }: { state: AuthFormState }) {
             value={state.email}
             onChange={(event) => state.setEmail(event.target.value)}
             autoComplete="email"
+            autoFocus={state.mode === "login"}
+            placeholder="you@example.com"
           />
         </Field>
         <Field>

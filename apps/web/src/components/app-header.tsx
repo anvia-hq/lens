@@ -17,9 +17,21 @@ export function AppHeader() {
   const params = useParams({ strict: false });
   const projectRoot = `/${project.id}`;
   const relativePath = pathname.slice(projectRoot.length).split("/").filter(Boolean);
-  const section = relativePath[0];
-  const sectionLabel =
-    section === "traces"
+  const routeSection = relativePath[0];
+  const evaluationPage = relativePath[1];
+  const isEvaluations = routeSection === "evaluations";
+  const section = isEvaluations ? evaluationPage : routeSection;
+  const sectionLabel = isEvaluations
+    ? evaluationPage === "datasets"
+      ? "Datasets"
+      : evaluationPage === "results"
+        ? "Results"
+        : evaluationPage === "compare"
+          ? "Compare"
+          : evaluationPage === "gates"
+            ? "Quality gates"
+            : "Runs"
+    : section === "traces"
       ? "Traces"
       : section === "sessions"
         ? "Sessions"
@@ -30,7 +42,7 @@ export function AppHeader() {
             : section === "settings"
               ? "Project settings"
               : "Overview";
-  const detailId = relativePath[1];
+  const detailId = relativePath[isEvaluations ? 2 : 1];
   const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
@@ -56,7 +68,13 @@ export function AppHeader() {
               <BreadcrumbItem>
                 <BreadcrumbLink
                   render={
-                    section === "traces" ? (
+                    isEvaluations ? (
+                      <Link
+                        to="/$projectId/evaluations/runs"
+                        params={{ projectId: project.id }}
+                        search={{ range: "24h" }}
+                      />
+                    ) : section === "traces" ? (
                       <Link
                         to="/$projectId/traces"
                         params={{ projectId: project.id }}
@@ -94,11 +112,13 @@ export function AppHeader() {
                 >
                   {"traceId" in params
                     ? shortId(String(params.traceId))
-                    : "sessionId" in params
-                      ? String(params.sessionId)
-                      : "userId" in params
-                        ? String(params.userId)
-                        : detailLabel}
+                    : "runId" in params
+                      ? shortId(String(params.runId))
+                      : "sessionId" in params
+                        ? String(params.sessionId)
+                        : "userId" in params
+                          ? String(params.userId)
+                          : detailLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>

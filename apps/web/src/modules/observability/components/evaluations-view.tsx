@@ -30,7 +30,7 @@ import {
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CheckCircle,
+  ArrowsDownUp as ArrowUpDown,
   CaretDown as ChevronDown,
   Flask,
   MagnifyingGlass as Search,
@@ -48,12 +48,14 @@ import {
   evaluationResultColumnIds,
   type ResolvedEvaluationResultsSearch,
 } from "../types";
-import { formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { formatNumber, shortId } from "../utils/trace-detail";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationResultFilterPanel } from "./evaluation-filter-panel";
+import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
+import { TableTimestamp } from "./table-timestamp";
 
 const columnLabels: Record<EvaluationResultColumnId, string> = {
   timestamp: "Time",
@@ -183,26 +185,36 @@ function EvaluationResultExplorerTable(props: {
         ) : props.loading ? (
           <LoadingRows />
         ) : props.data?.items.length ? (
-          <Table>
-            <TableHeader>
+          <Table className="w-full">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 {props.filters.columns.map((column) => {
                   const field = sortFields[column];
                   return (
-                    <TableHead key={column}>
+                    <TableHead
+                      key={column}
+                      aria-sort={
+                        props.filters.sort === field
+                          ? props.filters.order === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : undefined
+                      }
+                    >
                       {field ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="-ml-3"
                           onClick={() => sort(field)}
+                          aria-label={`Sort by ${columnLabels[column]}${
+                            props.filters.sort === field ? `, currently ${props.filters.order}` : ""
+                          }`}
                         >
                           {columnLabels[column]}
-                          {props.filters.sort === field
-                            ? props.filters.order === "asc"
-                              ? " ↑"
-                              : " ↓"
-                            : null}
+                          <ArrowUpDown
+                            className={cn(props.filters.sort === field && "text-primary")}
+                          />
                         </Button>
                       ) : (
                         columnLabels[column]
@@ -242,7 +254,7 @@ function resultCell(
   column: EvaluationResultColumnId,
   projectId: string,
 ): ReactNode {
-  if (column === "timestamp") return formatTimestamp(result.timestamp);
+  if (column === "timestamp") return <TableTimestamp value={result.timestamp} />;
   if (column === "suiteCase")
     return (
       <div className="grid max-w-52">
@@ -312,19 +324,7 @@ function EntityLink(props: { projectId: string; id: string | null; kind: "trace"
 }
 
 function OutcomeBadge({ outcome }: { outcome: EvaluationResult["outcome"] }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        outcome === "pass" && "border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
-        outcome === "fail" && "border-destructive/40 text-destructive",
-        outcome === "invalid" && "border-amber-500/40 text-amber-700 dark:text-amber-300",
-      )}
-    >
-      {outcome === "pass" ? <CheckCircle /> : null}
-      {outcome}
-    </Badge>
-  );
+  return <EvaluationStatusBadge status={outcome} />;
 }
 
 function ColumnMenu(props: {

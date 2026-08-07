@@ -25,6 +25,7 @@ import { FullPageMessage } from "../../../components/full-page-message";
 import type { EvaluationRunDetailState } from "../hooks/use-evaluation-runs";
 import type { TracePayloadView } from "../types";
 import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { HeaderMetric } from "./header-metric";
 import { PayloadSection } from "./payload-section";
 import { PayloadViewSwitch } from "./payload-view-switch";
@@ -60,16 +61,7 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           <div className="grid min-w-0 gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h1 className="truncate text-lg font-semibold tracking-tight">{run.suiteName}</h1>
-              <Badge
-                variant="outline"
-                className={cn(
-                  run.status === "completed" &&
-                    "border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
-                  run.status === "failed" && "border-destructive/40 text-destructive",
-                )}
-              >
-                {run.status}
-              </Badge>
+              <RunStatusBadge status={run.status} />
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <span>{formatTimestamp(run.startedAt)}</span>
@@ -79,39 +71,40 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
               </span>
               <Badge variant="outline">{run.environment}</Badge>
               <Badge variant="outline">{run.serviceName}</Badge>
+              {run.release ? <Badge variant="secondary">Release {run.release}</Badge> : null}
+              {run.datasetName ? (
+                <Badge variant="secondary">
+                  Dataset {run.datasetName}
+                  {run.datasetVersion ? `@${run.datasetVersion}` : ""}
+                </Badge>
+              ) : null}
             </div>
           </div>
         </div>
-        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3 sm:grid-cols-3 lg:grid-cols-6">
-          <HeaderMetric
+        <dl className="mt-3 grid w-full grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4 xl:w-fit xl:grid-cols-7">
+          <SummaryMetric
             label="Pass rate"
             value={run.results > 0 ? `${(run.passRate * 100).toFixed(1)}%` : "—"}
           />
-          <HeaderMetric label="Cases" value={formatNumber(run.evaluatedCases)} />
-          <HeaderMetric label="Results" value={formatNumber(run.results)} />
-          <HeaderMetric
+          <SummaryMetric label="Cases" value={formatNumber(run.evaluatedCases)} />
+          <SummaryMetric label="Results" value={formatNumber(run.results)} />
+          <SummaryMetric
             label="Duration"
             value={run.durationMs === null ? "—" : formatDuration(run.durationMs)}
           />
-          <HeaderMetric
+          <SummaryMetric
             label="P95 latency"
             value={run.p95LatencyMs === null ? "—" : formatDuration(run.p95LatencyMs)}
           />
-          <HeaderMetric
+          <SummaryMetric
             label="Average tokens"
             value={run.averageTotalTokens === null ? "—" : formatNumber(run.averageTotalTokens)}
           />
+          <SummaryMetric
+            label="Trace coverage"
+            value={`${(run.traceCoverage * 100).toFixed(1)}%`}
+          />
         </dl>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {run.release ? <Badge variant="secondary">Release {run.release}</Badge> : null}
-          {run.datasetName ? (
-            <Badge variant="secondary">
-              Dataset {run.datasetName}
-              {run.datasetVersion ? `@${run.datasetVersion}` : ""}
-            </Badge>
-          ) : null}
-          <Badge variant="outline">Trace coverage {(run.traceCoverage * 100).toFixed(1)}%</Badge>
-        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-hidden">
         {isMobile ? (
@@ -228,7 +221,7 @@ function RunNavigation(props: {
                 >
                   <TableCell className="pl-4 font-medium">{item.caseId ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{item.outcome}</Badge>
+                    <EvaluationStatusBadge status={item.outcome} />
                   </TableCell>
                   <TableCell>{formatNumber(item.results.length)}</TableCell>
                   <TableCell className="pr-4">
@@ -274,7 +267,7 @@ function CaseInspector(props: { item: EvaluationRunCaseDetail; projectId: string
           <div className="grid gap-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold">{item.caseId ?? "Unspecified case"}</h2>
-              <Badge variant="outline">{item.outcome}</Badge>
+              <EvaluationStatusBadge status={item.outcome} />
             </div>
             <span className="text-xs text-muted-foreground">
               {item.results.length} metric result{item.results.length === 1 ? "" : "s"}
@@ -339,7 +332,7 @@ function CaseInspector(props: { item: EvaluationRunCaseDetail; projectId: string
               <Card key={result.id}>
                 <CardHeader className="flex-row items-center justify-between gap-3">
                   <CardTitle className="text-sm">{result.metricName}</CardTitle>
-                  <Badge variant="outline">{result.outcome}</Badge>
+                  <EvaluationStatusBadge status={result.outcome} />
                 </CardHeader>
                 <CardContent className="grid gap-2 text-sm">
                   <div>Value: {result.numericValue ?? result.categoricalValue ?? "—"}</div>
@@ -353,6 +346,31 @@ function CaseInspector(props: { item: EvaluationRunCaseDetail; projectId: string
         </div>
       </ScrollArea>
     </section>
+  );
+}
+
+function SummaryMetric(props: { label: string; value: string }) {
+  return (
+    <div className="min-w-32 bg-background px-3 py-2.5">
+      <HeaderMetric label={props.label} value={props.value} />
+    </div>
+  );
+}
+
+function RunStatusBadge({ status }: { status: EvaluationRunDetail["run"]["status"] }) {
+  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  const className =
+    status === "completed"
+      ? "border-0 bg-emerald-200 text-emerald-950 dark:bg-emerald-300 dark:text-emerald-950"
+      : status === "failed"
+        ? "border-0 bg-rose-200 text-rose-950 dark:bg-rose-300 dark:text-rose-950"
+        : status === "running"
+          ? "border-0 bg-blue-200 text-blue-950 dark:bg-blue-300 dark:text-blue-950"
+          : "border-0 bg-slate-200 text-slate-900 dark:bg-slate-300 dark:text-slate-950";
+  return (
+    <Badge variant="ghost" className={className}>
+      {label}
+    </Badge>
   );
 }
 

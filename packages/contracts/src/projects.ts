@@ -57,7 +57,6 @@ export type CostRecalculationsResponse = {
 
 export type ProjectSettings = {
   retentionDays: 7 | 30 | 90 | null;
-  redactionPatterns: string[];
 };
 
 export type Project = {
@@ -87,7 +86,6 @@ export type CreatedProjectApiKey = ProjectApiKey & {
 
 export const projectSettingsSchema = z.object({
   retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.null()]),
-  redactionPatterns: z.array(z.string().trim().min(1).max(256)).max(100),
 });
 
 export const createProjectSchema = z.object({

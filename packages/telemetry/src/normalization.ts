@@ -29,7 +29,6 @@ export const defaultRedactionPatterns = [
 export type NormalizeOptions = {
   projectId: string;
   retentionDays: number | null;
-  redactionPatterns?: string[];
   now?: Date;
 };
 

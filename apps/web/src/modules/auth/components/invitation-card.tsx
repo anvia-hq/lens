@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import { Button } from "@lens/ui/components/button";
 import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { WarningCircle as AlertCircle, Check, UserPlus as MailPlus } from "@phosphor-icons/react";
+import { WarningCircle as AlertCircle, Check } from "@phosphor-icons/react";
 import { CenteredCard } from "../../../components/centered-card";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { InvitationState } from "../hooks/use-invitation";
@@ -12,9 +12,9 @@ export function InvitationCard({ state }: { state: InvitationState }) {
   if (detail === undefined) return null;
   return (
     <CenteredCard
-      icon={<MailPlus />}
+      branded
       eyebrow="Member invitation"
-      title="Join Anvia Lens"
+      title="Create your account"
       description={
         <>
           <strong>{detail.email}</strong> was invited as a {detail.role ?? "member"}.

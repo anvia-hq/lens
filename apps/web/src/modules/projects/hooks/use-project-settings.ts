@@ -17,7 +17,6 @@ export function useProjectSettings() {
   const [retention, setRetention] = useState(
     project.settings.retentionDays === null ? "unlimited" : String(project.settings.retentionDays),
   );
-  const [patterns, setPatterns] = useState(project.settings.redactionPatterns.join("\n"));
   const createKey = useMutation({
     mutationFn: () =>
       api<CreatedProjectApiKey>(`/api/v1/projects/${project.id}/keys`, {
@@ -46,10 +45,6 @@ export function useProjectSettings() {
         method: "PATCH",
         body: JSON.stringify({
           retentionDays: retention === "unlimited" ? null : Number(retention),
-          redactionPatterns: patterns
-            .split("\n")
-            .map((item) => item.trim())
-            .filter(Boolean),
         }),
       }),
     onSuccess: () => {
@@ -63,14 +58,12 @@ export function useProjectSettings() {
     keyName,
     keys,
     newKey,
-    patterns,
     project,
     retention,
     revokeKey,
     saveSettings,
     setKeyName,
     setNewKey,
-    setPatterns,
     setRetention,
   };
 }

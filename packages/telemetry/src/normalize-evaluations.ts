@@ -39,7 +39,7 @@ export function normalizeOtlpLogsRequest(
     options.retentionDays === null
       ? null
       : new Date(now.getTime() + options.retentionDays * 86_400_000).toISOString();
-  const patterns = [...defaultRedactionPatterns, ...(options.redactionPatterns ?? [])];
+  const patterns = defaultRedactionPatterns;
   let rejectedLogRecords = 0;
   let ignoredLogRecords = 0;
   let sequence = 0n;

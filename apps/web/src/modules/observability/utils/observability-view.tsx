@@ -27,6 +27,7 @@ import { SessionNameCell } from "../components/session-name-cell";
 import { SessionOpenCell } from "../components/session-open-cell";
 import { SessionStatusBadge } from "../components/session-status-badge";
 import { StatusBadge } from "../components/status-badge";
+import { formatTableTimestamp, TableTimestamp } from "../components/table-timestamp";
 import { TraceNameCell } from "../components/trace-name-cell";
 import { TraceOpenCell } from "../components/trace-open-cell";
 import {
@@ -163,11 +164,7 @@ export function traceTableColumns(options: {
   const columnsById = {
     startedAt: traceColumnHelper.accessor("startedAt", {
       header: header("Started", "startedAt"),
-      cell: ({ row }) => (
-        <span className="whitespace-nowrap text-xs" title={row.original.startedAt}>
-          {formatTimestamp(row.original.startedAt)}
-        </span>
-      ),
+      cell: ({ row }) => <TableTimestamp value={row.original.startedAt} />,
     }),
     trace: traceColumnHelper.accessor("name", {
       id: "trace",
@@ -313,11 +310,7 @@ export function sessionTableColumns(options: {
   const columnsById = {
     startedAt: sessionColumnHelper.accessor("startedAt", {
       header: header("Started", "startedAt"),
-      cell: ({ row }) => (
-        <span className="whitespace-nowrap text-xs" title={row.original.startedAt}>
-          {formatTimestamp(row.original.startedAt)}
-        </span>
-      ),
+      cell: ({ row }) => <TableTimestamp value={row.original.startedAt} />,
     }),
     session: sessionColumnHelper.accessor("sessionId", {
       id: "session",
@@ -668,15 +661,7 @@ export function formatCost(value: number | null | undefined) {
   }).format(value);
 }
 export function formatTimestamp(value: string) {
-  const date = new Date(value);
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : value;
+  return formatTableTimestamp(value);
 }
 export function shortId(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;

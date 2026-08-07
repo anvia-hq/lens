@@ -117,7 +117,6 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<void> 
           slug: "production-agents",
           state: "active",
           retentionDays: "30",
-          redactionPatterns: ["authorization", "*.password", "*.api_key", "customer.ssn"],
           createdAt: new Date("2026-01-12T09:40:00.000Z"),
           updatedAt: now,
         })
@@ -127,7 +126,6 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<void> 
             name: "Production Agents",
             state: "active",
             retentionDays: "30",
-            redactionPatterns: ["authorization", "*.password", "*.api_key", "customer.ssn"],
             updatedAt: now,
           },
         });

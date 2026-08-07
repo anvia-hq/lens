@@ -34,7 +34,7 @@ export function normalizeOtlpRequest(
     options.retentionDays === null
       ? null
       : new Date(now.getTime() + options.retentionDays * 86_400_000).toISOString();
-  const patterns = [...defaultRedactionPatterns, ...(options.redactionPatterns ?? [])];
+  const patterns = defaultRedactionPatterns;
   let rejectedSpans = 0;
   let sequence = 0n;
 
