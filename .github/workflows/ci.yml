@@ -42,14 +42,14 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Build workspace
+        run: pnpm build
+
       - name: Run unit tests
         run: pnpm test
 
       - name: Run integration tests
         run: pnpm test:integration
-
-      - name: Build workspace
-        run: pnpm build
 
   containers:
     name: Containers
