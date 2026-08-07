@@ -22,11 +22,15 @@
     "example:anvia:judge": "pnpm --filter @lens/example-anvia-agent evaluations:02",
     "example:anvia:release": "pnpm --filter @lens/example-anvia-agent release:01",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "test:coverage": "pnpm --filter @lens/config --filter @lens/contracts --filter @lens/telemetry test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
+    "test:integration": "node scripts/run-package-integration-tests.mjs",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "verify:packages": "node scripts/verify-packages.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
     "tsup": "^8.5.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",

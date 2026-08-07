@@ -1,6 +1,6 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { materializeTrace } from "../src/telemetry-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 const traceId = "a".repeat(32);
@@ -50,7 +50,7 @@ async function materialize(rows: Array<Record<string, unknown>>): Promise<Record
       sql.includes("SELECT * FROM spans") ? rows : [{ expires_at: "2299-12-31 23:59:59.999" }],
   }));
   const insert = vi.fn(async (_options: { values: unknown }) => ({}));
-  await materializeTrace({ query, insert } as unknown as ClickHouseClient, projectId, traceId);
+  await materializeTrace(clickHouseClient({ query, insert }), projectId, traceId);
   const values = insert.mock.calls[0]?.[0]?.values as Array<Record<string, unknown>> | undefined;
   expect(values).toHaveLength(1);
   return values?.[0] ?? {};

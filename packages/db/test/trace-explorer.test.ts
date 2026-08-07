@@ -1,6 +1,6 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { listTraceFacets, listTraces } from "../src/telemetry-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 type QueryOptions = {
   query: string;
@@ -12,7 +12,7 @@ describe("trace explorer queries", () => {
     const query = vi.fn(async ({ query: sql }: QueryOptions) => ({
       json: async () => (sql.includes("count() AS total") ? [{ total: "73" }] : []),
     }));
-    const client = { query } as unknown as ClickHouseClient;
+    const client = clickHouseClient({ query });
 
     const page = await listTraces(client, "11111111-1111-4111-8111-111111111111", {
       statuses: ["error"],
@@ -39,7 +39,7 @@ describe("trace explorer queries", () => {
 
   it("excludes each facet's own selection while retaining the other filters", async () => {
     const query = vi.fn(async (_options: QueryOptions) => ({ json: async () => [] }));
-    const client = { query } as unknown as ClickHouseClient;
+    const client = clickHouseClient({ query });
 
     await listTraceFacets(client, "11111111-1111-4111-8111-111111111111", {
       statuses: ["error"],

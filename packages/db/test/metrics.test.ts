@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
-import { queryMetrics } from "../src/telemetry-store.js";
+import { queryMetrics } from "../src/metrics-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 const now = new Date("2026-08-05T12:30:00.000Z");
 
@@ -83,11 +84,11 @@ describe("overview metrics", () => {
 });
 
 function metricsClient(options: { populated: boolean }): ClickHouseClient {
-  return {
+  return clickHouseClient({
     query: vi.fn(async ({ query }: { query: string }) => ({
       json: async () => responseForQuery(query, options.populated),
     })),
-  } as unknown as ClickHouseClient;
+  });
 }
 
 function responseForQuery(query: string, populated: boolean): unknown[] {

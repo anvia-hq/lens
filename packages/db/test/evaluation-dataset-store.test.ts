@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { getEvaluationDatasetDetail } from "../src/evaluation-dataset-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 type QueryOptions = { query: string; query_params?: Record<string, unknown> };
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -72,7 +73,7 @@ function fakeClient(options: { secondInput: string; secondOutput: string }): Cli
       return [];
     },
   }));
-  return { query } as unknown as ClickHouseClient;
+  return clickHouseClient({ query });
 }
 
 function runRow(id: string) {

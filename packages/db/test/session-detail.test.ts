@@ -1,6 +1,6 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { getSession, listSessionFacets, listSessions } from "../src/telemetry-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 type QueryOptions = { query: string; query_params?: Record<string, unknown> };
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -13,7 +13,7 @@ describe("session queries", () => {
           ? [{ total: "26" }]
           : [sessionRow({ session_status: "error", failed_trace_count: "2" })],
     }));
-    const page = await listSessions({ query } as unknown as ClickHouseClient, projectId, {
+    const page = await listSessions(clickHouseClient({ query }), projectId, {
       statuses: ["error"],
       environments: ["production"],
       minTotalCost: 0.01,
@@ -43,7 +43,7 @@ describe("session queries", () => {
     const query = vi.fn(async (_options: QueryOptions) => ({
       json: async () => [{ value: "value", count: "2" }],
     }));
-    const facets = await listSessionFacets({ query } as unknown as ClickHouseClient, projectId, {
+    const facets = await listSessionFacets(clickHouseClient({ query }), projectId, {
       statuses: ["error"],
       models: ["gpt-4.1"],
     });
@@ -90,11 +90,7 @@ describe("session queries", () => {
       },
     }));
 
-    const detail = await getSession(
-      { query } as unknown as ClickHouseClient,
-      projectId,
-      "session-1",
-    );
+    const detail = await getSession(clickHouseClient({ query }), projectId, "session-1");
 
     expect(detail?.turns).toEqual([
       expect.objectContaining({

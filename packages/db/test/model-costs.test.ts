@@ -1,7 +1,7 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import type { NormalizedSpan } from "@lens/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { applyModelPrices, recalculateModelCosts } from "../src/model-costs.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 const span: NormalizedSpan = {
   projectId: "11111111-1111-4111-8111-111111111111",
@@ -81,7 +81,7 @@ describe("model costs", () => {
     const command = vi.fn(
       async (_options: { query: string; query_params?: Record<string, unknown> }) => ({}),
     );
-    const client = { query, command } as unknown as ClickHouseClient;
+    const client = clickHouseClient({ query, command });
     const result = await recalculateModelCosts(client, {
       projectIds: [span.projectId],
       prices: [

@@ -1,0 +1,42 @@
+name: lens-package-tests
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: lens
+      POSTGRES_USER: lens
+      POSTGRES_PASSWORD: lens
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lens -d lens"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports: ["5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.4-alpine
+    environment:
+      CLICKHOUSE_DB: lens
+      CLICKHOUSE_USER: lens
+      CLICKHOUSE_PASSWORD: lens
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    ports: ["8123"]
+    tmpfs: ["/var/lib/clickhouse"]
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports: ["6379"]
+    tmpfs: ["/data"]

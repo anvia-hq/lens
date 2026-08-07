@@ -1,6 +1,6 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { listEvaluations } from "../src/evaluation-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 type QueryOptions = {
   query: string;
@@ -12,7 +12,7 @@ describe("evaluation queries", () => {
     const query = vi.fn(async ({ query: sql }: QueryOptions) => ({
       json: async () => (sql.includes("count() AS total") ? [{ total: "0" }] : []),
     }));
-    const client = { query } as unknown as ClickHouseClient;
+    const client = clickHouseClient({ query });
 
     await listEvaluations(client, "11111111-1111-4111-8111-111111111111", {
       runIds: ["run-1"],

@@ -154,6 +154,8 @@ that may capture base64 media should keep `LANGFUSE_MEDIA_UPLOAD_ENABLED=false`.
 pnpm dev        # API, worker, and web app
 pnpm typecheck  # TypeScript checks across the workspace
 pnpm test       # Unit tests
+pnpm test:integration # Isolated PostgreSQL, ClickHouse, and Redis package tests
+pnpm verify:packages  # Complete package quality gate, including coverage and builds
 pnpm build      # Production builds
 pnpm check      # Biome formatting and lint checks
 pnpm db:migrate # PostgreSQL and ClickHouse migrations

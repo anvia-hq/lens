@@ -1,6 +1,6 @@
-import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it, vi } from "vitest";
 import { getUser, listUsers } from "../src/telemetry-store.js";
+import { clickHouseClient } from "./clickhouse-client.js";
 
 type QueryOptions = { query: string; query_params?: Record<string, unknown> };
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -30,7 +30,7 @@ describe("traced user queries", () => {
             ],
     }));
 
-    const page = await listUsers({ query } as unknown as ClickHouseClient, projectId, {
+    const page = await listUsers(clickHouseClient({ query }), projectId, {
       from: "2026-08-01T00:00:00.000Z",
       to: "2026-08-06T00:00:00.000Z",
       search: "customer",
@@ -66,7 +66,7 @@ describe("traced user queries", () => {
 
   it("uses an exact case-sensitive user identity for details", async () => {
     const query = vi.fn(async (_options: QueryOptions) => ({ json: async () => [] }));
-    const user = await getUser({ query } as unknown as ClickHouseClient, projectId, "Customer/One");
+    const user = await getUser(clickHouseClient({ query }), projectId, "Customer/One");
 
     expect(user).toBeUndefined();
     expect(query.mock.calls[0]?.[0].query).toContain("user_id = {exactUserId:String}");

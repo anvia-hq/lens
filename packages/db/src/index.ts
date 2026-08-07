@@ -37,7 +37,21 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
 export * from "./evaluation-dataset-store.js";
 export * from "./evaluation-run-store.js";
 export * from "./evaluation-store.js";
+export * from "./metrics-store.js";
 export * from "./model-costs.js";
 export * from "./quality-gate-store.js";
 export * from "./schema.js";
-export * from "./telemetry-store.js";
+export {
+  deleteProjectTelemetry,
+  getSession,
+  getTrace,
+  getUser,
+  insertSpans,
+  listSessionFacets,
+  listSessions,
+  listTraceFacets,
+  listTraces,
+  listUsers,
+  materializeTrace,
+  reconcileProjectRetention,
+} from "./telemetry-store.js";
