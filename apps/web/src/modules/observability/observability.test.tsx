@@ -23,6 +23,11 @@ import { SessionExplorerTable } from "./components/session-explorer-table";
 import { StatusBadge } from "./components/status-badge";
 import { TraceExplorerTable } from "./components/trace-explorer-table";
 import { UserRangeSelector } from "./components/user-range-selector";
+import {
+  evaluationDatasetDetailPath,
+  evaluationDatasetsPath,
+  UNVERSIONED_DATASET,
+} from "./hooks/use-evaluation-datasets";
 import { assignComparisonRuns } from "./hooks/use-evaluation-runs";
 import {
   defaultEvaluationResultColumns,
@@ -34,6 +39,30 @@ import {
 import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
 
 afterEach(cleanup);
+
+describe("evaluation dataset requests", () => {
+  it("separates dataset paths from their encoded query parameters", () => {
+    expect(evaluationDatasetsPath("project-1", { page: 2, search: "support cases" })).toBe(
+      "/api/v1/projects/project-1/evaluation-datasets?search=support+cases&page=2&pageSize=25",
+    );
+    expect(
+      evaluationDatasetDetailPath("project-1", {
+        dataset: "support/cases",
+        version: "v1 beta",
+      }),
+    ).toBe(
+      "/api/v1/projects/project-1/evaluation-datasets/detail?name=support%2Fcases&version=v1+beta",
+    );
+    expect(
+      evaluationDatasetDetailPath("project-1", {
+        dataset: "support-cases",
+        version: UNVERSIONED_DATASET,
+      }),
+    ).toBe(
+      "/api/v1/projects/project-1/evaluation-datasets/detail?name=support-cases&unversioned=1",
+    );
+  });
+});
 
 describe("overview controls", () => {
   it("renders chart SVG geometry through the shared chart container", async () => {
