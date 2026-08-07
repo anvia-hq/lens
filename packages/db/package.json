@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts src/schema.ts --format esm --dts --clean",
+    "build": "tsup src/index.ts src/schema.ts src/migrate.ts src/seed.ts --format esm --dts --clean",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",

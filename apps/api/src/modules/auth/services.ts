@@ -12,12 +12,19 @@ import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { invitationOnboarding } from "./onboarding.js";
 
 export function createAuth(db: LensPostgres, config: LensConfig) {
-  const mailer = nodemailer.createTransport({
-    host: config.SMTP_HOST,
-    port: config.SMTP_PORT,
-    secure: config.SMTP_SECURE,
-  });
+  const mailer =
+    config.SMTP_HOST === undefined
+      ? undefined
+      : nodemailer.createTransport({
+          host: config.SMTP_HOST,
+          port: config.SMTP_PORT,
+          secure: config.SMTP_SECURE,
+          ...(config.SMTP_USER === undefined
+            ? {}
+            : { auth: { user: config.SMTP_USER, pass: config.SMTP_PASSWORD } }),
+        });
   const send = async (message: { to: string; subject: string; text: string }) => {
+    if (mailer === undefined) throw new Error("SMTP is not configured for password resets");
     await mailer.sendMail({ from: config.SMTP_FROM, ...message });
   };
 

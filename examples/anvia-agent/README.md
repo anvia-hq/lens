@@ -8,7 +8,7 @@ local or hosted Anvia Lens instance. Every agent example calls a real OpenAI-com
 Start Lens from the repository root:
 
 ```sh
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 Create a project key pair from the Lens **Connect** page, then configure this example package:

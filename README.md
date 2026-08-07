@@ -37,18 +37,57 @@ registry from the web workspace configuration, run:
 pnpm dlx shadcn@latest add --all --overwrite -c apps/web -y
 ```
 
-## Start locally
+## Deploy with Docker Compose
 
-The complete stack runs through Docker Compose:
+The default [`docker-compose.yml`](docker-compose.yml) is the self-hosted deployment artifact. It
+pulls versioned backend and web images from GitHub Container Registry, runs migrations before the
+API starts, keeps PostgreSQL, ClickHouse, and Redis private to the Compose network, and persists all
+three data stores in named volumes.
 
 ```sh
 cp .env.example .env
-# Replace BETTER_AUTH_SECRET and INGESTION_KEY_PEPPER in .env.
-docker compose up --build
+# Set the public origin and replace every replace-with-* value in .env.
+docker compose up -d
 ```
 
-Open Anvia Lens at <http://localhost> and Mailpit at <http://localhost:8025>.
-Host ports are overridable through `WEB_PORT`, `API_PORT`, `POSTGRES_PORT`, `REDIS_PORT`,
+Open the URL configured in `PUBLIC_APP_URL`. Only the Lens web port is published. For an
+internet-facing installation, place port 80 behind an HTTPS reverse proxy or load balancer and set
+`PUBLIC_APP_URL` and `WEB_ORIGIN` to that HTTPS origin. Pin `LENS_VERSION` to a release instead of
+`latest` for repeatable deployments.
+
+Generate URL-safe deployment secrets with `openssl rand -hex 32`. `BETTER_AUTH_SECRET` and
+`INGESTION_KEY_PEPPER` must remain stable after the first deployment: changing them invalidates
+sessions or ingestion-key verification. SMTP is optional and is used only for password-reset
+emails; invitations continue to use copyable links.
+
+Upgrade by changing `LENS_VERSION`, then let Compose pull the release and run its migrations:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+Back up the `lens-postgres`, `lens-clickhouse`, and `lens-redis` volumes before an upgrade. Do not
+run multiple Lens releases against the same databases during a rolling upgrade.
+
+Release tags matching `v*.*.*` publish multi-platform backend and web images through
+[`publish-images.yml`](.github/workflows/publish-images.yml). After the first publication, a
+repository owner must make both GHCR packages public so self-hosted users can pull them without a
+GitHub token.
+
+## Start locally
+
+The development Compose file builds the current checkout, exposes infrastructure ports, and adds
+Mailpit:
+
+```sh
+cp .env.dev.example .env
+# Replace BETTER_AUTH_SECRET and INGESTION_KEY_PEPPER in .env.
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Open Anvia Lens at <http://localhost> and Mailpit at <http://localhost:8025>. Development host ports
+are overridable through `WEB_PORT`, `API_PORT`, `POSTGRES_PORT`, `REDIS_PORT`,
 `CLICKHOUSE_HTTP_PORT`, `CLICKHOUSE_NATIVE_PORT`, `SMTP_PORT`, and `MAILPIT_UI_PORT`. When changing
 the web port, set `PUBLIC_APP_URL` and `WEB_ORIGIN` to the same browser-facing URL.
 
@@ -58,7 +97,7 @@ With the Compose stack running, seed a verified demo account, project, API key p
 and 24 hours of realistic AI agent telemetry:
 
 ```sh
-docker compose run --rm seed
+docker compose -f docker-compose.dev.yml run --rm seed
 ```
 
 The command is safe to rerun: it refreshes only the dedicated demo project. Sign in with
@@ -84,7 +123,7 @@ while admins can manage projects and members. SMTP remains available for passwor
 For application development with infrastructure in containers:
 
 ```sh
-docker compose up -d postgres redis clickhouse mailpit
+docker compose -f docker-compose.dev.yml up -d postgres redis clickhouse mailpit
 pnpm install
 pnpm db:migrate
 pnpm dev

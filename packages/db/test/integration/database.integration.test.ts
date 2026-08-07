@@ -258,6 +258,8 @@ function integrationConfig() {
     SMTP_PORT: 1025,
     SMTP_FROM: "Lens <lens@localhost>",
     SMTP_SECURE: false,
+    SMTP_USER: undefined,
+    SMTP_PASSWORD: undefined,
     OTLP_MAX_BODY_BYTES: 10 * 1024 * 1024,
     OTLP_RATE_LIMIT_PER_MINUTE: 600,
     LOG_LEVEL: "error" as const,

@@ -14,14 +14,19 @@ describe("loadConfig", () => {
   it("coerces supported numeric and boolean values", () => {
     const config = loadConfig({
       API_PORT: "4100",
+      SMTP_HOST: "smtp.example.com",
       SMTP_PORT: "2465",
       SMTP_SECURE: "true",
+      SMTP_USER: "lens",
+      SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: "2048",
     });
     expect(config).toMatchObject({
       API_PORT: 4100,
       SMTP_PORT: 2465,
       SMTP_SECURE: true,
+      SMTP_USER: "lens",
+      SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: 2048,
     });
   });
@@ -32,6 +37,7 @@ describe("loadConfig", () => {
     [{ BETTER_AUTH_SECRET: "short" }, "BETTER_AUTH_SECRET"],
     [{ INGESTION_KEY_PEPPER: "short" }, "INGESTION_KEY_PEPPER"],
     [{ SMTP_SECURE: "yes" }, "SMTP_SECURE"],
+    [{ SMTP_USER: "lens" }, "SMTP_PASSWORD"],
     [{ LOG_LEVEL: "verbose" }, "LOG_LEVEL"],
   ])("reports invalid configuration for %s", (source, field) => {
     expect(() => loadConfig(source)).toThrow(
