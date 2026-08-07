@@ -16,6 +16,7 @@ import {
   Pulse as Activity,
   ArrowsLeftRight,
   CheckCircle,
+  Database,
   Flask,
   House,
   SignOut as LogOut,
@@ -63,6 +64,12 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/evaluations/runs`,
       label: "Runs",
       icon: Flask,
+    },
+    {
+      to: "/$projectId/evaluations/datasets" as const,
+      path: `${projectRoot}/evaluations/datasets`,
+      label: "Datasets",
+      icon: Database,
     },
     {
       to: "/$projectId/evaluations/results" as const,

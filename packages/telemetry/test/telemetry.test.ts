@@ -335,6 +335,17 @@ describe("OTLP ingestion", () => {
                         { key: "anvia.eval.suite.name", value: { stringValue: "release-gate" } },
                         { key: "anvia.eval.case.id", value: { stringValue: "case-42" } },
                         { key: "anvia.eval.run.id", value: { stringValue: "run-1" } },
+                        {
+                          key: "anvia.eval.payload",
+                          value: {
+                            stringValue:
+                              '{"input":"question","expected":"answer","output":{"text":"response"}}',
+                          },
+                        },
+                        {
+                          key: "anvia.eval.payload.status",
+                          value: { stringValue: "captured" },
+                        },
                         { key: "anvia.eval.case.metadata", value: { stringValue: "hidden" } },
                       ],
                     },
@@ -388,6 +399,12 @@ describe("OTLP ingestion", () => {
       serviceName: "support-service",
       environment: "production",
       release: "2026.08.07",
+      payload: {
+        input: "question",
+        expected: "answer",
+        output: { text: "response" },
+      },
+      payloadStatus: "captured",
       metadata: { "anvia.eval.case.metadata": "[REDACTED]" },
     });
     expect(result.runs).toHaveLength(2);

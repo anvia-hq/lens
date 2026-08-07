@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import {
   type EvaluationOutcome,
+  type EvaluationPayload,
+  type EvaluationPayloadStatus,
   type EvaluationResult,
   type EvaluationRun,
   type JsonValue,
@@ -216,6 +218,8 @@ export function normalizeOtlpLogsRequest(
           numericValue: numericValue ?? null,
           categoricalValue,
           explanation: stringAttribute(attributes, "gen_ai.evaluation.explanation"),
+          payload: evaluationPayload(attributes),
+          payloadStatus: evaluationPayloadStatus(attributes),
           configId: stringAttribute(attributes, "anvia.eval.config_id"),
           serviceName:
             stringAttribute(resourceAttributes, "service.name") ??
@@ -534,6 +538,23 @@ function evaluationDataType(value: string | null): EvaluationResult["dataType"] 
   return candidate === "NUMERIC" || candidate === "CATEGORICAL" || candidate === "BOOLEAN"
     ? candidate
     : null;
+}
+
+function evaluationPayloadStatus(attributes: Record<string, JsonValue>): EvaluationPayloadStatus {
+  const candidate = stringAttribute(attributes, "anvia.eval.payload.status");
+  return candidate === "captured" ||
+    candidate === "size_limit" ||
+    candidate === "serialization_error"
+    ? candidate
+    : "not_requested";
+}
+
+function evaluationPayload(attributes: Record<string, JsonValue>): EvaluationPayload | null {
+  const value = firstPayload(attributes, ["anvia.eval.payload"]);
+  if (typeof value !== "object" || value === null || Array.isArray(value) || !("input" in value)) {
+    return null;
+  }
+  return value as EvaluationPayload;
 }
 
 function evaluationMetadata(attributes: Record<string, JsonValue>): Record<string, JsonValue> {

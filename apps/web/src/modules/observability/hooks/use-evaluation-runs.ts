@@ -159,6 +159,8 @@ export function useEvaluationRuns() {
 
 export function useEvaluationRunDetail(runId: string) {
   const { project } = useObservabilityProject();
+  const search = useSearch({ from: "/$projectId/evaluations/runs/$runId" });
+  const navigate = useNavigate();
   const detail = useQuery({
     queryKey: ["evaluation-run", project.id, runId],
     queryFn: () =>
@@ -167,7 +169,14 @@ export function useEvaluationRunDetail(runId: string) {
       ),
     refetchInterval: 5_000,
   });
-  return { detail, project };
+  const selectCase = (caseId: string | null) => {
+    void navigate({
+      to: "/$projectId/evaluations/runs/$runId",
+      params: { projectId: project.id, runId },
+      search: { case: caseId ?? undefined },
+    });
+  };
+  return { detail, project, search, selectCase };
 }
 
 export type EvaluationRunsState = ReturnType<typeof useEvaluationRuns>;

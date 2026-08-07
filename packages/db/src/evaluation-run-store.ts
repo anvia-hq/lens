@@ -243,6 +243,33 @@ export async function getEvaluationRun(
   return (await hydrateRunSummaries(client, projectId, [runFromRow(run)]))[0];
 }
 
+export async function listEvaluationRunsForDataset(
+  client: ClickHouseClient,
+  projectId: string,
+  datasetName: string,
+  datasetVersion: string | null,
+): Promise<EvaluationRunSummary[]> {
+  const versionFilter =
+    datasetVersion === null
+      ? "isNull(dataset_version)"
+      : "dataset_version = {datasetVersion:String}";
+  const result = await client.query({
+    query: `SELECT * FROM evaluation_runs FINAL
+            WHERE project_id = {projectId:UUID}
+              AND dataset_name = {datasetName:String}
+              AND ${versionFilter}
+            ORDER BY started_at DESC, id ASC`,
+    query_params: {
+      projectId,
+      datasetName,
+      ...(datasetVersion === null ? {} : { datasetVersion }),
+    },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<RunRow>();
+  return hydrateRunSummaries(client, projectId, rows.map(runFromRow));
+}
+
 export async function getEvaluationRunDetail(
   client: ClickHouseClient,
   projectId: string,
@@ -254,7 +281,43 @@ export async function getEvaluationRunDetail(
     queryRunMetrics(client, projectId, runId),
     listRunResults(client, projectId, runId),
   ]);
-  return { run, metrics, results };
+  return { run, metrics, results, cases: groupRunCases(results) };
+}
+
+export function groupRunCases(results: EvaluationResult[]): EvaluationRunDetail["cases"] {
+  const groups = new Map<string, EvaluationResult[]>();
+  for (const result of results) {
+    const key = result.caseId ?? "\u0000";
+    groups.set(key, [...(groups.get(key) ?? []), result]);
+  }
+  return Array.from(groups.values())
+    .map((items) => {
+      const payloads = items.flatMap((item) =>
+        item.payload === null ? [] : [JSON.stringify(item.payload)],
+      );
+      const payloadItem = items.find((item) => item.payload !== null) ?? items[0];
+      const outcomes = new Set(items.map((item) => item.outcome));
+      const outcome: EvaluationResult["outcome"] = outcomes.has("fail")
+        ? "fail"
+        : outcomes.has("invalid")
+          ? "invalid"
+          : outcomes.has("unknown")
+            ? "unknown"
+            : "pass";
+      return {
+        caseId: items[0]?.caseId ?? null,
+        outcome,
+        traceId: items.find((item) => item.traceId !== null)?.traceId ?? null,
+        payload: payloadItem?.payload ?? null,
+        payloadStatus: payloadItem?.payloadStatus ?? "not_requested",
+        payloadConsistent: new Set(payloads).size <= 1,
+        results: items.toSorted(
+          (left, right) =>
+            left.metricName.localeCompare(right.metricName) || left.id.localeCompare(right.id),
+        ),
+      };
+    })
+    .toSorted((left, right) => (left.caseId ?? "").localeCompare(right.caseId ?? ""));
 }
 
 export async function compareEvaluationRuns(
@@ -406,7 +469,7 @@ async function queryRunMetrics(
   });
 }
 
-async function listRunResults(
+export async function listRunResults(
   client: ClickHouseClient,
   projectId: string,
   runId: string,

@@ -154,6 +154,17 @@ export type EvaluationCompareSearch = {
   gateId?: string;
 };
 
+export type EvaluationRunDetailSearch = {
+  case?: string;
+};
+
+export type EvaluationDatasetsSearch = {
+  dataset?: string;
+  version?: string;
+  search?: string;
+  page?: number;
+};
+
 export type TraceDetailSearch = {
   view?: TraceSpanView;
   span?: string;

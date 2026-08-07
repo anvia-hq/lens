@@ -79,6 +79,22 @@ export type MaterializeTraceJob = {
 export const evaluationOutcomes = ["pass", "fail", "invalid", "unknown"] as const;
 export type EvaluationOutcome = (typeof evaluationOutcomes)[number];
 
+export const evaluationPayloadStatuses = [
+  "captured",
+  "not_requested",
+  "size_limit",
+  "serialization_error",
+] as const;
+export type EvaluationPayloadStatus = (typeof evaluationPayloadStatuses)[number];
+
+export type EvaluationPayload = {
+  input: JsonValue;
+  expected?: JsonValue;
+  context?: JsonValue;
+  retrievalContext?: JsonValue;
+  output?: JsonValue;
+};
+
 export type EvaluationResult = {
   projectId: string;
   id: string;
@@ -95,6 +111,8 @@ export type EvaluationResult = {
   numericValue: number | null;
   categoricalValue: string | null;
   explanation: string | null;
+  payload: EvaluationPayload | null;
+  payloadStatus: EvaluationPayloadStatus;
   configId: string | null;
   serviceName: string;
   environment: string;
@@ -328,6 +346,50 @@ export type EvaluationRunDetail = {
   run: EvaluationRunSummary;
   metrics: EvaluationMetricBreakdown[];
   results: EvaluationResult[];
+  cases: EvaluationRunCaseDetail[];
+};
+
+export type EvaluationRunCaseDetail = {
+  caseId: string | null;
+  outcome: EvaluationOutcome;
+  traceId: string | null;
+  payload: EvaluationPayload | null;
+  payloadStatus: EvaluationPayloadStatus;
+  payloadConsistent: boolean;
+  results: EvaluationResult[];
+};
+
+export type EvaluationDatasetSummary = {
+  name: string;
+  versionCount: number;
+  runCount: number;
+  latestVersion: string | null;
+  latestRunAt: string;
+};
+
+export type EvaluationDatasetVersionSummary = {
+  version: string | null;
+  status: "complete" | "incomplete" | "conflict";
+  caseCount: number;
+  runCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  canonicalRunId: string | null;
+};
+
+export type EvaluationDatasetCase = {
+  caseId: string;
+  payload: EvaluationPayload | null;
+  payloadStatus: EvaluationPayloadStatus;
+  conflict: boolean;
+};
+
+export type EvaluationDatasetDetail = {
+  name: string;
+  selectedVersion: EvaluationDatasetVersionSummary;
+  versions: EvaluationDatasetVersionSummary[];
+  cases: EvaluationDatasetCase[];
+  runs: EvaluationRunSummary[];
 };
 
 export type ComparisonValue = {

@@ -4,6 +4,7 @@ import { requestId } from "hono/request-id";
 import { createApiKeysRouter } from "./modules/api-keys/router.js";
 import { createAuthRouter, createSetupRouter } from "./modules/auth/router.js";
 import { createSessionMiddleware } from "./modules/auth/services.js";
+import { createEvaluationDatasetsRouter } from "./modules/evaluation-datasets/router.js";
 import { createEvaluationRunsRouter } from "./modules/evaluation-runs/router.js";
 import { createEvaluationsRouter } from "./modules/evaluations/router.js";
 import { createLogsIngestionRouter } from "./modules/ingestion/logs-router.js";
@@ -54,6 +55,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createUsersRouter(deps))
     .route("/api/v1/projects", createMetricsRouter(deps))
     .route("/api/v1/projects", createEvaluationsRouter(deps))
+    .route("/api/v1/projects", createEvaluationDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationRunsRouter(deps))
     .route("/api/v1/projects", createQualityGatesRouter(deps));
 }

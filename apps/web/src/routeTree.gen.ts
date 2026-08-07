@@ -19,6 +19,7 @@ import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/setti
 import { Route as AcceptInvitationInvitationIdRouteImport } from './routes/accept-invitation/$invitationId'
 import { Route as ProjectIdEvaluationsIndexRouteImport } from './routes/$projectId/evaluations/index'
 import { Route as ProjectIdEvaluationsCompareRouteImport } from './routes/$projectId/evaluations/compare'
+import { Route as ProjectIdEvaluationsDatasetsRouteImport } from './routes/$projectId/evaluations/datasets'
 import { Route as ProjectIdEvaluationsGatesRouteImport } from './routes/$projectId/evaluations/gates'
 import { Route as ProjectIdEvaluationsResultsRouteImport } from './routes/$projectId/evaluations/results'
 import { Route as ProjectIdSessionsIndexRouteImport } from './routes/$projectId/sessions/index'
@@ -82,6 +83,12 @@ const ProjectIdEvaluationsCompareRoute =
   ProjectIdEvaluationsCompareRouteImport.update({
     id: '/evaluations/compare',
     path: '/evaluations/compare',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsDatasetsRoute =
+  ProjectIdEvaluationsDatasetsRouteImport.update({
+    id: '/evaluations/datasets',
+    path: '/evaluations/datasets',
     getParentRoute: () => ProjectIdRouteRoute,
   } as any)
 const ProjectIdEvaluationsGatesRoute =
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
   '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId': typeof ProjectIdIndexRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
   '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
@@ -201,6 +210,7 @@ export interface FileRoutesById {
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
   '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
     | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
     | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/accept-invitation/$invitationId'
     | '/$projectId'
     | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
     | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
@@ -271,6 +283,7 @@ export interface FileRouteTypes {
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
     | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
     | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
@@ -365,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdEvaluationsCompareRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
+    '/$projectId/evaluations/datasets': {
+      id: '/$projectId/evaluations/datasets'
+      path: '/evaluations/datasets'
+      fullPath: '/$projectId/evaluations/datasets'
+      preLoaderRoute: typeof ProjectIdEvaluationsDatasetsRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
     '/$projectId/evaluations/gates': {
       id: '/$projectId/evaluations/gates'
       path: '/evaluations/gates'
@@ -450,6 +470,7 @@ interface ProjectIdRouteRouteChildren {
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
   ProjectIdEvaluationsCompareRoute: typeof ProjectIdEvaluationsCompareRoute
+  ProjectIdEvaluationsDatasetsRoute: typeof ProjectIdEvaluationsDatasetsRoute
   ProjectIdEvaluationsGatesRoute: typeof ProjectIdEvaluationsGatesRoute
   ProjectIdEvaluationsResultsRoute: typeof ProjectIdEvaluationsResultsRoute
   ProjectIdSessionsSessionIdRoute: typeof ProjectIdSessionsSessionIdRoute
@@ -469,6 +490,7 @@ const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
   ProjectIdEvaluationsCompareRoute: ProjectIdEvaluationsCompareRoute,
+  ProjectIdEvaluationsDatasetsRoute: ProjectIdEvaluationsDatasetsRoute,
   ProjectIdEvaluationsGatesRoute: ProjectIdEvaluationsGatesRoute,
   ProjectIdEvaluationsResultsRoute: ProjectIdEvaluationsResultsRoute,
   ProjectIdSessionsSessionIdRoute: ProjectIdSessionsSessionIdRoute,

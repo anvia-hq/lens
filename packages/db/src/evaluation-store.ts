@@ -26,6 +26,8 @@ type EvaluationRow = {
   numeric_value: number | string | null;
   categorical_value: string | null;
   explanation: string | null;
+  payload: string | null;
+  payload_status: EvaluationResult["payloadStatus"];
   config_id: string | null;
   service_name: string;
   environment: string;
@@ -60,6 +62,8 @@ export async function insertEvaluations(
       numeric_value: result.numericValue,
       categorical_value: result.categoricalValue,
       explanation: result.explanation,
+      payload: result.payload === null ? null : JSON.stringify(result.payload),
+      payload_status: result.payloadStatus,
       config_id: result.configId,
       service_name: result.serviceName,
       environment: result.environment,
@@ -340,6 +344,8 @@ function evaluationFromRow(row: EvaluationRow): EvaluationResult {
     numericValue: nullableNumber(row.numeric_value),
     categoricalValue: row.categorical_value,
     explanation: row.explanation,
+    payload: jsonPayload(row.payload),
+    payloadStatus: row.payload_status,
     configId: row.config_id,
     serviceName: row.service_name,
     environment: row.environment,
@@ -349,6 +355,18 @@ function evaluationFromRow(row: EvaluationRow): EvaluationResult {
     ingestedAt: isoTime(row.ingested_at),
     ingestVersion: String(row.ingest_version),
   };
+}
+
+function jsonPayload(value: string | null): EvaluationResult["payload"] {
+  if (value === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as EvaluationResult["payload"])
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function outcomeCounts(row: Record<string, number | string | null | undefined>) {

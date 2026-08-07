@@ -25,9 +25,11 @@ import {
   defaultTraceColumns,
   defaultUserColumns,
   type EvaluationCompareSearch,
+  type EvaluationDatasetsSearch,
   type EvaluationResultColumnId,
   type EvaluationResultsSearch,
   type EvaluationRunColumnId,
+  type EvaluationRunDetailSearch,
   type EvaluationRunsSearch,
   evaluationResultColumnIds,
   evaluationRunColumnIds,
@@ -52,6 +54,23 @@ import {
   type UsersSearch,
   userColumnIds,
 } from "./types";
+
+export function validateEvaluationRunDetailSearch(
+  search: Record<string, unknown>,
+): EvaluationRunDetailSearch {
+  return { case: optionalSearchValue(search.case) };
+}
+
+export function validateEvaluationDatasetsSearch(
+  search: Record<string, unknown>,
+): EvaluationDatasetsSearch {
+  return {
+    dataset: optionalSearchValue(search.dataset),
+    version: optionalSearchValue(search.version),
+    search: optionalSearchValue(search.search),
+    page: positiveInteger(search.page, 1),
+  };
+}
 
 export function validateEvaluationsSearch(
   search: Record<string, unknown>,
