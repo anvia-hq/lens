@@ -43,7 +43,7 @@ const project: ProjectWithRole = {
   name: "Project",
   slug: "project",
   state: "active",
-  settings: { retentionDays: 30, redactionPatterns: [] },
+  settings: { retentionDays: 30 },
   createdAt: "2026-08-05T00:00:00.000Z",
   updatedAt: "2026-08-05T00:00:00.000Z",
   role: "owner",

@@ -89,7 +89,6 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: Ingest
       const normalized = normalizeOtlpLogsRequest(decodeOtlpLogsRequest(bytes, contentType), {
         projectId: key.project.id,
         retentionDays: parseRetentionDays(key.project.retentionDays),
-        redactionPatterns: key.project.redactionPatterns,
       });
       if (normalized.evaluations.length > 0 || normalized.runs.length > 0) {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");

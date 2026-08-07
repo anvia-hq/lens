@@ -11,7 +11,6 @@ export function projectFromRow(row: typeof project.$inferSelect): Project {
     state: row.state,
     settings: {
       retentionDays: parseRetentionDays(row.retentionDays),
-      redactionPatterns: row.redactionPatterns,
     },
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

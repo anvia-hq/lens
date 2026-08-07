@@ -31,12 +31,8 @@ describe("contracts", () => {
   });
 
   it("validates supported retention options", () => {
-    expect(
-      projectSettingsSchema.safeParse({ retentionDays: 30, redactionPatterns: [] }).success,
-    ).toBe(true);
-    expect(
-      projectSettingsSchema.safeParse({ retentionDays: 14, redactionPatterns: [] }).success,
-    ).toBe(false);
+    expect(projectSettingsSchema.safeParse({ retentionDays: 30 }).success).toBe(true);
+    expect(projectSettingsSchema.safeParse({ retentionDays: 14 }).success).toBe(false);
   });
 
   it("accepts only supported overview ranges", () => {

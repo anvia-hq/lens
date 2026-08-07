@@ -32,6 +32,7 @@ import {
 import { cn } from "@lens/ui/lib/utils";
 import {
   ArrowsLeftRight,
+  ArrowsDownUp as ArrowUpDown,
   ChartLine,
   CaretDown as ChevronDown,
   Flask,
@@ -50,13 +51,14 @@ import {
   evaluationRunColumnIds,
   type ResolvedEvaluationRunsSearch,
 } from "../types";
-import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { formatDuration, formatNumber, shortId } from "../utils/trace-detail";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationRunFilterPanel } from "./evaluation-filter-panel";
 import { EvaluationOverviewDrawer } from "./evaluation-overview-drawer";
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
+import { TableTimestamp } from "./table-timestamp";
 
 const columnLabels: Record<EvaluationRunColumnId, string> = {
   startedAt: "Started",
@@ -223,8 +225,8 @@ function EvaluationRunExplorerTable(props: {
         ) : props.loading ? (
           <LoadingRows />
         ) : props.data?.items.length ? (
-          <Table>
-            <TableHeader>
+          <Table className="w-full">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead className="w-10 pl-4">
                   <span className="sr-only">Select</span>
@@ -232,20 +234,30 @@ function EvaluationRunExplorerTable(props: {
                 {props.filters.columns.map((column) => {
                   const field = sortFields[column];
                   return (
-                    <TableHead key={column}>
+                    <TableHead
+                      key={column}
+                      aria-sort={
+                        props.filters.sort === field
+                          ? props.filters.order === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : undefined
+                      }
+                    >
                       {field ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="-ml-3"
                           onClick={() => sort(field)}
+                          aria-label={`Sort by ${columnLabels[column]}${
+                            props.filters.sort === field ? `, currently ${props.filters.order}` : ""
+                          }`}
                         >
                           {columnLabels[column]}
-                          {props.filters.sort === field
-                            ? props.filters.order === "asc"
-                              ? " ↑"
-                              : " ↓"
-                            : null}
+                          <ArrowUpDown
+                            className={cn(props.filters.sort === field && "text-primary")}
+                          />
                         </Button>
                       ) : (
                         columnLabels[column]
@@ -319,7 +331,7 @@ function RunRow(props: {
 }
 
 function runCell(run: EvaluationRunSummary, column: EvaluationRunColumnId): ReactNode {
-  if (column === "startedAt") return formatTimestamp(run.startedAt);
+  if (column === "startedAt") return <TableTimestamp value={run.startedAt} />;
   if (column === "suite") {
     return (
       <Link

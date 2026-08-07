@@ -63,7 +63,6 @@ describe("OTLP ingestion", () => {
     const result = normalizeOtlpRequest(request, {
       projectId: "00000000-0000-0000-0000-000000000001",
       retentionDays: 30,
-      redactionPatterns: ["metadata.*"],
       now: new Date("2026-08-05T00:00:00.000Z"),
     });
     expect(result.rejectedSpans).toBe(0);
@@ -383,7 +382,6 @@ describe("OTLP ingestion", () => {
     const result = normalizeOtlpLogsRequest(request, {
       projectId: "00000000-0000-0000-0000-000000000001",
       retentionDays: 30,
-      redactionPatterns: ["anvia.eval.*.metadata"],
       now: new Date("2026-08-07T00:00:00.000Z"),
     });
     expect(result).toMatchObject({ rejectedLogRecords: 0, ignoredLogRecords: 1 });
@@ -405,7 +403,7 @@ describe("OTLP ingestion", () => {
         output: { text: "response" },
       },
       payloadStatus: "captured",
-      metadata: { "anvia.eval.case.metadata": "[REDACTED]" },
+      metadata: { "anvia.eval.case.metadata": "hidden" },
     });
     expect(result.runs).toHaveLength(2);
     expect(result.runs[1]).toMatchObject({

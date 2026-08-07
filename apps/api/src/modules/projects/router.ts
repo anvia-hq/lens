@@ -62,7 +62,6 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
         .set({
           retentionDays:
             parsed.data.retentionDays === null ? "unlimited" : String(parsed.data.retentionDays),
-          redactionPatterns: parsed.data.redactionPatterns,
           updatedAt: new Date(),
         })
         .where(eq(project.id, access.project.id))

@@ -7,11 +7,17 @@ export function Page(props: {
   description: string;
   action?: ReactNode;
   className?: string;
+  headerClassName?: string;
   children: ReactNode;
 }) {
   return (
     <main className={cn("flex w-full flex-1 flex-col gap-6 p-4 md:p-6", props.className)}>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header
+        className={cn(
+          "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
+          props.headerClassName,
+        )}
+      >
         <div className="grid gap-1">
           {props.eyebrow ? (
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
