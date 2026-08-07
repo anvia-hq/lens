@@ -305,7 +305,7 @@ function evaluationWhere(
     ["runIds", "run_id", undefined],
   ] as const) {
     const values = options[field];
-    if (values !== undefined && values.length > 0 && omit !== facet) {
+    if (values !== undefined && values.length > 0 && (facet === undefined || omit !== facet)) {
       filters.push(`${column} IN {${field}:Array(String)}`);
       params[field] = values;
     }
