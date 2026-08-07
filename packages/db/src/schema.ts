@@ -1,4 +1,4 @@
-import type { QualityGateRule } from "@lens/contracts";
+import type { JsonValue, ManagedDatasetCaseInput, QualityGateRule } from "@lens/contracts";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -192,6 +192,84 @@ export const qualityGate = pgTable(
   ],
 );
 
+export const managedDatasetVersionStatus = pgEnum("managed_dataset_version_status", [
+  "draft",
+  "published",
+]);
+
+export const managedDataset = pgTable(
+  "managed_datasets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    metadata: jsonb("metadata").$type<Record<string, JsonValue>>().notNull().default({}),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("managed_datasets_project_name_idx").on(table.projectId, sql`lower(${table.name})`),
+    index("managed_datasets_project_updated_idx").on(table.projectId, table.updatedAt),
+  ],
+);
+
+export const managedDatasetVersion = pgTable(
+  "managed_dataset_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    datasetId: uuid("dataset_id")
+      .notNull()
+      .references(() => managedDataset.id, { onDelete: "cascade" }),
+    version: text("version").notNull(),
+    status: managedDatasetVersionStatus("status").notNull().default("draft"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("managed_dataset_versions_label_idx").on(
+      table.datasetId,
+      sql`lower(${table.version})`,
+    ),
+    uniqueIndex("managed_dataset_versions_single_draft_idx")
+      .on(table.datasetId)
+      .where(sql`${table.status} = 'draft'`),
+    index("managed_dataset_versions_dataset_created_idx").on(table.datasetId, table.createdAt),
+  ],
+);
+
+export const managedDatasetCase = pgTable(
+  "managed_dataset_cases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => managedDatasetVersion.id, { onDelete: "cascade" }),
+    caseId: text("case_id").notNull(),
+    position: integer("position").notNull(),
+    item: jsonb("item").$type<ManagedDatasetCaseInput>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("managed_dataset_cases_version_case_idx").on(
+      table.versionId,
+      sql`lower(${table.caseId})`,
+    ),
+    index("managed_dataset_cases_version_position_idx").on(table.versionId, table.position),
+  ],
+);
+
 export const llmModelPrice = pgTable(
   "llm_model_prices",
   {
@@ -302,6 +380,7 @@ export const projectRelations = relations(project, ({ one, many }) => ({
   }),
   apiKeys: many(projectApiKey),
   qualityGates: many(qualityGate),
+  managedDatasets: many(managedDataset),
 }));
 
 export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
@@ -310,6 +389,28 @@ export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
 
 export const qualityGateRelations = relations(qualityGate, ({ one }) => ({
   project: one(project, { fields: [qualityGate.projectId], references: [project.id] }),
+}));
+
+export const managedDatasetRelations = relations(managedDataset, ({ one, many }) => ({
+  project: one(project, { fields: [managedDataset.projectId], references: [project.id] }),
+  creator: one(user, { fields: [managedDataset.createdBy], references: [user.id] }),
+  versions: many(managedDatasetVersion),
+}));
+
+export const managedDatasetVersionRelations = relations(managedDatasetVersion, ({ one, many }) => ({
+  dataset: one(managedDataset, {
+    fields: [managedDatasetVersion.datasetId],
+    references: [managedDataset.id],
+  }),
+  creator: one(user, { fields: [managedDatasetVersion.createdBy], references: [user.id] }),
+  cases: many(managedDatasetCase),
+}));
+
+export const managedDatasetCaseRelations = relations(managedDatasetCase, ({ one }) => ({
+  version: one(managedDatasetVersion, {
+    fields: [managedDatasetCase.versionId],
+    references: [managedDatasetVersion.id],
+  }),
 }));
 
 export const llmModelPriceRelations = relations(llmModelPrice, ({ one }) => ({

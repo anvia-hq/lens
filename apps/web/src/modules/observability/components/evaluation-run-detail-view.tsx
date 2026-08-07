@@ -262,6 +262,11 @@ function RunNavigation(props: {
 function CaseInspector(props: { item: EvaluationRunCaseDetail; projectId: string }) {
   const [view, setView] = useState<TracePayloadView>("formatted");
   const item = props.item;
+  const definition = item.datasetItem;
+  const input = item.payload?.input ?? definition?.input;
+  const expected = item.payload?.expected ?? definition?.expected;
+  const context = item.payload?.context ?? definition?.context;
+  const retrievalContext = item.payload?.retrievalContext ?? definition?.retrievalContext;
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Evaluation case">
       <header className="shrink-0 border-b px-4 py-4 md:px-6">
@@ -295,24 +300,31 @@ function CaseInspector(props: { item: EvaluationRunCaseDetail; projectId: string
       </header>
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-6 p-4 md:p-6">
-          {item.payload === null ? (
+          {input === undefined ? (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
               {payloadStatusMessage(item.payloadStatus)}
             </div>
           ) : (
             <>
-              <PayloadSection title="Input" value={item.payload.input} view={view} />
-              <PayloadSection title="Expected" value={item.payload.expected ?? null} view={view} />
-              <PayloadSection title="Output" value={item.payload.output ?? null} view={view} />
-              {item.payload.context !== undefined ? (
-                <PayloadSection title="Context" value={item.payload.context} view={view} />
+              {definition && item.payload === null ? (
+                <Badge className="w-fit" variant="secondary">
+                  Managed dataset definition
+                </Badge>
               ) : null}
-              {item.payload.retrievalContext !== undefined ? (
-                <PayloadSection
-                  title="Retrieval context"
-                  value={item.payload.retrievalContext}
-                  view={view}
-                />
+              <PayloadSection title="Input" value={input} view={view} />
+              <PayloadSection title="Expected" value={expected ?? null} view={view} />
+              {item.payload === null ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Target output was not captured for this run.
+                </div>
+              ) : (
+                <PayloadSection title="Output" value={item.payload.output ?? null} view={view} />
+              )}
+              {context !== undefined ? (
+                <PayloadSection title="Context" value={context} view={view} />
+              ) : null}
+              {retrievalContext !== undefined ? (
+                <PayloadSection title="Retrieval context" value={retrievalContext} view={view} />
               ) : null}
             </>
           )}

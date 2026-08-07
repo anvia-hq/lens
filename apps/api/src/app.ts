@@ -11,6 +11,8 @@ import { createLogsIngestionRouter } from "./modules/ingestion/logs-router.js";
 import { createIngestionRouter } from "./modules/ingestion/router.js";
 import { createInvitationsRouter } from "./modules/invitations/router.js";
 import { createLlmModelsRouter } from "./modules/llm-models/router.js";
+import { createPublicDatasetsRouter } from "./modules/managed-datasets/public-router.js";
+import { createManagedDatasetsRouter } from "./modules/managed-datasets/router.js";
 import { createMembersRouter } from "./modules/members/router.js";
 import { createMetricsRouter } from "./modules/metrics/router.js";
 import { createProjectsRouter } from "./modules/projects/router.js";
@@ -45,6 +47,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/auth", createAuthRouter(deps))
     .route("/api/public/otel/v1/traces", createIngestionRouter(deps, metrics))
     .route("/api/public/otel/v1/logs", createLogsIngestionRouter(deps, metrics))
+    .route("/api/public/datasets", createPublicDatasetsRouter(deps))
     .use("/api/v1/*", createSessionMiddleware(deps))
     .route("/api/v1/members", createMembersRouter(deps))
     .route("/api/v1/llm-models", createLlmModelsRouter(deps))
@@ -55,6 +58,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createUsersRouter(deps))
     .route("/api/v1/projects", createMetricsRouter(deps))
     .route("/api/v1/projects", createEvaluationsRouter(deps))
+    .route("/api/v1/projects", createManagedDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationRunsRouter(deps))
     .route("/api/v1/projects", createQualityGatesRouter(deps));

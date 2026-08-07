@@ -4,6 +4,8 @@ import {
   createProjectSchema,
   decodeCursor,
   encodeCursor,
+  managedDatasetCaseImportSchema,
+  managedDatasetCaseInputSchema,
   metricsRangeSchema,
   projectSettingsSchema,
   qualityGateInputSchema,
@@ -106,5 +108,25 @@ describe("contracts", () => {
       false,
     );
     expect(createApiKeySchema.safeParse({ name: "   " }).success).toBe(false);
+  });
+
+  it("validates managed dataset cases and rejects duplicate import IDs", () => {
+    expect(
+      managedDatasetCaseInputSchema.safeParse({
+        id: "refund",
+        input: { question: "Can I get a refund?" },
+        expected: "30 days",
+        context: ["Refund policy"],
+        metadata: { owner: "support" },
+      }).success,
+    ).toBe(true);
+    expect(
+      managedDatasetCaseImportSchema.safeParse({
+        items: [
+          { id: "Refund", input: "a" },
+          { id: "refund", input: "b" },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });

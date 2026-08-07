@@ -15,6 +15,7 @@ import {
 import { Database, Flask } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { ErrorAlert } from "../../../components/error-alert";
 import { FullPageMessage } from "../../../components/full-page-message";
 import {
   type EvaluationDatasetsState,
@@ -22,6 +23,8 @@ import {
 } from "../hooks/use-evaluation-datasets";
 import type { TracePayloadView } from "../types";
 import { formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { DatasetTabs } from "./dataset-tabs";
+import { ManagedDatasetsView } from "./managed-datasets-view";
 import { PayloadSection } from "./payload-section";
 import { PayloadViewSwitch } from "./payload-view-switch";
 
@@ -31,6 +34,7 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
   const [payloadView, setPayloadView] = useState<TracePayloadView>("formatted");
   useEffect(() => setSearchDraft(state.search.search ?? ""), [state.search.search]);
   useEffect(() => setSelectedCase(state.detail.data?.cases[0]), [state.detail.data]);
+  if (state.search.tab !== "observed") return <ManagedDatasetsView state={state} />;
   if (state.datasets.isLoading)
     return <FullPageMessage icon={<Database />} text="Loading evaluation datasets" contained />;
   if (state.datasets.error || !state.datasets.data)
@@ -39,14 +43,18 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
   const detail = state.detail.data;
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b bg-background px-4 py-4">
-        <h1 className="text-lg font-semibold tracking-tight">Datasets</h1>
-        <p className="text-sm text-muted-foreground">
-          Immutable evaluation case snapshots discovered from ingested runs.
-        </p>
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background px-4 py-4">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Datasets</h1>
+          <p className="text-sm text-muted-foreground">
+            Immutable evaluation case snapshots discovered from ingested runs.
+          </p>
+        </div>
+        <DatasetTabs state={state} />
       </header>
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-4 p-4">
+          {state.importObserved.error ? <ErrorAlert error={state.importObserved.error} /> : null}
           <Card>
             <CardHeader className="gap-3">
               <CardTitle>Dataset catalog</CardTitle>
@@ -144,7 +152,31 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
                         Canonical run {detail.selectedVersion.canonicalRunId ?? "not available"}
                       </p>
                     </div>
-                    <Badge variant="outline">{detail.selectedVersion.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      {detail.selectedVersion.status === "complete" &&
+                      (state.project.role === "owner" || state.project.role === "admin") ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const name = window.prompt("Managed dataset name", detail.name)?.trim();
+                            if (!name) return;
+                            const suggested = detail.selectedVersion.version ?? "v1";
+                            const version = window.prompt("Draft version label", suggested)?.trim();
+                            if (!version) return;
+                            state.importObserved.mutate({
+                              sourceName: detail.name,
+                              sourceVersion: detail.selectedVersion.version,
+                              name,
+                              version,
+                            });
+                          }}
+                        >
+                          Save as managed
+                        </Button>
+                      ) : null}
+                      <Badge variant="outline">{detail.selectedVersion.status}</Badge>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {detail.versions.map((version) => (

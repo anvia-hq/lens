@@ -20,6 +20,7 @@
     "example:anvia:tools": "pnpm --filter @lens/example-anvia-agent tools:01",
     "example:anvia:eval": "pnpm --filter @lens/example-anvia-agent evaluations:01",
     "example:anvia:judge": "pnpm --filter @lens/example-anvia-agent evaluations:02",
+    "example:anvia:dataset": "pnpm --filter @lens/example-anvia-agent evaluations:03",
     "example:anvia:release": "pnpm --filter @lens/example-anvia-agent release:01",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm --filter @lens/config --filter @lens/contracts --filter @lens/telemetry test:coverage && node scripts/run-package-integration-tests.mjs --coverage",

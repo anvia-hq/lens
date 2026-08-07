@@ -34,10 +34,16 @@ default safe capture mode for applications that may contain sensitive data.
 | `pnpm example:anvia:tools` | Traces | Agent, generation, and tool observations |
 | `pnpm example:anvia:eval` | Runs, Results | Multi-case evaluation with deterministic metrics |
 | `pnpm example:anvia:judge` | Runs, Results | Live agent output evaluated by an LLM judge |
+| `pnpm example:anvia:dataset` | Datasets, Runs, Results | Published managed dataset fetched through `@anvia/lens` |
 | `pnpm example:anvia:release` | Compare, Gates | Baseline and candidate runs for a release decision |
 
 Commands may also be run from this directory with `pnpm basics:01`, `pnpm tools:01`,
-`pnpm evaluations:01`, `pnpm evaluations:02`, and `pnpm release:01`.
+`pnpm evaluations:01`, `pnpm evaluations:02`, `pnpm evaluations:03`, and `pnpm release:01`.
+
+Before running the managed dataset example, run `pnpm example:anvia:eval`, open its observed
+`support-policy-cases` dataset in Lens, save it as managed, and publish the `v1` draft. Configure a
+different published dataset with `ANVIA_LENS_DATASET_NAME` and `ANVIA_LENS_DATASET_VERSION`. Leave
+the version empty to fetch the latest published version.
 
 The judge and release examples make multiple provider calls and may incur additional cost. The
 release example creates comparable runs; create a gate in the Lens **Gates** page and apply it to the

@@ -1,6 +1,7 @@
 import {
   compareEvaluationRuns,
   getEvaluationRunDetail,
+  getPublishedManagedDataset,
   getQualityGate,
   listEvaluationRunFacets,
   listEvaluationRuns,
@@ -103,7 +104,23 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
       const detail = await getEvaluationRunDetail(deps.clickhouse, projectId, c.req.param("runId"));
-      return detail === undefined
-        ? apiError(c, 404, "not_found", "Evaluation run not found")
-        : c.json(detail);
+      if (detail === undefined) return apiError(c, 404, "not_found", "Evaluation run not found");
+      if (detail.run.datasetName === null || detail.run.datasetVersion === null) {
+        return c.json(detail);
+      }
+      const dataset = await getPublishedManagedDataset(
+        deps.postgres.db,
+        projectId,
+        detail.run.datasetName,
+        detail.run.datasetVersion,
+      );
+      if (dataset === undefined) return c.json(detail);
+      const items = new Map(dataset.items.map((item) => [item.id, item]));
+      return c.json({
+        ...detail,
+        cases: detail.cases.map((item) => ({
+          ...item,
+          datasetItem: item.caseId === null ? null : (items.get(item.caseId) ?? null),
+        })),
+      });
     });

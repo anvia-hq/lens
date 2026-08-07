@@ -37,6 +37,7 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
 export * from "./evaluation-dataset-store.js";
 export * from "./evaluation-run-store.js";
 export * from "./evaluation-store.js";
+export * from "./managed-dataset-store.js";
 export * from "./metrics-store.js";
 export * from "./model-costs.js";
 export * from "./quality-gate-store.js";

@@ -159,8 +159,11 @@ export type EvaluationRunDetailSearch = {
 };
 
 export type EvaluationDatasetsSearch = {
+  tab?: "managed" | "observed";
   dataset?: string;
   version?: string;
+  managedDataset?: string;
+  managedVersion?: string;
   search?: string;
   page?: number;
 };

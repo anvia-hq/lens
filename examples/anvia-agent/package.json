@@ -12,6 +12,7 @@
     "evaluations": "pnpm evaluations:01",
     "evaluations:01": "tsx -r dotenv/config 03_evaluations/01-evaluation-run.ts dotenv_config_path=.env",
     "evaluations:02": "tsx -r dotenv/config 03_evaluations/02-llm-judge.ts dotenv_config_path=.env",
+    "evaluations:03": "tsx -r dotenv/config 03_evaluations/03-managed-dataset.ts dotenv_config_path=.env",
     "release": "pnpm release:01",
     "release:01": "tsx -r dotenv/config 04_release/01-compare-and-gate.ts dotenv_config_path=.env",
     "build": "tsup 01_basics/*.ts 02_tools/*.ts 03_evaluations/*.ts 04_release/*.ts --format esm --clean",
@@ -20,7 +21,7 @@
   },
   "dependencies": {
     "@anvia/core": "^0.24.0",
-    "@anvia/lens": "^0.3.0",
+    "@anvia/lens": "^0.4.0",
     "@anvia/openai": "^0.5.0",
     "dotenv": "^17.4.2",
     "zod": "catalog:"

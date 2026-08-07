@@ -4,15 +4,21 @@ import type {
   NormalizedSpan,
   QualityGateInput,
 } from "@lens/contracts";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createClickHouse,
+  createManagedDataset,
+  createManagedDatasetVersion,
   createPostgres,
   createQualityGate,
   deleteProjectTelemetry,
   deleteQualityGate,
   getEvaluationDatasetDetail,
   getEvaluationRunDetail,
+  getManagedDataset,
+  getManagedDatasetVersion,
+  getPublishedManagedDataset,
   getQualityGate,
   getTrace,
   insertEvaluationRuns,
@@ -21,12 +27,16 @@ import {
   listEvaluationRuns,
   listQualityGates,
   listTraces,
+  managedDataset,
   materializeTrace,
   organization,
   project,
+  publishManagedDatasetVersion,
   queryMetrics,
   reconcileProjectRetention,
   updateQualityGate,
+  upsertManagedDatasetCase,
+  user,
 } from "../../src/index.js";
 import { runMigrations } from "../../src/migration-runner.js";
 
@@ -46,6 +56,10 @@ describe.sequential("database integration", () => {
     await postgres.db
       .insert(organization)
       .values({ id: "integration-org", name: "Integration", slug: "integration" })
+      .onConflictDoNothing();
+    await postgres.db
+      .insert(user)
+      .values({ id: "integration-user", name: "Integration", email: "integration@lens.test" })
       .onConflictDoNothing();
     await postgres.db
       .insert(project)
@@ -73,10 +87,17 @@ describe.sequential("database integration", () => {
     expect(await result.json<{ count: number }[]>()).toEqual([{ count: 7 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('projects', 'quality_gates')
+      WHERE table_schema = 'public'
+        AND table_name IN ('managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
-    expect(tables.map((row) => row.table_name)).toEqual(["projects", "quality_gates"]);
+    expect(tables.map((row) => row.table_name)).toEqual([
+      "managed_dataset_cases",
+      "managed_dataset_versions",
+      "managed_datasets",
+      "projects",
+      "quality_gates",
+    ]);
   });
 
   it("round-trips project-scoped quality gates", async () => {
@@ -105,6 +126,58 @@ describe.sequential("database integration", () => {
     expect(updated?.name).toBe("Updated");
     expect(await deleteQualityGate(postgres.db, projectId, created.id)).toBe(true);
     expect(await deleteQualityGate(postgres.db, projectId, created.id)).toBe(false);
+  });
+
+  it("manages immutable, versioned evaluation datasets", async () => {
+    const name = `integration-${Date.now()}`;
+    const created = await createManagedDataset(postgres.db, projectId, "integration-user", {
+      name,
+      description: "Managed integration cases",
+    });
+    const draft = created.draft;
+    expect(draft).toMatchObject({ version: "v1", status: "draft", caseCount: 0 });
+    if (draft === null) throw new Error("Expected a v1 draft");
+    await upsertManagedDatasetCase(postgres.db, projectId, created.id, draft.id, {
+      id: "case-1",
+      input: { question: "Hello" },
+      expected: "Hi",
+    });
+    const published = await publishManagedDatasetVersion(
+      postgres.db,
+      projectId,
+      created.id,
+      draft.id,
+    );
+    expect(published).toMatchObject({ status: "published", caseCount: 1 });
+    expect(await getPublishedManagedDataset(postgres.db, projectId, name)).toMatchObject({
+      version: "v1",
+      items: [{ id: "case-1", expected: "Hi" }],
+    });
+    expect(
+      await upsertManagedDatasetCase(postgres.db, projectId, created.id, draft.id, {
+        id: "case-2",
+        input: "immutable",
+      }),
+    ).toBeUndefined();
+    const next = await createManagedDatasetVersion(
+      postgres.db,
+      projectId,
+      created.id,
+      "integration-user",
+      "v2",
+    );
+    expect(next).toMatchObject({ status: "draft", items: [{ id: "case-1" }] });
+    expect(
+      await getManagedDatasetVersion(postgres.db, projectId, created.id, next?.id ?? ""),
+    ).toMatchObject({
+      version: "v2",
+    });
+    expect(await getManagedDataset(postgres.db, projectId, created.id)).toMatchObject({
+      name,
+      draft: { version: "v2" },
+      latestPublished: { version: "v1" },
+    });
+    await postgres.db.delete(managedDataset).where(eq(managedDataset.id, created.id));
   });
 
   it("inserts, materializes, queries, and deletes telemetry", async () => {

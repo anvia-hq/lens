@@ -164,6 +164,23 @@ pnpm db:seed    # Seed realistic demo data against configured databases
 
 Anvia Lens accepts OTLP/HTTP traces and logs in protobuf or JSON, with optional gzip. Log ingestion
 currently retains evaluation result events and ignores unrelated application logs. Metrics,
-OTLP/gRPC, media objects, public trace-read keys, prompt management, datasets, server-side
-evaluation execution, automatic gate evaluation, CI commands, and cost calculation are outside the
-current release.
+OTLP/gRPC, media objects, public trace-read keys, prompt management, server-side evaluation
+execution, automatic gate evaluation, CI commands, and cost calculation are outside the current
+release.
+
+## Managed datasets
+
+The **Evaluations → Datasets** workspace separates authored **Managed** datasets from immutable
+**Observed** snapshots reconstructed from evaluation runs. Owners and admins can create a draft,
+edit or JSONL-import cases, publish an immutable version, clone the latest published version, and
+archive a dataset. Complete conflict-free Observed snapshots can be copied into a managed draft.
+
+Published versions are available to SDKs through the Langfuse-compatible read endpoint:
+
+```http
+GET /api/public/datasets/:name?version=v1&page=1&limit=50
+Authorization: Basic base64(publicKey:secretKey)
+```
+
+Omit `version` to read the latest published version. Drafts and archived datasets are never exposed
+through the public endpoint.

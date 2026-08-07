@@ -64,9 +64,13 @@ export function validateEvaluationRunDetailSearch(
 export function validateEvaluationDatasetsSearch(
   search: Record<string, unknown>,
 ): EvaluationDatasetsSearch {
+  const tab = optionalSearchValue(search.tab);
   return {
+    tab: tab === "observed" ? "observed" : "managed",
     dataset: optionalSearchValue(search.dataset),
     version: optionalSearchValue(search.version),
+    managedDataset: optionalSearchValue(search.managedDataset),
+    managedVersion: optionalSearchValue(search.managedVersion),
     search: optionalSearchValue(search.search),
     page: positiveInteger(search.page, 1),
   };

@@ -219,8 +219,8 @@ importers:
         specifier: ^0.24.0
         version: 0.24.0
       '@anvia/lens':
-        specifier: ^0.3.0
-        version: 0.3.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)
+        specifier: ^0.4.0
+        version: 0.4.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)
       '@anvia/openai':
         specifier: ^0.5.0
         version: 0.5.0(@anvia/core@0.24.0)(zod@4.4.3)
@@ -468,8 +468,8 @@ packages:
   '@anvia/core@0.24.0':
     resolution: {integrity: sha512-Iq4BA94dZWAj4CkeZrI2p7M/681zg/uaqv/0l3kjolhG259o/wh2gZ64Q8DZTGVT4c9O2p/9egx2uD81rMw1Nw==}
 
-  '@anvia/lens@0.3.0':
-    resolution: {integrity: sha512-Pq1nSvSjR/NjF7s8BVcptWSqacR92ivYvUibo+G+IIxvUhv6lI5Stk6KCeoOpv+4OY4Ch6aJk1hI/N8PbmkLfw==}
+  '@anvia/lens@0.4.0':
+    resolution: {integrity: sha512-iNRPOd3LFJQPWQW/SDEGq9oAS7wdmctWxl3Cm2ggTFYLvkjnghojQLuojYc9p7ZGoVuz9daH8+s5Oax6tIWY5w==}
     engines: {node: '>=24'}
     peerDependencies:
       '@anvia/core': '>=0.23.0 <1.0.0'
@@ -4822,7 +4822,7 @@ snapshots:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@anvia/lens@0.3.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)':
+  '@anvia/lens@0.4.0(@anvia/core@0.24.0)(@opentelemetry/api@1.9.1)':
     dependencies:
       '@anvia/core': 0.24.0
       '@anvia/otel': 0.6.0(@anvia/core@0.24.0)
