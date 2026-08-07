@@ -301,6 +301,29 @@ export type EvaluationRunFilters = {
   search?: string;
 };
 
+export const evaluationRunSortFields = [
+  "startedAt",
+  "suiteName",
+  "status",
+  "release",
+  "environment",
+  "evaluatedCases",
+  "results",
+  "passRate",
+  "durationMs",
+  "p95LatencyMs",
+  "averageTotalTokens",
+  "traceCoverage",
+] as const;
+export type EvaluationRunSortField = (typeof evaluationRunSortFields)[number];
+
+export type EvaluationRunFacets = {
+  suite: TraceFacetValue[];
+  status: TraceFacetValue[];
+  environment: TraceFacetValue[];
+  release: TraceFacetValue[];
+};
+
 export type EvaluationRunDetail = {
   run: EvaluationRunSummary;
   metrics: EvaluationMetricBreakdown[];

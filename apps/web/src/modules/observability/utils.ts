@@ -1,5 +1,6 @@
 import type {
   EvaluationOutcome,
+  EvaluationRunSortField,
   EvaluationSortField,
   MetricsRangePreset,
   SessionSortField,
@@ -10,6 +11,7 @@ import type {
 } from "@lens/contracts";
 import {
   evaluationOutcomes,
+  evaluationRunSortFields,
   evaluationSortFields,
   metricsRangePresets,
   sessionSortFields,
@@ -17,12 +19,23 @@ import {
   userSortFields,
 } from "@lens/contracts";
 import {
+  defaultEvaluationResultColumns,
+  defaultEvaluationRunColumns,
   defaultSessionColumns,
   defaultTraceColumns,
   defaultUserColumns,
-  type EvaluationsSearch,
+  type EvaluationCompareSearch,
+  type EvaluationResultColumnId,
+  type EvaluationResultsSearch,
+  type EvaluationRunColumnId,
+  type EvaluationRunsSearch,
+  evaluationResultColumnIds,
+  evaluationRunColumnIds,
+  type LegacyEvaluationsSearch,
   type OverviewSearch,
   type RefreshInterval,
+  type ResolvedEvaluationResultsSearch,
+  type ResolvedEvaluationRunsSearch,
   type ResolvedSessionsSearch,
   type ResolvedTracesSearch,
   type SessionColumnId,
@@ -40,7 +53,9 @@ import {
   userColumnIds,
 } from "./types";
 
-export function validateEvaluationsSearch(search: Record<string, unknown>): EvaluationsSearch {
+export function validateEvaluationsSearch(
+  search: Record<string, unknown>,
+): LegacyEvaluationsSearch {
   const rawOutcome = optionalSearchValue(search.outcome);
   const rawView = optionalSearchValue(search.view);
   const rawStatus = optionalSearchValue(search.status);
@@ -69,6 +84,62 @@ export function validateEvaluationsSearch(search: Record<string, unknown>): Eval
     order: search.order === "asc" ? "asc" : "desc",
     page: positiveInteger(search.page, 1),
     pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+  };
+}
+
+export function validateEvaluationRunsSearch(
+  search: Record<string, unknown>,
+): EvaluationRunsSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    statuses: searchValues(search.statuses ?? search.status).filter(
+      (value): value is "running" | "completed" | "failed" =>
+        value === "running" || value === "completed" || value === "failed",
+    ),
+    suites: searchValues(search.suites ?? search.suite),
+    environments: searchValues(search.environments ?? search.environment),
+    releases: searchValues(search.releases ?? search.release),
+    search: optionalSearchValue(search.search),
+    sort: evaluationRunSortFields.includes(search.sort as EvaluationRunSortField)
+      ? (search.sort as EvaluationRunSortField)
+      : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validEvaluationRunColumns(search.columns),
+  };
+}
+
+export function validateEvaluationResultsSearch(
+  search: Record<string, unknown>,
+): EvaluationResultsSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    suites: searchValues(search.suites ?? search.suite),
+    metrics: searchValues(search.metrics ?? search.metric),
+    outcomes: searchValues(search.outcomes ?? search.outcome).filter((value) =>
+      evaluationOutcomes.includes(value as EvaluationOutcome),
+    ) as EvaluationOutcome[],
+    environments: searchValues(search.environments ?? search.environment),
+    releases: searchValues(search.releases ?? search.release),
+    search: optionalSearchValue(search.search),
+    sort: evaluationSortFields.includes(search.sort as EvaluationSortField)
+      ? (search.sort as EvaluationSortField)
+      : "timestamp",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validEvaluationResultColumns(search.columns),
+  };
+}
+
+export function validateEvaluationCompareSearch(
+  search: Record<string, unknown>,
+): EvaluationCompareSearch {
+  return {
+    candidateRunId: optionalSearchValue(search.candidateRunId),
+    baselineRunId: optionalSearchValue(search.baselineRunId),
+    gateId: optionalSearchValue(search.gateId),
   };
 }
 
@@ -244,6 +315,28 @@ export function sessionActiveFilterCount(filters: ResolvedSessionsSearch): numbe
   );
 }
 
+export function evaluationRunActiveFilterCount(filters: ResolvedEvaluationRunsSearch): number {
+  return (
+    [filters.statuses, filters.suites, filters.environments, filters.releases].filter(
+      (values) => (values?.length ?? 0) > 0,
+    ).length + (filters.search === undefined ? 0 : 1)
+  );
+}
+
+export function evaluationResultActiveFilterCount(
+  filters: ResolvedEvaluationResultsSearch,
+): number {
+  return (
+    [
+      filters.suites,
+      filters.metrics,
+      filters.outcomes,
+      filters.environments,
+      filters.releases,
+    ].filter((values) => (values?.length ?? 0) > 0).length + (filters.search === undefined ? 0 : 1)
+  );
+}
+
 export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInterval {
   return range === "24h" ? "5s" : "30s";
 }
@@ -341,6 +434,20 @@ function validSessionColumns(value: unknown): SessionColumnId[] {
   if (selected.size === 0) return defaultSessionColumns;
   selected.add("session");
   return sessionColumnIds.filter((column) => selected.has(column));
+}
+
+function validEvaluationRunColumns(value: unknown): EvaluationRunColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultEvaluationRunColumns;
+  selected.add("suite");
+  return evaluationRunColumnIds.filter((column) => selected.has(column));
+}
+
+function validEvaluationResultColumns(value: unknown): EvaluationResultColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultEvaluationResultColumns;
+  selected.add("suiteCase");
+  return evaluationResultColumnIds.filter((column) => selected.has(column));
 }
 
 function validUserColumns(value: unknown): UserColumnId[] {

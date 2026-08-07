@@ -2,6 +2,7 @@ import {
   compareEvaluationRuns,
   getEvaluationRunDetail,
   getQualityGate,
+  listEvaluationRunFacets,
   listEvaluationRuns,
 } from "@lens/db";
 import { Hono } from "hono";
@@ -80,6 +81,18 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       const parsed = parseRunRequest(c);
       if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
       return c.json(await listEvaluationRuns(deps.clickhouse, projectId, parsed));
+    })
+    .get("/:projectId/evaluation-runs/facets", async (c) => {
+      const projectId = c.req.param("projectId");
+      const access = await requireProjectAccess(
+        deps.postgres.db,
+        projectId,
+        requiredSession(c).user.id,
+      );
+      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+      const parsed = parseRunRequest(c);
+      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      return c.json(await listEvaluationRunFacets(deps.clickhouse, projectId, parsed));
     })
     .get("/:projectId/evaluation-runs/:runId", async (c) => {
       const projectId = c.req.param("projectId");

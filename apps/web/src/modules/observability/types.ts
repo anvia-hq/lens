@@ -1,5 +1,6 @@
 import type {
   EvaluationOutcome,
+  EvaluationRunSortField,
   EvaluationSortField,
   MetricsRangePreset,
   SessionSortField,
@@ -28,7 +29,61 @@ export type FlatSpanNode = {
 
 export type OverviewSearch = { range: MetricsRangePreset };
 
-export type EvaluationsSearch = {
+export const evaluationRunColumnIds = [
+  "startedAt",
+  "suite",
+  "status",
+  "release",
+  "evaluatedCases",
+  "passRate",
+  "durationMs",
+  "environment",
+  "dataset",
+  "results",
+  "p95LatencyMs",
+  "averageTotalTokens",
+  "traceCoverage",
+  "runId",
+] as const;
+export type EvaluationRunColumnId = (typeof evaluationRunColumnIds)[number];
+export const defaultEvaluationRunColumns: EvaluationRunColumnId[] = [
+  "startedAt",
+  "suite",
+  "status",
+  "release",
+  "evaluatedCases",
+  "passRate",
+  "durationMs",
+];
+
+export const evaluationResultColumnIds = [
+  "timestamp",
+  "suiteCase",
+  "metricName",
+  "outcome",
+  "value",
+  "environment",
+  "release",
+  "traceId",
+  "runId",
+  "serviceName",
+  "explanation",
+  "observationId",
+  "resultId",
+] as const;
+export type EvaluationResultColumnId = (typeof evaluationResultColumnIds)[number];
+export const defaultEvaluationResultColumns: EvaluationResultColumnId[] = [
+  "timestamp",
+  "suiteCase",
+  "metricName",
+  "outcome",
+  "value",
+  "environment",
+  "release",
+  "traceId",
+];
+
+export type LegacyEvaluationsSearch = {
   view?: "runs" | "compare" | "results" | "gates";
   runId?: string;
   candidateRunId?: string;
@@ -48,12 +103,55 @@ export type EvaluationsSearch = {
   pageSize?: 25 | 50 | 100;
 };
 
-export type ResolvedEvaluationsSearch = EvaluationsSearch & {
-  view: "runs" | "compare" | "results" | "gates";
+export type EvaluationRunsSearch = {
+  range: MetricsRangePreset;
+  statuses?: ("running" | "completed" | "failed")[];
+  suites?: string[];
+  environments?: string[];
+  releases?: string[];
+  search?: string;
+  sort?: EvaluationRunSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  columns?: EvaluationRunColumnId[];
+};
+
+export type ResolvedEvaluationRunsSearch = EvaluationRunsSearch & {
+  sort: EvaluationRunSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  columns: EvaluationRunColumnId[];
+};
+
+export type EvaluationResultsSearch = {
+  range: MetricsRangePreset;
+  suites?: string[];
+  metrics?: string[];
+  outcomes?: EvaluationOutcome[];
+  environments?: string[];
+  releases?: string[];
+  search?: string;
+  sort?: EvaluationSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  columns?: EvaluationResultColumnId[];
+};
+
+export type ResolvedEvaluationResultsSearch = EvaluationResultsSearch & {
   sort: EvaluationSortField;
   order: "asc" | "desc";
   page: number;
   pageSize: 25 | 50 | 100;
+  columns: EvaluationResultColumnId[];
+};
+
+export type EvaluationCompareSearch = {
+  candidateRunId?: string;
+  baselineRunId?: string;
+  gateId?: string;
 };
 
 export type TraceDetailSearch = {

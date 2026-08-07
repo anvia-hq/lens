@@ -1,22 +1,33 @@
-import type { EvaluationFacets, EvaluationOverview, EvaluationResult, Page } from "@lens/contracts";
+import type { EvaluationFacets, EvaluationResult, Page } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, queryString } from "../../../lib/api";
-import type { EvaluationsSearch, ResolvedEvaluationsSearch } from "../types";
-import { timeRangeForPreset } from "../utils";
+import type {
+  EvaluationResultsSearch,
+  RefreshInterval,
+  ResolvedEvaluationResultsSearch,
+} from "../types";
+import {
+  evaluationResultActiveFilterCount,
+  refreshMilliseconds,
+  timeRangeForPreset,
+} from "../utils";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useEvaluations() {
   const { project } = useObservabilityProject();
   const navigate = useNavigate();
-  const filters = useSearch({ strict: false }) as ResolvedEvaluationsSearch;
+  const filters = useSearch({ strict: false }) as ResolvedEvaluationResultsSearch;
+  const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
-    (changes: Partial<EvaluationsSearch>, resetPage = true) => {
+    (changes: Partial<EvaluationResultsSearch>, resetPage = true) => {
       void navigate({
-        to: "/$projectId/evaluations",
+        to: "/$projectId/evaluations/results",
         params: { projectId: project.id },
         search: { ...filters, ...changes, page: resetPage ? 1 : (changes.page ?? filters.page) },
         replace: true,
@@ -36,11 +47,11 @@ export function useEvaluations() {
 
   const requestFilters = {
     ...range,
-    suite: filters.suite,
-    metric: filters.metric,
-    outcome: filters.outcome,
-    environment: filters.environment,
-    release: filters.release,
+    suite: filters.suites,
+    metric: filters.metrics,
+    outcome: filters.outcomes,
+    environment: filters.environments,
+    release: filters.releases,
     search: filters.search,
   };
   const evaluations = useQuery({
@@ -55,17 +66,7 @@ export function useEvaluations() {
           order: filters.order,
         })}`,
       ),
-    enabled: filters.view === "results",
-  });
-  const overview = useQuery({
-    queryKey: ["evaluation-overview", project.id, filters.range],
-    queryFn: () =>
-      api<EvaluationOverview>(
-        `/api/v1/projects/${project.id}/evaluations/overview?${queryString({
-          range: filters.range,
-        })}`,
-      ),
-    enabled: filters.view === "results",
+    refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
     queryKey: ["evaluation-facets", project.id, requestFilters],
@@ -74,17 +75,33 @@ export function useEvaluations() {
         `/api/v1/projects/${project.id}/evaluations/facets?${queryString(requestFilters)}`,
       ),
     placeholderData: (previous) => previous,
-    enabled: filters.view === "results",
+    refetchInterval: refreshMilliseconds(refreshInterval),
   });
+  const clearFilters = () =>
+    setFilters({
+      suites: [],
+      metrics: [],
+      outcomes: [],
+      environments: [],
+      releases: [],
+      search: undefined,
+    });
 
   return {
+    activeFilterCount: evaluationResultActiveFilterCount(filters),
+    clearFilters,
     evaluations,
     facets,
+    filterPanelCollapsed,
     filters,
-    overview,
+    mobileFiltersOpen,
     project,
+    refreshInterval,
     searchDraft,
+    setFilterPanelCollapsed,
     setFilters,
+    setMobileFiltersOpen,
+    setRefreshInterval,
     setSearchDraft,
   };
 }

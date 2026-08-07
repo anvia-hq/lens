@@ -1,6 +1,5 @@
 import type {
   EvaluationRunComparison,
-  EvaluationRunDetail,
   EvaluationRunSummary,
   Page,
   QualityGate,
@@ -8,23 +7,27 @@ import type {
 } from "@lens/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { api, queryString } from "../../../lib/api";
 import { notify } from "../../projects/utils";
-import type { EvaluationsSearch, ResolvedEvaluationsSearch } from "../types";
-import { timeRangeForPreset } from "../utils";
+import type { EvaluationCompareSearch } from "../types";
 import { useObservabilityProject } from "./use-observability-project";
 
-export function useEvaluationWorkspace() {
+function useQualityGateQuery(projectId: string) {
+  return useQuery({
+    queryKey: ["quality-gates", projectId],
+    queryFn: () => api<{ items: QualityGate[] }>(`/api/v1/projects/${projectId}/quality-gates`),
+  });
+}
+
+export function useEvaluationCompare() {
   const { project } = useObservabilityProject();
-  const filters = useSearch({ strict: false }) as ResolvedEvaluationsSearch;
+  const filters = useSearch({ strict: false }) as EvaluationCompareSearch;
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
-    (changes: Partial<EvaluationsSearch>) => {
+    (changes: Partial<EvaluationCompareSearch>) => {
       void navigate({
-        to: "/$projectId/evaluations",
+        to: "/$projectId/evaluations/compare",
         params: { projectId: project.id },
         search: { ...filters, ...changes },
         replace: true,
@@ -33,41 +36,16 @@ export function useEvaluationWorkspace() {
     [filters, navigate, project.id],
   );
   const runs = useQuery({
-    queryKey: ["evaluation-runs", project.id, filters],
-    queryFn: () =>
-      api<Page<EvaluationRunSummary>>(
-        `/api/v1/projects/${project.id}/evaluation-runs?${queryString({
-          ...range,
-          suite: filters.suite,
-          status: filters.status,
-          environment: filters.environment,
-          release: filters.release,
-          search: filters.search,
-          page: filters.page,
-          pageSize: filters.pageSize,
-        })}`,
-      ),
-  });
-  const selectorRuns = useQuery({
     queryKey: ["evaluation-run-selector", project.id],
     queryFn: () =>
       api<Page<EvaluationRunSummary>>(
-        `/api/v1/projects/${project.id}/evaluation-runs?${queryString({ status: "completed", pageSize: 100 })}`,
+        `/api/v1/projects/${project.id}/evaluation-runs?${queryString({
+          status: "completed",
+          pageSize: 100,
+        })}`,
       ),
-    enabled: filters.view === "compare",
   });
-  const runDetail = useQuery({
-    queryKey: ["evaluation-run", project.id, filters.runId],
-    queryFn: () =>
-      api<EvaluationRunDetail>(
-        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(filters.runId ?? "")}`,
-      ),
-    enabled: Boolean(filters.runId),
-  });
-  const gates = useQuery({
-    queryKey: ["quality-gates", project.id],
-    queryFn: () => api<{ items: QualityGate[] }>(`/api/v1/projects/${project.id}/quality-gates`),
-  });
+  const gates = useQualityGateQuery(project.id);
   const comparison = useQuery({
     queryKey: [
       "evaluation-run-comparison",
@@ -78,14 +56,17 @@ export function useEvaluationWorkspace() {
     ],
     queryFn: () =>
       api<EvaluationRunComparison>(
-        `/api/v1/projects/${project.id}/evaluation-runs/compare?${queryString({
-          candidateRunId: filters.candidateRunId,
-          baselineRunId: filters.baselineRunId,
-          gateId: filters.gateId,
-        })}`,
+        `/api/v1/projects/${project.id}/evaluation-runs/compare?${queryString(filters)}`,
       ),
     enabled: Boolean(filters.candidateRunId && filters.baselineRunId),
   });
+  return { comparison, filters, gates, project, runs, setFilters };
+}
+
+export function useQualityGates() {
+  const { project } = useObservabilityProject();
+  const queryClient = useQueryClient();
+  const gates = useQualityGateQuery(project.id);
   const createGate = useMutation({
     mutationFn: (input: QualityGateInput) =>
       api<QualityGate>(`/api/v1/projects/${project.id}/quality-gates`, {
@@ -117,19 +98,8 @@ export function useEvaluationWorkspace() {
       notify("Quality gate deleted");
     },
   });
-  return {
-    comparison,
-    createGate,
-    deleteGate,
-    filters,
-    gates,
-    project,
-    runDetail,
-    runs,
-    selectorRuns,
-    setFilters,
-    updateGate,
-  };
+  return { createGate, deleteGate, gates, project, updateGate };
 }
 
-export type EvaluationWorkspaceState = ReturnType<typeof useEvaluationWorkspace>;
+export type EvaluationCompareState = ReturnType<typeof useEvaluationCompare>;
+export type QualityGatesState = ReturnType<typeof useQualityGates>;

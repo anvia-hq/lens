@@ -15,9 +15,12 @@ import { Route as LlmModelsRouteImport } from './routes/llm-models'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
-import { Route as ProjectIdEvaluationsRouteImport } from './routes/$projectId/evaluations'
 import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/settings'
 import { Route as AcceptInvitationInvitationIdRouteImport } from './routes/accept-invitation/$invitationId'
+import { Route as ProjectIdEvaluationsIndexRouteImport } from './routes/$projectId/evaluations/index'
+import { Route as ProjectIdEvaluationsCompareRouteImport } from './routes/$projectId/evaluations/compare'
+import { Route as ProjectIdEvaluationsGatesRouteImport } from './routes/$projectId/evaluations/gates'
+import { Route as ProjectIdEvaluationsResultsRouteImport } from './routes/$projectId/evaluations/results'
 import { Route as ProjectIdSessionsIndexRouteImport } from './routes/$projectId/sessions/index'
 import { Route as ProjectIdSessionsSessionIdRouteImport } from './routes/$projectId/sessions/$sessionId'
 import { Route as ProjectIdTracesIndexRouteImport } from './routes/$projectId/traces/index'
@@ -25,6 +28,8 @@ import { Route as ProjectIdTracesTraceIdRouteImport } from './routes/$projectId/
 import { Route as ProjectIdTracesCompareRouteImport } from './routes/$projectId/traces/compare'
 import { Route as ProjectIdUsersIndexRouteImport } from './routes/$projectId/users/index'
 import { Route as ProjectIdUsersUserIdRouteImport } from './routes/$projectId/users/$userId'
+import { Route as ProjectIdEvaluationsRunsIndexRouteImport } from './routes/$projectId/evaluations/runs/index'
+import { Route as ProjectIdEvaluationsRunsRunIdRouteImport } from './routes/$projectId/evaluations/runs/$runId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,11 +61,6 @@ const ProjectIdConnectRoute = ProjectIdConnectRouteImport.update({
   path: '/connect',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
-const ProjectIdEvaluationsRoute = ProjectIdEvaluationsRouteImport.update({
-  id: '/evaluations',
-  path: '/evaluations',
-  getParentRoute: () => ProjectIdRouteRoute,
-} as any)
 const ProjectIdSettingsRoute = ProjectIdSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -71,6 +71,30 @@ const AcceptInvitationInvitationIdRoute =
     id: '/accept-invitation/$invitationId',
     path: '/accept-invitation/$invitationId',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ProjectIdEvaluationsIndexRoute =
+  ProjectIdEvaluationsIndexRouteImport.update({
+    id: '/evaluations/',
+    path: '/evaluations/',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsCompareRoute =
+  ProjectIdEvaluationsCompareRouteImport.update({
+    id: '/evaluations/compare',
+    path: '/evaluations/compare',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsGatesRoute =
+  ProjectIdEvaluationsGatesRouteImport.update({
+    id: '/evaluations/gates',
+    path: '/evaluations/gates',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsResultsRoute =
+  ProjectIdEvaluationsResultsRouteImport.update({
+    id: '/evaluations/results',
+    path: '/evaluations/results',
+    getParentRoute: () => ProjectIdRouteRoute,
   } as any)
 const ProjectIdSessionsIndexRoute = ProjectIdSessionsIndexRouteImport.update({
   id: '/sessions/',
@@ -108,6 +132,18 @@ const ProjectIdUsersUserIdRoute = ProjectIdUsersUserIdRouteImport.update({
   path: '/users/$userId',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
+const ProjectIdEvaluationsRunsIndexRoute =
+  ProjectIdEvaluationsRunsIndexRouteImport.update({
+    id: '/evaluations/runs/',
+    path: '/evaluations/runs/',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsRunsRunIdRoute =
+  ProjectIdEvaluationsRunsRunIdRouteImport.update({
+    id: '/evaluations/runs/$runId',
+    path: '/evaluations/runs/$runId',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,34 +151,44 @@ export interface FileRoutesByFullPath {
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
-  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
+  '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
+  '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
   '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
+  '/$projectId/evaluations/': typeof ProjectIdEvaluationsIndexRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
   '/$projectId/users/': typeof ProjectIdUsersIndexRoute
+  '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
+  '/$projectId/evaluations/runs/': typeof ProjectIdEvaluationsRunsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
-  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId': typeof ProjectIdIndexRoute
+  '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
+  '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
   '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
+  '/$projectId/evaluations': typeof ProjectIdEvaluationsIndexRoute
   '/$projectId/sessions': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces': typeof ProjectIdTracesIndexRoute
   '/$projectId/users': typeof ProjectIdUsersIndexRoute
+  '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
+  '/$projectId/evaluations/runs': typeof ProjectIdEvaluationsRunsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -151,17 +197,22 @@ export interface FileRoutesById {
   '/llm-models': typeof LlmModelsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
-  '/$projectId/evaluations': typeof ProjectIdEvaluationsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
+  '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
+  '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
+  '/$projectId/evaluations/results': typeof ProjectIdEvaluationsResultsRoute
   '/$projectId/sessions/$sessionId': typeof ProjectIdSessionsSessionIdRoute
   '/$projectId/traces/$traceId': typeof ProjectIdTracesTraceIdRoute
   '/$projectId/traces/compare': typeof ProjectIdTracesCompareRoute
   '/$projectId/users/$userId': typeof ProjectIdUsersUserIdRoute
+  '/$projectId/evaluations/': typeof ProjectIdEvaluationsIndexRoute
   '/$projectId/sessions/': typeof ProjectIdSessionsIndexRoute
   '/$projectId/traces/': typeof ProjectIdTracesIndexRoute
   '/$projectId/users/': typeof ProjectIdUsersIndexRoute
+  '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
+  '/$projectId/evaluations/runs/': typeof ProjectIdEvaluationsRunsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,34 +222,44 @@ export interface FileRouteTypes {
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
-    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
+    | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/gates'
+    | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
     | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
+    | '/$projectId/evaluations/'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
     | '/$projectId/users/'
+    | '/$projectId/evaluations/runs/$runId'
+    | '/$projectId/evaluations/runs/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
-    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId'
+    | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/gates'
+    | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
     | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
+    | '/$projectId/evaluations'
     | '/$projectId/sessions'
     | '/$projectId/traces'
     | '/$projectId/users'
+    | '/$projectId/evaluations/runs/$runId'
+    | '/$projectId/evaluations/runs'
   id:
     | '__root__'
     | '/'
@@ -206,17 +267,22 @@ export interface FileRouteTypes {
     | '/llm-models'
     | '/members'
     | '/$projectId/connect'
-    | '/$projectId/evaluations'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
+    | '/$projectId/evaluations/compare'
+    | '/$projectId/evaluations/gates'
+    | '/$projectId/evaluations/results'
     | '/$projectId/sessions/$sessionId'
     | '/$projectId/traces/$traceId'
     | '/$projectId/traces/compare'
     | '/$projectId/users/$userId'
+    | '/$projectId/evaluations/'
     | '/$projectId/sessions/'
     | '/$projectId/traces/'
     | '/$projectId/users/'
+    | '/$projectId/evaluations/runs/$runId'
+    | '/$projectId/evaluations/runs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -271,13 +337,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdConnectRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
-    '/$projectId/evaluations': {
-      id: '/$projectId/evaluations'
-      path: '/evaluations'
-      fullPath: '/$projectId/evaluations'
-      preLoaderRoute: typeof ProjectIdEvaluationsRouteImport
-      parentRoute: typeof ProjectIdRouteRoute
-    }
     '/$projectId/settings': {
       id: '/$projectId/settings'
       path: '/settings'
@@ -291,6 +350,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/accept-invitation/$invitationId'
       preLoaderRoute: typeof AcceptInvitationInvitationIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/$projectId/evaluations/': {
+      id: '/$projectId/evaluations/'
+      path: '/evaluations'
+      fullPath: '/$projectId/evaluations/'
+      preLoaderRoute: typeof ProjectIdEvaluationsIndexRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations/compare': {
+      id: '/$projectId/evaluations/compare'
+      path: '/evaluations/compare'
+      fullPath: '/$projectId/evaluations/compare'
+      preLoaderRoute: typeof ProjectIdEvaluationsCompareRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations/gates': {
+      id: '/$projectId/evaluations/gates'
+      path: '/evaluations/gates'
+      fullPath: '/$projectId/evaluations/gates'
+      preLoaderRoute: typeof ProjectIdEvaluationsGatesRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations/results': {
+      id: '/$projectId/evaluations/results'
+      path: '/evaluations/results'
+      fullPath: '/$projectId/evaluations/results'
+      preLoaderRoute: typeof ProjectIdEvaluationsResultsRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
     }
     '/$projectId/sessions/': {
       id: '/$projectId/sessions/'
@@ -341,35 +428,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdUsersUserIdRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
+    '/$projectId/evaluations/runs/': {
+      id: '/$projectId/evaluations/runs/'
+      path: '/evaluations/runs'
+      fullPath: '/$projectId/evaluations/runs/'
+      preLoaderRoute: typeof ProjectIdEvaluationsRunsIndexRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations/runs/$runId': {
+      id: '/$projectId/evaluations/runs/$runId'
+      path: '/evaluations/runs/$runId'
+      fullPath: '/$projectId/evaluations/runs/$runId'
+      preLoaderRoute: typeof ProjectIdEvaluationsRunsRunIdRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
   }
 }
 
 interface ProjectIdRouteRouteChildren {
   ProjectIdConnectRoute: typeof ProjectIdConnectRoute
-  ProjectIdEvaluationsRoute: typeof ProjectIdEvaluationsRoute
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
+  ProjectIdEvaluationsCompareRoute: typeof ProjectIdEvaluationsCompareRoute
+  ProjectIdEvaluationsGatesRoute: typeof ProjectIdEvaluationsGatesRoute
+  ProjectIdEvaluationsResultsRoute: typeof ProjectIdEvaluationsResultsRoute
   ProjectIdSessionsSessionIdRoute: typeof ProjectIdSessionsSessionIdRoute
   ProjectIdTracesTraceIdRoute: typeof ProjectIdTracesTraceIdRoute
   ProjectIdTracesCompareRoute: typeof ProjectIdTracesCompareRoute
   ProjectIdUsersUserIdRoute: typeof ProjectIdUsersUserIdRoute
+  ProjectIdEvaluationsIndexRoute: typeof ProjectIdEvaluationsIndexRoute
   ProjectIdSessionsIndexRoute: typeof ProjectIdSessionsIndexRoute
   ProjectIdTracesIndexRoute: typeof ProjectIdTracesIndexRoute
   ProjectIdUsersIndexRoute: typeof ProjectIdUsersIndexRoute
+  ProjectIdEvaluationsRunsRunIdRoute: typeof ProjectIdEvaluationsRunsRunIdRoute
+  ProjectIdEvaluationsRunsIndexRoute: typeof ProjectIdEvaluationsRunsIndexRoute
 }
 
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdConnectRoute: ProjectIdConnectRoute,
-  ProjectIdEvaluationsRoute: ProjectIdEvaluationsRoute,
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
+  ProjectIdEvaluationsCompareRoute: ProjectIdEvaluationsCompareRoute,
+  ProjectIdEvaluationsGatesRoute: ProjectIdEvaluationsGatesRoute,
+  ProjectIdEvaluationsResultsRoute: ProjectIdEvaluationsResultsRoute,
   ProjectIdSessionsSessionIdRoute: ProjectIdSessionsSessionIdRoute,
   ProjectIdTracesTraceIdRoute: ProjectIdTracesTraceIdRoute,
   ProjectIdTracesCompareRoute: ProjectIdTracesCompareRoute,
   ProjectIdUsersUserIdRoute: ProjectIdUsersUserIdRoute,
+  ProjectIdEvaluationsIndexRoute: ProjectIdEvaluationsIndexRoute,
   ProjectIdSessionsIndexRoute: ProjectIdSessionsIndexRoute,
   ProjectIdTracesIndexRoute: ProjectIdTracesIndexRoute,
   ProjectIdUsersIndexRoute: ProjectIdUsersIndexRoute,
+  ProjectIdEvaluationsRunsRunIdRoute: ProjectIdEvaluationsRunsRunIdRoute,
+  ProjectIdEvaluationsRunsIndexRoute: ProjectIdEvaluationsRunsIndexRoute,
 }
 
 const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(

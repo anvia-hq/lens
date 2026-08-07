@@ -159,13 +159,10 @@ export async function queryEvaluationOverview(
   projectId: string,
   preset: MetricsRangePreset,
   now = new Date(),
+  filters: Omit<EvaluationFilters, "from" | "to"> = {},
 ): Promise<EvaluationOverview> {
   const range = evaluationRange(preset, now);
-  const params = {
-    projectId,
-    from: clickHouseTime(range.from),
-    to: clickHouseTime(range.to),
-  };
+  const where = evaluationWhere(projectId, { ...filters, from: range.from, to: range.to });
   const interval =
     range.bucket === "hour"
       ? "INTERVAL 1 HOUR"
@@ -181,9 +178,8 @@ export async function queryEvaluationOverview(
                      countIf(outcome = 'unknown') AS unknown,
                      uniqExactIf(ifNull(trace_id, ''), trace_id IS NOT NULL) AS evaluated_traces
               FROM evaluation_results FINAL
-              WHERE project_id = {projectId:UUID}
-                AND timestamp >= {from:DateTime64(3)} AND timestamp <= {to:DateTime64(3)}`,
-      query_params: params,
+              WHERE ${where.filters.join(" AND ")}`,
+      query_params: where.params,
       format: "JSONEachRow",
     }),
     client.query({
@@ -194,10 +190,9 @@ export async function queryEvaluationOverview(
                      countIf(outcome = 'invalid') AS invalid,
                      countIf(outcome = 'unknown') AS unknown
               FROM evaluation_results FINAL
-              WHERE project_id = {projectId:UUID}
-                AND timestamp >= {from:DateTime64(3)} AND timestamp <= {to:DateTime64(3)}
+              WHERE ${where.filters.join(" AND ")}
               GROUP BY timestamp ORDER BY timestamp ASC`,
-      query_params: params,
+      query_params: where.params,
       format: "JSONEachRow",
     }),
     client.query({
@@ -208,10 +203,9 @@ export async function queryEvaluationOverview(
                      countIf(outcome = 'unknown') AS unknown,
                      avgOrNull(numeric_value) AS average_numeric_value
               FROM evaluation_results FINAL
-              WHERE project_id = {projectId:UUID}
-                AND timestamp >= {from:DateTime64(3)} AND timestamp <= {to:DateTime64(3)}
+              WHERE ${where.filters.join(" AND ")}
               GROUP BY metric_name ORDER BY results DESC, metric_name ASC LIMIT 50`,
-      query_params: params,
+      query_params: where.params,
       format: "JSONEachRow",
     }),
     client.query({
@@ -221,10 +215,9 @@ export async function queryEvaluationOverview(
                      countIf(outcome = 'invalid') AS invalid,
                      countIf(outcome = 'unknown') AS unknown
               FROM evaluation_results FINAL
-              WHERE project_id = {projectId:UUID}
-                AND timestamp >= {from:DateTime64(3)} AND timestamp <= {to:DateTime64(3)}
+              WHERE ${where.filters.join(" AND ")}
               GROUP BY suite_name ORDER BY results DESC, suite_name ASC LIMIT 50`,
-      query_params: params,
+      query_params: where.params,
       format: "JSONEachRow",
     }),
   ]);

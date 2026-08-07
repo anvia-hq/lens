@@ -1,21 +1,16 @@
-import type { EvaluationOutcome, EvaluationResult, TraceFacetValue } from "@lens/contracts";
-import { evaluationOutcomes } from "@lens/contracts";
+import type { EvaluationResult, EvaluationSortField, Page } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
+import { Button } from "@lens/ui/components/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@lens/ui/components/card";
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@lens/ui/components/chart";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@lens/ui/components/dropdown-menu";
 import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
 import {
@@ -34,239 +29,198 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
-import { CheckCircle, Flask, MagnifyingGlass } from "@phosphor-icons/react";
+import {
+  CheckCircle,
+  CaretDown as ChevronDown,
+  Flask,
+  MagnifyingGlass as Search,
+  SlidersHorizontal,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
-import { Page } from "../../../components/page";
 import type { EvaluationsState } from "../hooks/use-evaluations";
+import {
+  defaultEvaluationResultColumns,
+  type EvaluationResultColumnId,
+  type EvaluationResultsSearch,
+  evaluationResultColumnIds,
+  type ResolvedEvaluationResultsSearch,
+} from "../types";
 import { formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
+import { EvaluationResultFilterPanel } from "./evaluation-filter-panel";
+import { LiveBadge } from "./live-badge";
+import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
 
-const chartConfig = {
-  passed: { label: "Passed", color: "var(--chart-2)" },
-  failed: { label: "Failed", color: "var(--destructive)" },
-  invalid: { label: "Invalid", color: "var(--chart-4)" },
-} satisfies ChartConfig;
+const columnLabels: Record<EvaluationResultColumnId, string> = {
+  timestamp: "Time",
+  suiteCase: "Suite / case",
+  metricName: "Metric",
+  outcome: "Outcome",
+  value: "Value",
+  environment: "Environment",
+  release: "Release",
+  traceId: "Trace",
+  runId: "Run",
+  serviceName: "Service",
+  explanation: "Explanation",
+  observationId: "Observation ID",
+  resultId: "Result ID",
+};
 
-export function EvaluationsView({
-  state,
-  navigation,
-}: {
-  state: EvaluationsState;
-  navigation?: React.ReactNode;
-}) {
-  const {
-    evaluations,
-    facets,
-    filters,
-    overview,
-    project,
-    searchDraft,
-    setFilters,
-    setSearchDraft,
-  } = state;
-  const summary = overview.data?.summary;
-  const error = evaluations.error ?? overview.error;
+const sortFields: Partial<Record<EvaluationResultColumnId, EvaluationSortField>> = {
+  timestamp: "timestamp",
+  suiteCase: "suiteName",
+  metricName: "metricName",
+  outcome: "outcome",
+  value: "numericValue",
+  environment: "environment",
+  release: "release",
+};
 
+export function EvaluationsView({ state }: { state: EvaluationsState }) {
+  const filterPanel = (
+    <EvaluationResultFilterPanel
+      filters={state.filters}
+      facets={state.facets.data}
+      loading={state.facets.isLoading}
+      error={state.facets.error}
+      activeCount={state.activeFilterCount}
+      onChange={state.setFilters}
+      onClear={state.clearFilters}
+      onCollapse={() => state.setFilterPanelCollapsed(true)}
+    />
+  );
+  const table = (
+    <EvaluationResultExplorerTable
+      activeFilterCount={state.activeFilterCount}
+      data={state.evaluations.data}
+      error={state.evaluations.error}
+      filters={state.filters}
+      loading={state.evaluations.isLoading}
+      projectId={state.project.id}
+      searchDraft={state.searchDraft}
+      onChange={state.setFilters}
+      onOpenMobileFilters={() => state.setMobileFiltersOpen(true)}
+      onSearchChange={state.setSearchDraft}
+      actions={
+        <>
+          <RangeSelector
+            value={state.filters.range}
+            onChange={(range) => state.setFilters({ range })}
+          />
+          <LiveBadge interval={state.refreshInterval} onIntervalChange={state.setRefreshInterval} />
+        </>
+      }
+    />
+  );
   return (
-    <Page
-      title="Evaluations"
-      description="Quality results correlated with the traces and releases that produced them"
-      action={<RangeSelector value={filters.range} onChange={(range) => setFilters({ range })} />}
-    >
-      {navigation}
-      {error ? <ErrorAlert error={error} /> : null}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Results" value={summary ? formatNumber(summary.results) : "—"} />
-        <SummaryCard
-          label="Pass rate"
-          value={summary ? `${(summary.passRate * 100).toFixed(1)}%` : "—"}
-        />
-        <SummaryCard label="Failed" value={summary ? formatNumber(summary.failed) : "—"} />
-        <SummaryCard
-          label="Evaluated traces"
-          value={summary ? formatNumber(summary.evaluatedTraces) : "—"}
-        />
+    <EvaluationExplorerLayout
+      activeFilterCount={state.activeFilterCount}
+      filterPanel={filterPanel}
+      filterPanelCollapsed={state.filterPanelCollapsed}
+      mobileFiltersOpen={state.mobileFiltersOpen}
+      table={table}
+      onFilterPanelCollapsedChange={state.setFilterPanelCollapsed}
+      onMobileFiltersOpenChange={state.setMobileFiltersOpen}
+    />
+  );
+}
+
+function EvaluationResultExplorerTable(props: {
+  filters: ResolvedEvaluationResultsSearch;
+  searchDraft: string;
+  projectId: string;
+  data?: Page<EvaluationResult>;
+  loading: boolean;
+  error: unknown;
+  activeFilterCount: number;
+  actions?: ReactNode;
+  onOpenMobileFilters: () => void;
+  onSearchChange: (value: string) => void;
+  onChange: (changes: Partial<EvaluationResultsSearch>, resetPage?: boolean) => void;
+}) {
+  const sort = (field: EvaluationSortField) =>
+    props.onChange({
+      sort: field,
+      order: props.filters.sort === field && props.filters.order === "desc" ? "asc" : "desc",
+    });
+  return (
+    <div className="flex h-full min-w-0 flex-col bg-background">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 md:h-12 md:flex-nowrap md:py-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          onClick={props.onOpenMobileFilters}
+        >
+          <SlidersHorizontal /> Filters
+          {props.activeFilterCount > 0 ? (
+            <Badge variant="secondary">{props.activeFilterCount}</Badge>
+          ) : null}
+        </Button>
+        <div className="relative h-8 min-w-52 flex-1">
+          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-8 pl-8"
+            aria-label="Search evaluation results"
+            placeholder="Search case, trace, or explanation"
+            value={props.searchDraft}
+            onChange={(event) => props.onSearchChange(event.target.value)}
+          />
+        </div>
+        <ColumnMenu filters={props.filters} onChange={props.onChange} />
+        {props.actions}
       </div>
-
-      {overview.data && overview.data.summary.results > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quality trend</CardTitle>
-              <CardDescription>Evaluation outcomes over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer className="h-64 w-full" config={chartConfig}>
-                <BarChart data={overview.data.series} margin={{ left: 0, right: 12 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(value) =>
-                      new Date(String(value)).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        hour: filters.range === "24h" ? "numeric" : undefined,
-                      })
-                    }
-                    tickLine={false}
-                    axisLine={false}
-                    minTickGap={24}
-                  />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="passed" stackId="outcomes" fill="var(--color-passed)" />
-                  <Bar dataKey="failed" stackId="outcomes" fill="var(--color-failed)" />
-                  <Bar
-                    dataKey="invalid"
-                    stackId="outcomes"
-                    fill="var(--color-invalid)"
-                    radius={[3, 3, 0, 0]}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Metrics</CardTitle>
-              <CardDescription>Pass rate and average score by evaluator</CardDescription>
-            </CardHeader>
-            <CardContent className="px-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-4">Metric</TableHead>
-                    <TableHead>Results</TableHead>
-                    <TableHead>Pass rate</TableHead>
-                    <TableHead className="pr-4">Average</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overview.data.metrics.slice(0, 8).map((metric) => (
-                    <TableRow key={metric.metricName}>
-                      <TableCell className="pl-4 font-medium">{metric.metricName}</TableCell>
-                      <TableCell>{formatNumber(metric.results)}</TableCell>
-                      <TableCell>{(metric.passRate * 100).toFixed(1)}%</TableCell>
-                      <TableCell className="pr-4">
-                        {metric.averageNumericValue?.toFixed(3) ?? "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-          <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>Suites</CardTitle>
-              <CardDescription>Outcome health by evaluation suite</CardDescription>
-            </CardHeader>
-            <CardContent className="px-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-4">Suite</TableHead>
-                    <TableHead>Results</TableHead>
-                    <TableHead>Passed</TableHead>
-                    <TableHead>Failed</TableHead>
-                    <TableHead className="pr-4">Pass rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overview.data.suites.slice(0, 8).map((suite) => (
-                    <TableRow key={suite.suiteName}>
-                      <TableCell className="pl-4 font-medium">{suite.suiteName}</TableCell>
-                      <TableCell>{formatNumber(suite.results)}</TableCell>
-                      <TableCell>{formatNumber(suite.passed)}</TableCell>
-                      <TableCell>{formatNumber(suite.failed)}</TableCell>
-                      <TableCell className="pr-4">{(suite.passRate * 100).toFixed(1)}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
-
-      <Card className="min-h-96">
-        <CardHeader className="border-b">
-          <CardTitle>Results</CardTitle>
-          <CardDescription>
-            Filter individual evaluation results and open their traces
-          </CardDescription>
-        </CardHeader>
-        <div className="flex flex-wrap gap-2 px-4">
-          <div className="relative min-w-56 flex-1">
-            <MagnifyingGlass className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-8"
-              aria-label="Search evaluations"
-              placeholder="Search suite, case, metric, or explanation"
-              value={searchDraft}
-              onChange={(event) => setSearchDraft(event.target.value)}
-            />
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        {props.error ? (
+          <div className="p-4">
+            <ErrorAlert error={props.error} />
           </div>
-          <FacetSelect
-            label="All suites"
-            value={filters.suite}
-            values={facets.data?.suite}
-            onChange={(suite) => setFilters({ suite })}
-          />
-          <FacetSelect
-            label="All metrics"
-            value={filters.metric}
-            values={facets.data?.metric}
-            onChange={(metric) => setFilters({ metric })}
-          />
-          <NativeSelect
-            aria-label="Filter by outcome"
-            value={filters.outcome ?? ""}
-            onChange={(event) =>
-              setFilters({
-                outcome: (event.target.value || undefined) as EvaluationOutcome | undefined,
-              })
-            }
-          >
-            <NativeSelectOption value="">All outcomes</NativeSelectOption>
-            {evaluationOutcomes.map((outcome) => (
-              <NativeSelectOption key={outcome} value={outcome}>
-                {outcome.charAt(0).toUpperCase() + outcome.slice(1)}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-          <FacetSelect
-            label="All environments"
-            value={filters.environment}
-            values={facets.data?.environment}
-            onChange={(environment) => setFilters({ environment })}
-          />
-        </div>
-
-        {evaluations.isLoading ? (
-          <div className="grid min-h-64 place-items-center text-sm text-muted-foreground">
-            Loading evaluations…
-          </div>
-        ) : evaluations.data?.items.length ? (
+        ) : props.loading ? (
+          <LoadingRows />
+        ) : props.data?.items.length ? (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-4">Time</TableHead>
-                <TableHead>Suite / case</TableHead>
-                <TableHead>Metric</TableHead>
-                <TableHead>Outcome</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Environment</TableHead>
-                <TableHead className="pr-4">Trace</TableHead>
+                {props.filters.columns.map((column) => {
+                  const field = sortFields[column];
+                  return (
+                    <TableHead key={column}>
+                      {field ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-ml-3"
+                          onClick={() => sort(field)}
+                        >
+                          {columnLabels[column]}
+                          {props.filters.sort === field
+                            ? props.filters.order === "asc"
+                              ? " ↑"
+                              : " ↓"
+                            : null}
+                        </Button>
+                      ) : (
+                        columnLabels[column]
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {evaluations.data.items.map((evaluation) => (
-                <EvaluationRow key={evaluation.id} evaluation={evaluation} projectId={project.id} />
+              {props.data.items.map((result) => (
+                <TableRow key={result.id}>
+                  {props.filters.columns.map((column) => (
+                    <TableCell key={column}>
+                      {resultCell(result, column, props.projectId)}
+                    </TableCell>
+                  ))}
+                </TableRow>
               ))}
             </TableBody>
           </Table>
@@ -274,146 +228,90 @@ export function EvaluationsView({
           <EmptyState
             icon={<Flask />}
             title="No evaluation results"
-            text="Report an evaluation from @anvia/lens or change the filters and time range."
+            text="Try another filter or report an evaluation from @anvia/lens."
           />
         )}
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2 text-sm">
-          <span className="text-muted-foreground">
-            {evaluations.data
-              ? `${formatNumber(evaluations.data.total)} results`
-              : "Loading results"}
-          </span>
-          <div className="flex items-center gap-3">
-            <NativeSelect
-              aria-label="Rows per page"
-              value={String(filters.pageSize)}
-              onChange={(event) =>
-                setFilters({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
-              }
-            >
-              <NativeSelectOption value="25">25 rows</NativeSelectOption>
-              <NativeSelectOption value="50">50 rows</NativeSelectOption>
-              <NativeSelectOption value="100">100 rows</NativeSelectOption>
-            </NativeSelect>
-            <span className="whitespace-nowrap">
-              Page {filters.page} of {Math.max(1, evaluations.data?.pageCount ?? 1)}
-            </span>
-            <Pagination className="w-auto">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    aria-disabled={filters.page <= 1}
-                    className={cn(filters.page <= 1 && "pointer-events-none opacity-50")}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      setFilters({ page: Math.max(1, filters.page - 1) }, false);
-                    }}
-                  />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    aria-disabled={filters.page >= (evaluations.data?.pageCount ?? 0)}
-                    className={cn(
-                      filters.page >= (evaluations.data?.pageCount ?? 0) &&
-                        "pointer-events-none opacity-50",
-                    )}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      setFilters({ page: filters.page + 1 }, false);
-                    }}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </div>
-      </Card>
-    </Page>
+      </div>
+      <ResultPagination data={props.data} filters={props.filters} onChange={props.onChange} />
+    </div>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function resultCell(
+  result: EvaluationResult,
+  column: EvaluationResultColumnId,
+  projectId: string,
+): ReactNode {
+  if (column === "timestamp") return formatTimestamp(result.timestamp);
+  if (column === "suiteCase")
+    return (
+      <div className="grid max-w-52">
+        <span className="truncate font-medium">{result.suiteName}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {result.caseId ?? "No case ID"}
+        </span>
+      </div>
+    );
+  if (column === "metricName")
+    return <span title={result.explanation ?? undefined}>{result.metricName}</span>;
+  if (column === "outcome") return <OutcomeBadge outcome={result.outcome} />;
+  if (column === "value")
+    return (
+      <span className="font-mono">
+        {result.numericValue?.toFixed(3) ??
+          result.categoricalValue ??
+          (result.dataType === "BOOLEAN" ? result.outcome : "—")}
+      </span>
+    );
+  if (column === "environment") return result.environment;
+  if (column === "release") return result.release ?? "—";
+  if (column === "traceId")
+    return <EntityLink projectId={projectId} id={result.traceId} kind="trace" />;
+  if (column === "runId") return <EntityLink projectId={projectId} id={result.runId} kind="run" />;
+  if (column === "serviceName") return result.serviceName;
+  if (column === "explanation")
+    return (
+      <span className="block max-w-72 truncate" title={result.explanation ?? undefined}>
+        {result.explanation ?? "—"}
+      </span>
+    );
+  if (column === "observationId")
+    return result.observationId ? (
+      <span className="font-mono" title={result.observationId}>
+        {shortId(result.observationId)}
+      </span>
+    ) : (
+      "—"
+    );
   return (
-    <Card size="sm">
-      <CardContent className="grid gap-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="font-heading text-2xl font-medium tabular-nums">{value}</span>
-      </CardContent>
-    </Card>
+    <span className="font-mono" title={result.id}>
+      {shortId(result.id)}
+    </span>
   );
 }
 
-function FacetSelect(props: {
-  label: string;
-  value?: string;
-  values?: TraceFacetValue[];
-  onChange: (value: string | undefined) => void;
-}) {
-  return (
-    <NativeSelect
-      aria-label={props.label}
-      value={props.value ?? ""}
-      onChange={(event) => props.onChange(event.target.value || undefined)}
+function EntityLink(props: { projectId: string; id: string | null; kind: "trace" | "run" }) {
+  if (!props.id) return <span className="text-muted-foreground">—</span>;
+  return props.kind === "trace" ? (
+    <Link
+      className="font-mono text-primary hover:underline"
+      to="/$projectId/traces/$traceId"
+      params={{ projectId: props.projectId, traceId: props.id }}
     >
-      <NativeSelectOption value="">{props.label}</NativeSelectOption>
-      {props.values?.map((item) => (
-        <NativeSelectOption key={item.value} value={item.value}>
-          {item.value} ({item.count})
-        </NativeSelectOption>
-      ))}
-    </NativeSelect>
+      {shortId(props.id)}
+    </Link>
+  ) : (
+    <Link
+      className="font-mono text-primary hover:underline"
+      to="/$projectId/evaluations/runs/$runId"
+      params={{ projectId: props.projectId, runId: props.id }}
+    >
+      {shortId(props.id)}
+    </Link>
   );
 }
 
-function EvaluationRow(props: { evaluation: EvaluationResult; projectId: string }) {
-  const item = props.evaluation;
-  const value =
-    item.numericValue !== null
-      ? item.numericValue.toFixed(3)
-      : (item.categoricalValue ?? (item.dataType === "BOOLEAN" ? item.outcome : "—"));
-  return (
-    <TableRow>
-      <TableCell className="pl-4" title={formatTimestamp(item.timestamp)}>
-        {new Date(item.timestamp).toLocaleString()}
-      </TableCell>
-      <TableCell>
-        <div className="grid max-w-52">
-          <span className="truncate font-medium">{item.suiteName}</span>
-          <span className="truncate text-xs text-muted-foreground">
-            {item.caseId ?? "No case ID"}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell title={item.explanation ?? undefined}>{item.metricName}</TableCell>
-      <TableCell>
-        <OutcomeBadge outcome={item.outcome} />
-      </TableCell>
-      <TableCell className="font-mono">{value}</TableCell>
-      <TableCell>
-        {item.environment}
-        {item.release ? <span className="text-muted-foreground"> · {item.release}</span> : null}
-      </TableCell>
-      <TableCell className="pr-4">
-        {item.traceId ? (
-          <Link
-            className="font-mono text-primary hover:underline"
-            to="/$projectId/traces/$traceId"
-            params={{ projectId: props.projectId, traceId: item.traceId }}
-          >
-            {shortId(item.traceId)}
-          </Link>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function OutcomeBadge({ outcome }: { outcome: EvaluationOutcome }) {
+function OutcomeBadge({ outcome }: { outcome: EvaluationResult["outcome"] }) {
   return (
     <Badge
       variant="outline"
@@ -426,5 +324,109 @@ function OutcomeBadge({ outcome }: { outcome: EvaluationOutcome }) {
       {outcome === "pass" ? <CheckCircle /> : null}
       {outcome}
     </Badge>
+  );
+}
+
+function ColumnMenu(props: {
+  filters: ResolvedEvaluationResultsSearch;
+  onChange: (changes: Partial<EvaluationResultsSearch>, resetPage?: boolean) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button className="h-8" variant="outline" size="sm" />}>
+        Columns <ChevronDown />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 w-56 overflow-y-auto">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Visible columns</DropdownMenuLabel>
+          {evaluationResultColumnIds.map((column) => (
+            <DropdownMenuCheckboxItem
+              key={column}
+              checked={props.filters.columns.includes(column)}
+              disabled={column === "suiteCase"}
+              onCheckedChange={(checked) =>
+                props.onChange(
+                  {
+                    columns: checked
+                      ? evaluationResultColumnIds.filter(
+                          (item) => props.filters.columns.includes(item) || item === column,
+                        )
+                      : props.filters.columns.filter((item) => item !== column),
+                  },
+                  false,
+                )
+              }
+            >
+              {columnLabels[column]}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => props.onChange({ columns: defaultEvaluationResultColumns }, false)}
+        >
+          Reset columns
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ResultPagination(props: {
+  data?: Page<unknown>;
+  filters: ResolvedEvaluationResultsSearch;
+  onChange: (changes: Partial<EvaluationResultsSearch>, resetPage?: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+      <span className="text-muted-foreground">
+        {props.data ? `${formatNumber(props.data.total)} results` : "Loading results"}
+      </span>
+      <div className="flex items-center gap-3">
+        <NativeSelect
+          aria-label="Rows per page"
+          value={String(props.filters.pageSize)}
+          onChange={(event) =>
+            props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
+          }
+        >
+          <NativeSelectOption value="25">25 rows</NativeSelectOption>
+          <NativeSelectOption value="50">50 rows</NativeSelectOption>
+          <NativeSelectOption value="100">100 rows</NativeSelectOption>
+        </NativeSelect>
+        <span className="whitespace-nowrap">
+          Page {props.filters.page} of {Math.max(1, props.data?.pageCount ?? 1)}
+        </span>
+        <Pagination className="w-auto">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                aria-disabled={props.filters.page <= 1}
+                className={cn(props.filters.page <= 1 && "pointer-events-none opacity-50")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  props.onChange({ page: Math.max(1, props.filters.page - 1) }, false);
+                }}
+              />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                aria-disabled={props.filters.page >= (props.data?.pageCount ?? 0)}
+                className={cn(
+                  props.filters.page >= (props.data?.pageCount ?? 0) &&
+                    "pointer-events-none opacity-50",
+                )}
+                onClick={(event) => {
+                  event.preventDefault();
+                  props.onChange({ page: props.filters.page + 1 }, false);
+                }}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+    </div>
   );
 }

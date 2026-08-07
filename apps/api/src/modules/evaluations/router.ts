@@ -52,5 +52,13 @@ export const createEvaluationsRouter = (deps: ApiDependencies) =>
       if (!range.success) {
         return apiError(c, 400, "invalid_range", "Range must be one of 24h, 7d, or 30d");
       }
-      return c.json(await queryEvaluationOverview(deps.clickhouse, projectId, range.data));
+      const parsed = parseEvaluationRequest(c);
+      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      return c.json(
+        await queryEvaluationOverview(deps.clickhouse, projectId, range.data, new Date(), {
+          suites: parsed.filters.suites,
+          environments: parsed.filters.environments,
+          releases: parsed.filters.releases,
+        }),
+      );
     });

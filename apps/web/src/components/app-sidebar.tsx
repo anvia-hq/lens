@@ -14,11 +14,14 @@ import {
 } from "@lens/ui/components/sidebar";
 import {
   Pulse as Activity,
+  ArrowsLeftRight,
+  CheckCircle,
   Flask,
   House,
   SignOut as LogOut,
   Chats as MessagesSquare,
   Gear as Settings,
+  ShieldCheck,
   TerminalWindow as TerminalSquare,
   UsersThree as Users,
 } from "@phosphor-icons/react";
@@ -42,12 +45,6 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       icon: Activity,
     },
     {
-      to: "/$projectId/evaluations" as const,
-      path: `${projectRoot}/evaluations`,
-      label: "Evaluations",
-      icon: Flask,
-    },
-    {
       to: "/$projectId/sessions" as const,
       path: `${projectRoot}/sessions`,
       label: "Sessions",
@@ -58,6 +55,32 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/users`,
       label: "Users",
       icon: Users,
+    },
+  ];
+  const evaluationLinks = [
+    {
+      to: "/$projectId/evaluations/runs" as const,
+      path: `${projectRoot}/evaluations/runs`,
+      label: "Runs",
+      icon: Flask,
+    },
+    {
+      to: "/$projectId/evaluations/results" as const,
+      path: `${projectRoot}/evaluations/results`,
+      label: "Results",
+      icon: CheckCircle,
+    },
+    {
+      to: "/$projectId/evaluations/compare" as const,
+      path: `${projectRoot}/evaluations/compare`,
+      label: "Compare",
+      icon: ArrowsLeftRight,
+    },
+    {
+      to: "/$projectId/evaluations/gates" as const,
+      path: `${projectRoot}/evaluations/gates`,
+      label: "Gates",
+      icon: ShieldCheck,
     },
   ];
   const managementLinks = [
@@ -74,7 +97,9 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       icon: Settings,
     },
   ];
-  const renderLinks = (links: typeof observabilityLinks | typeof managementLinks) => (
+  const renderLinks = (
+    links: typeof observabilityLinks | typeof evaluationLinks | typeof managementLinks,
+  ) => (
     <SidebarMenu className="gap-1">
       {links.map(({ to, path, label, icon: Icon }) => {
         const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
@@ -109,6 +134,10 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         <SidebarGroup className="py-1">
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(observabilityLinks)}</SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel>Evaluations</SidebarGroupLabel>
+          <SidebarGroupContent>{renderLinks(evaluationLinks)}</SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup className="py-1">
           <SidebarGroupLabel>Management</SidebarGroupLabel>

@@ -93,7 +93,7 @@ describe("API module schemas", () => {
   it("parses evaluation run filters and rejects invalid statuses", async () => {
     expect(
       await parseRequest<ReturnType<typeof parseRunRequest>>(
-        "/?suite=release-gate&status=completed&environment=production&pageSize=100",
+        "/?suite=release-gate&status=completed&environment=production&pageSize=100&sort=passRate&order=asc",
         parseRunRequest,
       ),
     ).toEqual({
@@ -102,9 +102,14 @@ describe("API module schemas", () => {
       environments: ["production"],
       page: 1,
       pageSize: 100,
+      sort: "passRate",
+      order: "asc",
     });
     expect(await parseRequest("/?status=unknown", parseRunRequest)).toBe(
       "status must be running, completed, or failed",
+    );
+    expect(await parseRequest("/?sort=unknown", parseRunRequest)).toBe(
+      "Unsupported evaluation run sort field",
     );
   });
 });

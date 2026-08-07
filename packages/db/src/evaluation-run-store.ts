@@ -7,7 +7,9 @@ import type {
   EvaluationRun,
   EvaluationRunComparison,
   EvaluationRunDetail,
+  EvaluationRunFacets,
   EvaluationRunFilters,
+  EvaluationRunSortField,
   EvaluationRunSummary,
   Page,
 } from "@lens/contracts";
@@ -57,6 +59,22 @@ type OperationalRow = {
   average_total_tokens: number | string | null;
 };
 
+type RunSummaryRow = RunRow & {
+  results: number | string;
+  actual_passed: number | string;
+  actual_failed: number | string;
+  actual_invalid: number | string;
+  actual_unknown: number | string;
+  evaluated_cases: number | string;
+  evaluated_traces: number | string;
+  pass_rate: number | string;
+  expected_traces: number | string;
+  found_traces: number | string;
+  p95_latency_ms: number | string | null;
+  average_total_tokens: number | string | null;
+  trace_coverage: number | string;
+};
+
 export async function insertEvaluationRuns(
   client: ClickHouseClient,
   runs: EvaluationRun[],
@@ -96,17 +114,70 @@ export async function insertEvaluationRuns(
 export async function listEvaluationRuns(
   client: ClickHouseClient,
   projectId: string,
-  options: EvaluationRunFilters & { page?: number; pageSize?: number },
+  options: EvaluationRunFilters & {
+    page?: number;
+    pageSize?: number;
+    sort?: EvaluationRunSortField;
+    order?: "asc" | "desc";
+  },
 ): Promise<Page<EvaluationRunSummary>> {
   const page = Math.max(1, Math.trunc(options.page ?? 1));
   const pageSize = [25, 50, 100].includes(options.pageSize ?? 25) ? (options.pageSize ?? 25) : 25;
   const offset = (page - 1) * pageSize;
   const where = runWhere(projectId, options);
+  const sortColumn = evaluationRunSortColumns[options.sort ?? "startedAt"];
+  const order = options.order ?? "desc";
   const [rowsResult, countResult] = await Promise.all([
     client.query({
-      query: `SELECT * FROM evaluation_runs FINAL
-              WHERE ${where.filters.join(" AND ")}
-              ORDER BY started_at DESC, id ASC
+      query: `WITH filtered_runs AS
+                (SELECT * FROM evaluation_runs FINAL WHERE ${where.filters.join(" AND ")}),
+              aggregates AS
+                (SELECT run_id, count() AS results,
+                        countIf(outcome = 'pass') AS actual_passed,
+                        countIf(outcome = 'fail') AS actual_failed,
+                        countIf(outcome = 'invalid') AS actual_invalid,
+                        countIf(outcome = 'unknown') AS actual_unknown,
+                        uniqExactIf(ifNull(case_id, ''), case_id IS NOT NULL) AS evaluated_cases,
+                        uniqExactIf(ifNull(trace_id, ''), trace_id IS NOT NULL) AS evaluated_traces
+                 FROM evaluation_results FINAL
+                 WHERE project_id = {projectId:UUID}
+                   AND run_id IN (SELECT id FROM filtered_runs)
+                 GROUP BY run_id),
+              trace_ids AS
+                (SELECT run_id, trace_id FROM evaluation_results FINAL
+                 WHERE project_id = {projectId:UUID}
+                   AND run_id IN (SELECT id FROM filtered_runs) AND trace_id IS NOT NULL
+                 GROUP BY run_id, trace_id),
+              operational AS
+                (SELECT trace_ids.run_id,
+                        count() AS expected_traces,
+                        countIf(summaries.trace_id IS NOT NULL) AS found_traces,
+                        quantileExactIf(0.95)(summaries.duration_ms, summaries.trace_id IS NOT NULL) AS p95_latency_ms,
+                        avgIf(summaries.total_tokens, summaries.trace_id IS NOT NULL) AS average_total_tokens
+                 FROM trace_ids
+                 LEFT JOIN
+                   (SELECT project_id, trace_id, duration_ms, total_tokens FROM trace_summaries FINAL) AS summaries
+                 ON summaries.project_id = {projectId:UUID} AND summaries.trace_id = trace_ids.trace_id
+                 GROUP BY trace_ids.run_id)
+              SELECT filtered_runs.*,
+                     ifNull(aggregates.results, 0) AS results,
+                     ifNull(aggregates.actual_passed, 0) AS actual_passed,
+                     ifNull(aggregates.actual_failed, 0) AS actual_failed,
+                     ifNull(aggregates.actual_invalid, 0) AS actual_invalid,
+                     ifNull(aggregates.actual_unknown, 0) AS actual_unknown,
+                     ifNull(aggregates.evaluated_cases, 0) AS evaluated_cases,
+                     ifNull(aggregates.evaluated_traces, 0) AS evaluated_traces,
+                     if(actual_passed + actual_failed = 0, 0,
+                        actual_passed / (actual_passed + actual_failed)) AS pass_rate,
+                     ifNull(operational.expected_traces, 0) AS expected_traces,
+                     ifNull(operational.found_traces, 0) AS found_traces,
+                     operational.p95_latency_ms AS p95_latency_ms,
+                     operational.average_total_tokens AS average_total_tokens,
+                     if(expected_traces = 0, 0, found_traces / expected_traces) AS trace_coverage
+              FROM filtered_runs
+              LEFT JOIN aggregates ON aggregates.run_id = filtered_runs.id
+              LEFT JOIN operational ON operational.run_id = filtered_runs.id
+              ORDER BY isNull(${sortColumn}) ASC, ${sortColumn} ${order.toUpperCase()}, started_at DESC, id ASC
               LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}`,
       query_params: { ...where.params, pageSize, offset },
       format: "JSONEachRow",
@@ -118,17 +189,41 @@ export async function listEvaluationRuns(
       format: "JSONEachRow",
     }),
   ]);
-  const rows = await rowsResult.json<RunRow>();
+  const rows = await rowsResult.json<RunSummaryRow>();
   const counts = await countResult.json<{ total: number | string }>();
-  const summaries = await hydrateRunSummaries(client, projectId, rows.map(runFromRow));
   const total = numeric(counts[0]?.total);
   return {
-    items: summaries,
+    items: rows.map(runSummaryFromRow),
     total,
     page,
     pageSize,
     pageCount: total === 0 ? 0 : Math.ceil(total / pageSize),
   };
+}
+
+export async function listEvaluationRunFacets(
+  client: ClickHouseClient,
+  projectId: string,
+  options: EvaluationRunFilters,
+): Promise<EvaluationRunFacets> {
+  const facets = ["suite", "status", "environment", "release"] as const;
+  const values = await Promise.all(
+    facets.map(async (facet) => {
+      const where = runWhere(projectId, options, facet);
+      const column = evaluationRunFacetColumns[facet];
+      const result = await client.query({
+        query: `SELECT toString(${column}) AS value, count() AS count
+                FROM evaluation_runs FINAL
+                WHERE ${where.filters.join(" AND ")} AND value != ''
+                GROUP BY value ORDER BY count DESC, value ASC LIMIT 50`,
+        query_params: where.params,
+        format: "JSONEachRow",
+      });
+      const rows = await result.json<{ value: string; count: number | string }>();
+      return [facet, rows.map((row) => ({ value: row.value, count: numeric(row.count) }))] as const;
+    }),
+  );
+  return Object.fromEntries(values) as EvaluationRunFacets;
 }
 
 export async function getEvaluationRun(
@@ -409,6 +504,7 @@ function compareCases(
 function runWhere(
   projectId: string,
   options: EvaluationRunFilters,
+  omit?: keyof EvaluationRunFacets,
 ): { filters: string[]; params: Record<string, string | string[]> } {
   const filters = ["project_id = {projectId:UUID}"];
   const params: Record<string, string | string[]> = { projectId };
@@ -420,14 +516,14 @@ function runWhere(
     filters.push("started_at <= {to:DateTime64(3)}");
     params.to = clickHouseTime(options.to);
   }
-  for (const [field, column] of [
-    ["suites", "suite_name"],
-    ["statuses", "status"],
-    ["environments", "environment"],
-    ["releases", "release"],
+  for (const [field, column, facet] of [
+    ["suites", "suite_name", "suite"],
+    ["statuses", "status", "status"],
+    ["environments", "environment", "environment"],
+    ["releases", "release", "release"],
   ] as const) {
     const values = options[field];
-    if (values !== undefined && values.length > 0) {
+    if (values !== undefined && values.length > 0 && omit !== facet) {
       filters.push(`${column} IN {${field}:Array(String)}`);
       params[field] = values;
     }
@@ -440,6 +536,28 @@ function runWhere(
   }
   return { filters, params };
 }
+
+const evaluationRunSortColumns: Record<EvaluationRunSortField, string> = {
+  startedAt: "started_at",
+  suiteName: "suite_name",
+  status: "status",
+  release: "release",
+  environment: "environment",
+  evaluatedCases: "evaluated_cases",
+  results: "results",
+  passRate: "pass_rate",
+  durationMs: "duration_ms",
+  p95LatencyMs: "p95_latency_ms",
+  averageTotalTokens: "average_total_tokens",
+  traceCoverage: "trace_coverage",
+};
+
+const evaluationRunFacetColumns = {
+  suite: "suite_name",
+  status: "status",
+  environment: "environment",
+  release: "release",
+} as const;
 
 function runFromRow(row: RunRow): EvaluationRun {
   return {
@@ -465,6 +583,23 @@ function runFromRow(row: RunRow): EvaluationRun {
     ingestedAt: isoTime(row.ingested_at),
     ingestVersion: String(row.ingest_version),
     stateVersion: row.state_version,
+  };
+}
+
+function runSummaryFromRow(row: RunSummaryRow): EvaluationRunSummary {
+  return {
+    ...runFromRow(row),
+    results: numeric(row.results),
+    actualPassed: numeric(row.actual_passed),
+    actualFailed: numeric(row.actual_failed),
+    actualInvalid: numeric(row.actual_invalid),
+    actualUnknown: numeric(row.actual_unknown),
+    passRate: numeric(row.pass_rate),
+    evaluatedCases: numeric(row.evaluated_cases),
+    evaluatedTraces: numeric(row.evaluated_traces),
+    p95LatencyMs: nullableNumber(row.p95_latency_ms),
+    averageTotalTokens: nullableNumber(row.average_total_tokens),
+    traceCoverage: numeric(row.trace_coverage),
   };
 }
 

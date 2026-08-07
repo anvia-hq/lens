@@ -7,6 +7,9 @@ import { Area, AreaChart } from "recharts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { validateOverviewSearch } from "../../routes/$projectId";
 import { validateEvaluationsSearch } from "../../routes/$projectId/evaluations";
+import { validateEvaluationCompareSearch } from "../../routes/$projectId/evaluations/compare";
+import { validateEvaluationResultsSearch } from "../../routes/$projectId/evaluations/results";
+import { validateEvaluationRunsSearch } from "../../routes/$projectId/evaluations/runs";
 import { validateSessionsSearch } from "../../routes/$projectId/sessions";
 import { validateTracesSearch } from "../../routes/$projectId/traces";
 import { validateTraceDetailSearch } from "../../routes/$projectId/traces/$traceId";
@@ -20,7 +23,14 @@ import { SessionExplorerTable } from "./components/session-explorer-table";
 import { StatusBadge } from "./components/status-badge";
 import { TraceExplorerTable } from "./components/trace-explorer-table";
 import { UserRangeSelector } from "./components/user-range-selector";
-import { defaultSessionColumns, defaultTraceColumns, defaultUserColumns } from "./types";
+import { assignComparisonRuns } from "./hooks/use-evaluation-runs";
+import {
+  defaultEvaluationResultColumns,
+  defaultEvaluationRunColumns,
+  defaultSessionColumns,
+  defaultTraceColumns,
+  defaultUserColumns,
+} from "./types";
 import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
 
 afterEach(cleanup);
@@ -152,6 +162,56 @@ describe("overview controls", () => {
       gateId: "gate",
     });
     expect(validateEvaluationsSearch({ view: "unsupported" }).view).toBe("runs");
+    expect(
+      validateEvaluationRunsSearch({
+        range: "7d",
+        status: "completed",
+        suite: " release-gate ",
+        columns: ["suite", "passRate"],
+        sort: "passRate",
+      }),
+    ).toMatchObject({
+      range: "7d",
+      statuses: ["completed"],
+      suites: ["release-gate"],
+      columns: ["suite", "passRate"],
+      sort: "passRate",
+      order: "desc",
+      page: 1,
+      pageSize: 50,
+    });
+    expect(validateEvaluationRunsSearch({}).columns).toEqual(defaultEvaluationRunColumns);
+    expect(
+      validateEvaluationResultsSearch({
+        outcome: ["pass", "unknown-value"],
+        metric: "correctness",
+      }),
+    ).toMatchObject({
+      outcomes: ["pass"],
+      metrics: ["correctness"],
+      columns: defaultEvaluationResultColumns,
+    });
+    expect(
+      validateEvaluationCompareSearch({
+        candidateRunId: " candidate ",
+        baselineRunId: " baseline ",
+      }),
+    ).toEqual({
+      candidateRunId: "candidate",
+      baselineRunId: "baseline",
+      gateId: undefined,
+    });
+  });
+
+  it("assigns the newer selected evaluation run as the candidate", () => {
+    const baseline = { id: "baseline", startedAt: "2026-08-01T00:00:00.000Z" };
+    const candidate = { id: "candidate", startedAt: "2026-08-02T00:00:00.000Z" };
+    expect(
+      assignComparisonRuns([candidate, baseline] as Parameters<typeof assignComparisonRuns>[0]),
+    ).toEqual({ baseline, candidate });
+    expect(assignComparisonRuns([candidate] as Parameters<typeof assignComparisonRuns>[0])).toBe(
+      undefined,
+    );
   });
 
   it("normalizes ordered comparison trace IDs and enforces the maximum", () => {
