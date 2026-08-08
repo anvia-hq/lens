@@ -1,5 +1,6 @@
 import type {
   EvaluationRunComparison,
+  EvaluationRunDetail,
   EvaluationRunSummary,
   Page,
   QualityGate,
@@ -45,6 +46,15 @@ export function useEvaluationCompare() {
         })}`,
       ),
   });
+  const candidateInSelector = runs.data?.items.some((run) => run.id === filters.candidateRunId);
+  const candidateDetail = useQuery({
+    queryKey: ["evaluation-run", project.id, filters.candidateRunId],
+    queryFn: () =>
+      api<EvaluationRunDetail>(
+        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(filters.candidateRunId ?? "")}`,
+      ),
+    enabled: Boolean(filters.candidateRunId && runs.isSuccess && !candidateInSelector),
+  });
   const gates = useQualityGateQuery(project.id);
   const comparison = useQuery({
     queryKey: [
@@ -60,7 +70,7 @@ export function useEvaluationCompare() {
       ),
     enabled: Boolean(filters.candidateRunId && filters.baselineRunId),
   });
-  return { comparison, filters, gates, project, runs, setFilters };
+  return { candidateDetail, comparison, filters, gates, project, runs, setFilters };
 }
 
 export function useQualityGates() {

@@ -169,13 +169,16 @@ export function useEvaluationRunDetail(runId: string) {
       ),
     refetchInterval: 5_000,
   });
-  const selectCase = (caseId: string | null) => {
-    void navigate({
-      to: "/$projectId/evaluations/runs/$runId",
-      params: { projectId: project.id, runId },
-      search: { case: caseId ?? undefined },
-    });
-  };
+  const selectCase = useCallback(
+    (caseId: string | null) => {
+      void navigate({
+        to: "/$projectId/evaluations/runs/$runId",
+        params: { projectId: project.id, runId },
+        search: { case: caseId ?? undefined },
+      });
+    },
+    [navigate, project.id, runId],
+  );
   return { detail, project, search, selectCase };
 }
 
