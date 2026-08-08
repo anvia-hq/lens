@@ -12,6 +12,7 @@ import {
   WarningCircle as AlertCircle,
   Clock as Clock3,
   Database,
+  CurrencyDollar as DollarSign,
   Stack as Layers3,
   Chats as MessagesSquare,
   Sparkle as Sparkles,
@@ -25,6 +26,7 @@ import { Page } from "../../../components/page";
 import type { OverviewState } from "../hooks/use-overview";
 import {
   formatCompactAxis,
+  formatCost,
   formatDecimal,
   formatDuration,
   formatNumber,
@@ -97,11 +99,11 @@ export function OverviewView({ state }: { state: OverviewState }) {
               icon={<Zap />}
             />
             <ComparisonMetricCard
-              label="Generations"
-              value={formatNumber(value.current.generations)}
-              current={value.current.generations}
-              previous={value.previous.generations}
-              icon={<Sparkles />}
+              label="Total cost"
+              value={formatCost(value.current.totalCost)}
+              current={value.current.totalCost}
+              previous={value.previous.totalCost}
+              icon={<DollarSign />}
             />
             <ComparisonMetricCard
               label="Tokens / generation"

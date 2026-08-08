@@ -14,7 +14,7 @@ export function SemanticStatusBadge(props: { tone: SemanticStatusTone; children:
           : "border-0 bg-slate-200 text-slate-900 dark:bg-slate-300 dark:text-slate-950";
 
   return (
-    <Badge variant="ghost" className={className}>
+    <Badge variant="default" className={className}>
       {props.children}
     </Badge>
   );

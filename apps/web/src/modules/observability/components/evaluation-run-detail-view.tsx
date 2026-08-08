@@ -25,6 +25,7 @@ import { FullPageMessage } from "../../../components/full-page-message";
 import type { EvaluationRunDetailState } from "../hooks/use-evaluation-runs";
 import type { TracePayloadView } from "../types";
 import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { HeaderMetric } from "./header-metric";
 import { PayloadSection } from "./payload-section";
@@ -61,7 +62,7 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           <div className="grid min-w-0 gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h1 className="truncate text-lg font-semibold tracking-tight">{run.suiteName}</h1>
-              <RunStatusBadge status={run.status} />
+              <EvaluationRunStatusBadge status={run.status} />
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <span>{formatTimestamp(run.startedAt)}</span>
@@ -354,23 +355,6 @@ function SummaryMetric(props: { label: string; value: string }) {
     <div className="min-w-32 bg-background px-3 py-2.5">
       <HeaderMetric label={props.label} value={props.value} />
     </div>
-  );
-}
-
-function RunStatusBadge({ status }: { status: EvaluationRunDetail["run"]["status"] }) {
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
-  const className =
-    status === "completed"
-      ? "border-0 bg-emerald-200 text-emerald-950 dark:bg-emerald-300 dark:text-emerald-950"
-      : status === "failed"
-        ? "border-0 bg-rose-200 text-rose-950 dark:bg-rose-300 dark:text-rose-950"
-        : status === "running"
-          ? "border-0 bg-blue-200 text-blue-950 dark:bg-blue-300 dark:text-blue-950"
-          : "border-0 bg-slate-200 text-slate-900 dark:bg-slate-300 dark:text-slate-950";
-  return (
-    <Badge variant="ghost" className={className}>
-      {label}
-    </Badge>
   );
 }
 

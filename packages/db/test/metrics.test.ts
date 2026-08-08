@@ -24,13 +24,19 @@ describe("overview metrics", () => {
       generations: 36,
       errors: 2,
       totalTokens: 9_000,
+      totalCost: 1.25,
       tokensPerGeneration: 250,
       generationDurationP95Ms: 850,
       activeModels: 2,
       activeUsers: 5,
       activeSessions: 7,
     });
-    expect(metrics.previous).toMatchObject({ traces: 8, generations: 20, totalTokens: 4_000 });
+    expect(metrics.previous).toMatchObject({
+      traces: 8,
+      generations: 20,
+      totalTokens: 4_000,
+      totalCost: 0.5,
+    });
     expect(metrics.series).toHaveLength(25);
     expect(metrics.series.find((point) => point.timestamp === "2026-08-05T11:00:00.000Z")).toEqual({
       timestamp: "2026-08-05T11:00:00.000Z",
@@ -103,6 +109,7 @@ function responseForQuery(query: string, populated: boolean): unknown[] {
         input_tokens: 7_000,
         output_tokens: 2_000,
         total_tokens: 9_000,
+        total_cost: 1.25,
         active_users: 5,
         active_sessions: 7,
       },
@@ -114,6 +121,7 @@ function responseForQuery(query: string, populated: boolean): unknown[] {
         input_tokens: 3_000,
         output_tokens: 1_000,
         total_tokens: 4_000,
+        total_cost: 0.5,
         active_users: 3,
         active_sessions: 4,
       },

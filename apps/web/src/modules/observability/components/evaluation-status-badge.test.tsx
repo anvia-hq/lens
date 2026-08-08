@@ -2,6 +2,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { StatusBadge } from "./status-badge";
 
@@ -21,6 +22,17 @@ describe("EvaluationStatusBadge", () => {
     expect(pass.className).toBe(success.className);
     expect(pass.className).toContain("border-0");
     expect(pass.className).toContain("bg-emerald-200");
+  });
+
+  it("matches the filled trace success treatment for completed runs", () => {
+    render(
+      <>
+        <StatusBadge status="ok" />
+        <EvaluationRunStatusBadge status="completed" />
+      </>,
+    );
+
+    expect(screen.getByText("Completed").className).toBe(screen.getByText("Success").className);
   });
 
   it("uses the same semantic family for fail and incomplete outcomes", () => {

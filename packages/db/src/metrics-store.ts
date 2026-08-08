@@ -37,6 +37,7 @@ export async function queryMetrics(
           sum(input_tokens) AS input_tokens,
           sum(output_tokens) AS output_tokens,
           sum(total_tokens) AS total_tokens,
+          sum(ifNull(total_cost, 0)) AS total_cost,
           uniqExactIf(ifNull(user_id, ''), user_id IS NOT NULL AND user_id != '') AS active_users,
           uniqExactIf(ifNull(session_id, ''), session_id IS NOT NULL AND session_id != '') AS active_sessions
         FROM trace_summaries FINAL
@@ -239,6 +240,7 @@ function metricsSummary(
     inputTokens: numeric(trace?.input_tokens),
     outputTokens: numeric(trace?.output_tokens),
     totalTokens,
+    totalCost: numeric(trace?.total_cost),
     tokensPerGeneration: generations === 0 ? 0 : totalTokens / generations,
     generationDurationP50Ms: numeric(generation?.p50),
     generationDurationP95Ms: numeric(generation?.p95),

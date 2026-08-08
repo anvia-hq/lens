@@ -26,6 +26,7 @@ export type MetricsSummary = {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  totalCost: number;
   tokensPerGeneration: number;
   generationDurationP50Ms: number;
   generationDurationP95Ms: number;

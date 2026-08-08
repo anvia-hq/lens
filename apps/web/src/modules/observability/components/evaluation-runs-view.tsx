@@ -55,6 +55,7 @@ import { formatDuration, formatNumber, shortId } from "../utils/trace-detail";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationRunFilterPanel } from "./evaluation-filter-panel";
 import { EvaluationOverviewDrawer } from "./evaluation-overview-drawer";
+import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
@@ -343,7 +344,7 @@ function runCell(run: EvaluationRunSummary, column: EvaluationRunColumnId): Reac
       </Link>
     );
   }
-  if (column === "status") return <RunStatus status={run.status} />;
+  if (column === "status") return <EvaluationRunStatusBadge status={run.status} />;
   if (column === "release") return run.release ?? "Unreleased";
   if (column === "evaluatedCases") return formatNumber(run.evaluatedCases);
   if (column === "passRate") return run.results > 0 ? `${(run.passRate * 100).toFixed(1)}%` : "—";
@@ -364,20 +365,6 @@ function runCell(run: EvaluationRunSummary, column: EvaluationRunColumnId): Reac
     <span className="font-mono" title={run.id}>
       {shortId(run.id)}
     </span>
-  );
-}
-
-function RunStatus({ status }: { status: EvaluationRunSummary["status"] }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        status === "completed" && "border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
-        status === "failed" && "border-destructive/40 text-destructive",
-      )}
-    >
-      {status}
-    </Badge>
   );
 }
 

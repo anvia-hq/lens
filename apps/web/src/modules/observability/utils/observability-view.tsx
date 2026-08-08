@@ -276,7 +276,11 @@ export function traceTableColumns(options: {
     }),
     traceId: traceColumnHelper.accessor("traceId", {
       header: header("Trace ID", "traceId"),
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.traceId}</span>,
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-mono text-xs text-primary">
+          {row.original.traceId}
+        </span>
+      ),
     }),
   };
   return traceColumnHelper.columns([
