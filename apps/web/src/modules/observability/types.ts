@@ -31,6 +31,7 @@ export type OverviewSearch = { range: MetricsRangePreset };
 
 export const evaluationRunColumnIds = [
   "startedAt",
+  "runId",
   "suite",
   "status",
   "release",
@@ -43,11 +44,11 @@ export const evaluationRunColumnIds = [
   "p95LatencyMs",
   "averageTotalTokens",
   "traceCoverage",
-  "runId",
 ] as const;
 export type EvaluationRunColumnId = (typeof evaluationRunColumnIds)[number];
 export const defaultEvaluationRunColumns: EvaluationRunColumnId[] = [
   "startedAt",
+  "runId",
   "suite",
   "status",
   "release",
@@ -58,7 +59,9 @@ export const defaultEvaluationRunColumns: EvaluationRunColumnId[] = [
 
 export const evaluationResultColumnIds = [
   "timestamp",
-  "suiteCase",
+  "resultId",
+  "suite",
+  "case",
   "metricName",
   "outcome",
   "value",
@@ -69,12 +72,13 @@ export const evaluationResultColumnIds = [
   "serviceName",
   "explanation",
   "observationId",
-  "resultId",
 ] as const;
 export type EvaluationResultColumnId = (typeof evaluationResultColumnIds)[number];
 export const defaultEvaluationResultColumns: EvaluationResultColumnId[] = [
   "timestamp",
-  "suiteCase",
+  "resultId",
+  "suite",
+  "case",
   "metricName",
   "outcome",
   "value",
@@ -160,12 +164,16 @@ export type EvaluationRunDetailSearch = {
 
 export type EvaluationDatasetsSearch = {
   tab?: "managed" | "observed";
-  dataset?: string;
-  version?: string;
-  managedDataset?: string;
-  managedVersion?: string;
   search?: string;
   page?: number;
+};
+
+export type ObservedDatasetDetailSearch = {
+  version?: string;
+};
+
+export type ManagedDatasetDetailSearch = {
+  version?: string;
 };
 
 export type TraceDetailSearch = {

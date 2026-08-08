@@ -333,6 +333,17 @@ function RunRow(props: {
 
 function runCell(run: EvaluationRunSummary, column: EvaluationRunColumnId): ReactNode {
   if (column === "startedAt") return <TableTimestamp value={run.startedAt} />;
+  if (column === "runId") {
+    return (
+      <Link
+        className="whitespace-nowrap font-mono text-primary hover:underline"
+        to="/$projectId/evaluations/runs/$runId"
+        params={{ projectId: run.projectId, runId: run.id }}
+      >
+        {run.id}
+      </Link>
+    );
+  }
   if (column === "suite") {
     return (
       <Link
@@ -361,11 +372,7 @@ function runCell(run: EvaluationRunSummary, column: EvaluationRunColumnId): Reac
   if (column === "averageTotalTokens")
     return run.averageTotalTokens === null ? "—" : formatNumber(run.averageTotalTokens);
   if (column === "traceCoverage") return `${(run.traceCoverage * 100).toFixed(1)}%`;
-  return (
-    <span className="font-mono" title={run.id}>
-      {shortId(run.id)}
-    </span>
-  );
+  return null;
 }
 
 function ColumnMenu(props: {

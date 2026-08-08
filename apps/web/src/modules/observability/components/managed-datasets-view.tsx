@@ -7,7 +7,6 @@ import {
 } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -28,178 +27,131 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { Textarea } from "@lens/ui/components/textarea";
-import { Archive, Database, Flask, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
+import {
+  Archive,
+  ArrowLeft,
+  Database,
+  Flask,
+  Plus,
+  MagnifyingGlass as Search,
+  Trash,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { FullPageMessage } from "../../../components/full-page-message";
-import type { EvaluationDatasetsState } from "../hooks/use-evaluation-datasets";
+import type {
+  EvaluationDatasetsState,
+  ManagedDatasetDetailState,
+} from "../hooks/use-evaluation-datasets";
 import { formatTimestamp, shortId } from "../utils/trace-detail";
 import { DatasetTabs } from "./dataset-tabs";
 
 export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState }) {
   const [createOpen, setCreateOpen] = useState(false);
-  const [versionOpen, setVersionOpen] = useState(false);
-  const [caseItem, setCaseItem] = useState<ManagedDatasetCaseInput | "new" | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState("");
   const canManage = state.project.role === "owner" || state.project.role === "admin";
   if (state.managed.isLoading)
     return <FullPageMessage icon={<Database />} text="Loading managed datasets" contained />;
   if (state.managed.error || !state.managed.data)
     return <FullPageMessage icon={<Database />} text="Unable to load managed datasets" contained />;
-  const selected = state.managedDetail.data;
-  const version = state.managedVersion.data;
-  const error =
-    state.createDataset.error ??
-    state.createVersion.error ??
-    state.upsertCase.error ??
-    state.importCases.error ??
-    state.deleteCase.error ??
-    state.publishVersion.error ??
-    state.archiveDataset.error;
+  const error = state.createDataset.error;
+  const normalizedSearch = searchDraft.trim().toLocaleLowerCase();
+  const datasets = normalizedSearch
+    ? state.managed.data.items.filter((dataset) =>
+        `${dataset.name} ${dataset.description ?? ""}`
+          .toLocaleLowerCase()
+          .includes(normalizedSearch),
+      )
+    : state.managed.data.items;
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background px-4 py-4">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Datasets</h1>
-          <p className="text-sm text-muted-foreground">
-            Author versioned evaluation cases and fetch published snapshots from your application.
-          </p>
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 md:h-12 md:flex-nowrap md:py-0">
+        <div className="relative h-8 min-w-52 flex-1">
+          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-8 pl-8"
+            aria-label="Search managed datasets"
+            placeholder="Search datasets"
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+          />
         </div>
         <DatasetTabs state={state} />
-      </header>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="grid gap-4 p-4">
-          {error ? <ErrorAlert error={error} /> : null}
-          <div className="flex justify-end">
-            {canManage ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus /> Create dataset
-              </Button>
-            ) : null}
+        {canManage ? (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus /> Create dataset
+          </Button>
+        ) : null}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto bg-background">
+        {error ? (
+          <div className="p-4">
+            <ErrorAlert error={error} />
           </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Managed datasets</CardTitle>
-            </CardHeader>
-            {state.managed.data.items.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-4">Dataset</TableHead>
-                    <TableHead>Draft</TableHead>
-                    <TableHead>Latest published</TableHead>
-                    <TableHead>Versions</TableHead>
-                    <TableHead className="pr-4">Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {state.managed.data.items.map((dataset) => (
-                    <TableRow
-                      key={dataset.id}
-                      className="cursor-pointer"
-                      tabIndex={0}
-                      onClick={() =>
-                        state.setSearch({
-                          managedDataset: dataset.id,
-                          managedVersion: dataset.draft?.id ?? dataset.latestPublished?.id,
-                        })
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        event.preventDefault();
-                        state.setSearch({
-                          managedDataset: dataset.id,
-                          managedVersion: dataset.draft?.id ?? dataset.latestPublished?.id,
-                        });
-                      }}
-                    >
-                      <TableCell className="pl-4 font-medium">{dataset.name}</TableCell>
-                      <TableCell>{dataset.draft?.version ?? "—"}</TableCell>
-                      <TableCell>{dataset.latestPublished?.version ?? "—"}</TableCell>
-                      <TableCell>{dataset.versionCount}</TableCell>
-                      <TableCell className="pr-4">{formatTimestamp(dataset.updatedAt)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <CardContent>
-                <EmptyState
-                  icon={<Database />}
-                  title="No managed datasets"
-                  text="Create a dataset, add evaluation cases, and publish an immutable version."
-                />
-              </CardContent>
-            )}
-          </Card>
-          {state.search.managedDataset ? (
-            state.managedDetail.isLoading ? (
-              <Card>
-                <CardContent className="py-8">Loading dataset…</CardContent>
-              </Card>
-            ) : selected ? (
-              <Card>
-                <CardHeader className="gap-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <CardTitle>{selected.name}</CardTitle>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {selected.description ?? "No description"}
-                      </p>
-                    </div>
-                    {canManage ? (
-                      <div className="flex flex-wrap gap-2">
-                        {!selected.draft && selected.latestPublished ? (
-                          <Button size="sm" variant="outline" onClick={() => setVersionOpen(true)}>
-                            <Plus /> New version
-                          </Button>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (window.confirm(`Archive ${selected.name}?`)) {
-                              state.archiveDataset.mutate(selected.id);
-                            }
-                          }}
-                        >
-                          <Archive /> Archive
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selected.versions.map((item) => (
-                      <Button
-                        key={item.id}
-                        size="sm"
-                        variant={item.id === state.selectedVersionId ? "default" : "outline"}
-                        onClick={() => state.setSearch({ managedVersion: item.id })}
-                      >
-                        {item.version} · {item.status}
-                      </Button>
-                    ))}
-                  </div>
-                </CardHeader>
-                {state.managedVersion.isLoading ? (
-                  <CardContent className="border-t py-8">Loading version…</CardContent>
-                ) : version ? (
-                  <ManagedVersion
-                    state={state}
-                    version={version}
-                    canManage={canManage}
-                    onAdd={() => setCaseItem("new")}
-                    onEdit={setCaseItem}
-                    onImport={() => setImportOpen(true)}
-                  />
-                ) : null}
-              </Card>
-            ) : null
-          ) : null}
-        </div>
-      </ScrollArea>
+        ) : null}
+        {datasets.length ? (
+          <Table className="w-full">
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+                <TableHead className="pl-4">Dataset</TableHead>
+                <TableHead>Draft</TableHead>
+                <TableHead>Latest published</TableHead>
+                <TableHead>Versions</TableHead>
+                <TableHead className="pr-4">Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {datasets.map((dataset) => (
+                <TableRow
+                  key={dataset.id}
+                  className="cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  tabIndex={0}
+                  onClick={() =>
+                    state.openManagedDataset(
+                      dataset.id,
+                      dataset.draft?.id ?? dataset.latestPublished?.id,
+                    )
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    state.openManagedDataset(
+                      dataset.id,
+                      dataset.draft?.id ?? dataset.latestPublished?.id,
+                    );
+                  }}
+                >
+                  <TableCell className="pl-4 font-medium">{dataset.name}</TableCell>
+                  <TableCell>{dataset.draft?.version ?? "—"}</TableCell>
+                  <TableCell>{dataset.latestPublished?.version ?? "—"}</TableCell>
+                  <TableCell>{dataset.versionCount}</TableCell>
+                  <TableCell className="pr-4">{formatTimestamp(dataset.updatedAt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState
+            icon={<Database />}
+            title={normalizedSearch ? "No matching datasets" : "No managed datasets"}
+            text={
+              normalizedSearch
+                ? "Try another search."
+                : "Create a dataset, add evaluation cases, and publish an immutable version."
+            }
+          />
+        )}
+      </div>
+      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-sm text-muted-foreground">
+        <span>
+          {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
+        </span>
+        {normalizedSearch ? <span>{state.managed.data.items.length} total</span> : null}
+      </div>
+
       <CreateDatasetDialog
         open={createOpen}
         error={state.createDataset.error}
@@ -208,17 +160,114 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
           state.createDataset.mutate(input, { onSuccess: () => setCreateOpen(false) })
         }
       />
+    </main>
+  );
+}
+
+export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetailState }) {
+  const [versionOpen, setVersionOpen] = useState(false);
+  const [caseItem, setCaseItem] = useState<ManagedDatasetCaseInput | "new" | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const canManage = state.project.role === "owner" || state.project.role === "admin";
+  if (state.detail.isLoading)
+    return <FullPageMessage icon={<Database />} text="Loading dataset" contained />;
+  if (state.detail.error || !state.detail.data)
+    return <FullPageMessage icon={<Database />} text="Dataset not found" contained />;
+  const dataset = state.detail.data;
+  const version = state.version.data;
+  const error =
+    state.createVersion.error ??
+    state.upsertCase.error ??
+    state.importCases.error ??
+    state.deleteCase.error ??
+    state.publishVersion.error ??
+    state.archiveDataset.error;
+  return (
+    <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <header className="shrink-0 border-b bg-background px-4 py-3">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              render={
+                <Link
+                  to="/$projectId/evaluations/datasets"
+                  params={{ projectId: state.project.id }}
+                  search={{ tab: "managed", page: 1 }}
+                />
+              }
+            >
+              <ArrowLeft />
+              <span className="sr-only">Back to datasets</span>
+            </Button>
+            <div className="grid min-w-0 gap-1">
+              <h1 className="text-lg font-semibold tracking-tight">{dataset.name}</h1>
+              <p className="text-xs text-muted-foreground">
+                {dataset.description ?? "No description"}
+              </p>
+            </div>
+          </div>
+          {canManage ? (
+            <div className="flex flex-wrap gap-2">
+              {!dataset.draft && dataset.latestPublished ? (
+                <Button size="sm" variant="outline" onClick={() => setVersionOpen(true)}>
+                  <Plus /> New version
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (window.confirm(`Archive ${dataset.name}?`)) state.archiveDataset.mutate();
+                }}
+              >
+                <Archive /> Archive
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 pl-10">
+          {dataset.versions.map((item) => (
+            <Button
+              key={item.id}
+              size="sm"
+              variant={item.id === state.selectedVersionId ? "default" : "outline"}
+              onClick={() => state.setVersion(item.id)}
+            >
+              {item.version} · {item.status}
+            </Button>
+          ))}
+        </div>
+      </header>
+      {error ? (
+        <div className="border-b p-4">
+          <ErrorAlert error={error} />
+        </div>
+      ) : null}
+      <ScrollArea className="min-h-0 flex-1">
+        {state.version.isLoading ? (
+          <div className="p-4 text-sm text-muted-foreground">Loading version…</div>
+        ) : version ? (
+          <ManagedVersion
+            state={state}
+            version={version}
+            canManage={canManage}
+            onAdd={() => setCaseItem("new")}
+            onEdit={setCaseItem}
+            onImport={() => setImportOpen(true)}
+          />
+        ) : (
+          <div className="p-4 text-sm text-muted-foreground">This dataset has no versions.</div>
+        )}
+      </ScrollArea>
       <VersionDialog
         open={versionOpen}
-        suggestion={suggestNextVersion(selected?.latestPublished?.version)}
+        suggestion={suggestNextVersion(dataset.latestPublished?.version)}
         onClose={() => setVersionOpen(false)}
-        onSave={(versionLabel) => {
-          if (!selected) return;
-          state.createVersion.mutate(
-            { datasetId: selected.id, version: versionLabel },
-            { onSuccess: () => setVersionOpen(false) },
-          );
-        }}
+        onSave={(versionLabel) =>
+          state.createVersion.mutate(versionLabel, { onSuccess: () => setVersionOpen(false) })
+        }
       />
       <CaseDialog
         item={caseItem}
@@ -226,7 +275,7 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
         onSave={(item) => {
           if (!version) return;
           state.upsertCase.mutate(
-            { datasetId: version.datasetId, versionId: version.id, item },
+            { versionId: version.id, item },
             { onSuccess: () => setCaseItem(null) },
           );
         }}
@@ -237,7 +286,7 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
         onSave={(items) => {
           if (!version) return;
           state.importCases.mutate(
-            { datasetId: version.datasetId, versionId: version.id, items },
+            { versionId: version.id, items },
             { onSuccess: () => setImportOpen(false) },
           );
         }}
@@ -247,7 +296,7 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
 }
 
 function ManagedVersion(props: {
-  state: EvaluationDatasetsState;
+  state: ManagedDatasetDetailState;
   version: ManagedDatasetVersionDetail;
   canManage: boolean;
   onAdd: () => void;
@@ -258,7 +307,7 @@ function ManagedVersion(props: {
   const editable = props.canManage && version.status === "draft";
   return (
     <>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-2">
           <Badge variant="outline">{version.status}</Badge>
           <span className="text-sm text-muted-foreground">
@@ -279,10 +328,7 @@ function ManagedVersion(props: {
               disabled={version.items.length === 0}
               onClick={() => {
                 if (window.confirm(`Publish ${version.version}? It will become immutable.`)) {
-                  state.publishVersion.mutate({
-                    datasetId: version.datasetId,
-                    versionId: version.id,
-                  });
+                  state.publishVersion.mutate(version.id);
                 }
               }}
             >
@@ -290,7 +336,7 @@ function ManagedVersion(props: {
             </Button>
           </div>
         ) : null}
-      </CardContent>
+      </div>
       {version.items.length ? (
         <Table>
           <TableHeader>
@@ -320,7 +366,6 @@ function ManagedVersion(props: {
                       variant="ghost"
                       onClick={() =>
                         state.deleteCase.mutate({
-                          datasetId: version.datasetId,
                           versionId: version.id,
                           caseId: item.id,
                         })
@@ -335,12 +380,12 @@ function ManagedVersion(props: {
           </TableBody>
         </Table>
       ) : (
-        <CardContent className="border-t py-8 text-sm text-muted-foreground">
+        <div className="border-t px-4 py-8 text-sm text-muted-foreground">
           This draft has no cases yet.
-        </CardContent>
+        </div>
       )}
       {state.linkedRuns.data?.runs.length ? (
-        <CardContent className="border-t pt-4">
+        <div className="border-t p-4">
           <h3 className="mb-3 text-sm font-semibold">Associated runs</h3>
           <div className="flex flex-wrap gap-2">
             {state.linkedRuns.data.runs.map((run) => (
@@ -360,7 +405,7 @@ function ManagedVersion(props: {
               </Button>
             ))}
           </div>
-        </CardContent>
+        </div>
       ) : null}
     </>
   );

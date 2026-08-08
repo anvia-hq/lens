@@ -210,6 +210,7 @@ describe("overview controls", () => {
       pageSize: 50,
     });
     expect(validateEvaluationRunsSearch({}).columns).toEqual(defaultEvaluationRunColumns);
+    expect(defaultEvaluationRunColumns.slice(0, 2)).toEqual(["startedAt", "runId"]);
     expect(
       validateEvaluationResultsSearch({
         outcome: ["pass", "unknown-value"],
@@ -220,6 +221,12 @@ describe("overview controls", () => {
       metrics: ["correctness"],
       columns: defaultEvaluationResultColumns,
     });
+    expect(defaultEvaluationResultColumns.slice(0, 2)).toEqual(["timestamp", "resultId"]);
+    expect(validateEvaluationResultsSearch({ columns: ["suiteCase", "outcome"] }).columns).toEqual([
+      "suite",
+      "case",
+      "outcome",
+    ]);
     expect(
       validateEvaluationCompareSearch({
         candidateRunId: " candidate ",

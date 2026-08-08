@@ -34,6 +34,8 @@ import {
   evaluationResultColumnIds,
   evaluationRunColumnIds,
   type LegacyEvaluationsSearch,
+  type ManagedDatasetDetailSearch,
+  type ObservedDatasetDetailSearch,
   type OverviewSearch,
   type RefreshInterval,
   type ResolvedEvaluationResultsSearch,
@@ -67,13 +69,21 @@ export function validateEvaluationDatasetsSearch(
   const tab = optionalSearchValue(search.tab);
   return {
     tab: tab === "observed" ? "observed" : "managed",
-    dataset: optionalSearchValue(search.dataset),
-    version: optionalSearchValue(search.version),
-    managedDataset: optionalSearchValue(search.managedDataset),
-    managedVersion: optionalSearchValue(search.managedVersion),
     search: optionalSearchValue(search.search),
     page: positiveInteger(search.page, 1),
   };
+}
+
+export function validateObservedDatasetDetailSearch(
+  search: Record<string, unknown>,
+): ObservedDatasetDetailSearch {
+  return { version: optionalSearchValue(search.version) };
+}
+
+export function validateManagedDatasetDetailSearch(
+  search: Record<string, unknown>,
+): ManagedDatasetDetailSearch {
+  return { version: optionalSearchValue(search.version) };
 }
 
 export function validateEvaluationsSearch(
@@ -469,7 +479,11 @@ function validEvaluationRunColumns(value: unknown): EvaluationRunColumnId[] {
 function validEvaluationResultColumns(value: unknown): EvaluationResultColumnId[] {
   const selected = new Set(searchValues(value));
   if (selected.size === 0) return defaultEvaluationResultColumns;
-  selected.add("suiteCase");
+  if (selected.delete("suiteCase")) {
+    selected.add("suite");
+    selected.add("case");
+  }
+  selected.add("suite");
   return evaluationResultColumnIds.filter((column) => selected.has(column));
 }
 

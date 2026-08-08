@@ -207,36 +207,49 @@ function RunIdentityCard(props: {
   projectId: string;
 }) {
   const run = props.run;
+  const candidate = props.label === "Candidate";
   return (
-    <Card size="sm">
-      <CardHeader className="flex-row items-start justify-between gap-3">
+    <Card size="sm" className="relative">
+      <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b to-transparent",
+          candidate ? "from-emerald-500/20 via-emerald-500/5" : "from-zinc-500/15 via-zinc-500/5",
+        )}
+      />
+      <span
+        className={cn(
+          "absolute top-4 right-4 z-10 font-heading text-base font-semibold",
+          candidate ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground",
+        )}
+      >
+        {props.label}
+      </span>
+      <CardHeader className="relative pr-32">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={props.label === "Candidate" ? "default" : "secondary"}>
-              {props.label}
-            </Badge>
+            <CardTitle>{run.release ?? "Unreleased"}</CardTitle>
             <EvaluationRunStatusBadge status={run.status} />
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              render={
+                <Link
+                  to="/$projectId/evaluations/runs/$runId"
+                  params={{ projectId: props.projectId, runId: run.id }}
+                />
+              }
+            >
+              <ArrowSquareOut />
+              <span className="sr-only">Open {props.label.toLocaleLowerCase()} run</span>
+            </Button>
           </div>
-          <CardTitle>{run.release ?? "Unreleased"}</CardTitle>
           <p className="text-xs text-muted-foreground">
             {run.suiteName} · {formatTimestamp(run.startedAt)}
           </p>
         </div>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          render={
-            <Link
-              to="/$projectId/evaluations/runs/$runId"
-              params={{ projectId: props.projectId, runId: run.id }}
-            />
-          }
-        >
-          <ArrowSquareOut />
-          <span className="sr-only">Open {props.label.toLocaleLowerCase()} run</span>
-        </Button>
       </CardHeader>
-      <CardContent className="grid gap-3">
+      <CardContent className="relative grid gap-3">
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline">{run.environment}</Badge>
           <Badge variant="outline">{run.serviceName}</Badge>

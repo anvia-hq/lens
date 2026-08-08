@@ -37,7 +37,7 @@ import {
   SlidersHorizontal,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { EvaluationsState } from "../hooks/use-evaluations";
@@ -51,6 +51,7 @@ import {
 import { formatNumber, shortId } from "../utils/trace-detail";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationResultFilterPanel } from "./evaluation-filter-panel";
+import { EvaluationResultDrawer, formatEvaluationResultValue } from "./evaluation-result-drawer";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
@@ -59,7 +60,8 @@ import { TableTimestamp } from "./table-timestamp";
 
 const columnLabels: Record<EvaluationResultColumnId, string> = {
   timestamp: "Time",
-  suiteCase: "Suite / case",
+  suite: "Suite",
+  case: "Case",
   metricName: "Metric",
   outcome: "Outcome",
   value: "Value",
@@ -75,7 +77,8 @@ const columnLabels: Record<EvaluationResultColumnId, string> = {
 
 const sortFields: Partial<Record<EvaluationResultColumnId, EvaluationSortField>> = {
   timestamp: "timestamp",
-  suiteCase: "suiteName",
+  suite: "suiteName",
+  case: "caseId",
   metricName: "metricName",
   outcome: "outcome",
   value: "numericValue",
@@ -84,6 +87,7 @@ const sortFields: Partial<Record<EvaluationResultColumnId, EvaluationSortField>>
 };
 
 export function EvaluationsView({ state }: { state: EvaluationsState }) {
+  const [selectedResult, setSelectedResult] = useState<EvaluationResult | null>(null);
   const filterPanel = (
     <EvaluationResultFilterPanel
       filters={state.filters}
@@ -105,9 +109,11 @@ export function EvaluationsView({ state }: { state: EvaluationsState }) {
       loading={state.evaluations.isLoading}
       projectId={state.project.id}
       searchDraft={state.searchDraft}
+      selectedResultId={selectedResult?.id}
       onChange={state.setFilters}
       onOpenMobileFilters={() => state.setMobileFiltersOpen(true)}
       onSearchChange={state.setSearchDraft}
+      onSelectResult={setSelectedResult}
       actions={
         <>
           <RangeSelector
@@ -120,15 +126,24 @@ export function EvaluationsView({ state }: { state: EvaluationsState }) {
     />
   );
   return (
-    <EvaluationExplorerLayout
-      activeFilterCount={state.activeFilterCount}
-      filterPanel={filterPanel}
-      filterPanelCollapsed={state.filterPanelCollapsed}
-      mobileFiltersOpen={state.mobileFiltersOpen}
-      table={table}
-      onFilterPanelCollapsedChange={state.setFilterPanelCollapsed}
-      onMobileFiltersOpenChange={state.setMobileFiltersOpen}
-    />
+    <>
+      <EvaluationExplorerLayout
+        activeFilterCount={state.activeFilterCount}
+        filterPanel={filterPanel}
+        filterPanelCollapsed={state.filterPanelCollapsed}
+        mobileFiltersOpen={state.mobileFiltersOpen}
+        table={table}
+        onFilterPanelCollapsedChange={state.setFilterPanelCollapsed}
+        onMobileFiltersOpenChange={state.setMobileFiltersOpen}
+      />
+      <EvaluationResultDrawer
+        projectId={state.project.id}
+        result={selectedResult}
+        onOpenChange={(open) => {
+          if (!open) setSelectedResult(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -140,9 +155,11 @@ function EvaluationResultExplorerTable(props: {
   loading: boolean;
   error: unknown;
   activeFilterCount: number;
+  selectedResultId?: string;
   actions?: ReactNode;
   onOpenMobileFilters: () => void;
   onSearchChange: (value: string) => void;
+  onSelectResult: (result: EvaluationResult) => void;
   onChange: (changes: Partial<EvaluationResultsSearch>, resetPage?: boolean) => void;
 }) {
   const sort = (field: EvaluationSortField) =>
@@ -226,7 +243,23 @@ function EvaluationResultExplorerTable(props: {
             </TableHeader>
             <TableBody>
               {props.data.items.map((result) => (
-                <TableRow key={result.id}>
+                <TableRow
+                  aria-label={`Open ${result.metricName} result for ${result.caseId ?? result.suiteName}`}
+                  className="cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  data-state={props.selectedResultId === result.id ? "selected" : undefined}
+                  key={result.id}
+                  tabIndex={0}
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("a, button, input, select")) return;
+                    props.onSelectResult(result);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    props.onSelectResult(result);
+                  }}
+                >
                   {props.filters.columns.map((column) => (
                     <TableCell key={column}>
                       {resultCell(result, column, props.projectId)}
@@ -255,26 +288,23 @@ function resultCell(
   projectId: string,
 ): ReactNode {
   if (column === "timestamp") return <TableTimestamp value={result.timestamp} />;
-  if (column === "suiteCase")
+  if (column === "suite")
     return (
-      <div className="grid max-w-52">
-        <span className="truncate font-medium">{result.suiteName}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {result.caseId ?? "No case ID"}
-        </span>
-      </div>
+      <span className="block max-w-48 truncate font-medium" title={result.suiteName}>
+        {result.suiteName}
+      </span>
+    );
+  if (column === "case")
+    return (
+      <span className="block max-w-48 truncate font-mono" title={result.caseId ?? undefined}>
+        {result.caseId ?? "—"}
+      </span>
     );
   if (column === "metricName")
     return <span title={result.explanation ?? undefined}>{result.metricName}</span>;
   if (column === "outcome") return <OutcomeBadge outcome={result.outcome} />;
   if (column === "value")
-    return (
-      <span className="font-mono">
-        {result.numericValue?.toFixed(3) ??
-          result.categoricalValue ??
-          (result.dataType === "BOOLEAN" ? result.outcome : "—")}
-      </span>
-    );
+    return <span className="font-mono">{formatEvaluationResultValue(result)}</span>;
   if (column === "environment") return result.environment;
   if (column === "release") return result.release ?? "—";
   if (column === "traceId")
@@ -295,11 +325,10 @@ function resultCell(
     ) : (
       "—"
     );
-  return (
-    <span className="font-mono" title={result.id}>
-      {shortId(result.id)}
-    </span>
-  );
+  if (column === "resultId") {
+    return <span className="whitespace-nowrap font-mono text-primary">{result.id}</span>;
+  }
+  return null;
 }
 
 function EntityLink(props: { projectId: string; id: string | null; kind: "trace" | "run" }) {
@@ -343,7 +372,7 @@ function ColumnMenu(props: {
             <DropdownMenuCheckboxItem
               key={column}
               checked={props.filters.columns.includes(column)}
-              disabled={column === "suiteCase"}
+              disabled={column === "suite"}
               onCheckedChange={(checked) =>
                 props.onChange(
                   {

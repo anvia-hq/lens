@@ -8,26 +8,14 @@ export function DatasetTabs({ state }: { state: EvaluationDatasetsState }) {
       <Button
         size="sm"
         variant={tab === "managed" ? "default" : "outline"}
-        onClick={() =>
-          state.setSearch({
-            tab: "managed",
-            dataset: undefined,
-            version: undefined,
-          })
-        }
+        onClick={() => state.setSearch({ tab: "managed" })}
       >
         Managed
       </Button>
       <Button
         size="sm"
         variant={tab === "observed" ? "default" : "outline"}
-        onClick={() =>
-          state.setSearch({
-            tab: "observed",
-            managedDataset: undefined,
-            managedVersion: undefined,
-          })
-        }
+        onClick={() => state.setSearch({ tab: "observed" })}
       >
         Observed
       </Button>

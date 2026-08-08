@@ -31,6 +31,8 @@ import { Route as ProjectIdUsersIndexRouteImport } from './routes/$projectId/use
 import { Route as ProjectIdUsersUserIdRouteImport } from './routes/$projectId/users/$userId'
 import { Route as ProjectIdEvaluationsRunsIndexRouteImport } from './routes/$projectId/evaluations/runs/index'
 import { Route as ProjectIdEvaluationsRunsRunIdRouteImport } from './routes/$projectId/evaluations/runs/$runId'
+import { Route as ProjectIdEvaluationsDatasetsManagedDatasetIdRouteImport } from './routes/$projectId/evaluations/datasets_.managed.$datasetId'
+import { Route as ProjectIdEvaluationsDatasetsObservedDatasetNameRouteImport } from './routes/$projectId/evaluations/datasets_.observed.$datasetName'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -151,6 +153,18 @@ const ProjectIdEvaluationsRunsRunIdRoute =
     path: '/evaluations/runs/$runId',
     getParentRoute: () => ProjectIdRouteRoute,
   } as any)
+const ProjectIdEvaluationsDatasetsManagedDatasetIdRoute =
+  ProjectIdEvaluationsDatasetsManagedDatasetIdRouteImport.update({
+    id: '/evaluations/datasets_/managed/$datasetId',
+    path: '/evaluations/datasets/managed/$datasetId',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
+const ProjectIdEvaluationsDatasetsObservedDatasetNameRoute =
+  ProjectIdEvaluationsDatasetsObservedDatasetNameRouteImport.update({
+    id: '/evaluations/datasets_/observed/$datasetName',
+    path: '/evaluations/datasets/observed/$datasetName',
+    getParentRoute: () => ProjectIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -175,6 +189,8 @@ export interface FileRoutesByFullPath {
   '/$projectId/users/': typeof ProjectIdUsersIndexRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/runs/': typeof ProjectIdEvaluationsRunsIndexRoute
+  '/$projectId/evaluations/datasets/managed/$datasetId': typeof ProjectIdEvaluationsDatasetsManagedDatasetIdRoute
+  '/$projectId/evaluations/datasets/observed/$datasetName': typeof ProjectIdEvaluationsDatasetsObservedDatasetNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +214,8 @@ export interface FileRoutesByTo {
   '/$projectId/users': typeof ProjectIdUsersIndexRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/runs': typeof ProjectIdEvaluationsRunsIndexRoute
+  '/$projectId/evaluations/datasets/managed/$datasetId': typeof ProjectIdEvaluationsDatasetsManagedDatasetIdRoute
+  '/$projectId/evaluations/datasets/observed/$datasetName': typeof ProjectIdEvaluationsDatasetsObservedDatasetNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -223,6 +241,8 @@ export interface FileRoutesById {
   '/$projectId/users/': typeof ProjectIdUsersIndexRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/runs/': typeof ProjectIdEvaluationsRunsIndexRoute
+  '/$projectId/evaluations/datasets_/managed/$datasetId': typeof ProjectIdEvaluationsDatasetsManagedDatasetIdRoute
+  '/$projectId/evaluations/datasets_/observed/$datasetName': typeof ProjectIdEvaluationsDatasetsObservedDatasetNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -249,6 +269,8 @@ export interface FileRouteTypes {
     | '/$projectId/users/'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/runs/'
+    | '/$projectId/evaluations/datasets/managed/$datasetId'
+    | '/$projectId/evaluations/datasets/observed/$datasetName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -272,6 +294,8 @@ export interface FileRouteTypes {
     | '/$projectId/users'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/runs'
+    | '/$projectId/evaluations/datasets/managed/$datasetId'
+    | '/$projectId/evaluations/datasets/observed/$datasetName'
   id:
     | '__root__'
     | '/'
@@ -296,6 +320,8 @@ export interface FileRouteTypes {
     | '/$projectId/users/'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/runs/'
+    | '/$projectId/evaluations/datasets_/managed/$datasetId'
+    | '/$projectId/evaluations/datasets_/observed/$datasetName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -462,6 +488,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdEvaluationsRunsRunIdRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
+    '/$projectId/evaluations/datasets_/managed/$datasetId': {
+      id: '/$projectId/evaluations/datasets_/managed/$datasetId'
+      path: '/evaluations/datasets/managed/$datasetId'
+      fullPath: '/$projectId/evaluations/datasets/managed/$datasetId'
+      preLoaderRoute: typeof ProjectIdEvaluationsDatasetsManagedDatasetIdRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/evaluations/datasets_/observed/$datasetName': {
+      id: '/$projectId/evaluations/datasets_/observed/$datasetName'
+      path: '/evaluations/datasets/observed/$datasetName'
+      fullPath: '/$projectId/evaluations/datasets/observed/$datasetName'
+      preLoaderRoute: typeof ProjectIdEvaluationsDatasetsObservedDatasetNameRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
   }
 }
 
@@ -483,6 +523,8 @@ interface ProjectIdRouteRouteChildren {
   ProjectIdUsersIndexRoute: typeof ProjectIdUsersIndexRoute
   ProjectIdEvaluationsRunsRunIdRoute: typeof ProjectIdEvaluationsRunsRunIdRoute
   ProjectIdEvaluationsRunsIndexRoute: typeof ProjectIdEvaluationsRunsIndexRoute
+  ProjectIdEvaluationsDatasetsManagedDatasetIdRoute: typeof ProjectIdEvaluationsDatasetsManagedDatasetIdRoute
+  ProjectIdEvaluationsDatasetsObservedDatasetNameRoute: typeof ProjectIdEvaluationsDatasetsObservedDatasetNameRoute
 }
 
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
@@ -503,6 +545,10 @@ const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdUsersIndexRoute: ProjectIdUsersIndexRoute,
   ProjectIdEvaluationsRunsRunIdRoute: ProjectIdEvaluationsRunsRunIdRoute,
   ProjectIdEvaluationsRunsIndexRoute: ProjectIdEvaluationsRunsIndexRoute,
+  ProjectIdEvaluationsDatasetsManagedDatasetIdRoute:
+    ProjectIdEvaluationsDatasetsManagedDatasetIdRoute,
+  ProjectIdEvaluationsDatasetsObservedDatasetNameRoute:
+    ProjectIdEvaluationsDatasetsObservedDatasetNameRoute,
 }
 
 const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(
