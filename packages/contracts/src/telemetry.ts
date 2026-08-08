@@ -155,6 +155,7 @@ export type SessionDetail = {
   summary: SessionSummary;
   traces: TraceSummary[];
   turns: SessionTurn[];
+  nextCursor: string | null;
 };
 
 export type UserSummary = {

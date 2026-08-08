@@ -59,6 +59,7 @@ describe("simple project pages", () => {
         state={
           {
             createKey: { error: null, isPending: false, mutate: vi.fn() },
+            deleteProject: { error: null, isPending: false, mutate: vi.fn() },
             keyName: "Development",
             keys: { data: { items: [] }, isPending: false },
             newKey: null,

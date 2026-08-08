@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { parseRunRequest } from "../src/modules/evaluation-runs/schema";
 import { parseMemberRole } from "../src/modules/members/schema";
-import { parseSessionRequest } from "../src/modules/sessions/schema";
+import { parseSessionDetailRequest, parseSessionRequest } from "../src/modules/sessions/schema";
 import { parseTraceRequest } from "../src/modules/traces/schema";
 import { parseUserRequest } from "../src/modules/users/schema";
 
@@ -80,6 +80,27 @@ describe("API module schemas", () => {
     });
     expect(await parseRequest("/?status=unset", parseSessionRequest)).toBe(
       "status must be success or error",
+    );
+  });
+
+  it("validates session detail cursors and page sizes", async () => {
+    const cursor = Buffer.from(JSON.stringify(["2026-08-05T00:00:00.000Z", "trace-1"])).toString(
+      "base64url",
+    );
+    expect(
+      await parseRequest<ReturnType<typeof parseSessionDetailRequest>>(
+        `/?pageSize=25&cursor=${cursor}`,
+        parseSessionDetailRequest,
+      ),
+    ).toEqual({
+      pageSize: 25,
+      cursor: { startedAt: "2026-08-05T00:00:00.000Z", traceId: "trace-1" },
+    });
+    expect(await parseRequest("/?pageSize=10", parseSessionDetailRequest)).toBe(
+      "pageSize must be 25, 50, or 100",
+    );
+    expect(await parseRequest("/?cursor=invalid", parseSessionDetailRequest)).toBe(
+      "cursor is invalid",
     );
   });
 

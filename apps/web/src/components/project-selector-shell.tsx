@@ -6,7 +6,11 @@ import { WorkspaceSidebar } from "./workspace-sidebar";
 export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const title =
-    pathname === "/members" ? "Members" : pathname === "/llm-models" ? "LLM Models" : "Projects";
+    pathname === "/members"
+      ? "Members"
+      : pathname === "/cost-settings"
+        ? "Cost Settings"
+        : "Projects";
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden">
       <WorkspaceSidebar user={user} />

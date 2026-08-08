@@ -1,6 +1,6 @@
 import type { SessionDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
-import { buttonVariants } from "@lens/ui/components/button";
+import { Button, buttonVariants } from "@lens/ui/components/button";
 import {
   Pulse as Activity,
   Robot as Bot,
@@ -22,7 +22,13 @@ import { ConversationMessage } from "./conversation-message";
 import { MetricPill } from "./metric-pill";
 import { SessionMetadata } from "./session-metadata";
 import { StatusPill } from "./status-pill";
-export function SessionConversation(props: { detail: SessionDetail; projectId: string }) {
+export function SessionConversation(props: {
+  detail: SessionDetail;
+  projectId: string;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+}) {
   const summary = props.detail.summary;
   return (
     <main className="grid h-[calc(100svh-3.5rem)] min-h-0 w-full flex-1 overflow-auto bg-background lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_24rem]">
@@ -115,6 +121,13 @@ export function SessionConversation(props: { detail: SessionDetail; projectId: s
               </article>
             ))
           )}
+          {props.hasMore ? (
+            <div className="flex justify-center p-6">
+              <Button variant="outline" disabled={props.isLoadingMore} onClick={props.onLoadMore}>
+                {props.isLoadingMore ? "Loading more…" : "Load more"}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
       <SessionMetadata detail={props.detail} />

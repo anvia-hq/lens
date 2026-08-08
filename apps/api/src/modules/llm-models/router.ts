@@ -1,4 +1,4 @@
-import { costRecalculation, llmModelPrice } from "@lens/db";
+import { costRecalculation, jobOutbox, jobOutboxValues, llmModelPrice } from "@lens/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { appMembership } from "../../utils/access.js";
@@ -60,24 +60,35 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
       }
       let created: typeof costRecalculation.$inferSelect | undefined;
       try {
-        [created] = await deps.postgres.db
-          .insert(costRecalculation)
-          .values({
-            organizationId: app.organization.id,
-            requestedBy: session.user.id,
-            from: parsed.data.from === undefined ? null : new Date(parsed.data.from),
-            to: parsed.data.to === undefined ? null : new Date(parsed.data.to),
-            priceSnapshot: prices.map((row) => ({
-              model: row.model,
-              inputPricePerMillion: Number(row.inputPricePerMillion),
-              cachedInputPricePerMillion:
-                row.cachedInputPricePerMillion === null
-                  ? null
-                  : Number(row.cachedInputPricePerMillion),
-              outputPricePerMillion: Number(row.outputPricePerMillion),
-            })),
-          })
-          .returning();
+        created = await deps.postgres.db.transaction(async (tx) => {
+          const [row] = await tx
+            .insert(costRecalculation)
+            .values({
+              organizationId: app.organization.id,
+              requestedBy: session.user.id,
+              from: parsed.data.from === undefined ? null : new Date(parsed.data.from),
+              to: parsed.data.to === undefined ? null : new Date(parsed.data.to),
+              priceSnapshot: prices.map((price) => ({
+                model: price.model,
+                inputPricePerMillion: Number(price.inputPricePerMillion),
+                cachedInputPricePerMillion:
+                  price.cachedInputPricePerMillion === null
+                    ? null
+                    : Number(price.cachedInputPricePerMillion),
+                outputPricePerMillion: Number(price.outputPricePerMillion),
+              })),
+            })
+            .returning();
+          if (row === undefined) return undefined;
+          await tx.insert(jobOutbox).values(
+            jobOutboxValues({
+              queue: "costs",
+              name: "recalculate-model-costs",
+              payload: { recalculationId: row.id },
+            }),
+          );
+          return row;
+        });
       } catch (error) {
         if (isUniqueViolation(error)) {
           return apiError(c, 409, "recalculation_active", "A recalculation is already active");
@@ -86,23 +97,6 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
       }
       if (created === undefined) {
         return apiError(c, 500, "create_failed", "Recalculation was not created");
-      }
-      try {
-        await deps.queues.costs.add(
-          "recalculate-model-costs",
-          { recalculationId: created.id },
-          { jobId: `model-costs-${created.id}` },
-        );
-      } catch (error) {
-        await deps.postgres.db
-          .update(costRecalculation)
-          .set({
-            status: "failed",
-            completedAt: new Date(),
-            error: error instanceof Error ? error.message.slice(0, 2_000) : "Queue unavailable",
-          })
-          .where(eq(costRecalculation.id, created.id));
-        return apiError(c, 503, "queue_unavailable", "Could not queue recalculation");
       }
       return c.json({ id: created.id, status: created.status }, 202);
     })

@@ -7,11 +7,16 @@ import type {
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  archiveManagedDataset,
+  claimJobOutbox,
+  completeJobOutbox,
   createClickHouse,
   createManagedDataset,
   createManagedDatasetVersion,
+  createManagedDatasetWithCases,
   createPostgres,
   createQualityGate,
+  deleteManagedDatasetCase,
   deleteProjectTelemetry,
   deleteQualityGate,
   getEvaluationDatasetDetail,
@@ -21,10 +26,14 @@ import {
   getPublishedManagedDataset,
   getQualityGate,
   getTrace,
+  importManagedDatasetCases,
   insertEvaluationRuns,
   insertEvaluations,
   insertSpans,
+  jobOutbox,
+  jobOutboxValues,
   listEvaluationRuns,
+  listManagedDatasets,
   listQualityGates,
   listTraces,
   managedDataset,
@@ -34,6 +43,8 @@ import {
   publishManagedDatasetVersion,
   queryMetrics,
   reconcileProjectRetention,
+  retryJobOutbox,
+  updateManagedDataset,
   updateQualityGate,
   upsertManagedDatasetCase,
   user,
@@ -88,16 +99,63 @@ describe.sequential("database integration", () => {
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
+        AND table_name IN ('job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
+      "job_outbox",
       "managed_dataset_cases",
       "managed_dataset_versions",
       "managed_datasets",
       "projects",
       "quality_gates",
     ]);
+  });
+
+  it("leases, retries, and completes transactional outbox events", async () => {
+    const start = new Date("2026-08-07T01:00:00.000Z");
+    const [created] = await postgres.db
+      .insert(jobOutbox)
+      .values({
+        ...jobOutboxValues({
+          queue: "maintenance",
+          name: "reconcile-retention",
+          payload: { projectId },
+        }),
+        availableAt: start,
+      })
+      .returning();
+    if (created === undefined) throw new Error("Expected an outbox event");
+
+    const claimed = await claimJobOutbox(postgres.db, {
+      batchSize: 10,
+      leaseMs: 60_000,
+      now: start,
+    });
+    expect(claimed).toContainEqual(expect.objectContaining({ id: created.id, attempts: 1 }));
+    expect(
+      await claimJobOutbox(postgres.db, { batchSize: 10, leaseMs: 60_000, now: start }),
+    ).toHaveLength(0);
+
+    await retryJobOutbox(postgres.db, created.id, new Error("redis unavailable"), 2_000, start);
+    expect(
+      await claimJobOutbox(postgres.db, {
+        batchSize: 10,
+        leaseMs: 60_000,
+        now: new Date(start.getTime() + 1_000),
+      }),
+    ).toHaveLength(0);
+    const retried = await claimJobOutbox(postgres.db, {
+      batchSize: 10,
+      leaseMs: 60_000,
+      now: new Date(start.getTime() + 2_000),
+    });
+    expect(retried).toContainEqual(expect.objectContaining({ id: created.id, attempts: 2 }));
+
+    await completeJobOutbox(postgres.db, created.id);
+    expect(await postgres.db.select().from(jobOutbox).where(eq(jobOutbox.id, created.id))).toEqual(
+      [],
+    );
   });
 
   it("round-trips project-scoped quality gates", async () => {
@@ -177,7 +235,35 @@ describe.sequential("database integration", () => {
       draft: { version: "v2" },
       latestPublished: { version: "v1" },
     });
+    expect(
+      await importManagedDatasetCases(postgres.db, projectId, created.id, next?.id ?? "", [
+        { id: "case-1", input: "updated" },
+        { id: "case-2", input: "new" },
+      ]),
+    ).toMatchObject({ items: [{ id: "case-1" }, { id: "case-2" }] });
+    expect(
+      await deleteManagedDatasetCase(postgres.db, projectId, created.id, next?.id ?? "", "case-2"),
+    ).toBe(true);
+    expect(
+      await updateManagedDataset(postgres.db, projectId, created.id, { description: "Updated" }),
+    ).toMatchObject({ description: "Updated" });
+    expect(await listManagedDatasets(postgres.db, projectId)).toContainEqual(
+      expect.objectContaining({ id: created.id, description: "Updated" }),
+    );
+    expect(await archiveManagedDataset(postgres.db, projectId, created.id)).toBe(true);
+    expect(await archiveManagedDataset(postgres.db, projectId, created.id)).toBe(false);
     await postgres.db.delete(managedDataset).where(eq(managedDataset.id, created.id));
+
+    const seeded = await createManagedDatasetWithCases(
+      postgres.db,
+      projectId,
+      "integration-user",
+      { name: `${name}-seeded` },
+      "2026-08",
+      [{ id: "seed", input: { prompt: "Hello" } }],
+    );
+    expect(seeded).toMatchObject({ draft: { caseCount: 1 } });
+    await postgres.db.delete(managedDataset).where(eq(managedDataset.id, seeded.id));
   });
 
   it("inserts, materializes, queries, and deletes telemetry", async () => {

@@ -1,24 +1,18 @@
 import { createHash } from "node:crypto";
-import { promisify } from "node:util";
-import { gunzip } from "node:zlib";
-import { projectApiKey } from "@lens/db";
 import {
   decodeOtlpLogsRequest,
   encodeOtlpLogsResponse,
   normalizeOtlpLogsRequest,
   parseOtlpContentType,
 } from "@lens/telemetry";
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { apiError } from "../../utils/http.js";
 import type { IngestionMetrics } from "../../utils/metrics.js";
 import { parseRetentionDays } from "../../utils/project.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { isGzipEncoding } from "./schema.js";
-import { authenticateIngestionKey, withinRateLimit } from "./services.js";
-
-const gunzipAsync = promisify(gunzip);
+import { IngestionBodyError, readIngestionBody } from "./body.js";
+import { authenticateIngestionKey, recordProjectKeyUsage, withinRateLimit } from "./services.js";
 
 export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: IngestionMetrics) =>
   new Hono<AppEnv>().post("/", async (c) => {
@@ -60,29 +54,15 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: Ingest
       return apiError(c, 429, "rate_limited", "Project ingestion rate limit exceeded");
     }
 
-    let bytes = new Uint8Array(await c.req.arrayBuffer());
-    if (bytes.byteLength > deps.config.OTLP_MAX_BODY_BYTES) {
-      return apiError(
-        c,
-        413,
-        "payload_too_large",
-        "OTLP request exceeds the configured body limit",
-      );
-    }
-    if (isGzipEncoding(c.req.header("content-encoding"))) {
-      try {
-        bytes = new Uint8Array(await gunzipAsync(bytes));
-      } catch {
-        return apiError(c, 400, "invalid_gzip", "Unable to decompress request body");
-      }
-      if (bytes.byteLength > deps.config.OTLP_MAX_BODY_BYTES) {
-        return apiError(
-          c,
-          413,
-          "payload_too_large",
-          "Decompressed OTLP request exceeds the body limit",
-        );
-      }
+    let bytes: Uint8Array;
+    try {
+      bytes = await readIngestionBody(c.req.raw, deps.config.OTLP_MAX_BODY_BYTES);
+    } catch (error) {
+      if (!(error instanceof IngestionBodyError)) throw error;
+      metrics.evaluationLogsRejected.inc({ reason: error.reason });
+      const status =
+        error.code === "payload_too_large" ? 413 : error.code === "invalid_gzip" ? 400 : 415;
+      return apiError(c, status, error.code, error.message);
     }
 
     try {
@@ -111,10 +91,7 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: Ingest
           normalized.rejectedLogRecords,
         );
       }
-      void deps.postgres.db
-        .update(projectApiKey)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(projectApiKey.id, key.apiKeyId));
+      recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
       metrics.duration.observe((performance.now() - startedAt) / 1_000);
       const response = encodeOtlpLogsResponse(
         contentType,

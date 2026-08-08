@@ -23,6 +23,8 @@ vi.mock("@tanstack/react-router", () => ({
     select({ location: { pathname: mocks.pathname } }),
 }));
 
+vi.mock("./mode-toggle", () => ({ ModeToggle: () => <button type="button">Theme toggle</button> }));
+
 const project: ProjectWithRole = {
   id: "project-alpha",
   teamId: "anvia-lens",

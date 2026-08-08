@@ -1,9 +1,9 @@
-export function AnviaLensLogo() {
+export function AnviaLensLogo({ markClassName }: { markClassName?: string }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <svg
         aria-hidden="true"
-        className="size-6 shrink-0 text-[#2BF563]"
+        className={`size-6 shrink-0 ${markClassName ?? "text-[#2BF563]"}`}
         viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -13,7 +13,6 @@ export function AnviaLensLogo() {
           fill="currentColor"
         />
       </svg>
-      <span className="truncate font-logo text-xl font-semibold tracking-tight">anvialens</span>
     </span>
   );
 }

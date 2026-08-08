@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@lens/ui/components/too
 import { cn } from "@lens/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { useProject } from "../modules/projects/hooks/use-project";
+import { AnviaLensLogo } from "./anvia-lens-logo";
 
 export function ProjectRail() {
   const { project, projects } = useProject();
@@ -12,7 +13,27 @@ export function ProjectRail() {
       aria-label="Projects"
       className="flex h-svh w-14 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
     >
-      <nav className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
+      <div className="flex shrink-0 justify-center p-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                aria-label="Projects"
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent"
+                to="/"
+              >
+                <span className="grid size-8 place-items-center rounded-md border border-[#2BF563] bg-[#2BF563]">
+                  <AnviaLensLogo markClassName="text-black" />
+                </span>
+              </Link>
+            }
+          />
+          <TooltipContent side="right" sideOffset={8}>
+            Projects
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <nav className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto p-2 pt-0">
         {projects.map((item) => {
           const active = item.id === project.id;
           return (

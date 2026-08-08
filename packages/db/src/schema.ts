@@ -1,4 +1,9 @@
-import type { JsonValue, ManagedDatasetCaseInput, QualityGateRule } from "@lens/contracts";
+import type {
+  JobOutboxEvent,
+  JsonValue,
+  ManagedDatasetCaseInput,
+  QualityGateRule,
+} from "@lens/contracts";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -341,6 +346,22 @@ export const costRecalculation = pgTable(
       .on(table.organizationId)
       .where(sql`${table.status} in ('queued', 'running')`),
   ],
+);
+
+export const jobOutbox = pgTable(
+  "job_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queue: text("queue").$type<JobOutboxEvent["queue"]>().notNull(),
+    name: text("name").$type<JobOutboxEvent["name"]>().notNull(),
+    payload: jsonb("payload").$type<JobOutboxEvent["payload"]>().notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("job_outbox_available_idx").on(table.availableAt, table.createdAt)],
 );
 
 export const userRelations = relations(user, ({ many }) => ({

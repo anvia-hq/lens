@@ -1,5 +1,5 @@
-import { project, projectApiKey } from "@lens/db";
-import { eq } from "drizzle-orm";
+import { jobOutbox, jobOutboxValues, project, projectApiKey } from "@lens/db";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { appMembership, canManage, requireProjectAccess } from "../../utils/access.js";
 import { apiError, requiredSession, safeJson } from "../../utils/http.js";
@@ -53,25 +53,35 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
       if (!canManage(access.role)) {
         return apiError(c, 403, "forbidden", "Admin access is required");
       }
+      if (access.project.state !== "active") {
+        return apiError(c, 409, "project_deleting", "Project deletion is already in progress");
+      }
       const parsed = projectSettingsSchema.safeParse(await safeJson(c));
       if (!parsed.success) {
         return apiError(c, 400, "invalid_settings", "Invalid project settings");
       }
-      const [updated] = await deps.postgres.db
-        .update(project)
-        .set({
-          retentionDays:
-            parsed.data.retentionDays === null ? "unlimited" : String(parsed.data.retentionDays),
-          updatedAt: new Date(),
-        })
-        .where(eq(project.id, access.project.id))
-        .returning();
-      await deps.queues.maintenance.add("reconcile-retention", {
-        projectId: access.project.id,
-        retentionDays: parsed.data.retentionDays,
+      const updated = await deps.postgres.db.transaction(async (tx) => {
+        const [row] = await tx
+          .update(project)
+          .set({
+            retentionDays:
+              parsed.data.retentionDays === null ? "unlimited" : String(parsed.data.retentionDays),
+            updatedAt: new Date(),
+          })
+          .where(and(eq(project.id, access.project.id), eq(project.state, "active")))
+          .returning();
+        if (row === undefined) return null;
+        await tx.insert(jobOutbox).values(
+          jobOutboxValues({
+            queue: "maintenance",
+            name: "reconcile-retention",
+            payload: { projectId: access.project.id },
+          }),
+        );
+        return row;
       });
-      if (updated === undefined) {
-        return apiError(c, 500, "update_failed", "Project was not updated");
+      if (updated === null) {
+        return apiError(c, 409, "project_deleting", "Project deletion is already in progress");
       }
       return c.json(projectFromRow(updated));
     })
@@ -85,16 +95,25 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
       if (!canManage(access.role)) {
         return apiError(c, 403, "forbidden", "Admin access is required");
       }
+      if (access.project.state === "deleting") return c.body(null, 202);
       await deps.postgres.db.transaction(async (tx) => {
-        await tx
+        const [deleting] = await tx
           .update(project)
           .set({ state: "deleting", updatedAt: new Date() })
-          .where(eq(project.id, access.project.id));
+          .where(and(eq(project.id, access.project.id), eq(project.state, "active")))
+          .returning({ id: project.id });
+        if (deleting === undefined) return;
         await tx
           .update(projectApiKey)
           .set({ revokedAt: new Date() })
           .where(eq(projectApiKey.projectId, access.project.id));
+        await tx.insert(jobOutbox).values(
+          jobOutboxValues({
+            queue: "maintenance",
+            name: "delete-project",
+            payload: { projectId: access.project.id },
+          }),
+        );
       });
-      await deps.queues.maintenance.add("delete-project", { projectId: access.project.id });
       return c.body(null, 202);
     });

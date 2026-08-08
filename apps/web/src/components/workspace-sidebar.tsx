@@ -28,7 +28,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   const links = [
     { to: "/" as const, label: "Projects", icon: Layers3 },
     { to: "/members" as const, label: "Members", icon: Users },
-    { to: "/llm-models" as const, label: "LLM Models", icon: Database },
+    { to: "/cost-settings" as const, label: "Cost Settings", icon: Database },
   ];
 
   return (

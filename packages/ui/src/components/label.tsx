@@ -5,6 +5,7 @@ import type * as React from "react";
 
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: This reusable primitive receives htmlFor or nested controls from callers.
     <label
       data-slot="label"
       className={cn(

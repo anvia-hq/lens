@@ -4,6 +4,8 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 import * as schema from "./schema.js";
 
+export type { ClickHouseClient } from "@clickhouse/client";
+
 export type LensPostgres = PostgresJsDatabase<typeof schema>;
 
 export type PostgresConnection = {
@@ -37,6 +39,7 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
 export * from "./evaluation-dataset-store.js";
 export * from "./evaluation-run-store.js";
 export * from "./evaluation-store.js";
+export * from "./job-outbox-store.js";
 export * from "./managed-dataset-store.js";
 export * from "./metrics-store.js";
 export * from "./model-costs.js";

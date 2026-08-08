@@ -1,5 +1,5 @@
 import type { SessionDetail } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { api } from "../../../lib/api";
 import { useObservabilityProject } from "./use-observability-project";
@@ -7,10 +7,42 @@ import { useObservabilityProject } from "./use-observability-project";
 export function useSessionDetail() {
   const { project } = useObservabilityProject();
   const { sessionId } = useParams({ from: "/$projectId/sessions/$sessionId" });
-  const session = useQuery({
+  const session = useInfiniteQuery({
     queryKey: ["session", project.id, sessionId],
-    queryFn: () => api<SessionDetail>(`/api/v1/projects/${project.id}/sessions/${sessionId}`),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      api<SessionDetail>(
+        `/api/v1/projects/${project.id}/sessions/${sessionId}?pageSize=100${
+          pageParam === null ? "" : `&cursor=${encodeURIComponent(pageParam)}`
+        }`,
+      ),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     refetchInterval: 30_000,
   });
-  return { detail: session.data, project, session };
+  const pages = session.data?.pages;
+  const firstPage = pages?.[0];
+  const traces = pages?.flatMap((page) => page.traces) ?? [];
+  const uniqueTraceIds = new Set<string>();
+  const uniqueTraces = traces.filter((trace) => {
+    if (uniqueTraceIds.has(trace.traceId)) return false;
+    uniqueTraceIds.add(trace.traceId);
+    return true;
+  });
+  const turns = pages?.flatMap((page) => page.turns) ?? [];
+  const uniqueTurnIds = new Set<string>();
+  const uniqueTurns = turns.filter((turn) => {
+    if (uniqueTurnIds.has(turn.trace.traceId)) return false;
+    uniqueTurnIds.add(turn.trace.traceId);
+    return true;
+  });
+  const detail =
+    firstPage === undefined
+      ? undefined
+      : {
+          summary: firstPage.summary,
+          traces: uniqueTraces,
+          turns: uniqueTurns,
+          nextCursor: pages?.at(-1)?.nextCursor ?? null,
+        };
+  return { detail, project, session };
 }

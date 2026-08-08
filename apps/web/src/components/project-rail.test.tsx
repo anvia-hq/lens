@@ -9,15 +9,18 @@ import type { ProjectWithRole } from "../modules/projects/types";
 import { ProjectRail } from "./project-rail";
 
 type MockLinkProps = ComponentProps<"a"> & {
-  params: { projectId: string };
-  search: { range: string };
+  params?: { projectId: string };
+  search?: { range: string };
   to: string;
 };
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ params, search, to: _to, ...props }: MockLinkProps) => (
-    <a href={`/${params.projectId}?range=${search.range}`} {...props} />
-  ),
+  Link: ({ params, search, to, ...props }: MockLinkProps) =>
+    to === "/" ? (
+      <a href="/" {...props} />
+    ) : (
+      <a href={`/${params?.projectId}?range=${search?.range}`} {...props} />
+    ),
 }));
 
 afterEach(cleanup);

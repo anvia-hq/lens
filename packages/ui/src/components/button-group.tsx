@@ -28,6 +28,7 @@ function ButtonGroup({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: This can group non-form buttons; fieldset would change its semantics and styling.
     <div
       role="group"
       data-slot="button-group"

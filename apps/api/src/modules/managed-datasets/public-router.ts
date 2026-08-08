@@ -1,10 +1,9 @@
-import { getPublishedManagedDataset, projectApiKey } from "@lens/db";
-import { eq } from "drizzle-orm";
+import { getPublishedManagedDataset } from "@lens/db";
 import { Hono } from "hono";
 import { apiError } from "../../utils/http.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { authenticateIngestionKey } from "../ingestion/services.js";
+import { authenticateIngestionKey, recordProjectKeyUsage } from "../ingestion/services.js";
 
 export const createPublicDatasetsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>().get("/:name", async (c) => {
@@ -38,10 +37,7 @@ export const createPublicDatasetsRouter = (deps: ApiDependencies) =>
     const totalItems = dataset.items.length;
     const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / limit);
     const start = (page - 1) * limit;
-    void deps.postgres.db
-      .update(projectApiKey)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(projectApiKey.id, key.apiKeyId));
+    recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
     return c.json({
       name: dataset.dataset.name,
       version: dataset.version,

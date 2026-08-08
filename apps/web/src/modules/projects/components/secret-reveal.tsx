@@ -5,7 +5,7 @@ import { useState } from "react";
 
 export function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  const environment = `LANGFUSE_BASE_URL=${window.location.origin}\nLANGFUSE_PUBLIC_KEY=${props.credentials.publicKey}\nLANGFUSE_SECRET_KEY=${props.credentials.secretKey}\nLANGFUSE_MEDIA_UPLOAD_ENABLED=false`;
+  const environment = `ANVIA_LENS_BASE_URL=${window.location.origin}\nANVIA_LENS_PUBLIC_KEY=${props.credentials.publicKey}\nANVIA_LENS_SECRET_KEY=${props.credentials.secretKey}\nANVIA_LENS_MEDIA_UPLOAD_ENABLED=false`;
   return (
     <div className="overflow-hidden rounded-xl border border-amber-300/60 bg-amber-50/70 dark:border-amber-300/20 dark:bg-amber-300/5">
       <div className="flex items-start gap-3 border-b border-amber-300/40 px-4 py-3 dark:border-amber-300/15">

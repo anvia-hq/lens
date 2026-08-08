@@ -21,6 +21,7 @@ import { createSessionsRouter } from "./modules/sessions/router.js";
 import { createSystemRouter } from "./modules/system/router.js";
 import { createTracesRouter } from "./modules/traces/router.js";
 import { createUsersRouter } from "./modules/users/router.js";
+import { apiError } from "./utils/http.js";
 import { createIngestionMetrics } from "./utils/metrics.js";
 import type { ApiDependencies, AppEnv } from "./utils/types.js";
 
@@ -28,9 +29,22 @@ export type { ApiDependencies } from "./utils/types.js";
 
 export function createApp(deps: ApiDependencies) {
   const metrics = createIngestionMetrics();
-
-  return new Hono<AppEnv>()
+  const app = new Hono<AppEnv>()
     .use("*", requestId())
+    .use("*", async (c, next) => {
+      const startedAt = performance.now();
+      await next();
+      deps.logger.info(
+        {
+          requestId: c.get("requestId"),
+          method: c.req.method,
+          path: c.req.path,
+          status: c.res.status,
+          durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+        },
+        "request completed",
+      );
+    })
     .use(
       "/api/*",
       cors({
@@ -62,4 +76,17 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createEvaluationDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationRunsRouter(deps))
     .route("/api/v1/projects", createQualityGatesRouter(deps));
+  app.onError((error, c) => {
+    deps.logger.error(
+      {
+        err: error,
+        requestId: c.get("requestId"),
+        method: c.req.method,
+        path: c.req.path,
+      },
+      "request failed",
+    );
+    return apiError(c, 500, "internal_error", "An unexpected error occurred");
+  });
+  return app;
 }

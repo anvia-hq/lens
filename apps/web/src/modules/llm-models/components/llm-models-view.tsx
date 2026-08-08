@@ -64,7 +64,7 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
     <Page
       className="mx-auto max-w-6xl"
       eyebrow="Anvia Lens"
-      title="LLM Models"
+      title="Cost Settings"
       description="Configure organization-wide USD pricing per million tokens."
       action={
         <div className="flex items-center gap-2">

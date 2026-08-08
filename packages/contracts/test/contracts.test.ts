@@ -6,6 +6,7 @@ import {
   encodeCursor,
   managedDatasetCaseImportSchema,
   managedDatasetCaseInputSchema,
+  managedDatasetUpdateSchema,
   metricsRangeSchema,
   projectSettingsSchema,
   qualityGateInputSchema,
@@ -124,5 +125,12 @@ describe("contracts", () => {
         ],
       }).success,
     ).toBe(false);
+  });
+
+  it("requires at least one field when updating a managed dataset", () => {
+    expect(managedDatasetUpdateSchema.parse({ name: "  Support cases  " })).toEqual({
+      name: "Support cases",
+    });
+    expect(managedDatasetUpdateSchema.safeParse({}).success).toBe(false);
   });
 });

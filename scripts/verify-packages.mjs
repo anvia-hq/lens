@@ -11,6 +11,13 @@ function run(script) {
   });
 }
 
-for (const script of ["check", "typecheck", "test", "test:coverage", "build"]) {
+for (const script of [
+  "check",
+  "typecheck",
+  "build",
+  "test:coverage",
+  "check:bundle",
+  "audit:prod",
+]) {
   await run(script);
 }

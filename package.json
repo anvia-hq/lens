@@ -9,7 +9,9 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "audit:prod": "pnpm audit --prod --audit-level high",
     "check": "biome check .",
+    "check:bundle": "node scripts/check-web-bundle.mjs",
     "check:fix": "biome check --write .",
     "dev": "pnpm --parallel --filter @lens/api --filter @lens/worker --filter @lens/web dev",
     "db:generate": "pnpm --filter @lens/db db:generate",
@@ -23,7 +25,7 @@
     "example:anvia:dataset": "pnpm --filter @lens/example-anvia-agent evaluations:03",
     "example:anvia:release": "pnpm --filter @lens/example-anvia-agent release:01",
     "test": "pnpm -r --if-present test",
-    "test:coverage": "pnpm --filter @lens/config --filter @lens/contracts --filter @lens/telemetry test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
+    "test:coverage": "pnpm --filter @lens/api --filter @lens/config --filter @lens/contracts --filter @lens/telemetry --filter @lens/ui --filter @lens/web --filter @lens/worker test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
     "test:integration": "node scripts/run-package-integration-tests.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "verify:packages": "node scripts/verify-packages.mjs"

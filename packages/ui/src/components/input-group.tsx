@@ -7,6 +7,7 @@ import type * as React from "react";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: This is a composite input wrapper rather than a fieldset of controls.
     <div
       data-slot="input-group"
       role="group"
@@ -44,6 +45,7 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements lint/a11y/useKeyWithClickEvents: The pointer shortcut only redirects focus to the already keyboard-focusable input.
     <div
       role="group"
       data-slot="input-group-addon"

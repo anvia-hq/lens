@@ -7,7 +7,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -15,14 +14,15 @@ import {
 import {
   Pulse as Activity,
   ArrowsLeftRight,
-  CheckCircle,
+  ChartBar,
   Database,
   Flask,
+  Gauge,
+  GithubLogo,
   House,
   SignOut as LogOut,
   Chats as MessagesSquare,
   Gear as Settings,
-  ShieldCheck,
   TerminalWindow as TerminalSquare,
   UsersThree as Users,
 } from "@phosphor-icons/react";
@@ -30,8 +30,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
-import { AnviaLensLogo } from "./anvia-lens-logo";
-import { ModeToggle } from "./mode-toggle";
 
 export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   const { project } = useProject();
@@ -66,16 +64,10 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       icon: Flask,
     },
     {
-      to: "/$projectId/evaluations/datasets" as const,
-      path: `${projectRoot}/evaluations/datasets`,
-      label: "Datasets",
-      icon: Database,
-    },
-    {
       to: "/$projectId/evaluations/results" as const,
       path: `${projectRoot}/evaluations/results`,
       label: "Results",
-      icon: CheckCircle,
+      icon: ChartBar,
     },
     {
       to: "/$projectId/evaluations/compare" as const,
@@ -87,7 +79,13 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       to: "/$projectId/evaluations/gates" as const,
       path: `${projectRoot}/evaluations/gates`,
       label: "Gates",
-      icon: ShieldCheck,
+      icon: Gauge,
+    },
+    {
+      to: "/$projectId/evaluations/datasets" as const,
+      path: `${projectRoot}/evaluations/datasets`,
+      label: "Datasets",
+      icon: Database,
     },
   ];
   const managementLinks = [
@@ -100,7 +98,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
     {
       to: "/$projectId/settings" as const,
       path: `${projectRoot}/settings`,
-      label: "Project settings",
+      label: "Settings",
       icon: Settings,
     },
   ];
@@ -127,16 +125,6 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   );
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
-      <SidebarHeader className="pb-0">
-        <div className="flex h-10 items-center gap-2 px-2">
-          <Link className="flex min-w-0 flex-1 items-center gap-2" to="/">
-            <div className="grid min-w-0 group-data-collapsible-icon:hidden">
-              <AnviaLensLogo />
-            </div>
-          </Link>
-          <ModeToggle />
-        </div>
-      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="py-1">
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
@@ -152,6 +140,18 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <a
+          className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3 transition-colors hover:bg-sidebar-accent"
+          href="https://github.com/anvia-hq/lens"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <GithubLogo className="size-5 shrink-0" />
+          <span className="grid min-w-0">
+            <span className="truncate text-xs font-medium">Enjoying Anvia Lens?</span>
+            <span className="truncate text-xs text-muted-foreground">Star us on GitHub</span>
+          </span>
+        </a>
         <div className="flex items-center gap-2 p-2">
           <Avatar className="size-8">
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>

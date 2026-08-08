@@ -1,4 +1,9 @@
-import { type SessionFilters, type SessionSortField, sessionSortFields } from "@lens/contracts";
+import {
+  decodeCursor,
+  type SessionFilters,
+  type SessionSortField,
+  sessionSortFields,
+} from "@lens/contracts";
 import type { Context } from "hono";
 
 export type SessionRequest = SessionFilters & {
@@ -7,6 +12,31 @@ export type SessionRequest = SessionFilters & {
   sort: SessionSortField;
   order: "asc" | "desc";
 };
+
+export type SessionDetailRequest = {
+  pageSize: 25 | 50 | 100;
+  cursor?: { startedAt: string; traceId: string };
+};
+
+export function parseSessionDetailRequest(c: Context): SessionDetailRequest | string {
+  const pageSize = Number(c.req.query("pageSize") ?? 100);
+  if (pageSize !== 25 && pageSize !== 50 && pageSize !== 100) {
+    return "pageSize must be 25, 50, or 100";
+  }
+  const rawCursor = c.req.query("cursor")?.trim();
+  if (rawCursor === undefined || rawCursor.length === 0) return { pageSize };
+  if (rawCursor.length > 1_024) return "cursor is invalid";
+  const cursor = decodeCursor(rawCursor);
+  if (
+    cursor === undefined ||
+    !Number.isFinite(Date.parse(cursor.startedAt)) ||
+    cursor.traceId.length === 0 ||
+    cursor.traceId.length > 256
+  ) {
+    return "cursor is invalid";
+  }
+  return { pageSize, cursor };
+}
 
 export function parseSessionRequest(c: Context): SessionRequest | string {
   const filters: SessionFilters = {};

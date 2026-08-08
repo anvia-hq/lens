@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Metrics, MetricsBucket, MetricsRangePreset, MetricsSummary } from "@lens/contracts";
-import { type SummaryRow, summaryFromRow } from "./telemetry-store.js";
+import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
 
 export async function queryMetrics(

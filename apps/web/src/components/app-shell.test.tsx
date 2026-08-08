@@ -67,7 +67,7 @@ describe("AuthenticatedApp shell", () => {
     );
   });
 
-  it.each(["/", "/members", "/llm-models"])(
+  it.each(["/", "/members", "/cost-settings"])(
     "keeps the project rail off the %s workspace route",
     (pathname) => {
       mocks.pathname = pathname;

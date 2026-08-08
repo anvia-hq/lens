@@ -1,5 +1,6 @@
 import type { CreatedProjectApiKey, Project, ProjectApiKey } from "@lens/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../lib/api";
 import { notify } from "../utils";
@@ -7,6 +8,7 @@ import { useProject } from "./use-project";
 
 export function useProjectSettings() {
   const { project } = useProject();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const keys = useQuery({
     queryKey: ["keys", project.id],
@@ -52,9 +54,18 @@ export function useProjectSettings() {
       notify("Data settings saved");
     },
   });
+  const deleteProject = useMutation({
+    mutationFn: () => api<void>(`/api/v1/projects/${project.id}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      notify("Project deletion queued");
+      await navigate({ to: "/" });
+    },
+  });
 
   return {
     createKey,
+    deleteProject,
     keyName,
     keys,
     newKey,

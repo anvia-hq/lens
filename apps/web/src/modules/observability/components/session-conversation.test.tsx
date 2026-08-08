@@ -95,5 +95,6 @@ function emptySession(): SessionDetail {
     },
     traces: [],
     turns: [],
+    nextCursor: null,
   };
 }

@@ -21,7 +21,6 @@ export function useProjectManagement() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [inviteMemberOpen, setInviteMemberOpen] = useState(false);
-  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
 
   const setProjectName = (value: string) => {
@@ -46,15 +45,6 @@ export function useProjectManagement() {
         search: { range: "24h" },
       });
       notify("Project created");
-    },
-  });
-  const deleteProject = useMutation({
-    mutationFn: (projectId: string) =>
-      api<void>(`/api/v1/projects/${projectId}`, { method: "DELETE" }),
-    onSuccess: async () => {
-      setDeleteProjectId(null);
-      await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      notify("Project deletion queued");
     },
   });
   const inviteMember = useMutation({
@@ -104,15 +94,12 @@ export function useProjectManagement() {
       notify("Invitation canceled", "info");
     },
   });
-  const managementError =
-    deleteProject.error ?? updateRole.error ?? removeMember.error ?? cancelInvitation.error;
+  const managementError = updateRole.error ?? removeMember.error ?? cancelInvitation.error;
 
   return {
     cancelInvitation,
     createProject,
     createProjectOpen,
-    deleteProject,
-    deleteProjectId,
     directory,
     inviteEmail,
     inviteMember,
@@ -125,7 +112,6 @@ export function useProjectManagement() {
     removeMember,
     removeMemberId,
     setCreateProjectOpen,
-    setDeleteProjectId,
     setInviteEmail,
     setInviteMemberOpen,
     setInviteRole,

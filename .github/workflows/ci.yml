@@ -45,11 +45,14 @@ jobs:
       - name: Build workspace
         run: pnpm build
 
-      - name: Run unit tests
-        run: pnpm test
+      - name: Enforce web bundle budgets
+        run: pnpm check:bundle
 
-      - name: Run integration tests
-        run: pnpm test:integration
+      - name: Run coverage-gated tests
+        run: pnpm test:coverage
+
+      - name: Audit production dependencies
+        run: pnpm audit:prod
 
   containers:
     name: Containers

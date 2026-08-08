@@ -69,6 +69,7 @@ describe("session queries", () => {
     const query = vi.fn(async ({ query: sql }: QueryOptions) => ({
       json: async () => {
         if (sql.includes("SELECT count() AS total")) return [{ total: "1" }];
+        if (sql.includes("AS sessions LIMIT 1")) return [sessionRow()];
         if (sql.includes("SELECT * FROM trace_summaries")) return [traceRow()];
         if (sql.includes("SELECT trace_id, span_id")) {
           return [
@@ -111,10 +112,46 @@ describe("session queries", () => {
       models: ["gpt-4.1"],
       totalCost: 0.03,
     });
+    expect(detail?.nextCursor).toBeNull();
     const payloadCall = query.mock.calls.find(([options]) =>
       options.query.includes("SELECT trace_id, span_id"),
     );
     expect(payloadCall?.[0].query).toContain("input IS NOT NULL OR output IS NOT NULL");
+  });
+
+  it("keeps the exact aggregate while cursor-paging chronological traces", async () => {
+    const traceRows = Array.from({ length: 26 }, (_, index) =>
+      traceRow({
+        trace_id: `trace-${String(index).padStart(3, "0")}`,
+        started_at: `2026-08-05 00:00:${String(index).padStart(2, "0")}.000`,
+        ended_at: `2026-08-05 00:00:${String(index + 1).padStart(2, "0")}.000`,
+      }),
+    );
+    const query = vi.fn(async ({ query: sql }: QueryOptions) => ({
+      json: async () => {
+        if (sql.includes("AS sessions LIMIT 1")) return [sessionRow({ trace_count: "101" })];
+        if (sql.includes("SELECT * FROM trace_summaries")) return traceRows;
+        return [];
+      },
+    }));
+
+    const detail = await getSession(clickHouseClient({ query }), projectId, "session-1", {
+      pageSize: 25,
+      cursor: { startedAt: "2026-08-04T23:59:59.000Z", traceId: "trace-before" },
+    });
+
+    expect(detail?.summary.traceCount).toBe(101);
+    expect(detail?.traces).toHaveLength(25);
+    expect(detail?.traces[0]?.traceId).toBe("trace-000");
+    expect(detail?.nextCursor).not.toBeNull();
+    const traceCall = query.mock.calls.find(([options]) =>
+      options.query.includes("SELECT * FROM trace_summaries"),
+    );
+    expect(traceCall?.[0].query).toContain("ORDER BY started_at ASC, trace_id ASC");
+    expect(traceCall?.[0].query_params).toMatchObject({
+      cursorTraceId: "trace-before",
+      limit: 26,
+    });
   });
 });
 
@@ -146,7 +183,7 @@ function sessionRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function traceRow() {
+function traceRow(overrides: Record<string, unknown> = {}) {
   return {
     project_id: projectId,
     trace_id: "trace-1",
@@ -175,6 +212,7 @@ function traceRow() {
     output_cost: "0.02",
     total_cost: "0.03",
     last_seen_at: "2026-08-05 00:00:01.000",
+    ...overrides,
   };
 }
 

@@ -115,6 +115,7 @@ function Carousel({
         canScrollNext,
       }}
     >
+      {/* biome-ignore lint/a11y/useSemanticElements: The public component accepts div props and the WAI-ARIA carousel pattern uses a region role. */}
       <div
         onKeyDownCapture={handleKeyDown}
         className={cn("relative", className)}
@@ -146,6 +147,7 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   const { orientation } = useCarousel();
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: A carousel slide is an ARIA group, not a form fieldset.
     <div
       role="group"
       aria-roledescription="slide"

@@ -14,5 +14,13 @@ function SessionDetailPage() {
     return <FullPageMessage icon={<MessagesSquare />} text="Loading session" contained />;
   if (detail === undefined)
     return <FullPageMessage icon={<AlertCircle />} text="Session not found" contained />;
-  return <SessionConversation detail={detail} projectId={project.id} />;
+  return (
+    <SessionConversation
+      detail={detail}
+      projectId={project.id}
+      hasMore={session.hasNextPage}
+      isLoadingMore={session.isFetchingNextPage}
+      onLoadMore={() => void session.fetchNextPage()}
+    />
+  );
 }

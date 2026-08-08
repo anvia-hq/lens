@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectIdRouteRouteImport } from './routes/$projectId/route'
-import { Route as LlmModelsRouteImport } from './routes/llm-models'
+import { Route as CostSettingsRouteImport } from './routes/cost-settings'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
@@ -42,9 +42,9 @@ const ProjectIdRouteRoute = ProjectIdRouteRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LlmModelsRoute = LlmModelsRouteImport.update({
-  id: '/llm-models',
-  path: '/llm-models',
+const CostSettingsRoute = CostSettingsRouteImport.update({
+  id: '/cost-settings',
+  path: '/cost-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersRoute = MembersRouteImport.update({
@@ -155,7 +155,7 @@ const ProjectIdEvaluationsRunsRunIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
-  '/llm-models': typeof LlmModelsRoute
+  '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -178,7 +178,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/llm-models': typeof LlmModelsRoute
+  '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -203,7 +203,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
-  '/llm-models': typeof LlmModelsRoute
+  '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -229,7 +229,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$projectId'
-    | '/llm-models'
+    | '/cost-settings'
     | '/members'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -252,7 +252,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/llm-models'
+    | '/cost-settings'
     | '/members'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -276,7 +276,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$projectId'
-    | '/llm-models'
+    | '/cost-settings'
     | '/members'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -301,7 +301,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectIdRouteRoute: typeof ProjectIdRouteRouteWithChildren
-  LlmModelsRoute: typeof LlmModelsRoute
+  CostSettingsRoute: typeof CostSettingsRoute
   MembersRoute: typeof MembersRoute
   AcceptInvitationInvitationIdRoute: typeof AcceptInvitationInvitationIdRoute
 }
@@ -322,11 +322,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/llm-models': {
-      id: '/llm-models'
-      path: '/llm-models'
-      fullPath: '/llm-models'
-      preLoaderRoute: typeof LlmModelsRouteImport
+    '/cost-settings': {
+      id: '/cost-settings'
+      path: '/cost-settings'
+      fullPath: '/cost-settings'
+      preLoaderRoute: typeof CostSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/members': {
@@ -512,7 +512,7 @@ const ProjectIdRouteRouteWithChildren = ProjectIdRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectIdRouteRoute: ProjectIdRouteRouteWithChildren,
-  LlmModelsRoute: LlmModelsRoute,
+  CostSettingsRoute: CostSettingsRoute,
   MembersRoute: MembersRoute,
   AcceptInvitationInvitationIdRoute: AcceptInvitationInvitationIdRoute,
 }

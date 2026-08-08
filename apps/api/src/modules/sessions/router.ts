@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { requireProjectAccess } from "../../utils/access.js";
 import { apiError, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { parseSessionRequest } from "./schema.js";
+import { parseSessionDetailRequest, parseSessionRequest } from "./schema.js";
 
 export const createSessionsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
@@ -39,7 +39,14 @@ export const createSessionsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const session = await getSession(deps.clickhouse, projectId, c.req.param("sessionId"));
+      const parsed = parseSessionDetailRequest(c);
+      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const session = await getSession(
+        deps.clickhouse,
+        projectId,
+        c.req.param("sessionId"),
+        parsed,
+      );
       return session === undefined
         ? apiError(c, 404, "not_found", "Session not found")
         : c.json(session);

@@ -28,7 +28,7 @@ export function useProjectSetup() {
     }
   };
 
-  return { error, name, setProjectName, setSlug, slug, submit };
+  return { error, name, setProjectName, submit };
 }
 
 function slugify(value: string) {

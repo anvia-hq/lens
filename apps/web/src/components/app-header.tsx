@@ -10,6 +10,7 @@ import { Link, useParams, useRouterState } from "@tanstack/react-router";
 import { defaultUserColumns } from "../modules/observability/types";
 import { useProject } from "../modules/projects/hooks/use-project";
 import { shortId } from "../utils/format";
+import { ModeToggle } from "./mode-toggle";
 
 export function AppHeader() {
   const { project } = useProject();
@@ -45,7 +46,7 @@ export function AppHeader() {
   const detailId = relativePath[isEvaluations ? 2 : 1];
   const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap">
           <BreadcrumbItem className="min-w-0">
@@ -129,6 +130,7 @@ export function AppHeader() {
           )}
         </BreadcrumbList>
       </Breadcrumb>
+      <ModeToggle standalone />
     </header>
   );
 }

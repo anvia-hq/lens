@@ -31,6 +31,7 @@ import { SecretReveal } from "./secret-reveal";
 export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
   const {
     createKey,
+    deleteProject,
     keyName,
     keys,
     newKey,
@@ -43,6 +44,9 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
     setRetention,
   } = state;
   const [keyToRevoke, setKeyToRevoke] = useState<{ id: string; name: string } | null>(null);
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
+  const canManage = project.role === "owner" || project.role === "admin";
+  const activeKeys = keys.data?.items.filter((key) => !key.revokedAt) ?? [];
 
   return (
     <Page
@@ -77,7 +81,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             >
               <Input
                 aria-label="Key name"
-                className="sm:max-w-sm"
+                className="w-full sm:flex-1"
                 placeholder="Key name, e.g. Production"
                 value={keyName}
                 onChange={(event) => setKeyName(event.target.value)}
@@ -96,39 +100,32 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
                 <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
                   <Spinner /> Loading ingestion keys
                 </div>
-              ) : keys.data?.items.length ? (
+              ) : activeKeys.length ? (
                 <div className="divide-y">
-                  {keys.data.items.map((key) => {
-                    const revoked = Boolean(key.revokedAt);
-                    return (
-                      <div className="flex items-center gap-3 px-4 py-3" key={key.id}>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium">{key.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {revoked ? "Revoked" : "Active"}
-                            </span>
-                          </div>
-                          <p className="truncate font-mono text-xs text-muted-foreground">
-                            {key.publicKey}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            Last used {formatKeyDate(key.lastUsedAt)}
-                          </p>
+                  {activeKeys.map((key) => (
+                    <div className="flex items-center gap-3 px-4 py-3" key={key.id}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium">{key.name}</span>
+                          <span className="text-xs text-muted-foreground">Active</span>
                         </div>
-                        {!revoked ? (
-                          <Button
-                            aria-label={`Revoke ${key.name}`}
-                            size="icon-sm"
-                            variant="ghost"
-                            onClick={() => setKeyToRevoke({ id: key.id, name: key.name })}
-                          >
-                            <Trash />
-                          </Button>
-                        ) : null}
+                        <p className="truncate font-mono text-xs text-muted-foreground">
+                          {key.publicKey}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Last used {formatKeyDate(key.lastUsedAt)}
+                        </p>
                       </div>
-                    );
-                  })}
+                      <Button
+                        aria-label={`Revoke ${key.name}`}
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => setKeyToRevoke({ id: key.id, name: key.name })}
+                      >
+                        <Trash />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="px-4 py-8 text-center">
@@ -148,29 +145,31 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             <CardDescription>Choose how long this project keeps telemetry.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <Field className="max-w-sm">
-              <FieldLabel htmlFor="retention">Retention period</FieldLabel>
-              <NativeSelect
-                className="w-full"
-                id="retention"
-                value={retention}
-                onChange={(event) => setRetention(event.target.value)}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <Field className="w-full sm:flex-1">
+                <FieldLabel htmlFor="retention">Retention period</FieldLabel>
+                <NativeSelect
+                  className="w-full"
+                  id="retention"
+                  value={retention}
+                  onChange={(event) => setRetention(event.target.value)}
+                >
+                  <NativeSelectOption value="7">7 days</NativeSelectOption>
+                  <NativeSelectOption value="30">30 days</NativeSelectOption>
+                  <NativeSelectOption value="90">90 days</NativeSelectOption>
+                  <NativeSelectOption value="unlimited">Unlimited</NativeSelectOption>
+                </NativeSelect>
+                <FieldDescription>Expired data is removed asynchronously.</FieldDescription>
+              </Field>
+              <Button
+                className="w-fit shrink-0 sm:mt-6"
+                disabled={saveSettings.isPending}
+                onClick={() => saveSettings.mutate()}
               >
-                <NativeSelectOption value="7">7 days</NativeSelectOption>
-                <NativeSelectOption value="30">30 days</NativeSelectOption>
-                <NativeSelectOption value="90">90 days</NativeSelectOption>
-                <NativeSelectOption value="unlimited">Unlimited</NativeSelectOption>
-              </NativeSelect>
-              <FieldDescription>Expired data is removed asynchronously.</FieldDescription>
-            </Field>
-            <Button
-              className="w-fit"
-              disabled={saveSettings.isPending}
-              onClick={() => saveSettings.mutate()}
-            >
-              {saveSettings.isPending ? <Spinner /> : saveSettings.isSuccess ? <Check /> : null}
-              {saveSettings.isSuccess ? "Saved" : "Save retention"}
-            </Button>
+                {saveSettings.isPending ? <Spinner /> : saveSettings.isSuccess ? <Check /> : null}
+                {saveSettings.isSuccess ? "Saved" : "Save retention"}
+              </Button>
+            </div>
             {saveSettings.error ? (
               <div>
                 <ErrorAlert error={saveSettings.error} />
@@ -178,6 +177,26 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             ) : null}
           </CardContent>
         </Card>
+
+        {canManage ? (
+          <Card className="border-destructive/40">
+            <CardHeader>
+              <CardTitle>Danger zone</CardTitle>
+              <CardDescription>
+                Delete this project and permanently remove its traces, keys, and settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="destructive"
+                disabled={deleteProject.isPending}
+                onClick={() => setDeleteProjectOpen(true)}
+              >
+                <Trash /> Delete project
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       <AlertDialog
@@ -203,6 +222,33 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             >
               {revokeKey.isPending ? <Spinner /> : <Trash />}
               Revoke key
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={deleteProjectOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeleteProjectOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ingestion stops immediately and the worker permanently removes its traces, keys, and
+              settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={deleteProject.isPending}
+              onClick={() => deleteProject.mutate()}
+            >
+              {deleteProject.isPending ? <Spinner /> : <Trash />}
+              Delete project
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

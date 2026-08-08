@@ -3,6 +3,7 @@ import { project, projectApiKey } from "@lens/db";
 import { eq } from "drizzle-orm";
 import type IORedis from "ioredis";
 import { verifyIngestionSecret } from "../../utils/security.js";
+import type { ApiDependencies } from "../../utils/types.js";
 
 export async function authenticateIngestionKey(
   db: LensPostgres,
@@ -41,4 +42,18 @@ export async function withinRateLimit(
   const result = await redis.multi().incr(key).expire(key, 120).exec();
   const count = Number(result?.[0]?.[1] ?? limit + 1);
   return count <= limit;
+}
+
+export function recordProjectKeyUsage(
+  deps: ApiDependencies,
+  apiKeyId: string,
+  projectId: string,
+): void {
+  void deps.postgres.db
+    .update(projectApiKey)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(projectApiKey.id, apiKeyId))
+    .catch((error: unknown) => {
+      deps.logger.warn({ err: error, apiKeyId, projectId }, "failed to record project key usage");
+    });
 }

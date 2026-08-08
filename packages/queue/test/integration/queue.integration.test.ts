@@ -42,11 +42,12 @@ describe("queue integration", () => {
         },
         { jobId: materializeJobId("00000000-0000-4000-8000-000000000001", "a".repeat(32)) },
       ),
-      queues.maintenance.add("retention", {
+      queues.maintenance.add("reconcile-retention", {
         projectId: "00000000-0000-4000-8000-000000000001",
-        retentionDays: 30,
       }),
-      queues.costs.add("costs", { recalculationId: "recalculation-1" }),
+      queues.costs.add("recalculate-model-costs", {
+        recalculationId: "00000000-0000-4000-8000-000000000002",
+      }),
     ]);
 
     expect(jobs.map((job) => job.queueName)).toEqual(Object.values(queueNames));

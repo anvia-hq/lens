@@ -13,7 +13,6 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -39,15 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import {
-  CaretRight as ArrowRight,
-  Copy,
-  Stack as Layers3,
-  UserPlus as MailPlus,
-  Plus,
-  Trash as Trash2,
-  X,
-} from "@phosphor-icons/react";
+import { Copy, Stack as Layers3, UserPlus as MailPlus, Plus, X } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
@@ -66,8 +57,6 @@ export function ProjectsView({
     cancelInvitation,
     createProject,
     createProjectOpen,
-    deleteProject,
-    deleteProjectId,
     directory,
     inviteEmail,
     inviteMember,
@@ -80,7 +69,6 @@ export function ProjectsView({
     removeMember,
     removeMemberId,
     setCreateProjectOpen,
-    setDeleteProjectId,
     setInviteEmail,
     setInviteMemberOpen,
     setInviteRole,
@@ -111,7 +99,6 @@ export function ProjectsView({
         ) : null
       }
       className="mx-auto max-w-6xl"
-      eyebrow="Anvia Lens"
       title={section === "projects" ? "Projects" : "Members"}
       description={
         section === "projects"
@@ -124,48 +111,22 @@ export function ProjectsView({
         projects.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((item) => (
-              <Card key={item.id}>
-                <CardHeader>
-                  <CardTitle className="flex min-w-0 items-center gap-2">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted">
+              <Link
+                className="group block h-full"
+                key={item.id}
+                to="/$projectId"
+                params={{ projectId: item.id }}
+                search={{ range: "24h" }}
+              >
+                <Card className="h-full py-0 transition-colors group-hover:border-primary/50">
+                  <CardContent className="flex items-center gap-3 p-6">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
                       <Layers3 className="size-4" />
                     </span>
-                    <span className="truncate">{item.name}</span>
-                  </CardTitle>
-                  <CardDescription className="truncate">{item.slug}</CardDescription>
-                  {directory.data?.canManage ? (
-                    <CardAction>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Delete ${item.name}`}
-                        onClick={() => setDeleteProjectId(item.id)}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </CardAction>
-                  ) : null}
-                </CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{item.state}</Badge>
-                  <Badge variant="outline">{item.role}</Badge>
-                </CardContent>
-                <CardFooter className="justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    render={
-                      <Link
-                        to="/$projectId"
-                        params={{ projectId: item.id }}
-                        search={{ range: "24h" }}
-                      />
-                    }
-                  >
-                    Open project <ArrowRight />
-                  </Button>
-                </CardFooter>
-              </Card>
+                    <span className="truncate font-medium">{item.name}</span>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         ) : (
@@ -414,34 +375,6 @@ export function ProjectsView({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
-        open={deleteProjectId !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteProjectId(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ingestion stops immediately and the worker permanently removes its traces, keys, and
-              settings.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deleteProject.isPending}
-              onClick={() => {
-                if (deleteProjectId) deleteProject.mutate(deleteProjectId);
-              }}
-            >
-              Delete project
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <AlertDialog
         open={removeMemberId !== null}
         onOpenChange={(open) => {
