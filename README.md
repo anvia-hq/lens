@@ -21,12 +21,13 @@ Langfuse OTLP instrumentation.
 ## Run with Docker Compose
 
 Lens ships as two public multi-platform images and a production-ready
-[`docker-compose.yml`](docker-compose.yml). You only need Docker with Compose support.
+[`docker-compose.yml`](docker-compose.yml). You only need Docker with Compose support; a source
+checkout is not required.
 
 ```sh
-git clone https://github.com/anvia-hq/lens.git
-cd lens
-cp .env.example .env
+mkdir lens && cd lens
+curl -fsSLO https://raw.githubusercontent.com/anvia-hq/lens/main/docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/anvia-hq/lens/main/.env.example -o .env
 ```
 
 Open `.env` and configure the public URL and required secrets:
