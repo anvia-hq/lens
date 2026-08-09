@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TraceListItem } from "./telemetry.js";
 
 export const alertRuleKinds = [
   "trace_error_rate",
@@ -90,6 +91,31 @@ export type AlertIncident = {
   resolvedAt: string | null;
   resolvedBy: { id: string; name: string } | null;
   resolution: string | null;
+};
+
+export type AlertSignalPoint = {
+  timestamp: string;
+  value: number | null;
+  sampleCount: number;
+};
+
+export type AlertSignalSeries = {
+  from: string;
+  to: string;
+  bucketMinutes: 1 | 5;
+  points: AlertSignalPoint[];
+};
+
+export type AlertEvidenceTrace = {
+  traceId: string;
+  trace: TraceListItem | null;
+};
+
+export type AlertIncidentDetail = {
+  incident: AlertIncident;
+  rule: AlertRuleInput | null;
+  signal: AlertSignalSeries | null;
+  evidenceTraces: AlertEvidenceTrace[];
 };
 
 export const evaluateAlertsJobSchema = z.object({ projectId: z.uuid().optional() });

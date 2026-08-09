@@ -1,5 +1,6 @@
 import type {
   AlertIncidentEvidence,
+  AlertRuleInput,
   AlertRuleKind,
   JobOutboxEvent,
   JsonValue,
@@ -254,6 +255,7 @@ export const alertIncident = pgTable(
     threshold: numeric("threshold", { precision: 24, scale: 8 }),
     sampleCount: integer("sample_count"),
     evidence: jsonb("evidence").$type<AlertIncidentEvidence>().notNull().default({}),
+    ruleSnapshot: jsonb("rule_snapshot").$type<AlertRuleInput>(),
     firstTriggeredAt: timestamp("first_triggered_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

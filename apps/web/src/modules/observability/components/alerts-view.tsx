@@ -200,7 +200,14 @@ function IncidentList({ state }: { state: AlertsState }) {
                 <TableRow key={incident.id}>
                   <TableCell>
                     <div className="grid min-w-60 gap-0.5">
-                      <span className="font-medium">{incident.ruleName}</span>
+                      <Link
+                        className="font-medium hover:underline"
+                        to="/$projectId/alerts/$incidentId"
+                        params={{ projectId: state.project.id, incidentId: incident.id }}
+                        search={state.filters}
+                      >
+                        {incident.ruleName}
+                      </Link>
                       <span className="text-xs text-muted-foreground">{incident.summary}</span>
                     </div>
                   </TableCell>

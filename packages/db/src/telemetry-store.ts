@@ -278,6 +278,32 @@ export async function listTraces(
   };
 }
 
+export async function listTracesByIds(
+  client: ClickHouseClient,
+  projectId: string,
+  traceIds: string[],
+): Promise<TraceListItem[]> {
+  if (traceIds.length === 0) return [];
+  const result = await client.query({
+    query: `SELECT * FROM trace_summaries FINAL
+            WHERE project_id = {projectId:UUID} AND trace_id IN {traceIds:Array(String)}`,
+    query_params: { projectId, traceIds },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<SummaryRow>();
+  const reviews = await listHumanReviewOutcomes(client, projectId, traceIds);
+  const byId = new Map(
+    rows.map((row) => [
+      row.trace_id,
+      { ...summaryFromRow(row), reviewOutcome: reviews.get(row.trace_id) ?? null },
+    ]),
+  );
+  return traceIds.flatMap((traceId) => {
+    const trace = byId.get(traceId);
+    return trace ? [trace] : [];
+  });
+}
+
 type TraceFacet =
   | "status"
   | "service"

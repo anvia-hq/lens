@@ -58,6 +58,7 @@ export {
   listSessions,
   listTraceFacets,
   listTraces,
+  listTracesByIds,
   listUsers,
   materializeTrace,
   reconcileProjectRetention,

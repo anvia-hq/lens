@@ -89,6 +89,12 @@ export function AppHeader() {
                         params={{ projectId: project.id }}
                         search={{ range: "24h" }}
                       />
+                    ) : section === "alerts" ? (
+                      <Link
+                        to="/$projectId/alerts"
+                        params={{ projectId: project.id }}
+                        search={{ tab: "incidents", status: "active", page: 1 }}
+                      />
                     ) : (
                       <Link
                         to="/$projectId/users"
@@ -121,7 +127,9 @@ export function AppHeader() {
                         ? String(params.sessionId)
                         : "userId" in params
                           ? String(params.userId)
-                          : detailLabel}
+                          : "incidentId" in params
+                            ? shortId(String(params.incidentId))
+                            : detailLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>

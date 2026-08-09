@@ -18,6 +18,7 @@ import { Route as ProjectIdAlertsRouteImport } from './routes/$projectId/alerts'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
 import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/settings'
 import { Route as AcceptInvitationInvitationIdRouteImport } from './routes/accept-invitation/$invitationId'
+import { Route as ProjectIdAlertsIncidentIdRouteImport } from './routes/$projectId/alerts/$incidentId'
 import { Route as ProjectIdEvaluationsIndexRouteImport } from './routes/$projectId/evaluations/index'
 import { Route as ProjectIdEvaluationsCompareRouteImport } from './routes/$projectId/evaluations/compare'
 import { Route as ProjectIdEvaluationsDatasetsRouteImport } from './routes/$projectId/evaluations/datasets'
@@ -80,6 +81,12 @@ const AcceptInvitationInvitationIdRoute =
     id: '/accept-invitation/$invitationId',
     path: '/accept-invitation/$invitationId',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ProjectIdAlertsIncidentIdRoute =
+  ProjectIdAlertsIncidentIdRouteImport.update({
+    id: '/$incidentId',
+    path: '/$incidentId',
+    getParentRoute: () => ProjectIdAlertsRoute,
   } as any)
 const ProjectIdEvaluationsIndexRoute =
   ProjectIdEvaluationsIndexRouteImport.update({
@@ -177,11 +184,12 @@ export interface FileRoutesByFullPath {
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
-  '/$projectId/alerts': typeof ProjectIdAlertsRoute
+  '/$projectId/alerts': typeof ProjectIdAlertsRouteWithChildren
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
+  '/$projectId/alerts/$incidentId': typeof ProjectIdAlertsIncidentIdRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
   '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
@@ -203,11 +211,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
-  '/$projectId/alerts': typeof ProjectIdAlertsRoute
+  '/$projectId/alerts': typeof ProjectIdAlertsRouteWithChildren
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId': typeof ProjectIdIndexRoute
+  '/$projectId/alerts/$incidentId': typeof ProjectIdAlertsIncidentIdRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
   '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
@@ -231,11 +240,12 @@ export interface FileRoutesById {
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
-  '/$projectId/alerts': typeof ProjectIdAlertsRoute
+  '/$projectId/alerts': typeof ProjectIdAlertsRouteWithChildren
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
+  '/$projectId/alerts/$incidentId': typeof ProjectIdAlertsIncidentIdRoute
   '/$projectId/evaluations/compare': typeof ProjectIdEvaluationsCompareRoute
   '/$projectId/evaluations/datasets': typeof ProjectIdEvaluationsDatasetsRoute
   '/$projectId/evaluations/gates': typeof ProjectIdEvaluationsGatesRoute
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
+    | '/$projectId/alerts/$incidentId'
     | '/$projectId/evaluations/compare'
     | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId'
+    | '/$projectId/alerts/$incidentId'
     | '/$projectId/evaluations/compare'
     | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
@@ -318,6 +330,7 @@ export interface FileRouteTypes {
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
+    | '/$projectId/alerts/$incidentId'
     | '/$projectId/evaluations/compare'
     | '/$projectId/evaluations/datasets'
     | '/$projectId/evaluations/gates'
@@ -408,6 +421,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/accept-invitation/$invitationId'
       preLoaderRoute: typeof AcceptInvitationInvitationIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/$projectId/alerts/$incidentId': {
+      id: '/$projectId/alerts/$incidentId'
+      path: '/$incidentId'
+      fullPath: '/$projectId/alerts/$incidentId'
+      preLoaderRoute: typeof ProjectIdAlertsIncidentIdRouteImport
+      parentRoute: typeof ProjectIdAlertsRoute
     }
     '/$projectId/evaluations/': {
       id: '/$projectId/evaluations/'
@@ -524,8 +544,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProjectIdAlertsRouteChildren {
+  ProjectIdAlertsIncidentIdRoute: typeof ProjectIdAlertsIncidentIdRoute
+}
+
+const ProjectIdAlertsRouteChildren: ProjectIdAlertsRouteChildren = {
+  ProjectIdAlertsIncidentIdRoute: ProjectIdAlertsIncidentIdRoute,
+}
+
+const ProjectIdAlertsRouteWithChildren = ProjectIdAlertsRoute._addFileChildren(
+  ProjectIdAlertsRouteChildren,
+)
+
 interface ProjectIdRouteRouteChildren {
-  ProjectIdAlertsRoute: typeof ProjectIdAlertsRoute
+  ProjectIdAlertsRoute: typeof ProjectIdAlertsRouteWithChildren
   ProjectIdConnectRoute: typeof ProjectIdConnectRoute
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
@@ -548,7 +580,7 @@ interface ProjectIdRouteRouteChildren {
 }
 
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
-  ProjectIdAlertsRoute: ProjectIdAlertsRoute,
+  ProjectIdAlertsRoute: ProjectIdAlertsRouteWithChildren,
   ProjectIdConnectRoute: ProjectIdConnectRoute,
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,

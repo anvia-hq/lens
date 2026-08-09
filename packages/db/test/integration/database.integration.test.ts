@@ -1,4 +1,5 @@
 import type {
+  AlertIncident,
   EvaluationResult,
   EvaluationRun,
   NormalizedSpan,
@@ -10,15 +11,19 @@ import {
   archiveManagedDataset,
   claimJobOutbox,
   completeJobOutbox,
+  createAlertRule,
   createClickHouse,
   createManagedDataset,
   createManagedDatasetVersion,
   createManagedDatasetWithCases,
   createPostgres,
   createQualityGate,
+  deleteAlertRule,
   deleteManagedDatasetCase,
   deleteProjectTelemetry,
   deleteQualityGate,
+  getAlertIncident,
+  getAlertRule,
   getEvaluationDatasetDetail,
   getEvaluationRunDetail,
   getManagedDataset,
@@ -38,9 +43,12 @@ import {
   listTraces,
   managedDataset,
   materializeTrace,
+  openAlertIncident,
   organization,
   project,
   publishManagedDatasetVersion,
+  queryAlertMeasurement,
+  queryAlertSignalSeries,
   queryMetrics,
   reconcileProjectRetention,
   retryJobOutbox,
@@ -157,6 +165,44 @@ describe.sequential("database integration", () => {
     await completeJobOutbox(postgres.db, created.id);
     expect(await postgres.db.select().from(jobOutbox).where(eq(jobOutbox.id, created.id))).toEqual(
       [],
+    );
+  });
+
+  it("keeps an alert rule snapshot after deleting its rule", async () => {
+    const rule = await createAlertRule(postgres.db, projectId, "integration-user", {
+      name: "Integration errors",
+      enabled: true,
+      kind: "trace_error_rate",
+      threshold: 0.05,
+      windowMinutes: 15,
+      minimumSamples: 20,
+      environment: "production",
+      serviceName: undefined,
+    });
+    const stored = await getAlertRule(postgres.db, projectId, rule.id);
+    if (!stored) throw new Error("Expected stored alert rule");
+    await openAlertIncident(postgres.db, stored, {
+      subjectKey: "threshold",
+      summary: "Trace error rate breached",
+      observedValue: 0.1,
+      sampleCount: 25,
+      evidence: { traceIds: [traceId] },
+    });
+    const [created] = await postgres.sql<{ id: string }[]>`
+      SELECT id FROM alert_incidents WHERE rule_id = ${rule.id}
+    `;
+    if (!created) throw new Error("Expected alert incident");
+
+    await deleteAlertRule(postgres.db, projectId, rule.id);
+    const detail = await getAlertIncident(postgres.db, projectId, created.id);
+
+    expect(detail?.incident).toMatchObject({ ruleId: null, status: "resolved" });
+    expect(detail?.rule).toEqual(
+      expect.objectContaining({
+        name: "Integration errors",
+        kind: "trace_error_rate",
+        environment: "production",
+      }),
     );
   });
 
@@ -299,6 +345,64 @@ describe.sequential("database integration", () => {
       new Date(now.getTime() + 2_000),
     );
     expect(metrics.current).toMatchObject({ traces: 1, spans: 2, generations: 1 });
+    const measurement = await queryAlertMeasurement(
+      clickhouse,
+      {
+        id: "30000000-0000-4000-8000-000000000001",
+        projectId,
+        name: "Slow traces",
+        enabled: true,
+        kind: "trace_p95_latency_ms",
+        threshold: 500,
+        windowMinutes: 15,
+        minimumSamples: 1,
+        environment: "test",
+        serviceName: "integration-service",
+        lastEvaluatedAt: null,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        consecutiveBreaches: 1,
+        cooldownUntil: null,
+      },
+      new Date(now.getTime() + 2_000),
+    );
+    expect(measurement).toMatchObject({ sampleCount: 1, evidence: { traceIds: [traceId] } });
+    const signal = await queryAlertSignalSeries(
+      clickhouse,
+      projectId,
+      {
+        name: "Slow traces",
+        enabled: true,
+        kind: "trace_p95_latency_ms",
+        threshold: 500,
+        windowMinutes: 15,
+        minimumSamples: 1,
+        environment: "test",
+        serviceName: "integration-service",
+      },
+      signalIncident("trace_p95_latency_ms"),
+      new Date(now.getTime() + 2_000),
+    );
+    expect(signal?.points.some((point) => point.value === 1_000)).toBe(true);
+    await expect(
+      queryAlertSignalSeries(
+        clickhouse,
+        projectId,
+        {
+          name: "Tool errors",
+          enabled: true,
+          kind: "tool_error_rate",
+          threshold: 0.1,
+          windowMinutes: 15,
+          minimumSamples: 1,
+          toolName: "search",
+          environment: undefined,
+          serviceName: undefined,
+        },
+        signalIncident("tool_error_rate"),
+        new Date(now.getTime() + 2_000),
+      ),
+    ).resolves.not.toBeNull();
 
     await reconcileProjectRetention(clickhouse, projectId, 7);
   });
@@ -323,6 +427,29 @@ describe.sequential("database integration", () => {
     });
   });
 });
+
+function signalIncident(kind: AlertIncident["kind"]): AlertIncident {
+  return {
+    id: "20000000-0000-4000-8000-000000000001",
+    projectId,
+    ruleId: "30000000-0000-4000-8000-000000000001",
+    ruleName: "Integration alert",
+    kind,
+    status: "open",
+    summary: "Signal breached",
+    observedValue: 1,
+    threshold: 0.5,
+    sampleCount: 1,
+    evidence: {},
+    firstTriggeredAt: now.toISOString(),
+    lastTriggeredAt: now.toISOString(),
+    acknowledgedAt: null,
+    acknowledgedBy: null,
+    resolvedAt: null,
+    resolvedBy: null,
+    resolution: null,
+  };
+}
 
 function integrationConfig() {
   const required = ["POSTGRES_URL", "CLICKHOUSE_URL", "REDIS_URL"] as const;

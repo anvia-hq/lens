@@ -32,6 +32,16 @@ Use the **Incidents** tab to filter active or resolved incidents and narrow them
 Runtime incidents link to up to five evidence traces. Quality-gate incidents link back to the run
 comparison that produced the result.
 
+Select an incident to open its investigation page. Runtime incidents show up to 24 hours of the
+exact scoped signal around the breach, including the configured threshold. The page also preserves
+the rule condition and scope, records the triggered, acknowledged, and resolved lifecycle, and
+shows when an evidence trace has expired under the project's retention policy.
+
+Project owners and admins can select retained evidence traces and promote up to five of them into
+an existing managed dataset draft. Review each generated case before importing it. Lens derives the
+root input but leaves expected output blank; the observed failed output is shown only as a reference
+and is never assumed to be correct.
+
 Acknowledging an incident records that someone is investigating it without hiding it from the
 active count. Resolve it manually when the issue is handled, or let runtime and quality recovery
 resolve it automatically. Incident history remains available after a rule is deleted and is removed

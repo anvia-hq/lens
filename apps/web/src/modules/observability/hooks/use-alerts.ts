@@ -1,4 +1,11 @@
-import type { AlertIncident, AlertRule, AlertRuleInput, Page, QualityGate } from "@lens/contracts";
+import type {
+  AlertIncident,
+  AlertIncidentDetail,
+  AlertRule,
+  AlertRuleInput,
+  Page,
+  QualityGate,
+} from "@lens/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
@@ -116,4 +123,35 @@ export function useAlerts() {
   };
 }
 
+export function useAlertIncident(incidentId: string) {
+  const { project } = useObservabilityProject();
+  const queryClient = useQueryClient();
+  const detail = useQuery({
+    queryKey: ["alert-incident", project.id, incidentId],
+    queryFn: () => api<AlertIncidentDetail>(`/api/v1/projects/${project.id}/alerts/${incidentId}`),
+    refetchInterval: 30_000,
+  });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["alert-incident", project.id, incidentId] });
+    void queryClient.invalidateQueries({ queryKey: ["alerts", project.id] });
+    void queryClient.invalidateQueries({ queryKey: ["alert-active-count", project.id] });
+  };
+  const acknowledge = useMutation({
+    mutationFn: () =>
+      api<AlertIncident>(`/api/v1/projects/${project.id}/alerts/${incidentId}/acknowledge`, {
+        method: "POST",
+      }),
+    onSuccess: refresh,
+  });
+  const resolve = useMutation({
+    mutationFn: () =>
+      api<AlertIncident>(`/api/v1/projects/${project.id}/alerts/${incidentId}/resolve`, {
+        method: "POST",
+      }),
+    onSuccess: refresh,
+  });
+  return { acknowledge, detail, project, resolve };
+}
+
 export type AlertsState = ReturnType<typeof useAlerts>;
+export type AlertIncidentState = ReturnType<typeof useAlertIncident>;

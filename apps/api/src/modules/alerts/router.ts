@@ -3,11 +3,16 @@ import {
   acknowledgeAlertIncident,
   activeAlertCount,
   alertRuleCount,
+  alertRuleSnapshot,
   createAlertRule,
   deleteAlertRule,
+  getAlertIncident,
+  getAlertRule,
   getQualityGate,
   listAlertIncidents,
   listAlertRules,
+  listTracesByIds,
+  queryAlertSignalSeries,
   resolveAlertIncident,
   updateAlertRule,
 } from "@lens/db";
@@ -108,6 +113,38 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
           pageSize,
         }),
       );
+    })
+    .get("/:projectId/alerts/:incidentId", async (c) => {
+      const access = await accessFor(c, deps);
+      if (!access) return apiError(c, 404, "not_found", "Project not found");
+      const stored = await getAlertIncident(
+        deps.postgres.db,
+        access.project.id,
+        c.req.param("incidentId"),
+      );
+      if (!stored) return apiError(c, 404, "not_found", "Alert incident not found");
+      const currentRule =
+        !stored.rule && stored.incident.ruleId
+          ? await getAlertRule(deps.postgres.db, access.project.id, stored.incident.ruleId)
+          : undefined;
+      const rule = stored.rule ?? (currentRule ? alertRuleSnapshot(currentRule) : null);
+      const traces = await listTracesByIds(
+        deps.clickhouse,
+        access.project.id,
+        stored.incident.evidence.traceIds ?? [],
+      );
+      const tracesById = new Map(traces.map((trace) => [trace.traceId, trace]));
+      return c.json({
+        incident: stored.incident,
+        rule,
+        signal: rule
+          ? await queryAlertSignalSeries(deps.clickhouse, access.project.id, rule, stored.incident)
+          : null,
+        evidenceTraces: (stored.incident.evidence.traceIds ?? []).map((traceId) => ({
+          traceId,
+          trace: tracesById.get(traceId) ?? null,
+        })),
+      });
     })
     .post("/:projectId/alerts/:incidentId/acknowledge", async (c) => {
       const access = await accessFor(c, deps);

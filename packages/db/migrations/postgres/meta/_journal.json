@@ -71,6 +71,13 @@
       "when": 1786258774994,
       "tag": "0009_opposite_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786260560904,
+      "tag": "0010_complex_triathlon",
+      "breakpoints": true
     }
   ]
 }

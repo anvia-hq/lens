@@ -183,6 +183,24 @@ export async function activeAlertCount(db: LensPostgres, projectId: string): Pro
   return Number(row?.total ?? 0);
 }
 
+export async function getAlertIncident(
+  db: LensPostgres,
+  projectId: string,
+  incidentId: string,
+): Promise<{ incident: AlertIncident; rule: AlertRuleInput | null } | undefined> {
+  const [row] = await db
+    .select()
+    .from(alertIncident)
+    .where(and(eq(alertIncident.projectId, projectId), eq(alertIncident.id, incidentId)))
+    .limit(1);
+  if (row === undefined) return undefined;
+  const names = await userNames(
+    db,
+    [row.acknowledgedBy, row.resolvedBy].filter((id): id is string => id !== null),
+  );
+  return { incident: incidentFromRow(row, names), rule: row.ruleSnapshot };
+}
+
 export async function acknowledgeAlertIncident(
   db: LensPostgres,
   projectId: string,
@@ -287,6 +305,7 @@ export async function openAlertIncident(
       threshold: thresholdFor(rule)?.toString(),
       sampleCount: input.sampleCount,
       evidence: input.evidence ?? {},
+      ruleSnapshot: alertRuleSnapshot(rule),
       firstTriggeredAt: now,
       lastTriggeredAt: now,
     })
@@ -394,6 +413,20 @@ function storedRuleFromRow(row: typeof alertRule.$inferSelect): StoredAlertRule 
 
 function thresholdFor(rule: StoredAlertRule): number | undefined {
   return "threshold" in rule ? rule.threshold : undefined;
+}
+
+export function alertRuleSnapshot(rule: StoredAlertRule): AlertRuleInput {
+  const {
+    id: _id,
+    projectId: _projectId,
+    lastEvaluatedAt: _lastEvaluatedAt,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    consecutiveBreaches: _consecutiveBreaches,
+    cooldownUntil: _cooldownUntil,
+    ...input
+  } = rule;
+  return input;
 }
 
 function incidentFromRow(
