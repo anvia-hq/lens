@@ -646,20 +646,9 @@ function Evidence({ incident, projectId }: { incident: AlertIncident; projectId:
   const evidence = incident.evidence;
   if (evidence.traceIds?.length)
     return (
-      <div className="flex max-w-52 flex-wrap gap-1">
-        {evidence.traceIds.map((traceId) => (
-          <Button
-            key={traceId}
-            size="xs"
-            variant="link"
-            render={
-              <Link to="/$projectId/traces/$traceId" params={{ projectId, traceId }} search={{}} />
-            }
-          >
-            {traceId.slice(0, 8)}
-          </Button>
-        ))}
-      </div>
+      <span className="whitespace-nowrap text-xs text-muted-foreground">
+        {evidence.traceIds.length} {evidence.traceIds.length === 1 ? "trace" : "traces"}
+      </span>
     );
   if (evidence.qualityGateId && evidence.candidateRunId && evidence.baselineRunId)
     return (

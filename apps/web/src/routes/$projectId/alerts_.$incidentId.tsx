@@ -1,10 +1,10 @@
 import { Bell } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FullPageMessage } from "../../../components/full-page-message";
-import { AlertIncidentView } from "../../../modules/observability/components/alert-incident-view";
-import { useAlertIncident } from "../../../modules/observability/hooks/use-alerts";
+import { FullPageMessage } from "../../components/full-page-message";
+import { AlertIncidentView } from "../../modules/observability/components/alert-incident-view";
+import { useAlertIncident } from "../../modules/observability/hooks/use-alerts";
 
-export const Route = createFileRoute("/$projectId/alerts/$incidentId")({
+export const Route = createFileRoute("/$projectId/alerts_/$incidentId")({
   component: AlertIncidentPage,
 });
 
