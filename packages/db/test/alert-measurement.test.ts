@@ -2,6 +2,7 @@ import type { AlertIncident, AlertRuleInput } from "@lens/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
   queryAlertContributorAnalysis,
+  queryAlertMeasurement,
   queryAlertSignalSeries,
   resolveAlertContributorRange,
   resolveAlertSignalRange,
@@ -93,6 +94,47 @@ describe("alert signal history", () => {
           serviceName: "api",
           toolName: "search",
         }),
+      }),
+    );
+  });
+
+  it("measures scoped tool errors and keeps their trace evidence", async () => {
+    const query = vi.fn(async () => ({
+      json: async () => [{ samples: 10, errors: 2, trace_ids: ["trace-1", "trace-2"] }],
+    }));
+
+    const measurement = await queryAlertMeasurement(
+      clickHouseClient({ query }),
+      {
+        id: "30000000-0000-4000-8000-000000000001",
+        projectId,
+        name: "Tool failures",
+        enabled: true,
+        kind: "tool_error_rate",
+        threshold: 0.1,
+        windowMinutes: 15,
+        minimumSamples: 5,
+        environment: "production",
+        serviceName: "api",
+        toolName: "search",
+        lastEvaluatedAt: null,
+        createdAt: incident.firstTriggeredAt,
+        updatedAt: incident.firstTriggeredAt,
+        consecutiveBreaches: 0,
+        cooldownUntil: null,
+      },
+      new Date(incident.firstTriggeredAt),
+    );
+
+    expect(measurement).toEqual({
+      value: 0.2,
+      sampleCount: 10,
+      evidence: { traceIds: ["trace-1", "trace-2"] },
+    });
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.stringContaining("observation_kind = 'tool'"),
+        query_params: expect.objectContaining({ toolName: "search" }),
       }),
     );
   });
@@ -192,6 +234,63 @@ describe("alert contributor analysis", () => {
           breachTo: "2026-08-09 10:00:00.000",
         }),
       }),
+    );
+  });
+
+  it("ranks material P95 duration contributors and returns only the top three", async () => {
+    const rows = [
+      ["baseline", "__all__", "__all__", 40, 1_000],
+      ["breach", "__all__", "__all__", 40, 1_600],
+      ["baseline", "release", "v1", 40, 1_000],
+      ["breach", "release", "v2", 40, 1_600],
+      ["baseline", "model", "gpt-4", 20, 900],
+      ["baseline", "model", "gpt-5", 20, 1_000],
+      ["breach", "model", "gpt-5", 40, 1_600],
+      ["baseline", "service", "old-api", 40, 1_000],
+      ["breach", "service", "new-api", 40, 1_600],
+      ["baseline", "serviceVersion", "1.0", 40, 1_000],
+      ["breach", "serviceVersion", "2.0", 40, 1_600],
+    ].map(([period, dimension, value, samples, p95], index) => ({
+      period,
+      dimension,
+      value,
+      samples,
+      errors: 0,
+      p95,
+      trace_id: `trace-${index}`,
+    }));
+    const query = vi.fn(async ({ query: sql }: { query: string }) => ({
+      json: async () => (sql.includes("trace_summaries") ? rows : []),
+    }));
+    const rule = {
+      name: "Slow traces",
+      enabled: true,
+      kind: "trace_p95_latency_ms",
+      threshold: 1_500,
+      windowMinutes: 15,
+      minimumSamples: 20,
+      environment: undefined,
+      serviceName: undefined,
+    } satisfies AlertRuleInput;
+
+    const analysis = await queryAlertContributorAnalysis(
+      clickHouseClient({ query }),
+      projectId,
+      rule,
+      { ...incident, kind: "trace_p95_latency_ms" },
+    );
+
+    expect(analysis?.hints).toHaveLength(3);
+    expect(analysis?.hints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          metric: "p95DurationMs",
+          baseline: { sampleCount: 40, value: 1_000 },
+          breach: { sampleCount: 40, value: 1_600 },
+          delta: 600,
+          percentChange: 0.6,
+        }),
+      ]),
     );
   });
 

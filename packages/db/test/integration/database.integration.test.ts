@@ -37,6 +37,7 @@ import {
   insertSpans,
   jobOutbox,
   jobOutboxValues,
+  listAlertRules,
   listEvaluationRuns,
   listManagedDatasets,
   listQualityGates,
@@ -182,6 +183,9 @@ describe.sequential("database integration", () => {
     });
     const stored = await getAlertRule(postgres.db, projectId, rule.id);
     if (!stored) throw new Error("Expected stored alert rule");
+    expect(await listAlertRules(postgres.db, projectId)).toContainEqual(
+      expect.objectContaining({ id: rule.id, name: "Integration errors" }),
+    );
     await openAlertIncident(postgres.db, stored, {
       subjectKey: "threshold",
       summary: "Trace error rate breached",
