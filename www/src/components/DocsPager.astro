@@ -1,0 +1,45 @@
+---
+import type { DocsLink } from "../data/docs-navigation";
+
+interface Props {
+  previous?: DocsLink;
+  next?: DocsLink;
+}
+
+const { previous, next } = Astro.props;
+---
+
+<nav class="mt-16 grid gap-3 border-t border-white/[0.08] pt-6 sm:grid-cols-2" aria-label="Documentation pages">
+  {
+    previous ? (
+      <a
+        class="group rounded-xl border border-white/[0.08] bg-white/[0.018] px-4 py-3 no-underline transition hover:border-white/[0.16] hover:bg-white/[0.035]"
+        href={previous.href}
+      >
+        <span class="block font-mono text-[0.65rem] tracking-[0.14em] text-zinc-600 uppercase">
+          Previous
+        </span>
+        <span class="mt-1 block text-sm font-semibold text-zinc-300 group-hover:text-zinc-50">
+          ← {previous.label}
+        </span>
+      </a>
+    ) : (
+      <span />
+    )
+  }
+  {
+    next ? (
+      <a
+        class="group rounded-xl border border-white/[0.08] bg-white/[0.018] px-4 py-3 text-right no-underline transition hover:border-white/[0.16] hover:bg-white/[0.035]"
+        href={next.href}
+      >
+        <span class="block font-mono text-[0.65rem] tracking-[0.14em] text-zinc-600 uppercase">
+          Next
+        </span>
+        <span class="mt-1 block text-sm font-semibold text-zinc-300 group-hover:text-zinc-50">
+          {next.label} →
+        </span>
+      </a>
+    ) : null
+  }
+</nav>

@@ -28,7 +28,10 @@
     "test:coverage": "pnpm --filter @lens/api --filter @lens/config --filter @lens/contracts --filter @lens/telemetry --filter @lens/ui --filter @lens/web --filter @lens/worker test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
     "test:integration": "node scripts/run-package-integration-tests.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
-    "verify:packages": "node scripts/verify-packages.mjs"
+    "verify:packages": "node scripts/verify-packages.mjs",
+    "www:build": "pnpm --filter @lens/www build",
+    "www:dev": "pnpm --filter @lens/www dev",
+    "www:preview": "pnpm --filter @lens/www preview"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",

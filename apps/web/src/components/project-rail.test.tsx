@@ -83,6 +83,20 @@ describe("ProjectRail", () => {
     expect(container.querySelector("nav")?.classList.contains("overflow-y-auto")).toBe(true);
   });
 
+  it("can render only the logo for workspace pages", () => {
+    render(
+      <TooltipProvider>
+        <ProjectContext.Provider value={{ project: projects[0] as ProjectWithRole, projects }}>
+          <ProjectRail logoOnly />
+        </ProjectContext.Provider>
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: "Projects" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Switch to Alpha" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Switch to Beta" })).toBeNull();
+  });
+
   it("shows the full project name in a tooltip", async () => {
     render(
       <TooltipProvider>

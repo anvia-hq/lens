@@ -6,7 +6,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -20,8 +19,6 @@ import {
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import type { AuthenticatedUser } from "../types";
-import { AnviaLensLogo } from "./anvia-lens-logo";
-import { ModeToggle } from "./mode-toggle";
 
 export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -33,14 +30,6 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
 
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
-      <SidebarHeader className="pb-0">
-        <div className="flex h-10 items-center gap-2 px-2">
-          <Link className="min-w-0 flex-1" to="/">
-            <AnviaLensLogo />
-          </Link>
-          <ModeToggle />
-        </div>
-      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="pt-0">
           <SidebarGroupContent>

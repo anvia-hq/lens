@@ -6,6 +6,7 @@
       "**",
       "!!**/dist",
       "!!**/coverage",
+      "!!www/**/*.astro",
       "!!**/src/generated",
       "!!**/src/routeTree.gen.ts"
     ]

@@ -164,6 +164,14 @@ pnpm test
 pnpm test:integration
 ```
 
+The documentation website lives in [`www`](www) and runs separately from the application stack:
+
+```sh
+pnpm www:dev
+```
+
+Open <http://localhost:4321> while authoring documentation.
+
 ## Maintainer releases
 
 Update the root `package.json` version, commit it to `main`, and wait for CI to pass. Then open

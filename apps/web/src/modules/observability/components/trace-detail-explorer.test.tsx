@@ -91,12 +91,14 @@ describe("trace detail model", () => {
 
   it("formats message payloads and tokenizes raw JSON", () => {
     const value = {
+      instructions: "Answer clearly.",
       messages: [
         { role: "user", content: "Hello" },
         { role: "assistant", content: [{ type: "text", text: "Hi" }] },
       ],
     };
     expect(formattedPayloadRows("Input", value)).toEqual([
+      { key: "instructions", label: "System", role: "system", text: "Answer clearly." },
       { key: "Messages:0", label: "User", role: "user", text: "Hello" },
       { key: "Messages:1", label: "Assistant", role: "assistant", text: "Hi" },
     ]);

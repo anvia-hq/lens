@@ -1,0 +1,54 @@
+---
+import DocsSidebar from "../components/DocsSidebar.astro";
+import DocsPager from "../components/DocsPager.astro";
+import DocsToc from "../components/DocsToc.astro";
+import { docsNeighbors } from "../data/docs-navigation";
+import BaseLayout from "./BaseLayout.astro";
+
+interface PageMetadata {
+  title: string;
+  description: string;
+  eyebrow?: string;
+}
+
+interface Props extends Partial<PageMetadata> {
+  frontmatter?: PageMetadata;
+  headings?: Array<{ depth: number; slug: string; text: string }>;
+}
+
+const metadata = Astro.props.frontmatter ?? Astro.props;
+const title = metadata.title ?? "Documentation";
+const description = metadata.description ?? "Documentation for Anvia Lens.";
+const eyebrow = metadata.eyebrow ?? "Documentation";
+const headings = Astro.props.headings ?? [];
+const { previous, next } = docsNeighbors(Astro.url.pathname);
+---
+
+<BaseLayout title={title} description={description}>
+  <div
+    class="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_13rem]"
+  >
+    <DocsSidebar />
+    <main
+      class="min-w-0 w-full px-4 py-14 sm:px-6 sm:py-18 md:px-10 md:py-20 xl:px-12"
+      data-pagefind-body
+    >
+      <header>
+        <p class="font-mono text-xs tracking-[0.18em] text-brand/70 uppercase">
+          {eyebrow}
+        </p>
+        <h1 class="mt-4 max-w-4xl text-4xl leading-[1.02] font-semibold tracking-[-0.02em] text-zinc-50 sm:text-5xl">
+          {title}
+        </h1>
+        <span class="mt-4 block max-w-3xl text-lg leading-8 text-zinc-300">
+          {description}
+        </span>
+      </header>
+      <article class="docs-content pt-14">
+        <slot />
+      </article>
+      <DocsPager previous={previous} next={next} />
+    </main>
+    <DocsToc headings={headings} />
+  </div>
+</BaseLayout>

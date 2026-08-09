@@ -1,0 +1,38 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+const headings = (Astro.props.headings as Heading[]).filter(
+  (heading) => heading.depth === 2 || heading.depth === 3,
+);
+---
+
+{
+  headings.length > 0 ? (
+    <aside class="hidden min-w-0 xl:block">
+      <nav
+        class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-5 py-20"
+        aria-label="On this page"
+      >
+        <p class="mb-3 font-mono text-[0.68rem] tracking-[0.16em] text-zinc-500 uppercase">
+          On this page
+        </p>
+        <ol class="grid gap-1.5">
+          {headings.map((heading) => (
+            <li class={heading.depth === 3 ? "pl-3" : undefined}>
+              <a
+                class="block text-xs leading-5 text-zinc-500 no-underline transition hover:text-zinc-200"
+                href={`#${heading.slug}`}
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </aside>
+  ) : null
+}

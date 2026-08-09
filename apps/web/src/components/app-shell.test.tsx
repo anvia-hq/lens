@@ -23,9 +23,14 @@ vi.mock("../modules/projects/hooks/use-projects", () => ({
 
 vi.mock("./app-header", () => ({ AppHeader: () => <div>App header</div> }));
 vi.mock("./app-sidebar", () => ({ AppSidebar: () => <div>App sidebar</div> }));
-vi.mock("./project-rail", () => ({ ProjectRail: () => <div>Project rail</div> }));
-vi.mock("./project-selector-shell", () => ({
-  ProjectSelectorShell: () => <div>Workspace shell</div>,
+vi.mock("./mode-toggle", () => ({ ModeToggle: () => <button type="button">Theme toggle</button> }));
+vi.mock("./project-rail", () => ({
+  ProjectRail: ({ logoOnly }: { logoOnly?: boolean }) => (
+    <div>{logoOnly ? "Logo rail" : "Project rail"}</div>
+  ),
+}));
+vi.mock("./workspace-sidebar", () => ({
+  WorkspaceSidebar: () => <div>Workspace sidebar</div>,
 }));
 
 const project: ProjectWithRole = {
@@ -67,14 +72,21 @@ describe("AuthenticatedApp shell", () => {
     );
   });
 
-  it.each(["/", "/members", "/cost-settings"])(
-    "keeps the project rail off the %s workspace route",
-    (pathname) => {
-      mocks.pathname = pathname;
-      render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
+  it("adds a logo-only rail without replacing the workspace sidebar on the projects page", () => {
+    mocks.pathname = "/";
+    render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
 
-      expect(screen.queryByText("Project rail")).toBeNull();
-      expect(screen.getByText("Workspace shell")).toBeTruthy();
-    },
-  );
+    expect(screen.getByText("Logo rail")).toBeTruthy();
+    expect(screen.getByText("Workspace sidebar")).toBeTruthy();
+    expect(screen.getByText("Theme toggle")).toBeTruthy();
+  });
+
+  it.each(["/members", "/cost-settings"])("keeps workspace navigation on %s", (pathname) => {
+    mocks.pathname = pathname;
+    render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
+
+    expect(screen.getByText("Workspace sidebar")).toBeTruthy();
+    expect(screen.getByText("Logo rail")).toBeTruthy();
+    expect(screen.getByText("Theme toggle")).toBeTruthy();
+  });
 });
