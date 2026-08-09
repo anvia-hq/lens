@@ -32,6 +32,17 @@ The header identifies the trace by name and ID and summarizes status, start time
 count, token usage, and cost. Project context remains in the application header so the trace cannot
 be mistaken for data from another project.
 
+## Review production quality
+
+Every project member can record one shared **Pass** or **Fail** review with an optional note. The
+latest review replaces the previous review and records its reviewer. It also appears as a
+human-sourced evaluation result, so it can be found from the evaluation Results explorer.
+
+For a failed trace, owners and admins can choose **Promote to dataset**, select a managed dataset
+with an open draft, review the root input and output JSON, and add it as a draft case. Promotion is
+unavailable when the trace has no captured root input. Existing cases with the same case ID are
+updated by the managed dataset workflow.
+
 ## Navigate the span tree
 
 The left panel preserves the exported parent-child relationship. Observation glyphs distinguish

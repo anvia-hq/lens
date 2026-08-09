@@ -60,12 +60,14 @@ explorer to the same time period.
 ## Find expensive or unreliable activity
 
 Model efficiency groups usage, latency, and reliability by generation model. Service cards compare
-token load and trace health across instrumented services. The trace rankings highlight token-heavy
-traces and recent failures that are good starting points for an investigation.
+token load and trace health across instrumented services. **Tool health** ranks tool spans by call
+count and reports P95 duration and error rate. The trace rankings highlight token-heavy traces and
+recent failures that are good starting points for an investigation.
 
 ## Choose the next view
 
 Open [Traces](/docs/observability/traces/) for request-level filtering, or use
 [Sessions](/docs/observability/sessions/) and [Users](/docs/observability/users/) when the problem
 spans multiple requests. If cost is missing or incorrect, review
-[Cost settings](/docs/observability/costs/).
+[Cost settings](/docs/observability/costs/). To turn recurring runtime or quality problems into an
+in-app incident workflow, configure [Alerts](/docs/observability/alerts/).

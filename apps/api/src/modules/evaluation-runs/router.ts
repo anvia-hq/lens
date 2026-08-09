@@ -1,8 +1,6 @@
 import {
-  compareEvaluationRuns,
   getEvaluationRunDetail,
   getPublishedManagedDataset,
-  getQualityGate,
   listEvaluationRunFacets,
   listEvaluationRuns,
 } from "@lens/db";
@@ -10,7 +8,8 @@ import { Hono } from "hono";
 import { requireProjectAccess } from "../../utils/access.js";
 import { apiError, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { evaluateQualityGate } from "../quality-gates/evaluate.js";
+import { recordQualityGateAlert } from "../alerts/events.js";
+import { checkEvaluationRuns } from "../quality-gates/check.js";
 import { parseRunRequest } from "./schema.js";
 
 export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
@@ -28,48 +27,26 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       if (!candidateRunId || !baselineRunId || candidateRunId === baselineRunId) {
         return apiError(c, 400, "invalid_comparison", "Two different run IDs are required");
       }
-      const comparison = await compareEvaluationRuns(
+      const checked = await checkEvaluationRuns(
         deps.clickhouse,
+        deps.postgres.db,
         projectId,
-        candidateRunId,
-        baselineRunId,
+        { candidateRunId, baselineRunId },
+        c.req.query("gateId")?.trim() || undefined,
       );
-      if (comparison === undefined) {
-        return apiError(c, 404, "not_found", "Candidate or baseline run was not found");
+      if (!checked.ok) {
+        return apiError(c, checked.error.status, checked.error.code, checked.error.message);
       }
-      if (
-        comparison.candidate.status !== "completed" ||
-        comparison.baseline.status !== "completed"
-      ) {
-        return apiError(c, 400, "incomplete_runs", "Only completed runs can be compared");
-      }
-      if (
-        comparison.candidate.suiteName !== comparison.baseline.suiteName ||
-        comparison.candidate.environment !== comparison.baseline.environment
-      ) {
-        return apiError(
-          c,
-          400,
-          "incompatible_runs",
-          "Runs must use the same suite and environment",
+      if (checked.comparison.gate !== null) {
+        await recordQualityGateAlert(deps.postgres, projectId, {
+          ...checked.comparison.gate,
+          candidateRunId,
+          baselineRunId,
+        }).catch((error: unknown) =>
+          deps.logger.warn({ err: error, projectId }, "failed to record gate alert"),
         );
       }
-      const gateId = c.req.query("gateId")?.trim();
-      if (!gateId) return c.json({ ...comparison, gate: null });
-      const gate = await getQualityGate(deps.postgres.db, projectId, gateId);
-      if (gate === undefined) return apiError(c, 404, "gate_not_found", "Quality gate not found");
-      if (
-        gate.suiteName !== comparison.candidate.suiteName ||
-        gate.environment !== comparison.candidate.environment
-      ) {
-        return apiError(
-          c,
-          400,
-          "incompatible_gate",
-          "Gate does not match the run suite and environment",
-        );
-      }
-      return c.json({ ...comparison, gate: evaluateQualityGate(gate, comparison) });
+      return c.json(checked.comparison);
     })
     .get("/:projectId/evaluation-runs", async (c) => {
       const projectId = c.req.param("projectId");

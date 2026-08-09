@@ -1,5 +1,6 @@
 import type {
   DeleteProjectTelemetryJob,
+  EvaluateAlertsJob,
   IngestEvaluationsJob,
   IngestTraceJob,
   MaterializeTraceJob,
@@ -15,6 +16,7 @@ export const queueNames = {
   materialize: "lens-materialize-traces",
   maintenance: "lens-telemetry-maintenance",
   costs: "lens-model-costs",
+  alerts: "lens-alerts",
 } as const;
 
 export type LensQueues = {
@@ -23,6 +25,7 @@ export type LensQueues = {
   materialize: Queue<MaterializeTraceJob>;
   maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob>;
   costs: Queue<RecalculateModelCostsJob>;
+  alerts: Queue<EvaluateAlertsJob>;
   close: () => Promise<void>;
 };
 
@@ -51,6 +54,7 @@ export function createQueues(redisUrl: string): LensQueues {
     options,
   );
   const costs = createQueue<RecalculateModelCostsJob>(queueNames.costs, options);
+  const alerts = createQueue<EvaluateAlertsJob>(queueNames.alerts, options);
 
   return {
     ingest,
@@ -58,6 +62,7 @@ export function createQueues(redisUrl: string): LensQueues {
     materialize,
     maintenance,
     costs,
+    alerts,
     async close() {
       try {
         await Promise.all([
@@ -66,6 +71,7 @@ export function createQueues(redisUrl: string): LensQueues {
           materialize.close(),
           maintenance.close(),
           costs.close(),
+          alerts.close(),
         ]);
       } finally {
         connection.disconnect();

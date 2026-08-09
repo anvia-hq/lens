@@ -3,6 +3,7 @@ import {
   type EvaluationSortField,
   evaluationOutcomes,
   evaluationSortFields,
+  evaluationSources,
 } from "@lens/contracts";
 import type { Context } from "hono";
 
@@ -35,6 +36,7 @@ export function parseEvaluationRequest(c: Context):
     ["outcome", "outcomes"],
     ["environment", "environments"],
     ["release", "releases"],
+    ["source", "sources"],
   ] as const) {
     const values = (c.req.queries(queryKey) ?? []).map((value) => value.trim()).filter(Boolean);
     if (values.length > 50) return `${queryKey} accepts at most 50 values`;
@@ -43,6 +45,12 @@ export function parseEvaluationRequest(c: Context):
       values.some((value) => !evaluationOutcomes.includes(value as never))
     ) {
       return "outcome must be pass, fail, invalid, or unknown";
+    }
+    if (
+      queryKey === "source" &&
+      values.some((value) => !evaluationSources.includes(value as never))
+    ) {
+      return "source must be telemetry or human";
     }
     if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
   }

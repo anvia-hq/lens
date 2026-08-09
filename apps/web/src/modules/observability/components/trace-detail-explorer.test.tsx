@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import type { SpanDetail, TraceDetail } from "@lens/contracts";
+import type { EvaluationResult, SpanDetail, TraceDetail } from "@lens/contracts";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,7 @@ import {
   rawTraceJson,
   searchTraceSpans,
   spanTimelinePosition,
+  traceReviewDatasetCase,
   traceTimelineBounds,
 } from "../utils/trace-detail";
 import { SpanInspector } from "./span-inspector";
@@ -107,6 +109,31 @@ describe("trace detail model", () => {
     expect(jsonSyntaxTokens('{"ok":true,"count":2}').map((token) => token.type)).toContain(
       "boolean",
     );
+  });
+
+  it("turns a reviewed trace into a managed dataset case", () => {
+    const subject = detail([
+      span({ spanId: "root", input: { prompt: "Hello" }, output: { answer: "Hi" } }),
+    ]);
+    const review = {
+      outcome: "fail",
+      explanation: "Wrong tone",
+      reviewer: { id: "user-1", name: "Ada" },
+      ingestedAt: "2026-08-05T01:00:00.000Z",
+    } as EvaluationResult;
+    expect(traceReviewDatasetCase(subject, review)).toEqual({
+      id: "trace-1",
+      input: { prompt: "Hello" },
+      expected: { answer: "Hi" },
+      metadata: {
+        sourceTraceId: "trace-1",
+        reviewOutcome: "fail",
+        reviewExplanation: "Wrong tone",
+        reviewerId: "user-1",
+        reviewerName: "Ada",
+        reviewedAt: "2026-08-05T01:00:00.000Z",
+      },
+    });
   });
 });
 
@@ -215,14 +242,16 @@ describe("trace detail controls", () => {
     const subject = detail([span({ spanId: "root", input: { prompt: "Hello" } })]);
     subject.summary.sessionId = null;
     render(
-      <TraceDetailExplorer
-        detail={subject}
-        projectId={subject.summary.projectId}
-        selectedSpanId="root"
-        view="tree"
-        onSelectSpan={() => undefined}
-        onViewChange={() => undefined}
-      />,
+      <QueryClientProvider client={new QueryClient()}>
+        <TraceDetailExplorer
+          detail={subject}
+          projectId={subject.summary.projectId}
+          selectedSpanId="root"
+          view="tree"
+          onSelectSpan={() => undefined}
+          onViewChange={() => undefined}
+        />
+      </QueryClientProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "support-agent" })).toBeTruthy();

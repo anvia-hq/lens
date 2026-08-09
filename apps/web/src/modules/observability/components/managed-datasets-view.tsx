@@ -526,8 +526,8 @@ function CaseDialog(props: {
           <DialogDescription>Inputs and expected values may be any JSON value.</DialogDescription>
         </DialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <div className="grid max-h-[65vh] gap-3 overflow-y-auto p-1 sm:grid-cols-2">
-          <Field className="sm:col-span-2">
+        <div className="grid max-h-[65vh] gap-3 overflow-y-auto p-1">
+          <Field>
             <FieldLabel>Case ID</FieldLabel>
             <Input
               value={value.id}
@@ -555,7 +555,7 @@ function CaseDialog(props: {
             value={value.retrievalContext}
             onChange={(retrievalContext) => setValue({ ...value, retrievalContext })}
           />
-          <Field className="sm:col-span-2">
+          <Field>
             <FieldLabel>Metadata object</FieldLabel>
             <Textarea
               rows={4}

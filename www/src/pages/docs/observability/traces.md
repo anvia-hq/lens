@@ -41,6 +41,7 @@ Open the filter panel to combine dimensions:
 
 - Status, environment, trace name, service, model, and release.
 - Trace version, service version, and tags.
+- Human review state: unreviewed, pass, or fail.
 - Trace ID, user ID, or session ID containing a supplied value.
 - Minimum and maximum duration, token count, or cost.
 
@@ -54,7 +55,7 @@ environment. Adding **Status: Error** then keeps only failed traces from those e
 
 Sort from a supported table heading and change the row count with the pagination control. Use the
 column chooser to keep identifiers, context, latency, tokens, and cost appropriate to the current
-investigation.
+investigation. The Review column shows the latest shared human decision.
 
 Trace IDs are displayed in full and can be used to correlate Lens with application logs or another
 OpenTelemetry backend.

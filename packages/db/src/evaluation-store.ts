@@ -33,6 +33,9 @@ type EvaluationRow = {
   environment: string;
   release: string | null;
   metadata: string;
+  source: EvaluationResult["source"];
+  reviewer_id: string | null;
+  reviewer_name: string | null;
   expires_at: string;
   ingested_at: string;
   ingest_version: number | string;
@@ -69,6 +72,9 @@ export async function insertEvaluations(
       environment: result.environment,
       release: result.release,
       metadata: JSON.stringify(result.metadata),
+      source: result.source,
+      reviewer_id: result.reviewer?.id ?? null,
+      reviewer_name: result.reviewer?.name ?? null,
       expires_at:
         result.expiresAt === null ? "2299-12-31 23:59:59.999" : clickHouseTime(result.expiresAt),
       ingested_at: clickHouseTime(result.ingestedAt),
@@ -130,12 +136,29 @@ export async function listEvaluationsForTrace(
   return (await listEvaluations(client, projectId, { traceId, pageSize: 100 })).items;
 }
 
+export async function listHumanReviewOutcomes(
+  client: ClickHouseClient,
+  projectId: string,
+  traceIds: string[],
+): Promise<Map<string, "pass" | "fail">> {
+  if (traceIds.length === 0) return new Map();
+  const result = await client.query({
+    query: `SELECT trace_id, outcome FROM evaluation_results FINAL
+            WHERE project_id = {projectId:UUID} AND source = 'human'
+              AND metric_name = 'human-review' AND trace_id IN {traceIds:Array(String)}`,
+    query_params: { projectId, traceIds },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<{ trace_id: string; outcome: "pass" | "fail" }>();
+  return new Map(rows.map((row) => [row.trace_id, row.outcome]));
+}
+
 export async function listEvaluationFacets(
   client: ClickHouseClient,
   projectId: string,
   options: EvaluationFilters,
 ): Promise<EvaluationFacets> {
-  const facets = ["suite", "metric", "outcome", "environment", "release"] as const;
+  const facets = ["suite", "metric", "outcome", "environment", "release", "source"] as const;
   const values = await Promise.all(
     facets.map(async (facet) => {
       const where = evaluationWhere(projectId, options, facet);
@@ -283,6 +306,7 @@ const evaluationFacetColumns = {
   outcome: "outcome",
   environment: "environment",
   release: "release",
+  source: "source",
 } as const;
 
 function evaluationWhere(
@@ -306,6 +330,7 @@ function evaluationWhere(
     ["outcomes", "outcome", "outcome"],
     ["environments", "environment", "environment"],
     ["releases", "release", "release"],
+    ["sources", "source", "source"],
     ["runIds", "run_id", undefined],
   ] as const) {
     const values = options[field];
@@ -351,6 +376,11 @@ function evaluationFromRow(row: EvaluationRow): EvaluationResult {
     environment: row.environment,
     release: row.release,
     metadata: parseMetadata(row.metadata),
+    source: row.source,
+    reviewer:
+      row.reviewer_id === null || row.reviewer_name === null
+        ? null
+        : { id: row.reviewer_id, name: row.reviewer_name },
     expiresAt: isoTime(row.expires_at),
     ingestedAt: isoTime(row.ingested_at),
     ingestVersion: String(row.ingest_version),

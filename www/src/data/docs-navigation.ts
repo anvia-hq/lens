@@ -32,6 +32,7 @@ export const docsNavigation: DocsGroup[] = [
       { href: "/docs/observability/trace-detail/", label: "Trace details" },
       { href: "/docs/observability/sessions/", label: "Sessions" },
       { href: "/docs/observability/users/", label: "Users" },
+      { href: "/docs/observability/alerts/", label: "Alerts" },
       { href: "/docs/observability/costs/", label: "Cost settings" },
     ],
   },

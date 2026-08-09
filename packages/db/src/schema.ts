@@ -1,4 +1,6 @@
 import type {
+  AlertIncidentEvidence,
+  AlertRuleKind,
   JobOutboxEvent,
   JsonValue,
   ManagedDatasetCaseInput,
@@ -192,6 +194,84 @@ export const qualityGate = pgTable(
       table.projectId,
       table.suiteName,
       table.environment,
+    ),
+  ],
+);
+
+export const alertIncidentStatus = pgEnum("alert_incident_status", [
+  "open",
+  "acknowledged",
+  "resolved",
+]);
+
+export const alertRule = pgTable(
+  "alert_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    kind: text("kind").$type<AlertRuleKind>().notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    threshold: numeric("threshold", { precision: 24, scale: 8 }),
+    windowMinutes: integer("window_minutes"),
+    minimumSamples: integer("minimum_samples"),
+    environment: text("environment"),
+    serviceName: text("service_name"),
+    toolName: text("tool_name"),
+    qualityGateId: uuid("quality_gate_id").references(() => qualityGate.id),
+    consecutiveBreaches: integer("consecutive_breaches").notNull().default(0),
+    lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
+    cooldownUntil: timestamp("cooldown_until", { withTimezone: true }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_rules_project_name_idx").on(table.projectId, sql`lower(${table.name})`),
+    index("alert_rules_project_enabled_idx").on(table.projectId, table.enabled),
+    index("alert_rules_gate_idx").on(table.qualityGateId),
+  ],
+);
+
+export const alertIncident = pgTable(
+  "alert_incidents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    ruleId: uuid("rule_id").references(() => alertRule.id, { onDelete: "set null" }),
+    ruleName: text("rule_name").notNull(),
+    kind: text("kind").$type<AlertRuleKind>().notNull(),
+    subjectKey: text("subject_key").notNull(),
+    status: alertIncidentStatus("status").notNull().default("open"),
+    summary: text("summary").notNull(),
+    observedValue: numeric("observed_value", { precision: 24, scale: 8 }),
+    threshold: numeric("threshold", { precision: 24, scale: 8 }),
+    sampleCount: integer("sample_count"),
+    evidence: jsonb("evidence").$type<AlertIncidentEvidence>().notNull().default({}),
+    firstTriggeredAt: timestamp("first_triggered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }).notNull().defaultNow(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    acknowledgedBy: text("acknowledged_by").references(() => user.id),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by").references(() => user.id),
+    resolution: text("resolution"),
+  },
+  (table) => [
+    uniqueIndex("alert_incidents_active_subject_idx")
+      .on(table.ruleId, table.subjectKey)
+      .where(sql`${table.status} in ('open', 'acknowledged') and ${table.ruleId} is not null`),
+    index("alert_incidents_project_status_idx").on(
+      table.projectId,
+      table.status,
+      table.lastTriggeredAt,
     ),
   ],
 );
@@ -400,6 +480,8 @@ export const projectRelations = relations(project, ({ one, many }) => ({
   }),
   apiKeys: many(projectApiKey),
   qualityGates: many(qualityGate),
+  alertRules: many(alertRule),
+  alertIncidents: many(alertIncident),
   managedDatasets: many(managedDataset),
 }));
 
@@ -409,6 +491,30 @@ export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
 
 export const qualityGateRelations = relations(qualityGate, ({ one }) => ({
   project: one(project, { fields: [qualityGate.projectId], references: [project.id] }),
+}));
+
+export const alertRuleRelations = relations(alertRule, ({ one, many }) => ({
+  project: one(project, { fields: [alertRule.projectId], references: [project.id] }),
+  qualityGate: one(qualityGate, {
+    fields: [alertRule.qualityGateId],
+    references: [qualityGate.id],
+  }),
+  incidents: many(alertIncident),
+}));
+
+export const alertIncidentRelations = relations(alertIncident, ({ one }) => ({
+  project: one(project, { fields: [alertIncident.projectId], references: [project.id] }),
+  rule: one(alertRule, { fields: [alertIncident.ruleId], references: [alertRule.id] }),
+  acknowledger: one(user, {
+    fields: [alertIncident.acknowledgedBy],
+    references: [user.id],
+    relationName: "alert_acknowledger",
+  }),
+  resolver: one(user, {
+    fields: [alertIncident.resolvedBy],
+    references: [user.id],
+    relationName: "alert_resolver",
+  }),
 }));
 
 export const managedDatasetRelations = relations(managedDataset, ({ one, many }) => ({

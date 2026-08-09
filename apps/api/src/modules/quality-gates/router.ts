@@ -1,8 +1,10 @@
 import { qualityGateInputSchema } from "@lens/contracts";
 import {
   createQualityGate,
+  deleteAlertRule,
   deleteQualityGate,
   getQualityGate,
+  listAlertRules,
   listQualityGates,
   updateQualityGate,
 } from "@lens/db";
@@ -64,6 +66,13 @@ export const createQualityGatesRouter = (deps: ApiDependencies) =>
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
       if (!canManage(access.role)) return apiError(c, 403, "forbidden", "Admin access is required");
+      const dependentRules = (await listAlertRules(deps.postgres.db, access.project.id)).filter(
+        (rule) =>
+          rule.kind === "failed_quality_gate" && rule.qualityGateId === c.req.param("gateId"),
+      );
+      for (const rule of dependentRules) {
+        await deleteAlertRule(deps.postgres.db, access.project.id, rule.id);
+      }
       const deleted = await deleteQualityGate(
         deps.postgres.db,
         access.project.id,

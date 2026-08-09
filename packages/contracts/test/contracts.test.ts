@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  alertRuleInputSchema,
   createApiKeySchema,
   createProjectSchema,
   decodeCursor,
@@ -9,8 +10,10 @@ import {
   managedDatasetUpdateSchema,
   metricsRangeSchema,
   projectSettingsSchema,
+  qualityGateCheckInputSchema,
   qualityGateInputSchema,
   qualityGateRuleSchema,
+  traceReviewInputSchema,
 } from "../src/index";
 
 describe("contracts", () => {
@@ -94,6 +97,54 @@ describe("contracts", () => {
         maxAbsoluteChange: -0.1,
       }).success,
     ).toBe(false);
+  });
+
+  it("validates quality-gate checks and human trace reviews", () => {
+    expect(
+      qualityGateCheckInputSchema.parse({
+        candidateRunId: " candidate ",
+        baselineRunId: " baseline ",
+      }),
+    ).toEqual({ candidateRunId: "candidate", baselineRunId: "baseline" });
+    expect(
+      qualityGateCheckInputSchema.safeParse({
+        candidateRunId: "same",
+        baselineRunId: "same",
+      }).success,
+    ).toBe(false);
+    expect(traceReviewInputSchema.parse({ outcome: "fail", explanation: "  broken  " })).toEqual({
+      outcome: "fail",
+      explanation: "broken",
+    });
+    expect(traceReviewInputSchema.safeParse({ outcome: "unknown" }).success).toBe(false);
+  });
+
+  it("validates alert rule thresholds and quality-gate selection", () => {
+    expect(
+      alertRuleInputSchema.safeParse({
+        name: "Production errors",
+        kind: "trace_error_rate",
+        threshold: 0.05,
+        windowMinutes: 15,
+        minimumSamples: 20,
+      }).success,
+    ).toBe(true);
+    expect(
+      alertRuleInputSchema.safeParse({
+        name: "Impossible error rate",
+        kind: "trace_error_rate",
+        threshold: 1.1,
+        windowMinutes: 15,
+        minimumSamples: 20,
+      }).success,
+    ).toBe(false);
+    expect(
+      alertRuleInputSchema.safeParse({
+        name: "Release gate",
+        kind: "failed_quality_gate",
+        qualityGateId: "10000000-0000-4000-8000-000000000001",
+      }).success,
+    ).toBe(true);
   });
 
   it("normalizes project inputs and rejects invalid slugs and empty key names", () => {

@@ -59,6 +59,12 @@ export function EvaluationResultDrawer(props: {
                     <DetailField label="Environment">{result.environment}</DetailField>
                     <DetailField label="Service">{result.serviceName}</DetailField>
                     <DetailField label="Release">{result.release ?? "—"}</DetailField>
+                    <DetailField label="Source">
+                      {result.source === "human" ? "Human review" : "Telemetry"}
+                    </DetailField>
+                    {result.reviewer ? (
+                      <DetailField label="Reviewer">{result.reviewer.name}</DetailField>
+                    ) : null}
                   </CardContent>
                 </Card>
 

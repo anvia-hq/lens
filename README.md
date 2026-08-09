@@ -11,10 +11,13 @@ Langfuse OTLP instrumentation.
 ## What you can do
 
 - Inspect complete agent, generation, and tool traces.
+- Review production traces with a shared pass/fail decision and promote failures into dataset drafts.
 - Understand latency, token usage, errors, users, and sessions.
+- Create in-app alerts for runtime regressions, failed reviews, and failed quality gates.
 - Run evaluations and review every case and result.
 - Build and publish managed datasets for repeatable tests.
 - Compare releases and apply quality gates before shipping.
+- Enforce quality gates from CI with the project key pair.
 - Connect native Anvia applications or Langfuse-compatible instrumentation.
 - Keep all application and telemetry data in your own infrastructure.
 

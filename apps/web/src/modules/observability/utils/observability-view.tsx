@@ -175,6 +175,17 @@ export function traceTableColumns(options: {
       header: header("Status", "status"),
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     }),
+    review: traceColumnHelper.accessor("reviewOutcome", {
+      header: "Review",
+      cell: ({ row }) =>
+        row.original.reviewOutcome ? (
+          <Badge variant={row.original.reviewOutcome === "fail" ? "destructive" : "secondary"}>
+            {row.original.reviewOutcome === "fail" ? "Fail" : "Pass"}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    }),
     durationMs: traceColumnHelper.accessor("durationMs", {
       header: header("Latency", "durationMs"),
       cell: ({ row }) => (
@@ -414,6 +425,7 @@ export const traceColumnLabels: Record<TraceColumnId, string> = {
   startedAt: "Started",
   trace: "Trace",
   status: "Status",
+  review: "Review",
   durationMs: "Latency",
   totalCost: "Total cost",
   model: "Model",

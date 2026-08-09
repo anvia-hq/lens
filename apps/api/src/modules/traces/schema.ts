@@ -49,6 +49,13 @@ export function parseTraceRequest(c: Context): TraceRequest | string {
     if (value.length > 256) return `${key} must be at most 256 characters`;
     filters[key] = value;
   }
+  const review = c.req.query("review")?.trim();
+  if (review !== undefined && review.length > 0) {
+    if (review !== "unreviewed" && review !== "pass" && review !== "fail") {
+      return "review must be unreviewed, pass, or fail";
+    }
+    filters.review = review;
+  }
   for (const key of [
     "minDurationMs",
     "maxDurationMs",

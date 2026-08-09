@@ -1,9 +1,15 @@
 import { loadConfig } from "@lens/config";
-import type { IngestEvaluationsJob, IngestTraceJob, MaterializeTraceJob } from "@lens/contracts";
+import type {
+  EvaluateAlertsJob,
+  IngestEvaluationsJob,
+  IngestTraceJob,
+  MaterializeTraceJob,
+} from "@lens/contracts";
 import { createClickHouse, createPostgres } from "@lens/db";
 import { createQueues, createRedisConnection, queueNames } from "@lens/queue";
 import { Worker } from "bullmq";
 import pino from "pino";
+import { createAlertProcessor } from "./alerts.js";
 import { createJobOutboxDispatcher } from "./outbox-dispatcher.js";
 import {
   createCostsProcessor,
@@ -23,6 +29,7 @@ const materializeConnection = createRedisConnection(config.REDIS_URL);
 const evaluationConnection = createRedisConnection(config.REDIS_URL);
 const maintenanceConnection = createRedisConnection(config.REDIS_URL);
 const costsConnection = createRedisConnection(config.REDIS_URL);
+const alertsConnection = createRedisConnection(config.REDIS_URL);
 const processorDeps = { clickhouse, postgres, queues, logger };
 
 const ingestWorker = new Worker<IngestTraceJob>(
@@ -52,6 +59,11 @@ const costsWorker = new Worker(queueNames.costs, createCostsProcessor(processorD
   connection: costsConnection,
   concurrency: 1,
 });
+const alertsWorker = new Worker<EvaluateAlertsJob>(
+  queueNames.alerts,
+  createAlertProcessor(processorDeps),
+  { connection: alertsConnection, concurrency: 1 },
+);
 const outboxDispatcher = createJobOutboxDispatcher({ postgres, queues, logger });
 
 for (const worker of [
@@ -60,6 +72,7 @@ for (const worker of [
   materializeWorker,
   maintenanceWorker,
   costsWorker,
+  alertsWorker,
 ]) {
   worker.on("failed", (job, error) => {
     logger.error({ jobId: job?.id, queue: worker.name, error }, "queue job failed");
@@ -68,6 +81,13 @@ for (const worker of [
 }
 
 outboxDispatcher.start();
+void queues.alerts
+  .upsertJobScheduler(
+    "evaluate-alert-rules-every-minute",
+    { every: 60_000 },
+    { name: "evaluate-alert-rules", data: {} },
+  )
+  .catch((error: unknown) => logger.error({ err: error }, "alert scheduler setup failed"));
 logger.info("Anvia Lens worker started");
 
 async function shutdown(signal: string): Promise<void> {
@@ -79,12 +99,14 @@ async function shutdown(signal: string): Promise<void> {
     materializeWorker.close(),
     maintenanceWorker.close(),
     costsWorker.close(),
+    alertsWorker.close(),
   ]);
   ingestConnection.disconnect();
   evaluationConnection.disconnect();
   materializeConnection.disconnect();
   maintenanceConnection.disconnect();
   costsConnection.disconnect();
+  alertsConnection.disconnect();
   await queues.close();
   await clickhouse.close();
   await postgres.close();

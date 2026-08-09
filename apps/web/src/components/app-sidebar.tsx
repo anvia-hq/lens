@@ -8,12 +8,14 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@lens/ui/components/sidebar";
 import {
   Pulse as Activity,
   ArrowsLeftRight,
+  Bell,
   ChartBar,
   Database,
   Flask,
@@ -28,6 +30,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
+import { useActiveAlertCount } from "../modules/observability/hooks/use-alerts";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
 
@@ -35,25 +38,36 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   const { project } = useProject();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectRoot = `/${project.id}`;
+  const activeAlerts = useActiveAlertCount(project.id).data?.count ?? 0;
   const observabilityLinks = [
-    { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: House },
+    { to: "/$projectId" as const, path: projectRoot, label: "Overview", icon: House, badge: 0 },
     {
       to: "/$projectId/traces" as const,
       path: `${projectRoot}/traces`,
       label: "Traces",
       icon: Activity,
+      badge: 0,
     },
     {
       to: "/$projectId/sessions" as const,
       path: `${projectRoot}/sessions`,
       label: "Sessions",
       icon: MessagesSquare,
+      badge: 0,
     },
     {
       to: "/$projectId/users" as const,
       path: `${projectRoot}/users`,
       label: "Users",
       icon: Users,
+      badge: 0,
+    },
+    {
+      to: "/$projectId/alerts" as const,
+      path: `${projectRoot}/alerts`,
+      label: "Alerts",
+      icon: Bell,
+      badge: activeAlerts,
     },
   ];
   const evaluationLinks = [
@@ -62,30 +76,35 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/evaluations/runs`,
       label: "Runs",
       icon: Flask,
+      badge: 0,
     },
     {
       to: "/$projectId/evaluations/results" as const,
       path: `${projectRoot}/evaluations/results`,
       label: "Results",
       icon: ChartBar,
+      badge: 0,
     },
     {
       to: "/$projectId/evaluations/compare" as const,
       path: `${projectRoot}/evaluations/compare`,
       label: "Compare",
       icon: ArrowsLeftRight,
+      badge: 0,
     },
     {
       to: "/$projectId/evaluations/gates" as const,
       path: `${projectRoot}/evaluations/gates`,
       label: "Gates",
       icon: Gauge,
+      badge: 0,
     },
     {
       to: "/$projectId/evaluations/datasets" as const,
       path: `${projectRoot}/evaluations/datasets`,
       label: "Datasets",
       icon: Database,
+      badge: 0,
     },
   ];
   const managementLinks = [
@@ -94,19 +113,21 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/connect`,
       label: "Connect",
       icon: TerminalSquare,
+      badge: 0,
     },
     {
       to: "/$projectId/settings" as const,
       path: `${projectRoot}/settings`,
       label: "Settings",
       icon: Settings,
+      badge: 0,
     },
   ];
   const renderLinks = (
     links: typeof observabilityLinks | typeof evaluationLinks | typeof managementLinks,
   ) => (
     <SidebarMenu className="gap-1">
-      {links.map(({ to, path, label, icon: Icon }) => {
+      {links.map(({ to, path, label, icon: Icon, badge }) => {
         const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
         return (
           <SidebarMenuItem key={to}>
@@ -118,6 +139,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
               <Icon />
               <span>{label}</span>
             </SidebarMenuButton>
+            {badge > 0 ? <SidebarMenuBadge>{badge > 99 ? "99+" : badge}</SidebarMenuBadge> : null}
           </SidebarMenuItem>
         );
       })}

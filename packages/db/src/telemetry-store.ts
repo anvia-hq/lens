@@ -10,10 +10,10 @@ import type {
   TraceFacets,
   TraceFacetValue,
   TraceFilters,
+  TraceListItem,
   TraceSortField,
-  TraceSummary,
 } from "@lens/contracts";
-import { listEvaluationsForTrace } from "./evaluation-store.js";
+import { listEvaluationsForTrace, listHumanReviewOutcomes } from "./evaluation-store.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import {
   clickHouseDateTimeParam,
@@ -216,6 +216,14 @@ async function currentTraceExpiration(
   return rows[0]?.expires_at ?? "2299-12-31 23:59:59.999";
 }
 
+export async function getTraceExpiration(
+  client: ClickHouseClient,
+  projectId: string,
+  traceId: string,
+): Promise<string> {
+  return ensureIso(await currentTraceExpiration(client, projectId, traceId));
+}
+
 export async function listTraces(
   client: ClickHouseClient,
   projectId: string,
@@ -226,7 +234,7 @@ export async function listTraces(
     order?: "asc" | "desc";
     sessionIdExact?: string;
   },
-): Promise<Page<TraceSummary>> {
+): Promise<Page<TraceListItem>> {
   const page = Math.max(1, Math.trunc(options.page ?? 1));
   const pageSize = [25, 50, 100].includes(options.pageSize ?? 50) ? (options.pageSize ?? 50) : 50;
   const sort = options.sort ?? "startedAt";
@@ -251,10 +259,18 @@ export async function listTraces(
     }),
   ]);
   const rows = await result.json<SummaryRow>();
+  const reviews = await listHumanReviewOutcomes(
+    client,
+    projectId,
+    rows.map((row) => row.trace_id),
+  );
   const counts = await countResult.json<{ total: number | string }>();
   const total = numeric(counts[0]?.total);
   return {
-    items: rows.map(summaryFromRow),
+    items: rows.map((row) => ({
+      ...summaryFromRow(row),
+      reviewOutcome: reviews.get(row.trace_id) ?? null,
+    })),
     total,
     page,
     pageSize,
@@ -405,6 +421,17 @@ function traceWhere(
       "(positionCaseInsensitive(name, {search:String}) > 0 OR positionCaseInsensitive(trace_id, {search:String}) > 0)",
     );
     params.search = options.search;
+  }
+  if (options.review !== undefined) {
+    const reviewed = `SELECT trace_id FROM evaluation_results FINAL
+                      WHERE project_id = {projectId:UUID} AND source = 'human'
+                        AND metric_name = 'human-review'`;
+    if (options.review === "unreviewed") {
+      filters.push(`trace_id NOT IN (${reviewed})`);
+    } else {
+      filters.push(`trace_id IN (${reviewed} AND outcome = {reviewOutcome:String})`);
+      params.reviewOutcome = options.review;
+    }
   }
   for (const [field, column, operator] of [
     ["minDurationMs", "duration_ms", ">="],

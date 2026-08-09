@@ -12,9 +12,14 @@ describe("queue integration", () => {
 
   afterAll(async () => {
     await Promise.all(
-      [queues.ingest, queues.evaluations, queues.materialize, queues.maintenance, queues.costs].map(
-        (queue) => queue.obliterate({ force: true }),
-      ),
+      [
+        queues.ingest,
+        queues.evaluations,
+        queues.materialize,
+        queues.maintenance,
+        queues.costs,
+        queues.alerts,
+      ].map((queue) => queue.obliterate({ force: true })),
     );
     await queues.close();
   });
@@ -47,6 +52,9 @@ describe("queue integration", () => {
       }),
       queues.costs.add("recalculate-model-costs", {
         recalculationId: "00000000-0000-4000-8000-000000000002",
+      }),
+      queues.alerts.add("evaluate-alert-rules", {
+        projectId: "00000000-0000-4000-8000-000000000001",
       }),
     ]);
 

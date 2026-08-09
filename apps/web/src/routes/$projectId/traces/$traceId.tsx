@@ -25,6 +25,7 @@ function TraceDetailPage() {
     <TraceDetailExplorer
       key={detail.summary.traceId}
       detail={detail}
+      canManage={project.role === "owner" || project.role === "admin"}
       projectId={project.id}
       selectedSpanId={search.span}
       view={search.view ?? "tree"}

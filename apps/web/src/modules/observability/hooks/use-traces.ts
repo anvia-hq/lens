@@ -1,4 +1,4 @@
-import type { Page as PaginatedPage, TraceFacets, TraceSummary } from "@lens/contracts";
+import type { Page as PaginatedPage, TraceFacets, TraceListItem } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,6 +39,7 @@ export function useTraces() {
   }, [searchDraft, filters.search, setFilters]);
   const requestFilters = {
     ...range,
+    review: filters.review,
     status: filters.statuses,
     service: filters.services,
     name: filters.names,
@@ -62,7 +63,7 @@ export function useTraces() {
   const traces = useQuery({
     queryKey: ["traces", project.id, filters],
     queryFn: () =>
-      api<PaginatedPage<TraceSummary>>(
+      api<PaginatedPage<TraceListItem>>(
         `/api/v1/projects/${project.id}/traces?${queryString({
           ...requestFilters,
           page: filters.page,
@@ -86,6 +87,7 @@ export function useTraces() {
   const clearFilters = () =>
     setFilters({
       statuses: [],
+      review: undefined,
       services: [],
       names: [],
       models: [],

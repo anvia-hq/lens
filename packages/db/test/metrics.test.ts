@@ -64,6 +64,15 @@ describe("overview metrics", () => {
       generations: 36,
       errorRate: 1 / 6,
     });
+    expect(metrics.tools).toEqual([
+      {
+        toolName: "search",
+        calls: 10,
+        errors: 2,
+        errorRate: 0.2,
+        durationP95Ms: 420,
+      },
+    ]);
   });
 
   it("returns safe zero summaries and nullable latency for an empty range", async () => {
@@ -85,6 +94,7 @@ describe("overview metrics", () => {
     expect(metrics.series).toHaveLength(29);
     expect(metrics.series.every((point) => point.generationDurationP95Ms === null)).toBe(true);
     expect(metrics.models).toEqual([]);
+    expect(metrics.tools).toEqual([]);
     expect(metrics.topTokenTraces).toEqual([]);
   });
 });
@@ -181,6 +191,9 @@ function responseForQuery(query: string, populated: boolean): unknown[] {
         p95: 2_500,
       },
     ];
+  }
+  if (query.includes("observation_kind = 'tool'")) {
+    return [{ tool_name: "search", calls: 10, errors: 2, p95: 420 }];
   }
   return [];
 }

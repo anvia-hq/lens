@@ -1,4 +1,9 @@
-import type { SpanDetail, TraceDetail } from "@lens/contracts";
+import type {
+  EvaluationResult,
+  ManagedDatasetCaseInput,
+  SpanDetail,
+  TraceDetail,
+} from "@lens/contracts";
 import type { FlatSpanNode, SpanTreeNode, TracePayloadView } from "../types";
 
 export type { FlatSpanNode, SpanTreeNode, TracePayloadView, TraceSpanView } from "../types";
@@ -53,6 +58,33 @@ export function buildSpanForest(spans: SpanDetail[]): SpanTreeNode[] {
     if (recovered !== null) forest.push(recovered);
   }
   return forest;
+}
+
+export function traceReview(detail: TraceDetail): EvaluationResult | undefined {
+  return detail.evaluations.find(
+    (result) => result.source === "human" && result.metricName === "human-review",
+  );
+}
+
+export function traceReviewDatasetCase(
+  detail: TraceDetail,
+  review: EvaluationResult,
+): ManagedDatasetCaseInput | undefined {
+  const root = buildSpanForest(detail.spans)[0]?.span;
+  if (!root || root.input === null) return undefined;
+  return {
+    id: detail.summary.traceId,
+    input: root.input,
+    ...(root.output === null ? {} : { expected: root.output }),
+    metadata: {
+      sourceTraceId: detail.summary.traceId,
+      reviewOutcome: review.outcome,
+      reviewExplanation: review.explanation,
+      reviewerId: review.reviewer?.id ?? null,
+      reviewerName: review.reviewer?.name ?? null,
+      reviewedAt: review.ingestedAt,
+    },
+  };
 }
 
 export function flattenSpanForest(

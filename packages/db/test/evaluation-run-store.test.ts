@@ -131,6 +131,8 @@ function evaluation(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     environment: "test",
     release: null,
     metadata: {},
+    source: "telemetry",
+    reviewer: null,
     expiresAt: null,
     ingestedAt: "2026-08-07T00:00:00.000Z",
     ingestVersion: "1",

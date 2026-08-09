@@ -46,6 +46,7 @@ import { OverviewChartCard } from "./overview-chart-card";
 import { OverviewSkeleton } from "./overview-skeleton";
 import { RangeSelector } from "./range-selector";
 import { ServiceBreakdownCard } from "./service-breakdown-card";
+import { ToolHealthCard } from "./tool-health-card";
 import { TraceRankingCard } from "./trace-ranking-card";
 
 export function OverviewView({ state }: { state: OverviewState }) {
@@ -270,6 +271,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
           <div className="grid gap-4 xl:grid-cols-5">
             <ModelBreakdownCard metrics={value} projectId={project.id} range={search.range} />
             <ServiceBreakdownCard metrics={value} projectId={project.id} range={search.range} />
+            <ToolHealthCard metrics={value} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

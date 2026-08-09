@@ -1,7 +1,9 @@
 import type {
+  AlertRuleKind,
   EvaluationOutcome,
   EvaluationRunSortField,
   EvaluationSortField,
+  EvaluationSource,
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
@@ -10,6 +12,13 @@ import type {
   TraceSortField,
   UserSortField,
 } from "@lens/contracts";
+
+export type AlertsSearch = {
+  tab: "incidents" | "rules";
+  status: "active" | "resolved";
+  kind?: AlertRuleKind;
+  page: number;
+};
 
 export type TraceSpanView = "tree" | "timeline";
 export type TracePayloadView = "formatted" | "json";
@@ -72,6 +81,7 @@ export const evaluationResultColumnIds = [
   "serviceName",
   "explanation",
   "observationId",
+  "source",
 ] as const;
 export type EvaluationResultColumnId = (typeof evaluationResultColumnIds)[number];
 export const defaultEvaluationResultColumns: EvaluationResultColumnId[] = [
@@ -134,6 +144,7 @@ export type EvaluationResultsSearch = {
   suites?: string[];
   metrics?: string[];
   outcomes?: EvaluationOutcome[];
+  sources?: EvaluationSource[];
   environments?: string[];
   releases?: string[];
   search?: string;
@@ -189,6 +200,7 @@ export const traceColumnIds = [
   "startedAt",
   "trace",
   "status",
+  "review",
   "durationMs",
   "totalCost",
   "model",
@@ -218,6 +230,7 @@ export const defaultTraceColumns: TraceColumnId[] = [
   "startedAt",
   "trace",
   "status",
+  "review",
   "durationMs",
   "totalCost",
   "model",
@@ -229,6 +242,7 @@ export const defaultTraceColumns: TraceColumnId[] = [
 
 export type TracesSearch = {
   range: MetricsRangePreset;
+  review?: "unreviewed" | "pass" | "fail";
   statuses?: SpanStatus[];
   services?: string[];
   names?: string[];

@@ -9,6 +9,9 @@ import type { TraceFacetValue } from "./telemetry.js";
 export const evaluationOutcomes = ["pass", "fail", "invalid", "unknown"] as const;
 export type EvaluationOutcome = (typeof evaluationOutcomes)[number];
 
+export const evaluationSources = ["telemetry", "human"] as const;
+export type EvaluationSource = (typeof evaluationSources)[number];
+
 export const evaluationPayloadStatuses = [
   "captured",
   "not_requested",
@@ -24,6 +27,17 @@ export type EvaluationPayload = {
   retrievalContext?: JsonValue;
   output?: JsonValue;
 };
+
+export const traceReviewInputSchema = z.object({
+  outcome: z.enum(["pass", "fail"]),
+  explanation: z
+    .string()
+    .trim()
+    .max(2_000)
+    .optional()
+    .transform((value) => value || undefined),
+});
+export type TraceReviewInput = z.infer<typeof traceReviewInputSchema>;
 
 export type EvaluationResult = {
   projectId: string;
@@ -48,6 +62,8 @@ export type EvaluationResult = {
   environment: string;
   release: string | null;
   metadata: Record<string, JsonValue>;
+  source: EvaluationSource;
+  reviewer: { id: string; name: string } | null;
   expiresAt: string | null;
   ingestedAt: string;
   ingestVersion: string;
@@ -111,6 +127,7 @@ export type EvaluationFilters = {
   outcomes?: EvaluationOutcome[];
   environments?: string[];
   releases?: string[];
+  sources?: EvaluationSource[];
   traceId?: string;
   runIds?: string[];
   search?: string;
@@ -365,6 +382,16 @@ export const qualityGateInputSchema = z.object({
 });
 export type QualityGateInput = z.infer<typeof qualityGateInputSchema>;
 
+export const qualityGateCheckInputSchema = z
+  .object({
+    candidateRunId: z.string().trim().min(1).max(128),
+    baselineRunId: z.string().trim().min(1).max(128),
+  })
+  .refine((value) => value.candidateRunId !== value.baselineRunId, {
+    message: "Candidate and baseline run IDs must differ",
+  });
+export type QualityGateCheckInput = z.infer<typeof qualityGateCheckInputSchema>;
+
 export type QualityGate = QualityGateInput & {
   id: string;
   projectId: string;
@@ -384,6 +411,11 @@ export type QualityGateEvaluation = {
   gate: QualityGate;
   verdict: "pass" | "fail" | "insufficient_data";
   rules: QualityGateRuleResult[];
+};
+
+export type QualityGateCheckResponse = QualityGateEvaluation & {
+  candidateRunId: string;
+  baselineRunId: string;
 };
 
 export type EvaluationRunComparison = {
@@ -417,6 +449,7 @@ export type EvaluationFacets = {
   outcome: TraceFacetValue[];
   environment: TraceFacetValue[];
   release: TraceFacetValue[];
+  source: TraceFacetValue[];
 };
 
 export type EvaluationMetricBreakdown = {

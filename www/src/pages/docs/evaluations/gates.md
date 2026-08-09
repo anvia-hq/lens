@@ -74,5 +74,22 @@ insufficient data rather than treating it as approval.
 ## Use a gate in releases
 
 Select the gate on [Compare](/docs/evaluations/compare/). Lens evaluates the policy for the chosen
-runs. Your deployment or review process must consume that decision operationally; creating a gate
-does not automatically stop a deployment.
+runs.
+
+To enforce the same gate in CI, call the public check endpoint with the project's public and secret
+keys using HTTP Basic authentication:
+
+```sh
+curl -fsS \
+  -u "$LENS_PUBLIC_KEY:$LENS_SECRET_KEY" \
+  -H 'Content-Type: application/json' \
+  -d "{\"candidateRunId\":\"$CANDIDATE_RUN_ID\",\"baselineRunId\":\"$BASELINE_RUN_ID\"}" \
+  "$LENS_BASE_URL/api/public/quality-gates/$GATE_ID/evaluate" \
+  | tee quality-gate.json \
+  | jq -e '.verdict == "pass"'
+```
+
+The response includes the gate, candidate and baseline run IDs, final verdict, and every rule
+result. Invalid credentials return `401`; missing runs or gates return `404`; incomplete or
+incompatible runs return `400`. A valid check can return `pass`, `fail`, or `insufficient_data`, so
+CI should approve only `pass`.

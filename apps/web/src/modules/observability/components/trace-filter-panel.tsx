@@ -114,6 +114,23 @@ export function TraceFilterPanel(props: {
             })}
           </Accordion>
           <div className="grid gap-4 border-t px-3 pb-5 pt-4">
+            <label className="grid gap-1.5 text-sm">
+              Review
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                value={props.filters.review ?? ""}
+                onChange={(event) =>
+                  props.onChange({
+                    review: (event.target.value || undefined) as TracesSearch["review"],
+                  })
+                }
+              >
+                <option value="">Any review</option>
+                <option value="unreviewed">Unreviewed</option>
+                <option value="pass">Pass</option>
+                <option value="fail">Fail</option>
+              </select>
+            </label>
             <CommittedFilterInput
               label="Trace ID contains"
               value={props.filters.traceId}

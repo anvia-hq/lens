@@ -27,6 +27,7 @@ Search and filter across the selected time range by:
 
 - Suite and case.
 - Metric and outcome.
+- Source: telemetry or human review.
 - Environment, service, and release.
 - Run, trace, observation, and result identifiers where supported.
 
@@ -47,6 +48,8 @@ them.
 
 Select a result to open its inspector. The overview reports suite, case, metric, data type,
 timestamp, environment, service, and release. Additional sections include:
+
+- Result source and reviewer when it came from a human trace review.
 
 - Evaluator explanation.
 - Full Result ID and related Run, Trace, Observation, Response, and Config IDs.

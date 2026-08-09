@@ -1,7 +1,9 @@
 import type {
+  AlertRuleKind,
   EvaluationOutcome,
   EvaluationRunSortField,
   EvaluationSortField,
+  EvaluationSource,
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
@@ -10,15 +12,18 @@ import type {
   UserSortField,
 } from "@lens/contracts";
 import {
+  alertRuleKinds,
   evaluationOutcomes,
   evaluationRunSortFields,
   evaluationSortFields,
+  evaluationSources,
   metricsRangePresets,
   sessionSortFields,
   traceSortFields,
   userSortFields,
 } from "@lens/contracts";
 import {
+  type AlertsSearch,
   defaultEvaluationResultColumns,
   defaultEvaluationRunColumns,
   defaultSessionColumns,
@@ -56,6 +61,16 @@ import {
   type UsersSearch,
   userColumnIds,
 } from "./types";
+
+export function validateAlertsSearch(search: Record<string, unknown>): AlertsSearch {
+  const kind = optionalSearchValue(search.kind);
+  return {
+    tab: search.tab === "rules" ? "rules" : "incidents",
+    status: search.status === "resolved" ? "resolved" : "active",
+    kind: alertRuleKinds.includes(kind as AlertRuleKind) ? (kind as AlertRuleKind) : undefined,
+    page: positiveInteger(search.page, 1),
+  };
+}
 
 export function validateEvaluationRunDetailSearch(
   search: Record<string, unknown>,
@@ -153,6 +168,9 @@ export function validateEvaluationResultsSearch(
     outcomes: searchValues(search.outcomes ?? search.outcome).filter((value) =>
       evaluationOutcomes.includes(value as EvaluationOutcome),
     ) as EvaluationOutcome[],
+    sources: searchValues(search.sources ?? search.source).filter((value) =>
+      evaluationSources.includes(value as EvaluationSource),
+    ) as EvaluationSource[],
     environments: searchValues(search.environments ?? search.environment),
     releases: searchValues(search.releases ?? search.release),
     search: optionalSearchValue(search.search),
@@ -220,8 +238,10 @@ export function validateSessionsSearch(search: Record<string, unknown>): Session
 }
 
 export function validateTracesSearch(search: Record<string, unknown>): TracesSearch {
+  const review = optionalSearchValue(search.review);
   return {
     range: parseMetricsRange(search.range),
+    review: review === "unreviewed" || review === "pass" || review === "fail" ? review : undefined,
     statuses: searchValues(search.statuses ?? search.status).filter(
       (value): value is SpanStatus => value === "ok" || value === "error" || value === "unset",
     ),
@@ -315,6 +335,7 @@ export function traceActiveFilterCount(filters: ResolvedTracesSearch): number {
       filters.userId,
       filters.sessionId,
       filters.traceId,
+      filters.review,
       filters.search,
       filters.minDurationMs,
       filters.maxDurationMs,
@@ -364,6 +385,7 @@ export function evaluationResultActiveFilterCount(
       filters.suites,
       filters.metrics,
       filters.outcomes,
+      filters.sources,
       filters.environments,
       filters.releases,
     ].filter((values) => (values?.length ?? 0) > 0).length + (filters.search === undefined ? 0 : 1)

@@ -73,6 +73,7 @@ const columnLabels: Record<EvaluationResultColumnId, string> = {
   explanation: "Explanation",
   observationId: "Observation ID",
   resultId: "Result ID",
+  source: "Source",
 };
 
 const sortFields: Partial<Record<EvaluationResultColumnId, EvaluationSortField>> = {
@@ -325,6 +326,7 @@ function resultCell(
     ) : (
       "—"
     );
+  if (column === "source") return result.source === "human" ? "Human" : "Telemetry";
   if (column === "resultId") {
     return <span className="whitespace-nowrap font-mono text-primary">{result.id}</span>;
   }

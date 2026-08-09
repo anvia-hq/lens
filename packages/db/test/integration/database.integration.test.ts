@@ -95,14 +95,16 @@ describe.sequential("database integration", () => {
       query: "SELECT countDistinct(filename) AS count FROM schema_migrations",
       format: "JSONEachRow",
     });
-    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 7 }]);
+    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 8 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
+        AND table_name IN ('alert_incidents', 'alert_rules', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
+      "alert_incidents",
+      "alert_rules",
       "job_outbox",
       "managed_dataset_cases",
       "managed_dataset_versions",
@@ -469,6 +471,8 @@ function evaluationResult(): EvaluationResult {
     environment: "test",
     release: "release-1",
     metadata: {},
+    source: "telemetry",
+    reviewer: null,
     expiresAt: "2026-09-07T00:00:00.000Z",
     ingestedAt: now.toISOString(),
     ingestVersion: "1786060800000000002",

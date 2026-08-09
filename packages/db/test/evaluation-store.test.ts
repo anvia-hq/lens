@@ -16,13 +16,15 @@ describe("evaluation queries", () => {
 
     await listEvaluations(client, "11111111-1111-4111-8111-111111111111", {
       runIds: ["run-1"],
+      sources: ["human"],
       pageSize: 100,
     });
 
     expect(query).toHaveBeenCalledTimes(2);
     for (const [options] of query.mock.calls) {
       expect(options.query).toContain("run_id IN {runIds:Array(String)}");
-      expect(options.query_params).toMatchObject({ runIds: ["run-1"] });
+      expect(options.query).toContain("source IN {sources:Array(String)}");
+      expect(options.query_params).toMatchObject({ runIds: ["run-1"], sources: ["human"] });
     }
   });
 });

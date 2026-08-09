@@ -105,6 +105,11 @@ export type TraceSummary = {
   outputCost: number | null;
   totalCost: number | null;
   lastSeenAt: string;
+  reviewOutcome?: "pass" | "fail" | null;
+};
+
+export type TraceListItem = TraceSummary & {
+  reviewOutcome: "pass" | "fail" | null;
 };
 
 export type TraceDetail = {
@@ -256,6 +261,7 @@ export type TraceFilters = {
   sessionId?: string;
   traceId?: string;
   tags?: string[];
+  review?: "unreviewed" | "pass" | "fail";
   search?: string;
   minDurationMs?: number;
   maxDurationMs?: number;

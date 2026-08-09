@@ -24,6 +24,7 @@ export async function queryMetrics(
     generationSeries,
     models,
     services,
+    tools,
     top,
     errors,
   ] = await Promise.all([
@@ -119,6 +120,19 @@ export async function queryMetrics(
         GROUP BY service_name ORDER BY total_tokens DESC LIMIT 10`,
       queryParams,
     ),
+    queryMetricRows(
+      client,
+      `SELECT
+          name AS tool_name,
+          count() AS calls,
+          countIf(status = 'error') AS errors,
+          quantileExact(0.95)(duration_nano / 1000000) AS p95
+        FROM spans FINAL
+        WHERE project_id = {projectId:UUID} AND observation_kind = 'tool'
+          AND start_time >= {from:DateTime64(3)} AND start_time <= {to:DateTime64(3)}
+        GROUP BY name ORDER BY calls DESC, tool_name ASC LIMIT 10`,
+      queryParams,
+    ),
     querySummaryRows(
       client,
       `SELECT * FROM trace_summaries FINAL
@@ -195,6 +209,17 @@ export async function queryMetrics(
         errors: serviceErrors,
         errorRate: traces === 0 ? 0 : serviceErrors / traces,
         totalTokens: numeric(row.total_tokens),
+        durationP95Ms: numeric(row.p95),
+      };
+    }),
+    tools: tools.map((row) => {
+      const calls = numeric(row.calls);
+      const errors = numeric(row.errors);
+      return {
+        toolName: String(row.tool_name ?? "unknown-tool"),
+        calls,
+        errors,
+        errorRate: calls === 0 ? 0 : errors / calls,
         durationP95Ms: numeric(row.p95),
       };
     }),

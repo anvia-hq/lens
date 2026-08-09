@@ -58,6 +58,14 @@ export type ServiceMetrics = {
   durationP95Ms: number;
 };
 
+export type ToolMetrics = {
+  toolName: string;
+  calls: number;
+  errors: number;
+  errorRate: number;
+  durationP95Ms: number;
+};
+
 export type Metrics = {
   range: {
     preset: MetricsRangePreset;
@@ -72,6 +80,7 @@ export type Metrics = {
   series: MetricPoint[];
   models: ModelMetrics[];
   services: ServiceMetrics[];
+  tools: ToolMetrics[];
   topTokenTraces: TraceSummary[];
   recentErrors: TraceSummary[];
 };

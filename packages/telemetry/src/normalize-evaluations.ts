@@ -153,6 +153,8 @@ export function normalizeOtlpLogsRequest(
             "langfuse.release",
           ]),
           metadata: evaluationMetadata(attributes),
+          source: "telemetry",
+          reviewer: null,
           expiresAt,
           ingestedAt,
           ingestVersion,

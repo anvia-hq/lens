@@ -22,8 +22,10 @@ import { MobileTraceLayout } from "./mobile-trace-layout";
 import { SpanInspector } from "./span-inspector";
 import { TraceHeader } from "./trace-header";
 import { TraceNavigator } from "./trace-navigator";
+import { TraceReviewPanel } from "./trace-review-panel";
 
 export function TraceDetailExplorer(props: {
+  canManage?: boolean;
   detail: TraceDetail;
   projectId: string;
   selectedSpanId?: string;
@@ -58,6 +60,11 @@ export function TraceDetailExplorer(props: {
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       <TraceHeader detail={props.detail} projectId={props.projectId} />
+      <TraceReviewPanel
+        canManage={props.canManage ?? false}
+        detail={props.detail}
+        projectId={props.projectId}
+      />
       <div className="min-h-0 flex-1 overflow-hidden">
         {isMobile ? (
           <MobileTraceLayout

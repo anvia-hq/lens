@@ -75,6 +75,7 @@ export function EvaluationResultFilterPanel(props: {
     ["suite", "Suite", "suites"],
     ["metric", "Metric", "metrics"],
     ["outcome", "Outcome", "outcomes"],
+    ["source", "Source", "sources"],
     ["environment", "Environment", "environments"],
     ["release", "Release", "releases"],
   ] as const;
