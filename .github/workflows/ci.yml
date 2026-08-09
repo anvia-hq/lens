@@ -88,3 +88,12 @@ jobs:
           tags: lens-web:ci
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+
+  deploy-www:
+    name: Deploy www
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - quality
+      - containers
+    uses: ./.github/workflows/deploy-www.yml
+    secrets: inherit
