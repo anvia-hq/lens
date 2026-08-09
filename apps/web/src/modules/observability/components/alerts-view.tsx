@@ -51,7 +51,7 @@ import { LoadingRows } from "./loading-rows";
 
 const kindLabels: Record<AlertRuleKind, string> = {
   trace_error_rate: "Trace error rate",
-  trace_p95_latency_ms: "Trace P95 latency",
+  trace_p95_latency_ms: "P95 trace duration",
   tool_error_rate: "Tool error rate",
   failed_human_review: "Failed human review",
   failed_quality_gate: "Failed quality gate",
@@ -431,13 +431,19 @@ function RuleDialog(props: {
                 </NativeSelectOption>
               ))}
             </NativeSelect>
+            {draft.kind === "trace_p95_latency_ms" ? (
+              <FieldDescription>
+                95% of matching traces complete within this duration. Uses full trace duration, not
+                TTFT.
+              </FieldDescription>
+            ) : null}
           </Field>
           {runtime ? (
             <>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="alert-threshold">
-                    {draft.kind === "trace_p95_latency_ms" ? "Threshold (ms)" : "Threshold (%)"}
+                    {draft.kind === "trace_p95_latency_ms" ? "P95 threshold (ms)" : "Threshold (%)"}
                   </FieldLabel>
                   <Input
                     id="alert-threshold"
@@ -638,7 +644,7 @@ function StatusBadge({ incident }: { incident: AlertIncident }) {
 function formatValue(incident: AlertIncident) {
   if (incident.observedValue === null) return "—";
   if (incident.kind === "trace_p95_latency_ms")
-    return `${Math.round(incident.observedValue)} ms / ${Math.round(incident.threshold ?? 0)} ms`;
+    return `P95 ${Math.round(incident.observedValue)} ms / ${Math.round(incident.threshold ?? 0)} ms`;
   return `${(incident.observedValue * 100).toFixed(1)}% / ${((incident.threshold ?? 0) * 100).toFixed(1)}%`;
 }
 

@@ -187,7 +187,7 @@ export function traceTableColumns(options: {
         ),
     }),
     durationMs: traceColumnHelper.accessor("durationMs", {
-      header: header("Latency", "durationMs"),
+      header: header("Duration", "durationMs"),
       cell: ({ row }) => (
         <span className="font-mono">{formatDuration(row.original.durationMs)}</span>
       ),
@@ -426,7 +426,7 @@ export const traceColumnLabels: Record<TraceColumnId, string> = {
   trace: "Trace",
   status: "Status",
   review: "Review",
-  durationMs: "Latency",
+  durationMs: "Duration",
   totalCost: "Total cost",
   model: "Model",
   totalTokens: "Total tokens",

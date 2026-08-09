@@ -60,7 +60,7 @@ baseline. Pass-rate change is expressed in percentage points.
 
 ### Operational metric stays within a limit
 
-Limit the candidate's percentage increase in P95 trace latency or average total tokens.
+Limit the candidate's percentage increase in P95 trace duration or average total tokens.
 
 ## Interpret verdicts
 

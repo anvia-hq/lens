@@ -111,10 +111,42 @@ export type AlertEvidenceTrace = {
   trace: TraceListItem | null;
 };
 
+export type AlertContributorDimension = "release" | "service" | "serviceVersion" | "model" | "tool";
+
+export type AlertContributorMetric = "errorRate" | "p95DurationMs";
+
+export type AlertContributorSample = {
+  sampleCount: number;
+  value: number;
+};
+
+export type AlertContributorHint = {
+  dimension: AlertContributorDimension;
+  value: string;
+  metric: AlertContributorMetric;
+  baseline: AlertContributorSample;
+  breach: AlertContributorSample;
+  delta: number;
+  percentChange: number | null;
+  isNew: boolean;
+  baselineTraceId: string | null;
+  breachTraceId: string | null;
+};
+
+export type AlertContributorAnalysis = {
+  baselineFrom: string;
+  baselineTo: string;
+  breachFrom: string;
+  breachTo: string;
+  hints: AlertContributorHint[];
+  unavailableReason: "telemetry_expired" | "insufficient_data" | "analysis_failed" | null;
+};
+
 export type AlertIncidentDetail = {
   incident: AlertIncident;
   rule: AlertRuleInput | null;
   signal: AlertSignalSeries | null;
+  contributorAnalysis: AlertContributorAnalysis | null;
   evidenceTraces: AlertEvidenceTrace[];
 };
 

@@ -9,7 +9,7 @@ A trace represents one end-to-end application operation. The trace explorer is t
 move from a broad production signal to the exact agent run that caused it.
 
 <figure>
-  <img src="/images/docs/trace-explorer.png" alt="Anvia Lens trace explorer with the filter panel open and a table of full trace IDs, status, latency, cost, model, and token values" loading="lazy" decoding="async" />
+  <img src="/images/docs/trace-explorer.png" alt="Anvia Lens trace explorer with the filter panel open and a table of full trace IDs, status, duration, cost, model, and token values" loading="lazy" decoding="async" />
   <figcaption>Use facets and range filters to narrow production activity.</figcaption>
 </figure>
 
@@ -54,7 +54,7 @@ environment. Adding **Status: Error** then keeps only failed traces from those e
 ## Sort and choose columns
 
 Sort from a supported table heading and change the row count with the pagination control. Use the
-column chooser to keep identifiers, context, latency, tokens, and cost appropriate to the current
+column chooser to keep identifiers, context, duration, tokens, and cost appropriate to the current
 investigation. The Review column shows the latest shared human decision.
 
 Trace IDs are displayed in full and can be used to correlate Lens with application logs or another

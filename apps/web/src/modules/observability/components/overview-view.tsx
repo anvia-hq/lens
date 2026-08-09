@@ -137,7 +137,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
               icon={<AlertCircle />}
             />
             <ComparisonMetricCard
-              label="P95 generation latency"
+              label="P95 generation duration"
               value={formatDuration(value.current.generationDurationP95Ms)}
               current={value.current.generationDurationP95Ms}
               previous={value.previous.generationDurationP95Ms}
@@ -200,8 +200,8 @@ export function OverviewView({ state }: { state: OverviewState }) {
             </OverviewChartCard>
 
             <OverviewChartCard
-              title="Generation latency"
-              description="P50 and P95 latency for generation observations"
+              title="Generation duration"
+              description="P50 and P95 duration for generation observations"
             >
               <ChartContainer className="h-72 w-full" config={latencyChartConfig}>
                 <BarChart data={value.series} margin={{ left: 0, right: 12 }}>

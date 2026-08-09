@@ -42,7 +42,7 @@ range. Sort supported columns, change pagination, and choose a refresh interval 
 active.
 
 The run table reports date, full run ID, suite, status, environment, release, cases, result counts,
-pass rate, P95 latency, average tokens, trace coverage, and dataset context where available.
+pass rate, P95 trace duration, average tokens, trace coverage, and dataset context where available.
 
 ## Use the evaluation overview
 
@@ -63,7 +63,7 @@ and baseline manually on the [Compare](/docs/evaluations/compare/) page.
 Open a run to review:
 
 - Pass rate, failed results, invalid or unknown results, cases, and result count.
-- P95 trace latency, average total tokens, and trace coverage.
+- P95 trace duration, average total tokens, and trace coverage.
 - Suite, service, environment, release, dataset, timestamps, and run metadata.
 - Every case and its metric results, outcome, value, explanation, and related trace.
 

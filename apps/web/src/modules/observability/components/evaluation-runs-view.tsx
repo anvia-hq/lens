@@ -72,7 +72,7 @@ const columnLabels: Record<EvaluationRunColumnId, string> = {
   environment: "Environment",
   dataset: "Dataset",
   results: "Results",
-  p95LatencyMs: "P95 latency",
+  p95LatencyMs: "P95 trace duration",
   averageTotalTokens: "Avg tokens",
   traceCoverage: "Trace coverage",
   runId: "Run ID",

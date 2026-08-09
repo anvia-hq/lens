@@ -75,7 +75,7 @@ export function createAlertProcessor(deps: ProcessorDependencies) {
 
 function alertSummary(kind: AlertRuleKind, value: number, threshold: number): string {
   if (kind === "trace_p95_latency_ms") {
-    return `Trace P95 latency is ${Math.round(value)} ms (threshold ${Math.round(threshold)} ms)`;
+    return `P95 trace duration is ${Math.round(value)} ms (threshold ${Math.round(threshold)} ms)`;
   }
   const label = kind === "tool_error_rate" ? "Tool error rate" : "Trace error rate";
   return `${label} is ${(value * 100).toFixed(1)}% (threshold ${(threshold * 100).toFixed(1)}%)`;

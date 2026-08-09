@@ -396,7 +396,9 @@ function GateRuleEditor(props: {
                 })
               }
             >
-              <NativeSelectOption value="p95_latency_ms">P95 latency</NativeSelectOption>
+              <NativeSelectOption value="p95_latency_ms">
+                P95 trace-duration change
+              </NativeSelectOption>
               <NativeSelectOption value="average_total_tokens">Average tokens</NativeSelectOption>
             </NativeSelect>
           </Field>

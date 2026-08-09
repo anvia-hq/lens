@@ -159,7 +159,11 @@ function ComparisonResults(props: {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <DeltaCard label="Pass rate" value={comparison.passRate} kind="passRate" />
-        <DeltaCard label="P95 latency" value={comparison.p95LatencyMs} kind="duration" />
+        <DeltaCard
+          label="P95 trace-duration change"
+          value={comparison.p95LatencyMs}
+          kind="duration"
+        />
         <DeltaCard label="Average tokens" value={comparison.averageTotalTokens} kind="number" />
       </div>
 

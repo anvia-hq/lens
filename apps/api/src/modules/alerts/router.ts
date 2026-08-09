@@ -1,4 +1,9 @@
-import { alertRuleInputSchema, alertRuleKinds } from "@lens/contracts";
+import {
+  type AlertIncident,
+  type AlertRuleInput,
+  alertRuleInputSchema,
+  alertRuleKinds,
+} from "@lens/contracts";
 import {
   acknowledgeAlertIncident,
   activeAlertCount,
@@ -12,7 +17,9 @@ import {
   listAlertIncidents,
   listAlertRules,
   listTracesByIds,
+  queryAlertContributorAnalysis,
   queryAlertSignalSeries,
+  resolveAlertContributorRange,
   resolveAlertIncident,
   updateAlertRule,
 } from "@lens/db";
@@ -128,18 +135,23 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
           ? await getAlertRule(deps.postgres.db, access.project.id, stored.incident.ruleId)
           : undefined;
       const rule = stored.rule ?? (currentRule ? alertRuleSnapshot(currentRule) : null);
-      const traces = await listTracesByIds(
-        deps.clickhouse,
-        access.project.id,
-        stored.incident.evidence.traceIds ?? [],
-      );
+      const [traces, signal, contributorAnalysis] = await Promise.all([
+        listTracesByIds(
+          deps.clickhouse,
+          access.project.id,
+          stored.incident.evidence.traceIds ?? [],
+        ),
+        rule
+          ? queryAlertSignalSeries(deps.clickhouse, access.project.id, rule, stored.incident)
+          : null,
+        rule ? incidentContributorAnalysis(deps, access.project.id, rule, stored.incident) : null,
+      ]);
       const tracesById = new Map(traces.map((trace) => [trace.traceId, trace]));
       return c.json({
         incident: stored.incident,
         rule,
-        signal: rule
-          ? await queryAlertSignalSeries(deps.clickhouse, access.project.id, rule, stored.incident)
-          : null,
+        signal,
+        contributorAnalysis,
         evidenceTraces: (stored.incident.evidence.traceIds ?? []).map((traceId) => ({
           traceId,
           trace: tracesById.get(traceId) ?? null,
@@ -214,4 +226,26 @@ function duplicateOrThrow(c: Parameters<typeof requiredSession>[0], error: unkno
 function positiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function incidentContributorAnalysis(
+  deps: ApiDependencies,
+  projectId: string,
+  rule: AlertRuleInput,
+  incident: AlertIncident,
+) {
+  if (!("windowMinutes" in rule)) return null;
+  try {
+    return await queryAlertContributorAnalysis(deps.clickhouse, projectId, rule, incident);
+  } catch (error) {
+    deps.logger.warn(
+      { err: error, projectId, incidentId: incident.id },
+      "failed to analyze alert contributors",
+    );
+    return {
+      ...resolveAlertContributorRange(rule.windowMinutes, incident),
+      hints: [],
+      unavailableReason: "analysis_failed" as const,
+    };
+  }
 }

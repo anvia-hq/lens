@@ -37,7 +37,7 @@ export function ServiceBreakdownCard(props: {
                 <TableHead className="text-right">Traces</TableHead>
                 <TableHead className="text-right">Generations</TableHead>
                 <TableHead className="text-right">Tokens</TableHead>
-                <TableHead className="text-right">P95</TableHead>
+                <TableHead className="text-right">P95 trace duration</TableHead>
                 <TableHead className="text-right">Errors</TableHead>
               </TableRow>
             </TableHeader>

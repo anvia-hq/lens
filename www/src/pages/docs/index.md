@@ -67,7 +67,7 @@ Use [Projects](/docs/management/projects/) to isolate telemetry, manage access t
 
 | Area | Use it to |
 | --- | --- |
-| Observability | Inspect activity, payloads, latency, token use, errors, sessions, users, and cost. |
+| Observability | Inspect activity, payloads, duration, token use, errors, sessions, users, and cost. |
 | Evaluations | Review test runs and results, manage datasets, compare candidates, and apply gates. |
 | Management | Create projects, control workspace access, rotate credentials, and set retention. |
 | Operations | Deploy, configure, upgrade, back up, and troubleshoot a self-hosted installation. |

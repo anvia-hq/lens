@@ -1,4 +1,5 @@
 import {
+  type AlertContributorHint,
   type AlertIncident,
   type AlertIncidentDetail,
   type AlertRuleInput,
@@ -50,11 +51,19 @@ import { buildSpanForest } from "../utils/trace-detail";
 
 const kindLabels: Record<AlertRuleKind, string> = {
   trace_error_rate: "Trace error rate",
-  trace_p95_latency_ms: "Trace P95 latency",
+  trace_p95_latency_ms: "P95 trace duration",
   tool_error_rate: "Tool error rate",
   failed_human_review: "Failed human review",
   failed_quality_gate: "Failed quality gate",
 };
+
+const contributorDimensionLabels = {
+  release: "Release",
+  service: "Service",
+  serviceVersion: "Service version",
+  model: "Model",
+  tool: "Tool",
+} as const;
 
 export function AlertIncidentView({ state }: { state: AlertIncidentState }) {
   const detail = state.detail.data;
@@ -118,13 +127,20 @@ export function AlertIncidentView({ state }: { state: AlertIncidentState }) {
       </Button>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <FactCard label="Observed" value={incidentValue(detail.incident)} />
+        <FactCard
+          label={detail.incident.kind === "trace_p95_latency_ms" ? "Observed P95" : "Observed"}
+          value={incidentValue(detail.incident)}
+        />
         <FactCard label="Samples" value={detail.incident.sampleCount?.toLocaleString() ?? "—"} />
         <FactCard label="First triggered" value={formatTime(detail.incident.firstTriggeredAt)} />
         <FactCard label="Last seen" value={formatTime(detail.incident.lastTriggeredAt)} />
       </div>
 
       {detail.signal ? <SignalChart detail={detail} /> : null}
+
+      {detail.contributorAnalysis ? (
+        <ContributorAnalysis detail={detail} projectId={state.project.id} />
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
         <Card>
@@ -174,6 +190,128 @@ export function AlertIncidentView({ state }: { state: AlertIncidentState }) {
   );
 }
 
+export function ContributorAnalysis({
+  detail,
+  projectId,
+}: {
+  detail: AlertIncidentDetail;
+  projectId: string;
+}) {
+  const analysis = detail.contributorAnalysis;
+  if (!analysis) return null;
+  const empty = {
+    telemetry_expired: {
+      title: "Contributor telemetry expired",
+      text: "The incident is retained, but the baseline and breach telemetry is no longer available.",
+    },
+    insufficient_data: {
+      title: "No strong contributor found",
+      text: "No release, model, service, version, or tool passed the conservative evidence thresholds.",
+    },
+    analysis_failed: {
+      title: "Contributor analysis unavailable",
+      text: "The incident remains available. Refresh the page to retry this analysis.",
+    },
+  } as const;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Likely contributors</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Baseline {formatTime(analysis.baselineFrom)}–{formatTime(analysis.baselineTo)} compared
+          with breach {formatTime(analysis.breachFrom)}–{formatTime(analysis.breachTo)}. These are
+          deterministic investigation hints, not proof of causation.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {analysis.hints.length ? (
+          <div className="divide-y rounded-lg border">
+            {analysis.hints.map((hint) => (
+              <div
+                className="flex flex-wrap items-center justify-between gap-4 p-4"
+                key={`${hint.dimension}-${hint.value}`}
+              >
+                <div className="grid min-w-0 gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{contributorDimensionLabels[hint.dimension]}</Badge>
+                    <span className="truncate font-medium">{hint.value}</span>
+                    {hint.isNew ? <Badge variant="secondary">New in breach</Badge> : null}
+                  </div>
+                  <p className="text-sm">
+                    {hint.metric === "errorRate" ? "Error rate" : "P95 duration"} ·{" "}
+                    {hint.isNew ? "overall baseline" : "baseline"}{" "}
+                    <span className="font-medium">
+                      {formatContributorValue(hint, hint.baseline.value)}
+                    </span>
+                    {" → breach "}
+                    <span className="font-medium">
+                      {formatContributorValue(hint, hint.breach.value)}
+                    </span>
+                    <span className="ml-2 text-destructive">{formatContributorDelta(hint)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {hint.baseline.sampleCount.toLocaleString()} baseline samples ·{" "}
+                    {hint.breach.sampleCount.toLocaleString()} breach samples
+                  </p>
+                </div>
+                <ContributorTraceAction hint={hint} projectId={projectId} />
+              </div>
+            ))}
+          </div>
+        ) : analysis.unavailableReason ? (
+          <EmptyState
+            icon={<Activity />}
+            title={empty[analysis.unavailableReason].title}
+            text={empty[analysis.unavailableReason].text}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContributorTraceAction({
+  hint,
+  projectId,
+}: {
+  hint: AlertContributorHint;
+  projectId: string;
+}) {
+  if (hint.baselineTraceId && hint.breachTraceId && hint.baselineTraceId !== hint.breachTraceId) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        render={
+          <Link
+            to="/$projectId/traces/compare"
+            params={{ projectId }}
+            search={{ traceIds: [hint.baselineTraceId, hint.breachTraceId] }}
+          />
+        }
+      >
+        Compare traces
+      </Button>
+    );
+  }
+  if (!hint.breachTraceId) return null;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      render={
+        <Link
+          to="/$projectId/traces/$traceId"
+          params={{ projectId, traceId: hint.breachTraceId }}
+          search={{}}
+        />
+      }
+    >
+      Open breach trace
+    </Button>
+  );
+}
+
 function SignalChart({ detail }: { detail: AlertIncidentDetail }) {
   const signal = detail.signal;
   if (!signal) return null;
@@ -191,6 +329,11 @@ function SignalChart({ detail }: { detail: AlertIncidentDetail }) {
           {formatTime(signal.from)} to {formatTime(signal.to)} · {signal.bucketMinutes}-minute
           buckets
         </p>
+        {detail.incident.kind === "trace_p95_latency_ms" ? (
+          <p className="text-sm text-muted-foreground">
+            Each point is the P95 of full trace durations in that bucket, not TTFT.
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent>
         {hasData ? (
@@ -800,6 +943,13 @@ function shortChartTime(value: string) {
 }
 function formatDuration(value: number) {
   return value < 1_000 ? `${Math.round(value)} ms` : `${(value / 1_000).toFixed(2)} s`;
+}
+function formatContributorValue(hint: AlertContributorHint, value: number) {
+  return hint.metric === "errorRate" ? `${(value * 100).toFixed(1)}%` : formatDuration(value);
+}
+function formatContributorDelta(hint: AlertContributorHint) {
+  if (hint.metric === "errorRate") return `+${(hint.delta * 100).toFixed(1)} pp`;
+  return `+${formatDuration(hint.delta)} (+${Math.round((hint.percentChange ?? 0) * 100)}%)`;
 }
 function nearestPoint(points: string[], target: string) {
   const targetMs = Date.parse(target);

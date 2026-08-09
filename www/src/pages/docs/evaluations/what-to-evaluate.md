@@ -22,10 +22,10 @@ plan could begin like this:
 | Returns malformed structured data | Request a JSON escalation record | JSON correctness against a schema |
 | Makes claims unsupported by retrieval | Ask about a retrieved ticket | Faithfulness against retrieval context |
 | Forgets an earlier constraint | Correct the account in one turn, ask about it later | Knowledge retention |
-| Becomes too slow or expensive | Run the same cases against a new release | Latency and token quality-gate rules |
+| Becomes too slow or expensive | Run the same cases against a new release | Duration and token quality-gate rules |
 
 Do not begin with a generic metric such as “quality.” Write the failure in observable terms: “the
-answer says a refund lasts longer than 30 days” or “P95 latency increases by more than 20%.” That
+answer says a refund lasts longer than 30 days” or “P95 trace duration increases by more than 20%.” That
 description tells you what data and evaluator the case needs.
 
 ## Build representative cases
@@ -115,12 +115,12 @@ tighten the rubric and add examples before using it as a release gate.
 
 ### Operational checks
 
-Latency and token use come from the trace attached to each evaluated case. They are not substitutes
+Trace duration and token use come from the trace attached to each evaluated case. They are not substitutes
 for answer-quality metrics: a fast wrong answer should still fail.
 
 After you have comparable baseline and candidate runs, add quality-gate rules for:
 
-- Maximum candidate increase in P95 trace latency.
+- Maximum candidate increase in P95 trace duration.
 - Maximum candidate increase in average total tokens.
 - Minimum case count, so an incomplete run cannot pass.
 
@@ -132,7 +132,7 @@ For the support agent, start with this evaluation contract:
 | --- | --- | --- | --- |
 | Policy facts | Known refund and billing questions | `policy-fact-present` | Every case passes |
 | Unsupported claims | Leading and ambiguous policy questions | `policy-quality-judge` | Every case passes |
-| Runtime | All cases with trace coverage | P95 latency change | Stays within the team’s budget |
+| Runtime | All cases with trace coverage | P95 trace-duration change | Stays within the team’s budget |
 | Efficiency | All cases with token data | Average-token change | Stays within the team’s budget |
 
 Run the deterministic example first:

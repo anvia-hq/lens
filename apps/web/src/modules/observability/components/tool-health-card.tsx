@@ -21,7 +21,7 @@ export function ToolHealthCard({ metrics }: { metrics: Metrics }) {
     <Card className="xl:col-span-5">
       <CardHeader>
         <CardTitle>Tool health</CardTitle>
-        <CardDescription>Most-used tool calls, latency, and failures</CardDescription>
+        <CardDescription>Most-used tool calls, duration, and failures</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         {metrics.tools.length === 0 ? (
@@ -33,7 +33,7 @@ export function ToolHealthCard({ metrics }: { metrics: Metrics }) {
                 <TableRow>
                   <TableHead>Tool</TableHead>
                   <TableHead className="text-right">Calls</TableHead>
-                  <TableHead className="text-right">P95</TableHead>
+                  <TableHead className="text-right">P95 call duration</TableHead>
                   <TableHead className="text-right">Errors</TableHead>
                 </TableRow>
               </TableHeader>

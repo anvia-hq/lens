@@ -25,10 +25,10 @@ describe("alert processor", () => {
     const rule = {
       id: "rule-1",
       projectId: "10000000-0000-4000-8000-000000000001",
-      name: "Production errors",
-      kind: "trace_error_rate",
+      name: "Production duration",
+      kind: "trace_p95_latency_ms",
       enabled: true,
-      threshold: 0.05,
+      threshold: 500,
       windowMinutes: 15,
       minimumSamples: 20,
       consecutiveBreaches: 1,
@@ -36,7 +36,7 @@ describe("alert processor", () => {
     };
     dbFunctions.listEnabledAlertRules.mockResolvedValue([rule]);
     dbFunctions.queryAlertMeasurement.mockResolvedValue({
-      value: 0.08,
+      value: 800,
       sampleCount: 25,
       evidence: { traceIds: ["trace-1"] },
     });
@@ -55,7 +55,12 @@ describe("alert processor", () => {
     expect(dbFunctions.openAlertIncident).toHaveBeenCalledWith(
       deps.postgres.db,
       rule,
-      expect.objectContaining({ subjectKey: "threshold", observedValue: 0.08, sampleCount: 25 }),
+      expect.objectContaining({
+        subjectKey: "threshold",
+        summary: "P95 trace duration is 800 ms (threshold 500 ms)",
+        observedValue: 800,
+        sampleCount: 25,
+      }),
       expect.any(Date),
     );
   });

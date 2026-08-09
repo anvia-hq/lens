@@ -11,9 +11,10 @@ incidents; project owners and admins can create, edit, disable, and delete rules
 
 ## Runtime rules
 
-Runtime rules can watch trace error rate, trace P95 latency, or tool error rate over a 5, 15, or 60
-minute window. Set a threshold and minimum sample count, then optionally scope the rule to an exact
-environment, service, or tool name.
+Runtime rules can watch trace error rate, P95 trace duration, or tool error rate over a 5, 15, or 60
+minute window. P95 trace duration uses the full elapsed trace duration, not TTFT. Set a threshold
+and minimum sample count, then optionally scope the rule to an exact environment, service, or tool
+name.
 
 Lens evaluates enabled runtime rules once per minute. A rule opens an incident after two
 consecutive breached evaluations. Missing samples do not alert. When the signal becomes healthy,
@@ -36,6 +37,14 @@ Select an incident to open its investigation page. Runtime incidents show up to 
 exact scoped signal around the breach, including the configured threshold. The page also preserves
 the rule condition and scope, records the triggered, acknowledged, and resolved lifecycle, and
 shows when an evidence trace has expired under the project's retention policy.
+
+Runtime incidents also compare the window that first triggered the alert with the immediately
+preceding window of equal length. **Likely contributors** surfaces up to three conservative changes
+across releases, services, service versions, models, and tools. Error-rate hints require at least
+five breach samples, two errors, and a five-percentage-point increase. Duration hints require at
+least five samples plus a 25% and 250 ms P95 increase. New values must represent at least 20% of
+breach traffic. These deterministic comparisons are investigation hints, not proof of causation;
+use **Compare traces** to inspect representative baseline and breach traces.
 
 Project owners and admins can select retained evidence traces and promote up to five of them into
 an existing managed dataset draft. Review each generated case before importing it. Lens derives the

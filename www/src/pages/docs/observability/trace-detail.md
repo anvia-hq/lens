@@ -55,7 +55,7 @@ agents, generations, tools, evaluators, embeddings, retrieval work, and ordinary
 
 ## Use the timeline
 
-The timeline positions each observation relative to the full trace. Long bars reveal latency-heavy
+The timeline positions each observation relative to the full trace. Long bars reveal long-running
 work; nesting shows which parent operation owned that time. Selecting a bar opens the same span in
 the inspector.
 

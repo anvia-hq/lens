@@ -47,6 +47,7 @@ import {
   organization,
   project,
   publishManagedDatasetVersion,
+  queryAlertContributorAnalysis,
   queryAlertMeasurement,
   queryAlertSignalSeries,
   queryMetrics,
@@ -384,6 +385,23 @@ describe.sequential("database integration", () => {
       new Date(now.getTime() + 2_000),
     );
     expect(signal?.points.some((point) => point.value === 1_000)).toBe(true);
+    await expect(
+      queryAlertContributorAnalysis(
+        clickhouse,
+        projectId,
+        {
+          name: "Slow traces",
+          enabled: true,
+          kind: "trace_p95_latency_ms",
+          threshold: 500,
+          windowMinutes: 15,
+          minimumSamples: 1,
+          environment: "test",
+          serviceName: "integration-service",
+        },
+        signalIncident("trace_p95_latency_ms"),
+      ),
+    ).resolves.toMatchObject({ hints: [], unavailableReason: "insufficient_data" });
     await expect(
       queryAlertSignalSeries(
         clickhouse,

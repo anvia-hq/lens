@@ -137,7 +137,7 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           <SummaryMetric label="Cases" value={formatNumber(run.evaluatedCases)} />
           <SummaryMetric label="Results" value={formatNumber(run.results)} />
           <SummaryMetric
-            label="P95 latency"
+            label="P95 trace duration"
             value={run.p95LatencyMs === null ? "—" : formatDuration(run.p95LatencyMs)}
           />
           <SummaryMetric

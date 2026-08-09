@@ -49,7 +49,7 @@ identities before interpreting a delta.
 The summary compares:
 
 - Overall pass rate.
-- P95 trace latency.
+- P95 trace duration.
 - Average total tokens.
 
 Each value includes candidate, baseline, absolute delta, and percentage change when calculable.

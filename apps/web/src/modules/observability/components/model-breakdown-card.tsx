@@ -31,7 +31,7 @@ export function ModelBreakdownCard(props: {
     <Card className="xl:col-span-3">
       <CardHeader>
         <CardTitle>Model efficiency</CardTitle>
-        <CardDescription>Usage, latency, and reliability by generation model</CardDescription>
+        <CardDescription>Usage, duration, and reliability by generation model</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         <div className="overflow-x-auto">
@@ -45,7 +45,7 @@ export function ModelBreakdownCard(props: {
                 <TableHead className="text-right">Output</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">Tokens / gen</TableHead>
-                <TableHead className="text-right">P95</TableHead>
+                <TableHead className="text-right">P95 generation duration</TableHead>
                 <TableHead className="text-right">Errors</TableHead>
               </TableRow>
             </TableHeader>
