@@ -31,7 +31,7 @@ Changing the file alone does not update environment variables inside an already-
 | `LENS_WEB_IMAGE` | `ghcr.io/anvia-hq/lens-web` | Optional web image override. |
 | `PUBLIC_APP_URL` | Required | Browser-facing absolute origin used by authentication and generated links. |
 | `WEB_ORIGIN` | Required | Allowed browser origin. Set it to the same public origin. |
-| `WEB_PORT` | `80` | Host port published by the web container. |
+| `WEB_PORT` | `80` | Host binding published by the web container, such as `80` or `127.0.0.1:8080`. |
 
 Use `https://lens.example.com`, not an internal API or Compose service URL, for both origin values.
 The two values must match exactly. A mismatch commonly appears as a sign-in, redirect, cookie, or

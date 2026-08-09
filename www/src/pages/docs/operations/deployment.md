@@ -41,6 +41,55 @@ For internet access, terminate TLS in a reverse proxy or load balancer and forwa
 web service only. Set both `PUBLIC_APP_URL` and `WEB_ORIGIN` to that exact browser-facing origin,
 including scheme and non-default port when applicable.
 
+For Nginx and Certbot installed directly on the Docker host, bind Lens to a private host port in
+`.env` so Nginx can own public ports 80 and 443:
+
+```dotenv
+PUBLIC_APP_URL=https://lens.example.com
+WEB_ORIGIN=https://lens.example.com
+WEB_PORT=127.0.0.1:8080
+```
+
+Configure the host Nginx to forward the public domain to Lens:
+
+```nginx
+server {
+    listen 80;
+    server_name lens.example.com;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+After enabling that site, reload Nginx and let Certbot add the HTTPS listener and certificate:
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d lens.example.com
+```
+
+Restart Lens after changing `.env` and confirm both layers are healthy:
+
+```sh
+docker compose up -d
+docker compose ps
+curl -I https://lens.example.com
+```
+
+```text
+Internet :443 → host Nginx → Lens web 127.0.0.1:8080 → private API :3001
+```
+
+The host Nginx does not listen on port 8080; it connects to Lens there.
+
 Do not publish PostgreSQL, ClickHouse, Redis, the API, or the worker directly to the internet.
 
 ## Persist and protect data

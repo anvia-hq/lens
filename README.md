@@ -37,7 +37,7 @@ Open `.env` and configure the public URL and required secrets:
 
 ```dotenv
 # Pin a release for repeatable deployments.
-LENS_VERSION=0.1.0
+LENS_VERSION=0.4.0
 
 # Use your HTTPS URL when deploying behind a reverse proxy.
 PUBLIC_APP_URL=http://localhost
@@ -63,8 +63,48 @@ Open <http://localhost>. The first person to create an account becomes the owner
 creation closes automatically after that.
 
 Only the Lens web port is exposed. PostgreSQL, ClickHouse, Redis, the API, and the worker stay inside
-the Compose network. For an internet deployment, put Lens behind an HTTPS reverse proxy and set
-`PUBLIC_APP_URL` and `WEB_ORIGIN` to the same browser-facing origin.
+the Compose network.
+
+### Production HTTPS with Nginx
+
+Point your domain to the server, install Nginx and Certbot on the host, then change these values in
+`.env`:
+
+```dotenv
+PUBLIC_APP_URL=https://lens.example.com
+WEB_ORIGIN=https://lens.example.com
+WEB_PORT=127.0.0.1:8080
+```
+
+This keeps Lens private on the host while leaving ports 80 and 443 available for Nginx. Configure
+Nginx to forward the public domain to Lens:
+
+```nginx
+server {
+    listen 80;
+    server_name lens.example.com;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable the site, reload Nginx, and request the certificate:
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d lens.example.com
+```
+
+Run `docker compose up -d` after changing `.env`. Do not expose the API on port 3001 or publish the
+database and queue ports.
 
 SMTP is optional and is used only for password resets. Leave `SMTP_HOST`, `SMTP_USER`, and
 `SMTP_PASSWORD` empty to disable it. Invitations use copyable links and do not require email.
@@ -174,6 +214,18 @@ pnpm www:dev
 ```
 
 Open <http://localhost:4321> while authoring documentation.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request and
+follow the [Code of Conduct](CODE_OF_CONDUCT.md) in all project spaces.
+
+## License
+
+Anvia Lens is free software licensed under the
+[GNU Affero General Public License Version 3](LICENSE) (`AGPL-3.0-only`). If you modify Lens and
+make that version available over a network, you must offer its corresponding source to its users
+under the same license.
 
 ## Maintainer releases
 

@@ -13,6 +13,7 @@ FROM node:24-alpine AS production-dependencies
 RUN corepack enable && corepack prepare pnpm@11.0.4 --activate
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY LICENSE ./LICENSE
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
 COPY packages/config/package.json ./packages/config/package.json
@@ -27,6 +28,7 @@ ARG LENS_VERSION=dev
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="Anvia Lens" \
   org.opencontainers.image.description="Anvia Lens API, worker, and database operations" \
+  org.opencontainers.image.licenses="AGPL-3.0-only" \
   org.opencontainers.image.source="https://github.com/anvia-hq/lens" \
   org.opencontainers.image.version="${LENS_VERSION}" \
   org.opencontainers.image.revision="${VCS_REF}"
@@ -50,9 +52,11 @@ ARG LENS_VERSION=dev
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="Anvia Lens Web" \
   org.opencontainers.image.description="Anvia Lens web application" \
+  org.opencontainers.image.licenses="AGPL-3.0-only" \
   org.opencontainers.image.source="https://github.com/anvia-hq/lens" \
   org.opencontainers.image.version="${LENS_VERSION}" \
   org.opencontainers.image.revision="${VCS_REF}"
 COPY --from=builder /workspace/apps/web/dist /usr/share/nginx/html
+COPY LICENSE /usr/share/licenses/anvia-lens/LICENSE
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
