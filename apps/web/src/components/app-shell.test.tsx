@@ -81,12 +81,15 @@ describe("AuthenticatedApp shell", () => {
     expect(screen.getByText("Theme toggle")).toBeTruthy();
   });
 
-  it.each(["/members", "/cost-settings"])("keeps workspace navigation on %s", (pathname) => {
-    mocks.pathname = pathname;
-    render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
+  it.each(["/members", "/cost-settings", "/system"])(
+    "keeps workspace navigation on %s",
+    (pathname) => {
+      mocks.pathname = pathname;
+      render(<AuthenticatedApp user={{ name: "Alex", email: "alex@example.com" }} />);
 
-    expect(screen.getByText("Workspace sidebar")).toBeTruthy();
-    expect(screen.getByText("Logo rail")).toBeTruthy();
-    expect(screen.getByText("Theme toggle")).toBeTruthy();
-  });
+      expect(screen.getByText("Workspace sidebar")).toBeTruthy();
+      expect(screen.getByText("Logo rail")).toBeTruthy();
+      expect(screen.getByText("Theme toggle")).toBeTruthy();
+    },
+  );
 });

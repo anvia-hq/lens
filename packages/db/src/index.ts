@@ -47,6 +47,7 @@ export * from "./metrics-store.js";
 export * from "./model-costs.js";
 export * from "./quality-gate-store.js";
 export * from "./schema.js";
+export * from "./system-health-store.js";
 export {
   deleteProjectTelemetry,
   getSession,

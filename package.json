@@ -26,7 +26,7 @@
     "example:anvia:dataset": "pnpm --filter @lens/example-anvia-agent evaluations:03",
     "example:anvia:release": "pnpm --filter @lens/example-anvia-agent release:01",
     "test": "pnpm -r --if-present test",
-    "test:coverage": "pnpm --filter @lens/api --filter @lens/config --filter @lens/contracts --filter @lens/telemetry --filter @lens/ui --filter @lens/web --filter @lens/worker test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
+    "test:coverage": "pnpm --filter @lens/api --filter @lens/config --filter @lens/contracts --filter @lens/monitor --filter @lens/telemetry --filter @lens/ui --filter @lens/web --filter @lens/worker test:coverage && node scripts/run-package-integration-tests.mjs --coverage",
     "test:integration": "node scripts/run-package-integration-tests.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "verify:packages": "node scripts/verify-packages.mjs",

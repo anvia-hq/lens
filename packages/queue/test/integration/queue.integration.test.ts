@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createQueues, type LensQueues, materializeJobId, queueNames } from "../../src/index.js";
+import {
+  createQueues,
+  type LensQueues,
+  materializeJobId,
+  queryQueueHealth,
+  queueNames,
+} from "../../src/index.js";
 
 describe("queue integration", () => {
   let queues: LensQueues;
@@ -68,5 +74,30 @@ describe("queue integration", () => {
       });
     }
     expect(await queues.materialize.getJob(jobs[2]?.id ?? "missing")).toBeDefined();
+  });
+
+  it("reads queue health through fail-fast Redis connections", async () => {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl === undefined) throw new Error("REDIS_URL is required for integration tests");
+    const healthQueues = createQueues(redisUrl, {
+      commandTimeout: 2_500,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+    });
+
+    try {
+      const health = await queryQueueHealth(healthQueues);
+      expect(health).toHaveLength(6);
+      expect(health.map(({ name }) => name)).toEqual([
+        "Trace ingestion",
+        "Evaluations",
+        "Trace materialization",
+        "Maintenance",
+        "Cost recalculation",
+        "Alerts",
+      ]);
+    } finally {
+      await healthQueues.close();
+    }
   });
 });

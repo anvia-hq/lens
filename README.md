@@ -62,8 +62,9 @@ docker compose ps
 Open <http://localhost>. The first person to create an account becomes the owner, and public account
 creation closes automatically after that.
 
-Only the Lens web port is exposed. PostgreSQL, ClickHouse, Redis, the API, and the worker stay inside
-the Compose network.
+Only the Lens web port is exposed. PostgreSQL, ClickHouse, Redis, the API, the worker, and the
+read-only Linux host monitor stay on private Compose networks. Owners and admins can use **System
+Health** to inspect current CPU, RAM, disk, dependency, worker, and queue status.
 
 ### Production HTTPS with Nginx
 

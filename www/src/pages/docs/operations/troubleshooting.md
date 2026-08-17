@@ -21,6 +21,21 @@ Common causes include missing required environment variables, reused or mismatch
 unwritable volumes, insufficient memory, and a failed migration. Fix the earliest unhealthy
 dependency rather than restarting downstream services repeatedly.
 
+If Lens is still reachable, owners and admins can open **System Health** to check host disk, RAM,
+CPU, ClickHouse free space, Redis memory, worker heartbeat, and queue counts. If Lens itself is not
+reachable, inspect the host directly:
+
+```sh
+df -h
+docker system df
+docker stats --no-stream
+docker compose ps
+docker compose logs --tail=200
+```
+
+A missing monitor does not stop Lens. Check `docker compose logs monitor` when only machine metrics
+are unavailable; on non-Linux or custom deployments, an unconfigured collector is expected.
+
 ## Sign-in or invitation fails
 
 Confirm `PUBLIC_APP_URL` and `WEB_ORIGIN` match the browser-facing origin exactly. The first account

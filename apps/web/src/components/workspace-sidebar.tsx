@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
 } from "@lens/ui/components/sidebar";
 import {
+  Pulse as Activity,
   Database,
   Stack as Layers3,
   SignOut as LogOut,
@@ -18,14 +19,18 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
+import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
 
 export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { project } = useProject();
+  const canManage = project.role === "owner" || project.role === "admin";
   const links = [
     { to: "/" as const, label: "Projects", icon: Layers3 },
     { to: "/members" as const, label: "Members", icon: Users },
     { to: "/cost-settings" as const, label: "Cost Settings", icon: Database },
+    ...(canManage ? [{ to: "/system" as const, label: "System Health", icon: Activity }] : []),
   ];
 
   return (

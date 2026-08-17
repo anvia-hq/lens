@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { loadConfig } from "@lens/config";
 import type {
   EvaluateAlertsJob,
@@ -6,7 +7,7 @@ import type {
   MaterializeTraceJob,
 } from "@lens/contracts";
 import { createClickHouse, createPostgres } from "@lens/db";
-import { createQueues, createRedisConnection, queueNames } from "@lens/queue";
+import { createQueues, createRedisConnection, queueNames, startWorkerHeartbeat } from "@lens/queue";
 import { Worker } from "bullmq";
 import pino from "pino";
 import { createAlertProcessor } from "./alerts.js";
@@ -30,6 +31,15 @@ const evaluationConnection = createRedisConnection(config.REDIS_URL);
 const maintenanceConnection = createRedisConnection(config.REDIS_URL);
 const costsConnection = createRedisConnection(config.REDIS_URL);
 const alertsConnection = createRedisConnection(config.REDIS_URL);
+const heartbeatConnection = createRedisConnection(config.REDIS_URL, {
+  commandTimeout: 2_500,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+});
+const workerHeartbeat = startWorkerHeartbeat(
+  heartbeatConnection,
+  process.env.HOSTNAME || randomUUID(),
+);
 const processorDeps = { clickhouse, postgres, queues, logger };
 
 const ingestWorker = new Worker<IngestTraceJob>(
@@ -101,12 +111,14 @@ async function shutdown(signal: string): Promise<void> {
     costsWorker.close(),
     alertsWorker.close(),
   ]);
+  await workerHeartbeat.close();
   ingestConnection.disconnect();
   evaluationConnection.disconnect();
   materializeConnection.disconnect();
   maintenanceConnection.disconnect();
   costsConnection.disconnect();
   alertsConnection.disconnect();
+  heartbeatConnection.disconnect();
   await queues.close();
   await clickhouse.close();
   await postgres.close();

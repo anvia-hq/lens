@@ -13,6 +13,7 @@ import {
   qualityGateCheckInputSchema,
   qualityGateInputSchema,
   qualityGateRuleSchema,
+  systemMonitorSnapshotSchema,
   traceReviewInputSchema,
 } from "../src/index";
 
@@ -44,6 +45,20 @@ describe("contracts", () => {
     expect(metricsRangeSchema.safeParse("7d").success).toBe(true);
     expect(metricsRangeSchema.safeParse("30d").success).toBe(true);
     expect(metricsRangeSchema.safeParse("90d").success).toBe(false);
+  });
+
+  it("validates machine metric snapshots", () => {
+    expect(
+      systemMonitorSnapshotSchema.safeParse({
+        version: 1,
+        sampledAt: "2026-08-17T00:00:00.000Z",
+        uptimeSeconds: 100,
+        cpu: { usagePercent: 25, logicalCores: 4, load1: 0.5 },
+        memory: { totalBytes: 100, usedBytes: 50, availableBytes: 50, usagePercent: 50 },
+        swap: { totalBytes: 0, usedBytes: 0, availableBytes: 0, usagePercent: 0 },
+        disk: { path: "/", totalBytes: 100, usedBytes: 50, availableBytes: 50, usagePercent: 50 },
+      }).success,
+    ).toBe(true);
   });
 
   it("validates quality gate rules and pass-rate ranges", () => {

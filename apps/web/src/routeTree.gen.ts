@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectIdRouteRouteImport } from './routes/$projectId/route'
 import { Route as CostSettingsRouteImport } from './routes/cost-settings'
 import { Route as MembersRouteImport } from './routes/members'
+import { Route as SystemRouteImport } from './routes/system'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdAlertsRouteImport } from './routes/$projectId/alerts'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
@@ -54,6 +55,11 @@ const CostSettingsRoute = CostSettingsRouteImport.update({
 const MembersRoute = MembersRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
+  '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
+  '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
   '/members': typeof MembersRoute
+  '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/$projectId'
     | '/cost-settings'
     | '/members'
+    | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cost-settings'
     | '/members'
+    | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/$projectId'
     | '/cost-settings'
     | '/members'
+    | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
     | '/$projectId/settings'
@@ -354,6 +366,7 @@ export interface RootRouteChildren {
   ProjectIdRouteRoute: typeof ProjectIdRouteRouteWithChildren
   CostSettingsRoute: typeof CostSettingsRoute
   MembersRoute: typeof MembersRoute
+  SystemRoute: typeof SystemRoute
   AcceptInvitationInvitationIdRoute: typeof AcceptInvitationInvitationIdRoute
 }
 
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof MembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$projectId/': {
@@ -603,6 +623,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectIdRouteRoute: ProjectIdRouteRouteWithChildren,
   CostSettingsRoute: CostSettingsRoute,
   MembersRoute: MembersRoute,
+  SystemRoute: SystemRoute,
   AcceptInvitationInvitationIdRoute: AcceptInvitationInvitationIdRoute,
 }
 export const routeTree = rootRouteImport

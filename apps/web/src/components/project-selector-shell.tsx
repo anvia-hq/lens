@@ -12,7 +12,9 @@ export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
       ? "Members"
       : pathname === "/cost-settings"
         ? "Cost Settings"
-        : "Projects";
+        : pathname === "/system"
+          ? "System Health"
+          : "Projects";
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden">
       <ProjectRail logoOnly />

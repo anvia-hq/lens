@@ -6,9 +6,10 @@ import type {
   MaterializeTraceJob,
   RecalculateModelCostsJob,
   ReconcileRetentionJob,
+  SystemQueueHealth,
 } from "@lens/contracts";
 import { Queue, type QueueOptions } from "bullmq";
-import IORedis from "ioredis";
+import IORedis, { type RedisOptions } from "ioredis";
 
 export const queueNames = {
   ingest: "lens-ingest-traces",
@@ -36,15 +37,16 @@ const defaultJobOptions = {
   removeOnFail: { age: 7 * 86_400, count: 10_000 },
 };
 
-export function createRedisConnection(redisUrl: string): IORedis {
+export function createRedisConnection(redisUrl: string, options: RedisOptions = {}): IORedis {
   return new IORedis(redisUrl, {
     enableReadyCheck: true,
     maxRetriesPerRequest: null,
+    ...options,
   });
 }
 
-export function createQueues(redisUrl: string): LensQueues {
-  const connection = createRedisConnection(redisUrl);
+export function createQueues(redisUrl: string, connectionOptions: RedisOptions = {}): LensQueues {
+  const connection = createRedisConnection(redisUrl, connectionOptions);
   const options = { connection, defaultJobOptions } satisfies QueueOptions;
   const ingest = createQueue<IngestTraceJob>(queueNames.ingest, options);
   const evaluations = createQueue<IngestEvaluationsJob>(queueNames.evaluations, options);
@@ -86,4 +88,85 @@ function createQueue<Data>(name: string, options: QueueOptions): Queue<Data> {
 
 export function materializeJobId(projectId: string, traceId: string): string {
   return `materialize-${projectId}-${traceId}`;
+}
+
+const workerHeartbeatPrefix = "lens:worker:heartbeat:";
+const heartbeatCleanupTimeoutMs = 1_000;
+
+export function startWorkerHeartbeat(
+  redis: IORedis,
+  instanceId: string,
+  options: { intervalMs?: number; ttlMs?: number } = {},
+) {
+  const intervalMs = options.intervalMs ?? 10_000;
+  const ttlMs = options.ttlMs ?? 30_000;
+  const key = `${workerHeartbeatPrefix}${instanceId}`;
+  const beat = () => redis.set(key, new Date().toISOString(), "PX", ttlMs);
+  void beat().catch(() => undefined);
+  const timer = setInterval(() => void beat().catch(() => undefined), intervalMs);
+  timer.unref();
+  return {
+    async close() {
+      clearInterval(timer);
+      if (redis.status !== "ready") return;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          redis.del(key).catch(() => 0),
+          new Promise<number>((resolve) => {
+            timeout = setTimeout(() => resolve(0), heartbeatCleanupTimeoutMs);
+            timeout.unref();
+          }),
+        ]);
+      } finally {
+        if (timeout !== undefined) clearTimeout(timeout);
+      }
+    },
+  };
+}
+
+export async function listWorkerHeartbeats(redis: IORedis): Promise<string[]> {
+  let cursor = "0";
+  const keys = new Set<string>();
+  do {
+    const [next, page] = await redis.scan(
+      cursor,
+      "MATCH",
+      `${workerHeartbeatPrefix}*`,
+      "COUNT",
+      100,
+    );
+    cursor = next;
+    for (const key of page) {
+      if (keys.size >= 1_000) break;
+      keys.add(key);
+    }
+  } while (cursor !== "0" && keys.size < 1_000);
+  if (keys.size === 0) return [];
+  const values = await redis.mget(...keys);
+  return values
+    .filter((value): value is string => value !== null && !Number.isNaN(Date.parse(value)))
+    .sort((left, right) => right.localeCompare(left));
+}
+
+export async function queryQueueHealth(queues: LensQueues): Promise<SystemQueueHealth[]> {
+  const entries = [
+    ["Trace ingestion", queues.ingest],
+    ["Evaluations", queues.evaluations],
+    ["Trace materialization", queues.materialize],
+    ["Maintenance", queues.maintenance],
+    ["Cost recalculation", queues.costs],
+    ["Alerts", queues.alerts],
+  ] as const;
+  return Promise.all(
+    entries.map(async ([name, queue]) => {
+      const [waiting, active, delayed, failed] = await Promise.all([
+        queue.getWaitingCount(),
+        queue.getActiveCount(),
+        queue.getDelayedCount(),
+        queue.getFailedCount(),
+      ]);
+      return { name, waiting, active, delayed, failed };
+    }),
+  );
 }
