@@ -149,7 +149,7 @@ describe("queue contracts", () => {
       scan: vi
         .fn()
         .mockResolvedValueOnce(["7", ["lens:worker:heartbeat:a", "lens:worker:heartbeat:expired"]])
-        .mockResolvedValueOnce(["0", ["lens:worker:heartbeat:b"]]),
+        .mockResolvedValueOnce(["0", ["lens:worker:heartbeat:a", "lens:worker:heartbeat:b"]]),
       mget: vi
         .fn()
         .mockResolvedValue(["2026-08-17T00:00:00.000Z", null, "2026-08-18T00:00:00.000Z"]),
@@ -166,6 +166,11 @@ describe("queue contracts", () => {
       "lens:worker:heartbeat:*",
       "COUNT",
       100,
+    );
+    expect(redis.mget).toHaveBeenCalledWith(
+      "lens:worker:heartbeat:a",
+      "lens:worker:heartbeat:expired",
+      "lens:worker:heartbeat:b",
     );
   });
 

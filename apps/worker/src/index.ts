@@ -31,7 +31,11 @@ const evaluationConnection = createRedisConnection(config.REDIS_URL);
 const maintenanceConnection = createRedisConnection(config.REDIS_URL);
 const costsConnection = createRedisConnection(config.REDIS_URL);
 const alertsConnection = createRedisConnection(config.REDIS_URL);
-const heartbeatConnection = createRedisConnection(config.REDIS_URL);
+const heartbeatConnection = createRedisConnection(config.REDIS_URL, {
+  commandTimeout: 2_500,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+});
 const workerHeartbeat = startWorkerHeartbeat(
   heartbeatConnection,
   process.env.HOSTNAME || randomUUID(),

@@ -127,7 +127,7 @@ export function startWorkerHeartbeat(
 
 export async function listWorkerHeartbeats(redis: IORedis): Promise<string[]> {
   let cursor = "0";
-  const keys: string[] = [];
+  const keys = new Set<string>();
   do {
     const [next, page] = await redis.scan(
       cursor,
@@ -137,9 +137,12 @@ export async function listWorkerHeartbeats(redis: IORedis): Promise<string[]> {
       100,
     );
     cursor = next;
-    keys.push(...page);
-  } while (cursor !== "0" && keys.length < 1_000);
-  if (keys.length === 0) return [];
+    for (const key of page) {
+      if (keys.size >= 1_000) break;
+      keys.add(key);
+    }
+  } while (cursor !== "0" && keys.size < 1_000);
+  if (keys.size === 0) return [];
   const values = await redis.mget(...keys);
   return values
     .filter((value): value is string => value !== null && !Number.isNaN(Date.parse(value)))
