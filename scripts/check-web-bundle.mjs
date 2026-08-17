@@ -6,6 +6,7 @@ const webDist = new URL("../apps/web/dist/", import.meta.url);
 const manifestPath = new URL(".vite/manifest.json", webDist);
 const initialGzipBudget = 250 * 1024;
 const chunkBudget = 500 * 1024;
+const graphLayoutWorkerBudget = 2 * 1024 * 1024;
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const entry = Object.values(manifest).find((item) => item.isEntry);
@@ -41,10 +42,15 @@ for (const file of initialFiles) {
 
 const assetDirectory = new URL("assets/", webDist);
 const oversizedChunks = [];
+const oversizedGraphWorkers = [];
 for (const file of await readdir(assetDirectory)) {
   if (!file.endsWith(".js")) continue;
   const size = (await stat(join(assetDirectory.pathname, file))).size;
-  if (size > chunkBudget) oversizedChunks.push({ file, size });
+  if (file.startsWith("trace-graph-layout.worker-")) {
+    if (size > graphLayoutWorkerBudget) oversizedGraphWorkers.push({ file, size });
+  } else if (size > chunkBudget) {
+    oversizedChunks.push({ file, size });
+  }
 }
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
@@ -52,6 +58,7 @@ console.log(
   `Initial JavaScript: ${formatKiB(initialGzipBytes)} gzip across ${initialFiles.size} files`,
 );
 console.log(`Largest allowed JavaScript chunk: ${formatKiB(chunkBudget)} minified`);
+console.log(`Largest allowed trace graph worker: ${formatKiB(graphLayoutWorkerBudget)} minified`);
 
 const failures = [];
 if (initialGzipBytes > initialGzipBudget) {
@@ -62,6 +69,13 @@ if (initialGzipBytes > initialGzipBudget) {
 if (oversizedChunks.length > 0) {
   failures.push(
     `oversized chunks: ${oversizedChunks
+      .map(({ file, size }) => `${file} (${formatKiB(size)})`)
+      .join(", ")}`,
+  );
+}
+if (oversizedGraphWorkers.length > 0) {
+  failures.push(
+    `oversized trace graph workers: ${oversizedGraphWorkers
       .map(({ file, size }) => `${file} (${formatKiB(size)})`)
       .join(", ")}`,
   );

@@ -48,6 +48,7 @@ import { ApiError, api } from "../../../lib/api";
 import { notify } from "../../projects/utils";
 import type { AlertIncidentState } from "../hooks/use-alerts";
 import { buildSpanForest } from "../utils/trace-detail";
+import { StatusBadge } from "./status-badge";
 
 const kindLabels: Record<AlertRuleKind, string> = {
   trace_error_rate: "Trace error rate",
@@ -514,15 +515,7 @@ function EvidenceTable(props: {
                     </div>
                   )}
                 </TableCell>
-                <TableCell>
-                  {trace ? (
-                    <Badge variant={trace.status === "error" ? "destructive" : "secondary"}>
-                      {trace.status}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
+                <TableCell>{trace ? <StatusBadge status={trace.status} /> : "—"}</TableCell>
                 <TableCell>
                   {trace ? (
                     <div className="grid gap-0.5">

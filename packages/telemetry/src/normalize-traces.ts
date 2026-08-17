@@ -1,4 +1,4 @@
-import type { NormalizedSpan } from "@lens/contracts";
+import type { JsonValue, NormalizedSpan } from "@lens/contracts";
 
 import {
   attributesRecord,
@@ -162,11 +162,7 @@ export function normalizeOtlpRequest(
           serviceVersion: firstStringAttribute(resourceAttributes, spanAttributes, [
             "service.version",
           ]),
-          model:
-            stringAttribute(spanAttributes, "langfuse.observation.model.name") ??
-            stringAttribute(spanAttributes, "anvia.generation.model") ??
-            stringAttribute(spanAttributes, "gen_ai.request.model") ??
-            stringAttribute(spanAttributes, "gen_ai.response.model"),
+          model: generationModel(spanAttributes),
           inputTokens,
           cachedInputTokens,
           outputTokens,
@@ -186,4 +182,19 @@ export function normalizeOtlpRequest(
     }
   }
   return { spans, rejectedSpans, errors };
+}
+
+function generationModel(attributes: Record<string, JsonValue>): string | null {
+  const legacyModel = stringAttribute(attributes, "anvia.generation.model");
+  const explicitLegacyModel = legacyModel?.trim().toLowerCase() === "default" ? null : legacyModel;
+
+  return (
+    stringAttribute(attributes, "langfuse.observation.model.name") ??
+    stringAttribute(attributes, "anvia.generation.model_id") ??
+    explicitLegacyModel ??
+    stringAttribute(attributes, "gen_ai.request.model") ??
+    stringAttribute(attributes, "gen_ai.response.model") ??
+    stringAttribute(attributes, "anvia.generation.default_model") ??
+    legacyModel
+  );
 }

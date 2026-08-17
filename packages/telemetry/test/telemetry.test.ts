@@ -12,6 +12,49 @@ import {
 const traceId = "00112233445566778899aabbccddeeff";
 const spanId = "0011223344556677";
 
+function normalizeModel(attributes: Record<string, string>): string | null {
+  const request = decodeOtlpRequest(
+    new TextEncoder().encode(
+      JSON.stringify({
+        resourceSpans: [
+          {
+            resource: { attributes: [] },
+            scopeSpans: [
+              {
+                scope: { name: "model-normalization-test" },
+                spans: [
+                  {
+                    traceId,
+                    spanId,
+                    name: "model-normalization",
+                    kind: 1,
+                    startTimeUnixNano: "1785916800000000000",
+                    endTimeUnixNano: "1785916800001000000",
+                    attributes: Object.entries(attributes).map(([key, value]) => ({
+                      key,
+                      value: { stringValue: value },
+                    })),
+                    status: { code: 1 },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ),
+    "application/json",
+  );
+
+  return (
+    normalizeOtlpRequest(request, {
+      projectId: "00000000-0000-0000-0000-000000000001",
+      retentionDays: 30,
+      now: new Date("2026-08-05T00:00:00.000Z"),
+    }).spans[0]?.model ?? null
+  );
+}
+
 describe("OTLP ingestion", () => {
   it("normalizes Anvia attributes and redacts before queueing", () => {
     const request = decodeOtlpRequest(
@@ -40,7 +83,7 @@ describe("OTLP ingestion", () => {
                       startTimeUnixNano: "1785916800000000000",
                       endTimeUnixNano: "1785916800123000000",
                       attributes: [
-                        { key: "anvia.generation.model", value: { stringValue: "gpt-test" } },
+                        { key: "anvia.generation.model_id", value: { stringValue: "gpt-test" } },
                         {
                           key: "anvia.generation.input",
                           value: { stringValue: '[{"role":"user","content":"hello"}]' },
@@ -80,6 +123,88 @@ describe("OTLP ingestion", () => {
     );
     expect(result.spans[0]?.spanAttributes["metadata.secret"]).toBe("[REDACTED]");
     expect(result.spans[0]?.input).toEqual([{ role: "user", content: "hello" }]);
+  });
+
+  describe("generation model normalization", () => {
+    it("uses the configured model for the legacy default sentinel", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "default",
+          "anvia.generation.default_model": "grok-4.6",
+        }),
+      ).toBe("grok-4.6");
+    });
+
+    it("recognizes the legacy default sentinel case-insensitively after trimming", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "  DEFAULT  ",
+          "anvia.generation.default_model": "grok-4.6",
+        }),
+      ).toBe("grok-4.6");
+    });
+
+    it("prefers an explicit legacy model over the configured default", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "grok-4.7",
+          "anvia.generation.default_model": "grok-4.6",
+        }),
+      ).toBe("grok-4.7");
+    });
+
+    it("uses the standard request model before the configured legacy default", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "default",
+          "anvia.generation.default_model": "grok-4.6",
+          "gen_ai.request.model": "grok-4.7",
+        }),
+      ).toBe("grok-4.7");
+    });
+
+    it("falls back to the standard response model", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "default",
+          "gen_ai.response.model": "provider-resolved-model",
+        }),
+      ).toBe("provider-resolved-model");
+    });
+
+    it("preserves Langfuse model precedence", () => {
+      expect(
+        normalizeModel({
+          "langfuse.observation.model.name": "langfuse-model",
+          "anvia.generation.model_id": "rc-model",
+          "anvia.generation.model": "legacy-model",
+          "gen_ai.request.model": "standard-model",
+        }),
+      ).toBe("langfuse-model");
+    });
+
+    it("returns null when no model attributes are present", () => {
+      expect(normalizeModel({})).toBeNull();
+    });
+
+    it("does not treat model names containing default as sentinels", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model": "provider-default-v2",
+          "anvia.generation.default_model": "fallback-model",
+        }),
+      ).toBe("provider-default-v2");
+    });
+
+    it("reads the canonical RC model ID attribute", () => {
+      expect(
+        normalizeModel({
+          "anvia.generation.model_id": "grok-4.6",
+          "anvia.generation.model": "default",
+          "anvia.generation.default_model": "legacy-fallback",
+        }),
+      ).toBe("grok-4.6");
+    });
   });
 
   it("preserves the complete Langfuse v5 observation taxonomy and attributes", () => {

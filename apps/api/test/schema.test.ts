@@ -18,12 +18,12 @@ function parserApp(parser: (context: Parameters<typeof parseTraceRequest>[0]) =>
 describe("API module schemas", () => {
   it("parses trace filters, pagination, and sorting", async () => {
     const parsed = await parseRequest<ReturnType<typeof parseTraceRequest>>(
-      "/?status=ok&status=error&service=api&review=fail&page=2&pageSize=100&sort=durationMs&order=asc",
+      "/?status=running&status=ok&status=error&service=api&review=fail&page=2&pageSize=100&sort=durationMs&order=asc",
       parseTraceRequest,
     );
 
     expect(parsed).toEqual({
-      filters: { statuses: ["ok", "error"], services: ["api"], review: "fail" },
+      filters: { statuses: ["running", "ok", "error"], services: ["api"], review: "fail" },
       page: 2,
       pageSize: 100,
       sort: "durationMs",
@@ -36,7 +36,7 @@ describe("API module schemas", () => {
       "minDurationMs must not exceed maxDurationMs",
     );
     expect(await parseRequest("/?status=success", parseTraceRequest)).toBe(
-      "status must be ok, error, or unset",
+      "status must be running, ok, error, or unset",
     );
     expect(await parseRequest("/?review=unknown", parseTraceRequest)).toBe(
       "review must be unreviewed, pass, or fail",
@@ -69,11 +69,11 @@ describe("API module schemas", () => {
 
   it("parses session filters and preserves their validation", async () => {
     const parsed = await parseRequest<ReturnType<typeof parseSessionRequest>>(
-      "/?status=success&user=user-1&search=checkout&pageSize=25",
+      "/?status=running&user=user-1&search=checkout&pageSize=25",
       parseSessionRequest,
     );
     expect(parsed).toMatchObject({
-      statuses: ["success"],
+      statuses: ["running"],
       users: ["user-1"],
       search: "checkout",
       page: 1,
@@ -82,7 +82,7 @@ describe("API module schemas", () => {
       order: "desc",
     });
     expect(await parseRequest("/?status=unset", parseSessionRequest)).toBe(
-      "status must be success or error",
+      "status must be running, success, or error",
     );
   });
 

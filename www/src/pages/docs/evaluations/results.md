@@ -8,6 +8,11 @@ eyebrow: Evaluations
 Results is the cross-run explorer for individual evaluation metrics. Use it when the question starts
 with a metric, outcome, or case rather than one suite execution.
 
+<figure>
+  <img src="/images/docs/evaluation-results.png?v=2" alt="Anvia Lens evaluation results explorer with filters, metric outcomes, and an open result inspector" loading="lazy" decoding="async" />
+  <figcaption>Inspect individual metric outcomes across evaluation runs.</figcaption>
+</figure>
+
 ## Example: find every policy failure
 
 After running `pnpm example:anvia:eval` more than once, open **Evaluations → Results**. Filter metric

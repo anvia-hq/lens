@@ -6,7 +6,7 @@ import {
   MagnifyingGlass as Search,
   ArrowsOutLineVertical as UnfoldVertical,
 } from "@phosphor-icons/react";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import type { SpanTreeNode, TraceSpanView } from "../types";
 import { flattenSpanForest, searchTraceSpans, toggleCollapsed } from "../utils/trace-detail";
 import { SearchResults } from "./search-results";
@@ -14,10 +14,13 @@ import { SpanTimeline } from "./span-timeline";
 import { SpanTreeRow } from "./span-tree-row";
 import { ViewModeSwitch } from "./view-mode-switch";
 
+const TraceGraph = lazy(() => import("./trace-graph"));
+
 export function TraceNavigator(props: {
   collapsed: Set<string>;
   detail: TraceDetail;
   forest: SpanTreeNode[];
+  allowGraph?: boolean;
   hideModeSwitch?: boolean;
   search: string;
   selectedSpanId?: string;
@@ -60,21 +63,42 @@ export function TraceNavigator(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
           />
         </div>
-        <Button
-          aria-label={everythingCollapsed ? "Expand all spans" : "Collapse all spans"}
-          title={everythingCollapsed ? "Expand all" : "Collapse all"}
-          size="icon-sm"
-          variant="ghost"
-          onClick={toggleAll}
-        >
-          {everythingCollapsed ? <UnfoldVertical /> : <ListTree />}
-        </Button>
+        {props.view === "graph" ? null : (
+          <Button
+            aria-label={everythingCollapsed ? "Expand all spans" : "Collapse all spans"}
+            title={everythingCollapsed ? "Expand all" : "Collapse all"}
+            size="icon-sm"
+            variant="ghost"
+            onClick={toggleAll}
+          >
+            {everythingCollapsed ? <UnfoldVertical /> : <ListTree />}
+          </Button>
+        )}
         {props.hideModeSwitch ? null : (
-          <ViewModeSwitch value={props.view} onChange={props.onViewChange} />
+          <ViewModeSwitch
+            allowGraph={props.allowGraph}
+            value={props.view}
+            onChange={props.onViewChange}
+          />
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
-        {props.search.trim().length > 0 ? (
+        {props.view === "graph" ? (
+          <Suspense
+            fallback={
+              <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                Loading graph…
+              </div>
+            }
+          >
+            <TraceGraph
+              search={props.search}
+              selectedSpanId={props.selectedSpanId}
+              spans={props.detail.spans}
+              onSelectSpan={props.onSelectSpan}
+            />
+          </Suspense>
+        ) : props.search.trim().length > 0 ? (
           <SearchResults
             results={searchResults}
             selectedSpanId={props.selectedSpanId}

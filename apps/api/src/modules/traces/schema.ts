@@ -36,9 +36,9 @@ export function parseTraceRequest(c: Context): TraceRequest | string {
     if (values.length > 50) return `${queryKey} accepts at most 50 values`;
     if (
       queryKey === "status" &&
-      values.some((value) => !["ok", "error", "unset"].includes(value))
+      values.some((value) => !["running", "ok", "error", "unset"].includes(value))
     ) {
-      return "status must be ok, error, or unset";
+      return "status must be running, ok, error, or unset";
     }
     if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
   }

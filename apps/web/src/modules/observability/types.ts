@@ -8,8 +8,8 @@ import type {
   SessionSortField,
   SessionStatus,
   SpanDetail,
-  SpanStatus,
   TraceSortField,
+  TraceStatus,
   UserSortField,
 } from "@lens/contracts";
 
@@ -20,7 +20,7 @@ export type AlertsSearch = {
   page: number;
 };
 
-export type TraceSpanView = "tree" | "timeline";
+export type TraceSpanView = "tree" | "timeline" | "graph";
 export type TracePayloadView = "formatted" | "json";
 
 export type SpanTreeNode = {
@@ -243,7 +243,7 @@ export const defaultTraceColumns: TraceColumnId[] = [
 export type TracesSearch = {
   range: MetricsRangePreset;
   review?: "unreviewed" | "pass" | "fail";
-  statuses?: SpanStatus[];
+  statuses?: TraceStatus[];
   services?: string[];
   names?: string[];
   models?: string[];

@@ -1,3 +1,4 @@
+import type { TraceStatus } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import type { ReactNode } from "react";
 
@@ -20,8 +21,22 @@ export function SemanticStatusBadge(props: { tone: SemanticStatusTone; children:
   );
 }
 
-export function StatusBadge({ status }: { status: "ok" | "error" | "unset" }) {
-  const label = status === "ok" ? "Success" : status === "error" ? "Error" : "Unset";
-  const tone = status === "ok" ? "success" : status === "error" ? "error" : "neutral";
+export function StatusBadge({ status }: { status: TraceStatus }) {
+  const label =
+    status === "running"
+      ? "Running"
+      : status === "ok"
+        ? "Success"
+        : status === "error"
+          ? "Error"
+          : "Unset";
+  const tone =
+    status === "running"
+      ? "warning"
+      : status === "ok"
+        ? "success"
+        : status === "error"
+          ? "error"
+          : "neutral";
   return <SemanticStatusBadge tone={tone}>{label}</SemanticStatusBadge>;
 }

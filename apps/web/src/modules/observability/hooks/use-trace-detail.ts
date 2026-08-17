@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { api } from "../../../lib/api";
+import type { TraceSpanView } from "../types";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useTraceDetail() {
@@ -35,7 +36,7 @@ export function useTraceDetail() {
       search: { ...search, span },
     });
   };
-  const changeView = (view: "tree" | "timeline") => {
+  const changeView = (view: TraceSpanView) => {
     void navigate({
       to: "/$projectId/traces/$traceId",
       params: { projectId: project.id, traceId },

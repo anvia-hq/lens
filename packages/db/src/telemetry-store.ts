@@ -67,6 +67,7 @@ type SpanRow = {
   input: string | null;
   output: string | null;
   ingested_at: string;
+  ingest_version: string | number;
 };
 
 export async function insertSpans(
@@ -130,17 +131,17 @@ export async function materializeTrace(
 ): Promise<void> {
   const spans = await readSpanRows(client, projectId, traceId);
   if (spans.length === 0) return;
-  const root =
-    spans.find((span) => span.parent_span_id.length === 0) ??
-    spans.toSorted((left, right) => left.start_time.localeCompare(right.start_time))[0];
-  if (root === undefined) return;
+  const root = spans.find((span) => span.parent_span_id.length === 0);
+  const representative =
+    root ?? spans.toSorted((left, right) => left.start_time.localeCompare(right.start_time))[0];
+  if (representative === undefined) return;
   const startedAt = spans.reduce(
     (minimum, span) => (span.start_time < minimum ? span.start_time : minimum),
-    root.start_time,
+    representative.start_time,
   );
   const endedAt = spans.reduce(
     (maximum, span) => (span.end_time > maximum ? span.end_time : maximum),
-    root.end_time,
+    representative.end_time,
   );
   const inputTokens = spans
     .filter((span) => span.observation_kind === "generation")
@@ -154,7 +155,10 @@ export async function materializeTrace(
   const inputCost = sumNullable(costSpans.map((span) => span.input_cost));
   const outputCost = sumNullable(costSpans.map((span) => span.output_cost));
   const totalCost = sumNullable(costSpans.map((span) => span.total_cost));
-  const maxVersion = spans.reduce((max, span) => Math.max(max, Date.parse(span.ingested_at)), 0);
+  const summaryVersion = spans.reduce((maximum, span) => {
+    const version = BigInt(span.ingest_version);
+    return version > maximum ? version : maximum;
+  }, 0n);
   const expiresAt = await currentTraceExpiration(client, projectId, traceId);
 
   await client.insert({
@@ -164,9 +168,9 @@ export async function materializeTrace(
       {
         project_id: projectId,
         trace_id: traceId,
-        name: root.trace_name ?? root.name,
-        service_name: root.service_name,
-        status: root.status,
+        name: representative.trace_name ?? representative.name,
+        service_name: representative.service_name,
+        status: root?.status ?? "running",
         started_at: startedAt,
         ended_at: endedAt,
         duration_ms: Math.max(
@@ -178,15 +182,15 @@ export async function materializeTrace(
         generation_count: spans.filter((span) => span.observation_kind === "generation").length,
         tool_count: spans.filter((span) => span.observation_kind === "tool").length,
         error_count: spans.filter((span) => span.status === "error").length,
-        user_id: root.user_id ?? firstDefined(spans.map((span) => span.user_id)),
-        session_id: root.session_id ?? firstDefined(spans.map((span) => span.session_id)),
+        user_id: representative.user_id ?? firstDefined(spans.map((span) => span.user_id)),
+        session_id: representative.session_id ?? firstDefined(spans.map((span) => span.session_id)),
         tags: Array.from(new Set(spans.flatMap((span) => span.tags))),
         model: firstDefined(spans.map((span) => span.model)),
-        environment: root.environment || "default",
-        release: root.release ?? firstDefined(spans.map((span) => span.release)),
-        version: root.version ?? firstDefined(spans.map((span) => span.version)),
+        environment: representative.environment || "default",
+        release: representative.release ?? firstDefined(spans.map((span) => span.release)),
+        version: representative.version ?? firstDefined(spans.map((span) => span.version)),
         service_version:
-          root.service_version ?? firstDefined(spans.map((span) => span.service_version)),
+          representative.service_version ?? firstDefined(spans.map((span) => span.service_version)),
         input_tokens: inputTokens,
         output_tokens: outputTokens,
         total_tokens: inputTokens + outputTokens,
@@ -195,7 +199,7 @@ export async function materializeTrace(
         total_cost: totalCost,
         last_seen_at: new Date().toISOString().replace("T", " ").replace("Z", ""),
         expires_at: expiresAt,
-        summary_version: String(BigInt(Math.max(Date.now(), maxVersion)) * 1_000_000n),
+        summary_version: summaryVersion.toString(),
       },
     ],
   });

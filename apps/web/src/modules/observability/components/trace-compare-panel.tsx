@@ -90,6 +90,7 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
       </header>
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <TraceNavigator
+          allowGraph={false}
           collapsed={collapsed}
           detail={props.detail}
           forest={forest}

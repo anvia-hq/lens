@@ -105,7 +105,7 @@ describe.sequential("database integration", () => {
       query: "SELECT countDistinct(filename) AS count FROM schema_migrations",
       format: "JSONEachRow",
     });
-    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 8 }]);
+    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 9 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
@@ -320,7 +320,20 @@ describe.sequential("database integration", () => {
   });
 
   it("inserts, materializes, queries, and deletes telemetry", async () => {
-    await insertSpans(clickhouse, spans());
+    const [root, generation] = spans();
+    if (root === undefined || generation === undefined)
+      throw new Error("Expected integration spans");
+
+    await insertSpans(clickhouse, [generation]);
+    await materializeTrace(clickhouse, projectId, traceId);
+    const partial = await listTraces(clickhouse, projectId, {
+      statuses: ["running"],
+      page: 1,
+      pageSize: 10,
+    });
+    expect(partial.items[0]).toMatchObject({ traceId, status: "running", spanCount: 1 });
+
+    await insertSpans(clickhouse, [root]);
     await materializeTrace(clickhouse, projectId, traceId);
 
     const page = await listTraces(clickhouse, projectId, {
@@ -550,6 +563,8 @@ function spans(): NormalizedSpan[] {
       inputTokens: 0,
       outputTokens: 0,
       totalTokens: 0,
+      ingestedAt: new Date(now.getTime() + 1_000).toISOString(),
+      ingestVersion: "1786060801000000000",
     },
     {
       ...common,
