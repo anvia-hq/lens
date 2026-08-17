@@ -99,6 +99,33 @@ describe("system health aggregation", () => {
     expect(memoryStatus(90)).toBe("critical");
   });
 
+  it("uses every configured host disk when calculating machine health", async () => {
+    const dockerDisk = {
+      path: "/mnt/docker",
+      name: "Docker data",
+      totalBytes: 10_000,
+      usedBytes: 9_500,
+      availableBytes: 500,
+      usagePercent: 95,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            ...monitorSnapshot,
+            disks: [monitorSnapshot.disk, dockerDisk],
+          }),
+      }),
+    );
+
+    const health = await collectSystemHealth(dependencies());
+
+    expect(health.machine.status).toBe("critical");
+    expect(health.machine.snapshot?.disks).toEqual([monitorSnapshot.disk, dockerDisk]);
+  });
+
   it("aborts a database probe when its deadline expires", async () => {
     vi.useFakeTimers();
     let probeSignal: AbortSignal | undefined;

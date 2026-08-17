@@ -174,10 +174,11 @@ function machineHealth(
     };
   }
   if (!monitor.ok) return { status: "unavailable", message: monitor.message, snapshot: null };
+  const disks = monitor.value.disks ?? [monitor.value.disk];
   const statuses = [
     monitor.value.cpu.usagePercent === null ? "healthy" : cpuStatus(monitor.value.cpu.usagePercent),
     memoryStatus(monitor.value.memory.usagePercent),
-    capacityStatus(monitor.value.disk.usagePercent),
+    ...disks.map((disk) => capacityStatus(disk.usagePercent)),
   ];
   return { status: highestStatus(statuses), message: null, snapshot: monitor.value };
 }

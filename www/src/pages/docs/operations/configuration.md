@@ -33,6 +33,7 @@ Changing the file alone does not update environment variables inside an already-
 | `WEB_ORIGIN` | Required | Allowed browser origin. Set it to the same public origin. |
 | `WEB_PORT` | `80` | Host binding published by the web container, such as `80` or `127.0.0.1:8080`. |
 | `SYSTEM_MONITOR_URL` | Empty outside production Compose | Internal compatible host collector URL. Production Compose configures this automatically. |
+| `SYSTEM_MONITOR_DATA_PATH` | `/var/lib/docker` | Host directory containing Docker volumes. Set this to Docker's data root or the dedicated data-disk mount. |
 
 Use `https://lens.example.com`, not an internal API or Compose service URL, for both origin values.
 The two values must match exactly. A mismatch commonly appears as a sign-in, redirect, cookie, or
@@ -42,6 +43,12 @@ cross-origin request failure.
 to its bundled Linux monitor on an isolated network. Kubernetes and custom deployments can provide
 a compatible collector URL or leave it unset; the rest of Lens remains healthy without machine
 metrics.
+
+Production Compose monitors the root filesystem and `SYSTEM_MONITOR_DATA_PATH`. Find Docker's data
+root with `docker info --format '{{.DockerRootDir}}'`. If named volumes live on a dedicated mount,
+set the variable to that absolute host path and run `docker compose up -d` to recreate the monitor.
+Lens displays the two filesystems separately and automatically removes the duplicate when both paths
+resolve to the same filesystem.
 
 ## Required secrets
 

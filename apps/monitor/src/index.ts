@@ -5,7 +5,20 @@ import { SnapshotCache } from "./snapshot-cache.js";
 const port = positiveInteger(process.env.SYSTEM_MONITOR_PORT, 3100);
 const collector = new HostCollector({
   proc: process.env.HOST_PROC_PATH || "/host/proc",
-  root: process.env.HOST_ROOT_PATH || "/host/root",
+  root: {
+    path: process.env.HOST_ROOT_PATH || "/host/root",
+    displayPath: "/",
+    name: "Root disk",
+  },
+  additionalDisks: process.env.HOST_DATA_PATH
+    ? [
+        {
+          path: process.env.HOST_DATA_PATH,
+          displayPath: process.env.HOST_DATA_DISPLAY_PATH || "/var/lib/docker",
+          name: "Docker data",
+        },
+      ]
+    : [],
 });
 const snapshots = new SnapshotCache(collector);
 void snapshots.collect();

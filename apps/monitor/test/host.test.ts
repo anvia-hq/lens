@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { capacity, cpuUsagePercent, parseCpuStat, parseMeminfo } from "../src/host.js";
+import {
+  type CollectedDisk,
+  capacity,
+  cpuUsagePercent,
+  deduplicateDisks,
+  parseCpuStat,
+  parseMeminfo,
+} from "../src/host.js";
 
 describe("host metric parsing", () => {
   it("calculates CPU usage from host jiffy deltas", () => {
@@ -43,5 +50,20 @@ describe("host metric parsing", () => {
       usagePercent: 80,
     });
     expect(capacity(0, 0).usagePercent).toBe(0);
+  });
+
+  it("deduplicates bind mounts that resolve to the same filesystem", () => {
+    const disk = (device: number, name: string): CollectedDisk => ({
+      device,
+      name,
+      path: name === "Root disk" ? "/" : "/var/lib/docker",
+      totalBytes: 1_000,
+      usedBytes: 500,
+      availableBytes: 500,
+      usagePercent: 50,
+    });
+
+    expect(deduplicateDisks([disk(1, "Root disk"), disk(1, "Docker data")])).toHaveLength(1);
+    expect(deduplicateDisks([disk(1, "Root disk"), disk(2, "Docker data")])).toHaveLength(2);
   });
 });

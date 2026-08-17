@@ -15,7 +15,11 @@ describe("System Health", () => {
     expect(screen.getByText("All monitored systems are operating normally.")).toBeTruthy();
     expect(screen.getByText("CPU")).toBeTruthy();
     expect(screen.getByText("RAM")).toBeTruthy();
-    expect(screen.getByText("Disk")).toBeTruthy();
+    expect(screen.getByText("Root disk")).toBeTruthy();
+    expect(screen.getByText("Docker data")).toBeTruthy();
+    expect(screen.getByText("/mnt/docker", { exact: false })).toBeTruthy();
+    expect(screen.getAllByText("Healthy")[0]?.className).toContain("bg-emerald-200");
+    expect(document.querySelectorAll(".size-1\\.5.rounded-full")).toHaveLength(0);
     expect(screen.getByText("PostgreSQL")).toBeTruthy();
     expect(screen.getByText("ClickHouse")).toBeTruthy();
     expect(screen.getByText("Trace ingestion")).toBeTruthy();
@@ -58,12 +62,31 @@ const health: SystemHealth = {
       memory: { totalBytes: 1000, usedBytes: 500, availableBytes: 500, usagePercent: 50 },
       swap: { totalBytes: 0, usedBytes: 0, availableBytes: 0, usagePercent: 0 },
       disk: {
+        name: "Root disk",
         path: "/",
         totalBytes: 10_000,
         usedBytes: 6_000,
         availableBytes: 4_000,
         usagePercent: 60,
       },
+      disks: [
+        {
+          name: "Root disk",
+          path: "/",
+          totalBytes: 10_000,
+          usedBytes: 6_000,
+          availableBytes: 4_000,
+          usagePercent: 60,
+        },
+        {
+          name: "Docker data",
+          path: "/mnt/docker",
+          totalBytes: 100_000,
+          usedBytes: 20_000,
+          availableBytes: 80_000,
+          usagePercent: 20,
+        },
+      ],
     },
   },
   services: {

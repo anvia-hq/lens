@@ -45,6 +45,8 @@ services:
       SYSTEM_MONITOR_PORT: 3100
       HOST_PROC_PATH: /host/proc
       HOST_ROOT_PATH: /host/root
+      HOST_DATA_PATH: /host/data
+      HOST_DATA_DISPLAY_PATH: ${SYSTEM_MONITOR_DATA_PATH:-/var/lib/docker}
     init: true
     read_only: true
     cap_drop:
@@ -61,6 +63,12 @@ services:
       - type: bind
         source: /
         target: /host/root
+        read_only: true
+        bind:
+          propagation: rslave
+      - type: bind
+        source: ${SYSTEM_MONITOR_DATA_PATH:-/var/lib/docker}
+        target: /host/data
         read_only: true
         bind:
           propagation: rslave

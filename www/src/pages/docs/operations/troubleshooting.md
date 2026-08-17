@@ -26,7 +26,8 @@ CPU, ClickHouse free space, Redis memory, worker heartbeat, and queue counts. If
 reachable, inspect the host directly:
 
 ```sh
-df -h
+docker info --format '{{.DockerRootDir}}'
+df -hT / "$(docker info --format '{{.DockerRootDir}}')"
 docker system df
 docker stats --no-stream
 docker compose ps
@@ -35,6 +36,8 @@ docker compose logs --tail=200
 
 A missing monitor does not stop Lens. Check `docker compose logs monitor` when only machine metrics
 are unavailable; on non-Linux or custom deployments, an unconfigured collector is expected.
+If System Health only shows the root disk, set `SYSTEM_MONITOR_DATA_PATH` to the absolute host path
+that contains the Docker volumes, then recreate the monitor with `docker compose up -d monitor`.
 
 ## Sign-in or invitation fails
 
