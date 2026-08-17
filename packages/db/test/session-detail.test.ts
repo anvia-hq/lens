@@ -33,10 +33,27 @@ describe("session queries", () => {
     const listCall = query.mock.calls.find(([options]) => options.query.includes("SELECT * FROM"));
     expect(listCall?.[0].query).toContain("countIf(status = 'error') AS failed_trace_count");
     expect(listCall?.[0].query).toContain("sum(error_count) AS span_error_count");
+    expect(listCall?.[0].query).toContain("countIf(status = 'running') > 0, 'running'");
     expect(listCall?.[0].query).toContain("status IN {statuses:Array(String)}");
     expect(listCall?.[0].query).toContain("hasAny(environments, {environments:Array(String)})");
     expect(listCall?.[0].query).toContain("total_cost ASC");
     expect(listCall?.[0].query_params).toMatchObject({ pageSize: 25, offset: 25 });
+  });
+
+  it("does not treat a session containing a running trace as successful", async () => {
+    const query = vi.fn(async ({ query: sql }: QueryOptions) => ({
+      json: async () =>
+        sql.includes("count() AS total")
+          ? [{ total: "1" }]
+          : [sessionRow({ session_status: "running" })],
+    }));
+
+    const page = await listSessions(clickHouseClient({ query }), projectId, {});
+
+    expect(page.items[0]?.status).toBe("running");
+    const listCall = query.mock.calls.find(([options]) => options.query.includes("SELECT * FROM"));
+    expect(listCall?.[0].query).toContain("countIf(status = 'error') > 0, 'error'");
+    expect(listCall?.[0].query).toContain("countIf(status = 'running') > 0, 'running'");
   });
 
   it("excludes each session facet's own selection", async () => {

@@ -63,8 +63,11 @@ export function parseSessionRequest(c: Context): SessionRequest | string {
   ] as const) {
     const values = (c.req.queries(queryKey) ?? []).map((value) => value.trim()).filter(Boolean);
     if (values.length > 50) return `${queryKey} accepts at most 50 values`;
-    if (queryKey === "status" && values.some((value) => value !== "success" && value !== "error")) {
-      return "status must be success or error";
+    if (
+      queryKey === "status" &&
+      values.some((value) => value !== "running" && value !== "success" && value !== "error")
+    ) {
+      return "status must be running, success, or error";
     }
     if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
   }

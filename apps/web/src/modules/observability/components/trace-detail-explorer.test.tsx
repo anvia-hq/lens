@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { TraceSpanView } from "../types";
 import {
   buildSpanForest,
   flattenSpanForest,
@@ -16,6 +17,7 @@ import {
   traceReviewDatasetCase,
   traceTimelineBounds,
 } from "../utils/trace-detail";
+import { MobileTraceLayout } from "./mobile-trace-layout";
 import { SpanInspector } from "./span-inspector";
 import { TraceDetailExplorer } from "./trace-detail-explorer";
 import { TraceNavigator } from "./trace-navigator";
@@ -174,7 +176,7 @@ describe("trace detail controls", () => {
     function Harness() {
       const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
       const [search, setSearch] = useState("");
-      const [view, setView] = useState<"tree" | "timeline">("tree");
+      const [view, setView] = useState<TraceSpanView>("tree");
       return (
         <div className="h-[600px]">
           <TraceNavigator
@@ -211,9 +213,33 @@ describe("trace detail controls", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Timeline view" }));
     expect(screen.getByRole("region", { name: "Span timeline" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Graph view" })).toBeTruthy();
     const failedToolRow = screen.getByText("tool.read_file").closest("button");
     expect(failedToolRow?.querySelector(".bg-amber-600")).toBeTruthy();
     expect(screen.getByText("ERROR")).toBeTruthy();
+  });
+
+  it("offers graph as a responsive navigation tab", () => {
+    const subject = detail([span({ spanId: "root" })]);
+    const onTabChange = vi.fn();
+    render(
+      <MobileTraceLayout
+        activeTab="tree"
+        collapsed={new Set()}
+        detail={subject}
+        forest={buildSpanForest(subject.spans)}
+        payloadView="formatted"
+        search=""
+        onCollapsedChange={() => undefined}
+        onPayloadViewChange={() => undefined}
+        onSearchChange={() => undefined}
+        onSelectSpan={() => undefined}
+        onTabChange={onTabChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "graph" }));
+    expect(onTabChange).toHaveBeenCalledWith("graph");
   });
 
   it("switches the whole selected-span preview between formatted and JSON", () => {

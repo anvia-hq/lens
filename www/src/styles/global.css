@@ -197,7 +197,7 @@
   }
 
   .docs-content img {
-    @apply my-7 w-full rounded-xl border border-white/10 bg-[#0c0c0c];
+    @apply my-7 w-full cursor-zoom-in rounded-xl border border-white/10 bg-[#0c0c0c];
   }
 
   .docs-content figure {

@@ -1,4 +1,4 @@
-import type { SpanStatus, TraceSummary } from "@lens/contracts";
+import type { TraceStatus, TraceSummary } from "@lens/contracts";
 import { ensureIso, nullableNumeric, numeric } from "./values.js";
 
 export type SummaryRow = {
@@ -6,7 +6,7 @@ export type SummaryRow = {
   trace_id: string;
   name: string;
   service_name: string;
-  status: SpanStatus;
+  status: TraceStatus;
   started_at: string;
   ended_at: string;
   duration_ms: number | string;

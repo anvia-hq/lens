@@ -19,6 +19,9 @@ export type ObservationKind = (typeof observationKinds)[number];
 export const spanStatuses = ["unset", "ok", "error"] as const;
 export type SpanStatus = (typeof spanStatuses)[number];
 
+export const traceStatuses = ["running", ...spanStatuses] as const;
+export type TraceStatus = (typeof traceStatuses)[number];
+
 export type NormalizedSpan = {
   projectId: string;
   traceId: string;
@@ -82,7 +85,7 @@ export type TraceSummary = {
   traceId: string;
   name: string;
   serviceName: string;
-  status: SpanStatus;
+  status: TraceStatus;
   startedAt: string;
   endedAt: string;
   durationMs: number;
@@ -135,7 +138,7 @@ export type SessionSummary = {
   inputCost: number | null;
   outputCost: number | null;
   totalCost: number | null;
-  status: "success" | "error";
+  status: SessionStatus;
   services: string[];
   environments: string[];
   models: string[];
@@ -200,7 +203,8 @@ export const userSortFields = [
 ] as const;
 export type UserSortField = (typeof userSortFields)[number];
 
-export type SessionStatus = "success" | "error";
+export const sessionStatuses = ["running", "success", "error"] as const;
+export type SessionStatus = (typeof sessionStatuses)[number];
 
 export type SessionFilters = {
   from?: string;
@@ -248,7 +252,7 @@ export type SessionFacets = {
 export type TraceFilters = {
   from?: string;
   to?: string;
-  statuses?: SpanStatus[];
+  statuses?: TraceStatus[];
   services?: string[];
   names?: string[];
   models?: string[];

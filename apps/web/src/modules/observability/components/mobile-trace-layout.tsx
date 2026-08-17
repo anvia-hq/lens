@@ -1,12 +1,12 @@
 import type { SpanDetail, TraceDetail } from "@lens/contracts";
 import { cn } from "@lens/ui/lib/utils";
-import type { SpanTreeNode, TracePayloadView } from "../types";
+import type { SpanTreeNode, TracePayloadView, TraceSpanView } from "../types";
 import { EmptyInspector } from "./empty-inspector";
 import { SpanInspector } from "./span-inspector";
 import { TraceNavigator } from "./trace-navigator";
 
 export function MobileTraceLayout(props: {
-  activeTab: "tree" | "timeline" | "data";
+  activeTab: TraceSpanView | "data";
   collapsed: Set<string>;
   detail: TraceDetail;
   forest: SpanTreeNode[];
@@ -18,12 +18,12 @@ export function MobileTraceLayout(props: {
   onPayloadViewChange: (view: TracePayloadView) => void;
   onSearchChange: (value: string) => void;
   onSelectSpan: (id: string) => void;
-  onTabChange: (tab: "tree" | "timeline" | "data") => void;
+  onTabChange: (tab: TraceSpanView | "data") => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2" role="tablist">
-        {(["tree", "timeline", "data"] as const).map((tab) => (
+        {(["tree", "timeline", "graph", "data"] as const).map((tab) => (
           <button
             className={cn(
               "h-8 rounded-md px-3 text-sm font-medium capitalize text-muted-foreground",

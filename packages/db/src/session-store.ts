@@ -8,6 +8,7 @@ import {
   type SessionFacets,
   type SessionFilters,
   type SessionSortField,
+  type SessionStatus,
   type SessionSummary,
   type SessionTurnPayload,
   type TraceSummary,
@@ -32,7 +33,7 @@ type SessionSummaryRow = {
   input_cost: number | string | null;
   output_cost: number | string | null;
   total_cost: number | string | null;
-  session_status: "success" | "error";
+  session_status: SessionStatus;
   services: string[];
   environments: string[];
   models: string[];
@@ -236,7 +237,11 @@ function sessionAggregateSql(filters: string[]): string {
             count() AS trace_count,
             countIf(status = 'error') AS failed_trace_count,
             sum(error_count) AS span_error_count,
-            if(countIf(status = 'error') > 0, 'error', 'success') AS session_status,
+            multiIf(
+              countIf(status = 'error') > 0, 'error',
+              countIf(status = 'running') > 0, 'running',
+              'success'
+            ) AS session_status,
             sum(span_count) AS span_count,
             sum(input_tokens) AS input_tokens,
             sum(output_tokens) AS output_tokens,

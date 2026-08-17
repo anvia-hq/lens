@@ -122,12 +122,16 @@ describe("overview controls", () => {
       span: "span-1",
     });
     expect(validateTraceDetailSearch({ view: "graph", span: "" })).toEqual({
+      view: "graph",
+      span: undefined,
+    });
+    expect(validateTraceDetailSearch({ view: "canvas", span: "" })).toEqual({
       view: undefined,
       span: undefined,
     });
-    expect(validateSessionsSearch({ range: "7d", status: "error", user: " user-1 " })).toEqual({
+    expect(validateSessionsSearch({ range: "7d", status: "running", user: " user-1 " })).toEqual({
       range: "7d",
-      statuses: ["error"],
+      statuses: ["running"],
       users: ["user-1"],
       services: [],
       models: [],
@@ -147,10 +151,15 @@ describe("overview controls", () => {
       columns: defaultSessionColumns,
     });
     expect(
-      validateTracesSearch({ range: "30d", status: "error", model: " gpt-4.1 ", service: "" }),
+      validateTracesSearch({
+        range: "30d",
+        status: "running",
+        model: " gpt-4.1 ",
+        service: "",
+      }),
     ).toEqual({
       range: "30d",
-      statuses: ["error"],
+      statuses: ["running"],
       services: [],
       names: [],
       models: ["gpt-4.1"],
@@ -425,6 +434,10 @@ describe("overview controls", () => {
     rerender(<StatusBadge status="error" />);
     expect(screen.getByText("Error").className).toContain("border-0");
     expect(screen.getByText("Error").className).toContain("bg-rose-200");
+
+    rerender(<StatusBadge status="running" />);
+    expect(screen.getByText("Running").className).toContain("border-0");
+    expect(screen.getByText("Running").className).toContain("bg-amber-200");
   });
 
   it("renders previous-period context on metric cards", () => {

@@ -8,7 +8,6 @@ import BaseLayout from "./BaseLayout.astro";
 interface PageMetadata {
   title: string;
   description: string;
-  eyebrow?: string;
 }
 
 interface Props extends Partial<PageMetadata> {
@@ -19,36 +18,113 @@ interface Props extends Partial<PageMetadata> {
 const metadata = Astro.props.frontmatter ?? Astro.props;
 const title = metadata.title ?? "Documentation";
 const description = metadata.description ?? "Documentation for Anvia Lens.";
-const eyebrow = metadata.eyebrow ?? "Documentation";
 const headings = Astro.props.headings ?? [];
 const { previous, next } = docsNeighbors(Astro.url.pathname);
 ---
 
 <BaseLayout title={title} description={description}>
   <div
-    class="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_13rem]"
+    class="grid min-h-[calc(100vh-4rem)] w-full grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_13rem]"
   >
     <DocsSidebar />
     <main
       class="min-w-0 w-full px-4 py-14 sm:px-6 sm:py-18 md:px-10 md:py-20 xl:px-12"
       data-pagefind-body
     >
-      <header>
-        <p class="font-mono text-xs tracking-[0.18em] text-brand/70 uppercase">
-          {eyebrow}
-        </p>
-        <h1 class="mt-4 max-w-4xl text-4xl leading-[1.02] font-semibold tracking-[-0.02em] text-zinc-50 sm:text-5xl">
-          {title}
-        </h1>
-        <span class="mt-4 block max-w-3xl text-lg leading-8 text-zinc-300">
-          {description}
-        </span>
-      </header>
-      <article class="docs-content pt-14">
-        <slot />
-      </article>
-      <DocsPager previous={previous} next={next} />
+      <div class="mx-auto w-full max-w-4xl">
+        <header>
+          <h1 class="text-4xl leading-[1.02] font-semibold tracking-[-0.02em] text-zinc-50 sm:text-5xl">
+            {title}
+          </h1>
+          <span class="mt-4 block max-w-3xl text-lg leading-8 text-zinc-300">
+            {description}
+          </span>
+        </header>
+        <article class="docs-content pt-14">
+          <slot />
+        </article>
+        <DocsPager previous={previous} next={next} />
+      </div>
     </main>
     <DocsToc headings={headings} />
   </div>
+
+  <dialog
+    id="docs-image-dialog"
+    class="m-auto max-h-[96vh] max-w-[96vw] overflow-visible border-0 bg-transparent p-0 text-zinc-100"
+    aria-labelledby="docs-image-dialog-title"
+    aria-describedby="docs-image-dialog-caption"
+  >
+    <div class="relative grid max-h-[96vh] max-w-[96vw] gap-2">
+      <h2 id="docs-image-dialog-title" class="sr-only">Image preview</h2>
+      <button
+        type="button"
+        class="absolute top-3 right-3 z-10 grid size-10 cursor-pointer place-items-center rounded-full border border-white/15 bg-black/75 text-2xl leading-none text-white shadow-lg hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        aria-label="Close image preview"
+        data-image-dialog-close
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+      <img
+        class="block max-h-[88vh] max-w-[96vw] rounded-xl border border-white/10 bg-[#0c0c0c] object-contain shadow-2xl"
+        alt=""
+        data-image-dialog-image
+      />
+      <p
+        id="docs-image-dialog-caption"
+        class="m-0 text-center text-sm text-zinc-300"
+        data-image-dialog-caption
+      >
+      </p>
+    </div>
+  </dialog>
 </BaseLayout>
+
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>("#docs-image-dialog");
+  const preview = dialog?.querySelector<HTMLImageElement>("[data-image-dialog-image]");
+  const caption = dialog?.querySelector<HTMLElement>("[data-image-dialog-caption]");
+  const close = dialog?.querySelector<HTMLButtonElement>("[data-image-dialog-close]");
+  let opener: HTMLImageElement | null = null;
+
+  if (dialog && preview && caption && close) {
+    const open = (image: HTMLImageElement) => {
+      opener = image;
+      preview.src = image.currentSrc || image.src;
+      preview.alt = image.alt;
+      caption.textContent =
+        image.closest("figure")?.querySelector("figcaption")?.textContent?.trim() || image.alt;
+      caption.hidden = caption.textContent.length === 0;
+      dialog.showModal();
+    };
+
+    document.querySelectorAll<HTMLImageElement>(".docs-content img").forEach((image) => {
+      image.tabIndex = 0;
+      image.role = "button";
+      image.setAttribute("aria-haspopup", "dialog");
+      image.setAttribute("aria-label", `Open ${image.alt || "image"} in dialog`);
+      image.addEventListener("click", () => open(image));
+      image.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        open(image);
+      });
+    });
+
+    close.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      preview.removeAttribute("src");
+      opener?.focus();
+    });
+  }
+</script>
+
+<style>
+  #docs-image-dialog::backdrop {
+    background: rgb(0 0 0 / 85%);
+    backdrop-filter: blur(4px);
+  }
+</style>

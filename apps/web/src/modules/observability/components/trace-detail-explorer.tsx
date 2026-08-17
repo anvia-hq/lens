@@ -38,7 +38,7 @@ export function TraceDetailExplorer(props: {
   const selected = resolveSelectedSpan(props.detail.spans, props.selectedSpanId);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");
-  const [mobileTab, setMobileTab] = useState<"tree" | "timeline" | "data">(() =>
+  const [mobileTab, setMobileTab] = useState<TraceSpanView | "data">(() =>
     props.selectedSpanId ? "data" : props.view,
   );
   const [payloadView, setPayloadView] = useState<TracePayloadView>(() => storedPayloadView());
@@ -105,7 +105,7 @@ export function TraceDetailExplorer(props: {
               id={NAVIGATION_PANEL_ID}
               defaultSize="36"
               minSize={280}
-              maxSize="55"
+              maxSize={props.view === "graph" ? "70" : "55"}
             >
               <TraceNavigator
                 collapsed={collapsed}

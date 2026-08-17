@@ -8,6 +8,11 @@ eyebrow: Observability
 The Users explorer groups traces by the `userId` supplied by instrumentation. It is useful for
 support investigations, adoption analysis, and locating expensive or unreliable usage patterns.
 
+<figure>
+  <img src="/images/docs/user-detail.png?v=2" alt="Anvia Lens user detail showing trace, session, error, token, cost, and recent activity metrics" loading="lazy" decoding="async" />
+  <figcaption>Follow one application user across traces and sessions.</figcaption>
+</figure>
+
 ## Example: inspect one user across sessions
 
 Run `pnpm example:anvia:context`, open **Users**, and search for `example-user-42`. Open the user and

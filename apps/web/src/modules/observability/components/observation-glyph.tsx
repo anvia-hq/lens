@@ -1,10 +1,10 @@
-import type { ObservationKind, SpanDetail } from "@lens/contracts";
+import type { ObservationKind, TraceStatus } from "@lens/contracts";
 import { cn } from "@lens/ui/lib/utils";
 import { observationIcon } from "../utils/observation-icon";
 
 export function ObservationGlyph(props: {
   kind: ObservationKind;
-  status?: SpanDetail["status"];
+  status?: TraceStatus;
   size?: "small" | "large";
 }) {
   const Icon = observationIcon(props.kind);

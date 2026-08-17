@@ -12,7 +12,12 @@ const { docs = false, searchEnabled = false } = Astro.props;
 <header
   class="sticky top-0 z-30 h-16 border-b border-white/10 bg-[#131314]/90 backdrop-blur-xl"
 >
-  <div class="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+  <div
+    class:list={[
+      "flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8",
+      docs ? "w-full" : "mx-auto max-w-7xl",
+    ]}
+  >
     <Logo compact />
     <nav class="flex items-center gap-2.5" aria-label="Primary navigation">
       {

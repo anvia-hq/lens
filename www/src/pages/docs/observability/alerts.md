@@ -9,6 +9,11 @@ Alerts turn runtime regressions and failed quality checks into incidents inside 
 Open **Alerts** from the project sidebar. Every project member can view, acknowledge, and resolve
 incidents; project owners and admins can create, edit, disable, and delete rules.
 
+<figure>
+  <img src="/images/docs/alert-incident.png?v=2" alt="Anvia Lens alert incident showing breach metrics, signal history, evidence traces, rule context, and lifecycle" loading="lazy" decoding="async" />
+  <figcaption>Investigate a triggered alert from signal breach to supporting traces.</figcaption>
+</figure>
+
 ## Runtime rules
 
 Runtime rules can watch trace error rate, P95 trace duration, or tool error rate over a 5, 15, or 60

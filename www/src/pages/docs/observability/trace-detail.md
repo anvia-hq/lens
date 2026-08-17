@@ -1,7 +1,7 @@
 ---
 layout: ../../../layouts/DocsLayout.astro
 title: Trace details
-description: Navigate a trace timeline and inspect every observation, payload, attribute, and error.
+description: Navigate a trace tree, timeline, or execution graph and inspect every observation, payload, attribute, and error.
 eyebrow: Observability
 ---
 
@@ -22,9 +22,9 @@ and duration. Then select the following model generation to see how the tool res
 final triage response.
 
 **Expected result:** the tree shows an agent parent with generation and tool children; selecting a
-row highlights the same interval in the timeline and opens its payload in the inspector. If payload
-content is absent in another application, confirm that full capture is allowed and enabled before
-treating the absence as an instrumentation problem.
+row highlights the same observation in the timeline or graph and opens its payload in the
+inspector. If payload content is absent in another application, confirm that full capture is
+allowed and enabled before treating the absence as an instrumentation problem.
 
 ## Read the trace header
 
@@ -62,6 +62,18 @@ the inspector.
 For a slow trace, select the longest child before optimizing the parent. A long tool span points to
 the external operation; a long generation span points to model or prompt behavior.
 
+## Follow the execution graph
+
+The graph draws every captured observation except events as a node and infers execution flow from
+parent relationships and timing. Sequential work forms a chain, overlapping work forms parallel
+branches, and later work reconnects those branches. Select a node to open the same span in the
+inspector.
+
+Drag to pan, use a mouse wheel or pinch gesture to zoom, and use the canvas controls to zoom or fit
+the whole execution. Search keeps the graph in place and dims nodes that do not match, preserving
+their surrounding execution context. Very large traces may be better inspected with Tree or
+Timeline.
+
 ## Inspect a span
 
 The inspector shows the selected span status and observation type, then reports duration, tokens,
@@ -83,5 +95,5 @@ signal alongside runtime behavior.
 
 ## Mobile layout
 
-On narrow screens, navigation, timeline, and inspector become tabs. The information is unchanged,
-but only one panel is visible at a time.
+On narrow screens, tree, timeline, graph, and inspector become tabs. The information is unchanged,
+but only one panel is visible at a time. Selecting a graph node opens its data tab.

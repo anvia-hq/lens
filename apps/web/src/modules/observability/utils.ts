@@ -7,8 +7,8 @@ import type {
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
-  SpanStatus,
   TraceSortField,
+  TraceStatus,
   UserSortField,
 } from "@lens/contracts";
 import {
@@ -200,7 +200,7 @@ export function validateOverviewSearch(search: Record<string, unknown>): Overvie
 
 export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
   return {
-    view: search.view === "timeline" ? "timeline" : undefined,
+    view: search.view === "timeline" || search.view === "graph" ? search.view : undefined,
     span: optionalSearchValue(search.span),
   };
 }
@@ -213,7 +213,8 @@ export function validateSessionsSearch(search: Record<string, unknown>): Session
   return {
     range: parseMetricsRange(search.range),
     statuses: searchValues(search.statuses ?? search.status).filter(
-      (value): value is SessionStatus => value === "success" || value === "error",
+      (value): value is SessionStatus =>
+        value === "running" || value === "success" || value === "error",
     ),
     users: searchValues(search.users ?? search.user),
     services: searchValues(search.services ?? search.service),
@@ -243,7 +244,8 @@ export function validateTracesSearch(search: Record<string, unknown>): TracesSea
     range: parseMetricsRange(search.range),
     review: review === "unreviewed" || review === "pass" || review === "fail" ? review : undefined,
     statuses: searchValues(search.statuses ?? search.status).filter(
-      (value): value is SpanStatus => value === "ok" || value === "error" || value === "unset",
+      (value): value is TraceStatus =>
+        value === "running" || value === "ok" || value === "error" || value === "unset",
     ),
     services: searchValues(search.services ?? search.service),
     names: searchValues(search.names),

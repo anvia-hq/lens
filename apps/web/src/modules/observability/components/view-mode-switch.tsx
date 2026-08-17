@@ -1,5 +1,6 @@
 import { cn } from "@lens/ui/lib/utils";
 import {
+  FlowArrow,
   ChartBarHorizontal as GanttChartSquare,
   TreeStructure as ListTree,
 } from "@phosphor-icons/react";
@@ -8,16 +9,17 @@ import { labelText } from "../utils/trace-detail";
 
 export function ViewModeSwitch(props: {
   value: TraceSpanView;
+  allowGraph?: boolean;
   onChange: (view: TraceSpanView) => void;
 }) {
+  const modes = [
+    ["tree", ListTree],
+    ["timeline", GanttChartSquare],
+    ...(props.allowGraph === false ? [] : [["graph", FlowArrow] as const]),
+  ] as const;
   return (
     <div className="flex h-8 shrink-0 items-center rounded-md border bg-muted/50 p-0.5">
-      {(
-        [
-          ["tree", ListTree],
-          ["timeline", GanttChartSquare],
-        ] as const
-      ).map(([view, Icon]) => (
+      {modes.map(([view, Icon]) => (
         <button
           aria-label={`${labelText(view)} view`}
           aria-pressed={props.value === view}
