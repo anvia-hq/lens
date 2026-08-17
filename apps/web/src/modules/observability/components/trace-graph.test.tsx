@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { SpanDetail } from "@lens/contracts";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TraceGraphLayout } from "../utils/trace-graph-layout";
 import { requestTraceGraphLayout } from "../utils/trace-graph-layout-client";
@@ -107,6 +107,49 @@ describe("trace graph canvas", () => {
     vi.mocked(requestTraceGraphLayout).mockResolvedValueOnce(layout);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByRole("button", { name: "root, agent, ok" })).toBeTruthy();
+  });
+
+  it("keeps the existing layout when live span data changes without changing graph shape", async () => {
+    const { rerender } = render(
+      <div className="h-[500px]">
+        <TraceGraph
+          search=""
+          spans={[span({ spanId: "root", name: "root" })]}
+          onSelectSpan={() => undefined}
+        />
+      </div>,
+    );
+
+    expect(await screen.findByRole("button", { name: "root, agent, ok" })).toBeTruthy();
+    expect(requestTraceGraphLayout).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <div className="h-[500px]">
+        <TraceGraph
+          search=""
+          spans={[span({ spanId: "root", name: "root", status: "error" })]}
+          onSelectSpan={() => undefined}
+        />
+      </div>,
+    );
+
+    expect(await screen.findByRole("button", { name: "root, agent, error" })).toBeTruthy();
+    expect(requestTraceGraphLayout).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <div className="h-[500px]">
+        <TraceGraph
+          search=""
+          spans={[
+            span({ spanId: "root", name: "root", status: "error" }),
+            span({ spanId: "tool", name: "tool", parentSpanId: "root" }),
+          ]}
+          onSelectSpan={() => undefined}
+        />
+      </div>,
+    );
+
+    await waitFor(() => expect(requestTraceGraphLayout).toHaveBeenCalledTimes(2));
   });
 });
 

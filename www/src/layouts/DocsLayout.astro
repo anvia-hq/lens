@@ -52,9 +52,11 @@ const { previous, next } = docsNeighbors(Astro.url.pathname);
   <dialog
     id="docs-image-dialog"
     class="m-auto max-h-[96vh] max-w-[96vw] overflow-visible border-0 bg-transparent p-0 text-zinc-100"
-    aria-labelledby="docs-image-dialog-caption"
+    aria-labelledby="docs-image-dialog-title"
+    aria-describedby="docs-image-dialog-caption"
   >
     <div class="relative grid max-h-[96vh] max-w-[96vw] gap-2">
+      <h2 id="docs-image-dialog-title" class="sr-only">Image preview</h2>
       <button
         type="button"
         class="absolute top-3 right-3 z-10 grid size-10 cursor-pointer place-items-center rounded-full border border-white/15 bg-black/75 text-2xl leading-none text-white shadow-lg hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"

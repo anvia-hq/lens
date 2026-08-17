@@ -65,16 +65,22 @@ export default function TraceGraph(props: {
   const programmaticRef = useRef(false);
   const userOverrideRef = useRef(false);
   const fittedRef = useRef(false);
+  const graphRef = useRef(graph);
   const layout = layoutState?.key === layoutRequestKey ? layoutState.layout : undefined;
 
   useEffect(() => {
-    if (graph.nodes.length === 0 || graph.limitExceeded) return;
+    graphRef.current = graph;
+  }, [graph]);
+
+  useEffect(() => {
+    const currentGraph = graphRef.current;
+    if (currentGraph.nodes.length === 0 || currentGraph.limitExceeded) return;
     const controller = new AbortController();
     setLayoutError(false);
     setFitted(false);
     fittedRef.current = false;
     userOverrideRef.current = false;
-    void requestTraceGraphLayout(graph, controller.signal).then(
+    void requestTraceGraphLayout(currentGraph, controller.signal).then(
       (nextLayout) => setLayoutState({ key: layoutRequestKey, layout: nextLayout }),
       (error: unknown) => {
         if (error instanceof TraceGraphLayoutCancelledError) return;
@@ -82,7 +88,7 @@ export default function TraceGraph(props: {
       },
     );
     return () => controller.abort();
-  }, [graph, layoutRequestKey]);
+  }, [layoutRequestKey]);
 
   const writeTransform = useCallback((transform: Viewport) => {
     const world = worldRef.current;

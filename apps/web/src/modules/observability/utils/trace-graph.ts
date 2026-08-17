@@ -142,8 +142,9 @@ export function buildExpandedTraceGraph(spans: SpanDetail[]): ExpandedTraceGraph
       return limitedGraph(included.length, edgeDrafts.length);
     }
   }
-  for (const sink of (groups.get(null) ?? []).filter(
-    (span) => !rootSiblingSources.has(span.spanId),
+  const outgoing = new Set(edgeDrafts.map((edge) => edge.from));
+  for (const sink of included.filter(
+    (span) => !outgoing.has(span.spanId) && !rootSiblingSources.has(span.spanId),
   )) {
     if (!pushEdge(sink.spanId, TRACE_GRAPH_END_ID)) {
       return limitedGraph(included.length, edgeDrafts.length);

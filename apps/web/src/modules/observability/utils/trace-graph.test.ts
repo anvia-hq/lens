@@ -77,6 +77,24 @@ describe("expanded trace graph", () => {
     expect(graph.spanToNodeId.get("event")).toBe("root");
   });
 
+  it("connects the terminal descendant rather than its root to End", () => {
+    const graph = buildExpandedTraceGraph([
+      span({ spanId: "root", name: "agent" }),
+      span({
+        spanId: "tool",
+        parentSpanId: "root",
+        observationKind: "tool",
+        startTimeUnixNano: nano(10),
+      }),
+    ]);
+    const edges = graph.edges.map((edge) => `${edge.from}->${edge.to}`);
+
+    expect(edges).toContain(`${TRACE_GRAPH_START_ID}->root`);
+    expect(edges).toContain("root->tool");
+    expect(edges).toContain(`tool->${TRACE_GRAPH_END_ID}`);
+    expect(edges).not.toContain(`root->${TRACE_GRAPH_END_ID}`);
+  });
+
   it("recovers orphaned and cyclic parents as graph roots", () => {
     const graph = buildExpandedTraceGraph([
       span({ spanId: "orphan", parentSpanId: "missing" }),
