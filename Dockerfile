@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24-alpine AS builder
+# Build the JavaScript artifacts on the runner architecture. Running Node and
+# pnpm through QEMU during multi-platform builds is both unnecessary and prone
+# to sporadic illegal-instruction failures; the generated output is portable.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@11.0.4 --activate
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.package.json biome.json ./
@@ -9,7 +12,10 @@ COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
-FROM node:24-alpine AS production-dependencies
+# Required production dependencies are portable JavaScript; optional native
+# accelerators have JavaScript fallbacks. Resolve them natively and copy the
+# resulting dependency graph into the target-architecture runtime image below.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS production-dependencies
 RUN corepack enable && corepack prepare pnpm@11.0.4 --activate
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
