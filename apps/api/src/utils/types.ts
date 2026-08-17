@@ -22,6 +22,8 @@ export type ApiDependencies = {
   clickhouse: ClickHouseClient;
   redis: IORedis;
   queues: LensQueues;
+  systemHealthRedis: IORedis;
+  systemHealthQueues: LensQueues;
   auth: LensAuth;
   logger: Logger;
 };

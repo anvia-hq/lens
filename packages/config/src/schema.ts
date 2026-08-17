@@ -23,6 +23,7 @@ const envSchema = z
     CLICKHOUSE_USERNAME: z.string().min(1).default("lens"),
     CLICKHOUSE_PASSWORD: z.string().default("lens"),
     REDIS_URL: z.url().default("redis://localhost:6379"),
+    SYSTEM_MONITOR_URL: optionalString.pipe(z.url().optional()),
     BETTER_AUTH_SECRET: z.string().min(32).default("development-only-secret-change-me-now"),
     INGESTION_KEY_PEPPER: z.string().min(16).default("development-ingestion-key-pepper"),
     SMTP_HOST: optionalString,

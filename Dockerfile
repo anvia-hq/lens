@@ -15,13 +15,14 @@ WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY LICENSE ./LICENSE
 COPY apps/api/package.json ./apps/api/package.json
+COPY apps/monitor/package.json ./apps/monitor/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
 COPY packages/config/package.json ./packages/config/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/queue/package.json ./packages/queue/package.json
 COPY packages/telemetry/package.json ./packages/telemetry/package.json
-RUN pnpm install --prod --frozen-lockfile --filter @lens/api... --filter @lens/worker...
+RUN pnpm install --prod --frozen-lockfile --filter @lens/api... --filter @lens/monitor... --filter @lens/worker...
 
 FROM node:24-alpine AS backend
 ARG LENS_VERSION=dev
@@ -36,6 +37,7 @@ ENV NODE_ENV=production
 WORKDIR /workspace
 COPY --chown=node:node --from=production-dependencies /workspace ./
 COPY --chown=node:node --from=builder /workspace/apps/api/dist ./apps/api/dist
+COPY --chown=node:node --from=builder /workspace/apps/monitor/dist ./apps/monitor/dist
 COPY --chown=node:node --from=builder /workspace/apps/worker/dist ./apps/worker/dist
 COPY --chown=node:node --from=builder /workspace/packages/config/dist ./packages/config/dist
 COPY --chown=node:node --from=builder /workspace/packages/contracts/dist ./packages/contracts/dist

@@ -11,6 +11,7 @@ x-app-environment: &app-environment
   CLICKHOUSE_USERNAME: lens
   CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in .env}
   REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379
+  SYSTEM_MONITOR_URL: http://monitor:3100
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
   INGESTION_KEY_PEPPER: ${INGESTION_KEY_PEPPER:?Set INGESTION_KEY_PEPPER in .env}
   SMTP_HOST: ${SMTP_HOST:-}
@@ -35,6 +36,43 @@ x-backend-service: &backend-service
     - no-new-privileges:true
 
 services:
+  monitor:
+    image: ${LENS_BACKEND_IMAGE:-ghcr.io/anvia-hq/lens}:${LENS_VERSION:-latest}
+    pull_policy: ${LENS_PULL_POLICY:-always}
+    command: ["node", "apps/monitor/dist/index.js"]
+    environment:
+      NODE_ENV: production
+      SYSTEM_MONITOR_PORT: 3100
+      HOST_PROC_PATH: /host/proc
+      HOST_ROOT_PATH: /host/root
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+      - type: bind
+        source: /
+        target: /host/root
+        read_only: true
+        bind:
+          propagation: rslave
+    networks:
+      - lens-monitor
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3100/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -102,6 +140,9 @@ services:
 
   api:
     <<: *backend-service
+    networks:
+      - default
+      - lens-monitor
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -154,3 +195,8 @@ volumes:
   lens-clickhouse:
   lens-postgres:
   lens-redis:
+
+networks:
+  default:
+  lens-monitor:
+    internal: true

@@ -20,6 +20,7 @@ import { createProjectsRouter } from "./modules/projects/router.js";
 import { createPublicQualityGatesRouter } from "./modules/quality-gates/public-router.js";
 import { createQualityGatesRouter } from "./modules/quality-gates/router.js";
 import { createSessionsRouter } from "./modules/sessions/router.js";
+import { createSystemHealthRouter } from "./modules/system/health-router.js";
 import { createSystemRouter } from "./modules/system/router.js";
 import { createTracesRouter } from "./modules/traces/router.js";
 import { createUsersRouter } from "./modules/users/router.js";
@@ -66,6 +67,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/public/datasets", createPublicDatasetsRouter(deps))
     .route("/api/public/quality-gates", createPublicQualityGatesRouter(deps))
     .use("/api/v1/*", createSessionMiddleware(deps))
+    .route("/api/v1/system", createSystemHealthRouter(deps))
     .route("/api/v1/members", createMembersRouter(deps))
     .route("/api/v1/llm-models", createLlmModelsRouter(deps))
     .route("/api/v1/projects", createProjectsRouter(deps))

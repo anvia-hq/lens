@@ -32,10 +32,16 @@ Changing the file alone does not update environment variables inside an already-
 | `PUBLIC_APP_URL` | Required | Browser-facing absolute origin used by authentication and generated links. |
 | `WEB_ORIGIN` | Required | Allowed browser origin. Set it to the same public origin. |
 | `WEB_PORT` | `80` | Host binding published by the web container, such as `80` or `127.0.0.1:8080`. |
+| `SYSTEM_MONITOR_URL` | Empty outside production Compose | Internal compatible host collector URL. Production Compose configures this automatically. |
 
 Use `https://lens.example.com`, not an internal API or Compose service URL, for both origin values.
 The two values must match exactly. A mismatch commonly appears as a sign-in, redirect, cookie, or
 cross-origin request failure.
+
+`SYSTEM_MONITOR_URL` is not normally added to `.env`. The production Compose file connects the API
+to its bundled Linux monitor on an isolated network. Kubernetes and custom deployments can provide
+a compatible collector URL or leave it unset; the rest of Lens remains healthy without machine
+metrics.
 
 ## Required secrets
 
