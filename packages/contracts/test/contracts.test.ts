@@ -48,15 +48,41 @@ describe("contracts", () => {
   });
 
   it("validates machine metric snapshots", () => {
+    const root = {
+      path: "/",
+      name: "Root disk",
+      totalBytes: 100,
+      usedBytes: 50,
+      availableBytes: 50,
+      usagePercent: 50,
+    };
+    const snapshot = {
+      version: 1,
+      sampledAt: "2026-08-17T00:00:00.000Z",
+      uptimeSeconds: 100,
+      cpu: { usagePercent: 25, logicalCores: 4, load1: 0.5 },
+      memory: { totalBytes: 100, usedBytes: 50, availableBytes: 50, usagePercent: 50 },
+      swap: { totalBytes: 0, usedBytes: 0, availableBytes: 0, usagePercent: 0 },
+      disk: root,
+    };
+
+    // Existing single-disk collectors remain valid.
+    expect(systemMonitorSnapshotSchema.safeParse(snapshot).success).toBe(true);
     expect(
       systemMonitorSnapshotSchema.safeParse({
-        version: 1,
-        sampledAt: "2026-08-17T00:00:00.000Z",
-        uptimeSeconds: 100,
-        cpu: { usagePercent: 25, logicalCores: 4, load1: 0.5 },
-        memory: { totalBytes: 100, usedBytes: 50, availableBytes: 50, usagePercent: 50 },
-        swap: { totalBytes: 0, usedBytes: 0, availableBytes: 0, usagePercent: 0 },
-        disk: { path: "/", totalBytes: 100, usedBytes: 50, availableBytes: 50, usagePercent: 50 },
+        ...snapshot,
+        disks: [
+          root,
+          {
+            ...root,
+            path: "/mnt/docker",
+            name: "Docker data",
+            totalBytes: 1_000,
+            usedBytes: 250,
+            availableBytes: 750,
+            usagePercent: 25,
+          },
+        ],
       }).success,
     ).toBe(true);
   });

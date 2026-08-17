@@ -21,6 +21,11 @@ const capacitySchema = z.object({
   usagePercent: z.number().min(0).max(100),
 });
 
+const monitorDiskSchema = capacitySchema.extend({
+  path: z.string().min(1),
+  name: z.string().min(1).optional(),
+});
+
 export type SystemCapacity = z.infer<typeof capacitySchema>;
 
 export const systemMonitorSnapshotSchema = z.object({
@@ -34,7 +39,11 @@ export const systemMonitorSnapshotSchema = z.object({
   }),
   memory: capacitySchema,
   swap: capacitySchema,
-  disk: capacitySchema.extend({ path: z.string().min(1) }),
+  // `disk` is retained for compatibility with monitor/API versions that only
+  // reported the host root filesystem. New collectors also return every
+  // configured filesystem in `disks`.
+  disk: monitorDiskSchema,
+  disks: z.array(monitorDiskSchema).min(1).optional(),
 });
 
 export type SystemMonitorSnapshot = z.infer<typeof systemMonitorSnapshotSchema>;

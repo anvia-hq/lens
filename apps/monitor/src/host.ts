@@ -1,11 +1,24 @@
-import { readFile, statfs } from "node:fs/promises";
+import { readFile, stat, statfs } from "node:fs/promises";
 import type { SystemCapacity, SystemMonitorSnapshot } from "@lens/contracts";
 
 type CpuSample = { idle: number; total: number; logicalCores: number };
 
 export type HostPaths = {
   proc: string;
-  root: string;
+  root: HostDiskPath;
+  additionalDisks?: HostDiskPath[];
+};
+
+export type HostDiskPath = {
+  path: string;
+  displayPath: string;
+  name: string;
+};
+
+export type CollectedDisk = SystemCapacity & {
+  device: number;
+  path: string;
+  name: string;
 };
 
 export class HostCollector {
@@ -14,19 +27,33 @@ export class HostCollector {
   constructor(private readonly paths: HostPaths) {}
 
   async snapshot(): Promise<SystemMonitorSnapshot> {
-    const [stat, meminfo, uptime, loadavg, disk] = await Promise.all([
+    const [statText, meminfo, uptime, loadavg, rootDisk] = await Promise.all([
       readFile(`${this.paths.proc}/stat`, "utf8"),
       readFile(`${this.paths.proc}/meminfo`, "utf8"),
       readFile(`${this.paths.proc}/uptime`, "utf8"),
       readFile(`${this.paths.proc}/loadavg`, "utf8"),
-      statfs(this.paths.root),
+      collectDisk(this.paths.root),
     ]);
-    const cpu = parseCpuStat(stat);
+    const additionalDisks = await Promise.all(
+      (this.paths.additionalDisks ?? []).map(async (disk) => {
+        try {
+          return await collectDisk(disk);
+        } catch {
+          // Root metrics remain useful when an optional host mount is absent or
+          // inaccessible. The next sample will retry the additional disk.
+          return null;
+        }
+      }),
+    );
+    const disks = deduplicateDisks([
+      rootDisk,
+      ...additionalDisks.filter((disk): disk is CollectedDisk => disk !== null),
+    ]);
+    const cpu = parseCpuStat(statText);
     const usagePercent = cpuUsagePercent(this.previousCpu, cpu);
     this.previousCpu = cpu;
     const memory = parseMeminfo(meminfo);
-    const totalDiskBytes = disk.blocks * disk.bsize;
-    const availableDiskBytes = disk.bavail * disk.bsize;
+    const root = withoutDevice(rootDisk);
 
     return {
       version: 1,
@@ -39,9 +66,33 @@ export class HostCollector {
       },
       memory: capacity(memory.total, memory.available),
       swap: capacity(memory.swapTotal, memory.swapFree),
-      disk: { path: "/", ...capacity(totalDiskBytes, availableDiskBytes) },
+      disk: root,
+      disks: disks.map(withoutDevice),
     };
   }
+}
+
+async function collectDisk(target: HostDiskPath): Promise<CollectedDisk> {
+  const [filesystem, metadata] = await Promise.all([statfs(target.path), stat(target.path)]);
+  return {
+    device: metadata.dev,
+    path: target.displayPath,
+    name: target.name,
+    ...capacity(filesystem.blocks * filesystem.bsize, filesystem.bavail * filesystem.bsize),
+  };
+}
+
+export function deduplicateDisks(disks: CollectedDisk[]): CollectedDisk[] {
+  const devices = new Set<number>();
+  return disks.filter((disk) => {
+    if (devices.has(disk.device)) return false;
+    devices.add(disk.device);
+    return true;
+  });
+}
+
+function withoutDevice({ device: _device, ...disk }: CollectedDisk) {
+  return disk;
 }
 
 export function parseCpuStat(value: string): CpuSample {

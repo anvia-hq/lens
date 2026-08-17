@@ -30,6 +30,7 @@ import {
 import type { ReactNode } from "react";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
+import { SemanticStatusBadge } from "../../../components/semantic-status-badge";
 import type { SystemHealthState } from "../hooks/use-system-health";
 
 export function SystemHealthView({ state }: { state: SystemHealthState }) {
@@ -93,6 +94,7 @@ export function SystemHealthView({ state }: { state: SystemHealthState }) {
 
 function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
   const snapshot = machine.snapshot;
+  const disks = snapshot ? (snapshot.disks ?? [snapshot.disk]) : [];
   return (
     <section className="grid gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -103,7 +105,7 @@ function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
         <StatusBadge status={machine.status} />
       </div>
       {snapshot ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <ResourceCard
             icon={<Cpu />}
             label="CPU"
@@ -123,7 +125,16 @@ function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
             capacity={snapshot.swap}
             kind="informational"
           />
-          <CapacityCard icon={<HardDrive />} label="Disk" capacity={snapshot.disk} kind="disk" />
+          {disks.map((disk) => (
+            <CapacityCard
+              key={`${disk.name ?? "Disk"}:${disk.path}`}
+              icon={<HardDrive />}
+              label={disk.name ?? (disk.path === "/" ? "Root disk" : "Disk")}
+              capacity={disk}
+              detailSuffix={disk.path}
+              kind="disk"
+            />
+          ))}
           <ResourceCard
             icon={<Hourglass />}
             label="Uptime"
@@ -277,11 +288,13 @@ function QueuesSection({ value }: { value: SystemHealth }) {
 
 function CapacityCard({
   capacity,
+  detailSuffix,
   icon,
   kind,
   label,
 }: {
   capacity: SystemCapacity;
+  detailSuffix?: string;
   icon: ReactNode;
   kind: "disk" | "informational" | "memory";
   label: string;
@@ -292,7 +305,7 @@ function CapacityCard({
       label={label}
       percent={capacity.usagePercent}
       value={formatPercent(capacity.usagePercent)}
-      detail={`${formatBytes(capacity.usedBytes)} / ${formatBytes(capacity.totalBytes)}`}
+      detail={`${formatBytes(capacity.usedBytes)} / ${formatBytes(capacity.totalBytes)}${detailSuffix ? ` · ${detailSuffix}` : ""}`}
       status={
         kind === "disk"
           ? diskStatus(capacity.usagePercent)
@@ -324,7 +337,7 @@ function ResourceCard({
       <CardHeader className="gap-1">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">{icon}</span>
-          <StatusBadge status={status} compact />
+          {status === "healthy" ? null : <StatusBadge status={status} compact />}
         </div>
         <CardDescription>{label}</CardDescription>
         <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
@@ -358,6 +371,9 @@ function StatusBadge({
   compact?: boolean;
   status: SystemHealthStatus;
 }) {
+  if (status === "healthy" && !compact) {
+    return <SemanticStatusBadge tone="success">Healthy</SemanticStatusBadge>;
+  }
   return (
     <Badge
       variant="outline"
@@ -390,7 +406,8 @@ function StatusBadge({
 }
 
 function statusLabel(status: SystemHealthStatus): string {
-  return status === "not_configured" ? "Not configured" : status;
+  if (status === "not_configured") return "Not configured";
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 }
 
 function overallMessage(value: SystemHealth): string {

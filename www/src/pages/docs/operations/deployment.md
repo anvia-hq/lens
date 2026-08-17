@@ -15,7 +15,7 @@ images.
 | `web` | Browser application and reverse proxy to the API | `WEB_PORT`, default 80 |
 | `api` | Authentication, product APIs, and OTLP ingestion | Private Compose network |
 | `worker` | Ingestion, materialization, retention, deletion, and cost jobs | Private Compose network |
-| `monitor` | Read-only Linux host CPU, memory, uptime, and root-disk snapshot | Isolated internal network |
+| `monitor` | Read-only Linux host CPU, memory, uptime, root-disk, and Docker-data snapshots | Isolated internal network |
 | `postgres` | Identity, projects, settings, datasets, and job state | Private Compose network |
 | `clickhouse` | Traces, spans, run telemetry, results, and analytics | Private Compose network |
 | `redis` | Durable queue transport | Private Compose network |
@@ -25,8 +25,9 @@ The API waits for migrations and Redis; the web service waits for API readiness.
 graceful stop period to finish or safely return work.
 
 The monitor is informational and does not block Lens startup. It runs without application or
-database secrets, Linux capabilities, or access to the Docker socket. Production Compose mounts the
-host root and `/proc` read-only and exposes the monitor only to the API over an isolated network.
+database secrets, Linux capabilities, or access to the Docker socket. Production Compose mounts
+the host root, Docker data path, and `/proc` read-only and exposes the monitor only to the API over
+an isolated network.
 Custom deployments may omit it; System Health will continue to show Lens services and report that
 machine metrics are not configured.
 
@@ -120,9 +121,20 @@ docker compose logs -f api worker web
 The API is ready only after PostgreSQL, ClickHouse, Redis, and migrations are usable.
 
 Owners and admins can also open **System Health** in the workspace navigation. It refreshes every
-15 seconds and shows current Linux host CPU, RAM, swap, root-disk space, ClickHouse disk capacity,
-database sizes, Redis memory, worker heartbeat, and queue counts. Resource levels become warnings
-at 80% usage (85% for CPU) and critical at 90% usage (95% for CPU).
+15 seconds and shows current Linux host CPU, RAM, swap, root-disk and Docker-data space, ClickHouse
+disk capacity, database sizes, Redis memory, worker heartbeat, and queue counts. Resource levels
+become warnings at 80% usage (85% for CPU) and critical at 90% usage (95% for CPU).
+
+For a host with a dedicated Docker data disk, set its absolute mount or Docker data-root path before
+starting Lens:
+
+```sh
+docker info --format '{{.DockerRootDir}}'
+```
+
+```dotenv
+SYSTEM_MONITOR_DATA_PATH=/mnt/docker
+```
 
 ## Stop without deleting data
 
