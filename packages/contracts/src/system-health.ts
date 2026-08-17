@@ -28,23 +28,36 @@ const monitorDiskSchema = capacitySchema.extend({
 
 export type SystemCapacity = z.infer<typeof capacitySchema>;
 
-export const systemMonitorSnapshotSchema = z.object({
-  version: z.literal(1),
-  sampledAt: z.iso.datetime(),
-  uptimeSeconds: z.number().nonnegative(),
-  cpu: z.object({
-    usagePercent: z.number().min(0).max(100).nullable(),
-    logicalCores: z.number().int().positive(),
-    load1: z.number().nonnegative(),
-  }),
-  memory: capacitySchema,
-  swap: capacitySchema,
-  // `disk` is retained for compatibility with monitor/API versions that only
-  // reported the host root filesystem. New collectors also return every
-  // configured filesystem in `disks`.
-  disk: monitorDiskSchema,
-  disks: z.array(monitorDiskSchema).min(1).optional(),
-});
+export const systemMonitorSnapshotSchema = z
+  .object({
+    version: z.literal(1),
+    sampledAt: z.iso.datetime(),
+    uptimeSeconds: z.number().nonnegative(),
+    cpu: z.object({
+      usagePercent: z.number().min(0).max(100).nullable(),
+      logicalCores: z.number().int().positive(),
+      load1: z.number().nonnegative(),
+    }),
+    memory: capacitySchema,
+    swap: capacitySchema,
+    // `disk` is retained for compatibility with monitor/API versions that only
+    // reported the host root filesystem. New collectors also return every
+    // configured filesystem in `disks`.
+    disk: monitorDiskSchema,
+    disks: z.array(monitorDiskSchema).min(1).optional(),
+  })
+  .superRefine((snapshot, context) => {
+    if (
+      snapshot.disks !== undefined &&
+      !snapshot.disks.some((disk) => disk.path === snapshot.disk.path)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Disks must include the root disk",
+        path: ["disks"],
+      });
+    }
+  });
 
 export type SystemMonitorSnapshot = z.infer<typeof systemMonitorSnapshotSchema>;
 

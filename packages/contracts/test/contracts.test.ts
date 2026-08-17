@@ -85,6 +85,12 @@ describe("contracts", () => {
         ],
       }).success,
     ).toBe(true);
+    expect(
+      systemMonitorSnapshotSchema.safeParse({
+        ...snapshot,
+        disks: [{ ...root, path: "/mnt/docker", name: "Docker data" }],
+      }).success,
+    ).toBe(false);
   });
 
   it("validates quality gate rules and pass-rate ranges", () => {
