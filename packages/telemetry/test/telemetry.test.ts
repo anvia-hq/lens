@@ -350,15 +350,33 @@ describe("OTLP ingestion", () => {
   });
 
   it("decodes a binary protobuf export request", () => {
+    const parentSpanId = "8899aabbccddeeff";
+    const linkedTraceId = "ffeeddccbbaa99887766554433221100";
+    const linkedSpanId = "7766554433221100";
     const span = message([
       bytesField(1, hexBytes(traceId)),
       bytesField(2, hexBytes(spanId)),
-      stringField(6, "agent.support"),
-      varintField(7, 1n),
-      fixed64Field(8, 1_785_916_800_000_000_000n),
-      fixed64Field(9, 1_785_916_800_100_000_000n),
-      messageField(10, keyValue("anvia.trace.name", stringAny("support"))),
-      messageField(16, message([varintField(3, 1n)])),
+      stringField(3, "vendor=lens"),
+      bytesField(4, hexBytes(parentSpanId)),
+      stringField(5, "agent.support"),
+      varintField(6, 1n),
+      fixed64Field(7, 1_785_916_800_000_000_000n),
+      fixed64Field(8, 1_785_916_800_100_000_000n),
+      messageField(9, keyValue("anvia.trace.name", stringAny("support"))),
+      messageField(
+        11,
+        message([fixed64Field(1, 1_785_916_800_050_000_000n), stringField(2, "tool.start")]),
+      ),
+      messageField(
+        13,
+        message([
+          bytesField(1, hexBytes(linkedTraceId)),
+          bytesField(2, hexBytes(linkedSpanId)),
+          fixed32Field(6, 1),
+        ]),
+      ),
+      messageField(15, message([varintField(3, 1n)])),
+      fixed32Field(16, 1),
     ]);
     const scopeSpans = message([messageField(2, span)]);
     const resourceSpans = message([messageField(2, scopeSpans)]);
@@ -369,9 +387,15 @@ describe("OTLP ingestion", () => {
     expect(request.resourceSpans[0]?.scopeSpans[0]?.spans[0]).toMatchObject({
       traceId,
       spanId,
+      parentSpanId,
+      traceState: "vendor=lens",
+      flags: 1,
       name: "agent.support",
+      kind: 1,
       startTimeUnixNano: "1785916800000000000",
       endTimeUnixNano: "1785916800100000000",
+      events: [{ name: "tool.start", timeUnixNano: "1785916800050000000" }],
+      links: [{ traceId: linkedTraceId, spanId: linkedSpanId, flags: 1 }],
       status: { code: 1 },
     });
   });
@@ -610,6 +634,13 @@ function stringField(field: number, value: string): Uint8Array {
 
 function messageField(field: number, value: Uint8Array): Uint8Array {
   return bytesField(field, value);
+}
+
+function fixed32Field(field: number, value: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, value, true);
+  return message([varint(BigInt((field << 3) | 5)), bytes]);
 }
 
 function fixed64Field(field: number, value: bigint): Uint8Array {

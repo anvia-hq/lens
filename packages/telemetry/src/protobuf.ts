@@ -97,6 +97,20 @@ class Reader {
 const hex = (value: Uint8Array): string =>
   Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
+function unixNano(reader: Reader, wire: number): string {
+  if (wire === 1) return reader.fixed64().toString();
+  if (wire === 0) return reader.varint().toString();
+  reader.skip(wire);
+  return "0";
+}
+
+function flagsValue(reader: Reader, wire: number): number {
+  if (wire === 5) return reader.fixed32();
+  if (wire === 0) return Number(reader.varint());
+  reader.skip(wire);
+  return 0;
+}
+
 function integerValue(value: bigint): JsonValue {
   const signed = value > 0x7fff_ffff_ffff_ffffn ? value - 0x1_0000_0000_0000_0000n : value;
   return signed >= Number.MIN_SAFE_INTEGER && signed <= Number.MAX_SAFE_INTEGER
@@ -185,7 +199,7 @@ function decodeEvent(reader: Reader): OtlpEvent {
   };
   while (!reader.done) {
     const { field, wire } = reader.tag();
-    if (field === 1) event.timeUnixNano = reader.fixed64().toString();
+    if (field === 1) event.timeUnixNano = unixNano(reader, wire);
     else if (field === 2) event.name = reader.string();
     else if (field === 3) event.attributes.push(reader.message(decodeKeyValue));
     else if (field === 4) event.droppedAttributesCount = Number(reader.varint());
@@ -210,7 +224,7 @@ function decodeLink(reader: Reader): OtlpLink {
     else if (field === 3) link.traceState = reader.string();
     else if (field === 4) link.attributes.push(reader.message(decodeKeyValue));
     else if (field === 5) link.droppedAttributesCount = Number(reader.varint());
-    else if (field === 6) link.flags = Number(reader.varint());
+    else if (field === 6) link.flags = flagsValue(reader, wire);
     else reader.skip(wire);
   }
   return link;
@@ -249,15 +263,15 @@ function decodeSpan(reader: Reader): OtlpSpan {
     else if (field === 2) span.spanId = hex(reader.data());
     else if (field === 3) span.traceState = reader.string();
     else if (field === 4) span.parentSpanId = hex(reader.data());
-    else if (field === 5) span.flags = Number(reader.varint());
-    else if (field === 6) span.name = reader.string();
-    else if (field === 7) span.kind = Number(reader.varint());
-    else if (field === 8) span.startTimeUnixNano = reader.fixed64().toString();
-    else if (field === 9) span.endTimeUnixNano = reader.fixed64().toString();
-    else if (field === 10) span.attributes.push(reader.message(decodeKeyValue));
-    else if (field === 12) span.events.push(reader.message(decodeEvent));
-    else if (field === 14) span.links.push(reader.message(decodeLink));
-    else if (field === 16) span.status = reader.message(decodeStatus);
+    else if (field === 5) span.name = reader.string();
+    else if (field === 6) span.kind = Number(reader.varint());
+    else if (field === 7) span.startTimeUnixNano = unixNano(reader, wire);
+    else if (field === 8) span.endTimeUnixNano = unixNano(reader, wire);
+    else if (field === 9) span.attributes.push(reader.message(decodeKeyValue));
+    else if (field === 11) span.events.push(reader.message(decodeEvent));
+    else if (field === 13) span.links.push(reader.message(decodeLink));
+    else if (field === 15) span.status = reader.message(decodeStatus);
+    else if (field === 16) span.flags = flagsValue(reader, wire);
     else reader.skip(wire);
   }
   return span;
@@ -344,14 +358,14 @@ function decodeLogRecord(reader: Reader): OtlpLogRecord {
   };
   while (!reader.done) {
     const { field, wire } = reader.tag();
-    if (field === 1) record.timeUnixNano = reader.fixed64().toString();
-    else if (field === 2) record.observedTimeUnixNano = reader.fixed64().toString();
+    if (field === 1) record.timeUnixNano = unixNano(reader, wire);
+    else if (field === 2) record.observedTimeUnixNano = unixNano(reader, wire);
     else if (field === 3) record.severityNumber = Number(reader.varint());
     else if (field === 4) record.severityText = reader.string();
     else if (field === 5) record.body = reader.message(decodeAnyValue);
     else if (field === 6) record.attributes.push(reader.message(decodeKeyValue));
     else if (field === 7) record.droppedAttributesCount = Number(reader.varint());
-    else if (field === 8) record.flags = wire === 5 ? reader.fixed32() : Number(reader.varint());
+    else if (field === 8) record.flags = flagsValue(reader, wire);
     else if (field === 9) record.traceId = hex(reader.data());
     else if (field === 10) record.spanId = hex(reader.data());
     else if (field === 11) record.eventName = reader.string();
