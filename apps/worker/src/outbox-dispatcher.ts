@@ -94,7 +94,7 @@ async function publishJobOutbox(queues: LensQueues, row: JobOutboxRow): Promise<
     await queues.maintenance.add(event.name, event.payload, options);
     return;
   }
-  if (event.name === "delete-project") {
+  if (event.name === "delete-project" || event.name === "delete-data") {
     await queues.maintenance.add(event.name, event.payload, options);
     return;
   }

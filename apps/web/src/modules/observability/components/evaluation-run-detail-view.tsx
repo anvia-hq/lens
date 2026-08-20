@@ -31,6 +31,7 @@ import {
   CaretLeft,
   Flask,
   MagnifyingGlass as Search,
+  Trash,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -38,6 +39,7 @@ import { FullPageMessage } from "../../../components/full-page-message";
 import type { EvaluationRunDetailState } from "../hooks/use-evaluation-runs";
 import type { TracePayloadView } from "../types";
 import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { HeaderMetric } from "./header-metric";
@@ -48,6 +50,7 @@ const unspecifiedCaseSearchValue = "__unspecified_case__";
 
 export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailState }) {
   const isMobile = useIsMobile();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   if (state.detail.isLoading)
     return <FullPageMessage icon={<Flask />} text="Loading evaluation run" contained />;
   if (state.detail.error || !state.detail.data)
@@ -107,22 +110,28 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
               </div>
             </div>
           </div>
-          {run.status === "completed" ? (
-            <Button
-              className="shrink-0"
-              size="sm"
-              variant="outline"
-              render={
-                <Link
-                  to="/$projectId/evaluations/compare"
-                  params={{ projectId: state.project.id }}
-                  search={{ candidateRunId: run.id }}
-                />
-              }
-            >
-              <ArrowsLeftRight /> Compare
-            </Button>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {run.status === "completed" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                render={
+                  <Link
+                    to="/$projectId/evaluations/compare"
+                    params={{ projectId: state.project.id }}
+                    search={{ candidateRunId: run.id }}
+                  />
+                }
+              >
+                <ArrowsLeftRight /> Compare
+              </Button>
+            ) : null}
+            {state.project.role === "owner" || state.project.role === "admin" ? (
+              <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash /> Delete
+              </Button>
+            ) : null}
+          </div>
         </div>
         <dl className="mt-3 grid w-full grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4 xl:grid-cols-8">
           <SummaryMetric
@@ -197,6 +206,13 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           </ResizablePanelGroup>
         )}
       </div>
+      <DataDeletionDialog
+        entityType="evaluation_run"
+        ids={deleteOpen ? [run.id] : []}
+        pending={state.deletionPending}
+        onOpenChange={setDeleteOpen}
+        onConfirm={state.deleteRun}
+      />
     </main>
   );
 }

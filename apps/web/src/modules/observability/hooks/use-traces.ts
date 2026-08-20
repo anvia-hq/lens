@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, ResolvedTracesSearch, TracesSearch } from "../types";
 import { refreshMilliseconds, timeRangeForPreset, traceActiveFilterCount } from "../utils";
+import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useTraces() {
@@ -16,6 +17,7 @@ export function useTraces() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedTraceIds, setSelectedTraceIds] = useState<string[]>([]);
+  const deletions = useDataDeletions(project.id, "trace");
   const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<TracesSearch>, resetPage = true) => {
@@ -110,12 +112,23 @@ export function useTraces() {
   const toggleTraceSelection = (traceId: string, selected: boolean) => {
     setSelectedTraceIds((current) => {
       if (!selected) return current.filter((item) => item !== traceId);
-      if (current.includes(traceId) || current.length >= 4) return current;
+      if (current.includes(traceId) || current.length >= 100) return current;
       return [...current, traceId];
     });
   };
+  const toggleVisibleTraceSelection = (traceIds: string[], selected: boolean) => {
+    setSelectedTraceIds((current) => {
+      if (!selected) return current.filter((item) => !traceIds.includes(item));
+      const next = new Set(current);
+      for (const id of traceIds) {
+        if (next.size >= 100) break;
+        next.add(id);
+      }
+      return [...next];
+    });
+  };
   const compareSelectedTraces = () => {
-    if (selectedTraceIds.length < 2) return;
+    if (selectedTraceIds.length < 2 || selectedTraceIds.length > 4) return;
     void navigate({
       to: "/$projectId/traces/compare",
       params: { projectId: project.id },
@@ -130,17 +143,20 @@ export function useTraces() {
     filterPanelCollapsed,
     filters,
     mobileFiltersOpen,
+    project,
     refreshInterval,
     searchDraft,
     selectedTraceIds,
     clearTraceSelection: () => setSelectedTraceIds([]),
     compareSelectedTraces,
+    deletions,
     setFilterPanelCollapsed,
     setFilters,
     setMobileFiltersOpen,
     setRefreshInterval,
     setSearchDraft,
     toggleTraceSelection,
+    toggleVisibleTraceSelection,
     traces,
   };
 }

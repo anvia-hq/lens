@@ -22,14 +22,19 @@ vi.mock("@tanstack/react-router", () => ({
 afterEach(cleanup);
 
 describe("trace table selection", () => {
-  it("selects individual rows and disables new selections at four traces", () => {
+  it("selects individual rows and disables new selections at one hundred traces", () => {
     const onTraceSelectionChange = vi.fn();
     const { rerender } = renderTable(["trace-1"], onTraceSelectionChange);
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Select support-agent" }));
     expect(onTraceSelectionChange).toHaveBeenCalledWith("trace-5", true);
 
-    rerender(table(["trace-1", "trace-2", "trace-3", "trace-4"], onTraceSelectionChange));
+    rerender(
+      table(
+        Array.from({ length: 100 }, (_, index) => `selected-${index}`),
+        onTraceSelectionChange,
+      ),
+    );
     const limitedCheckbox = screen.getByRole("checkbox", { name: "Select support-agent" });
     expect(limitedCheckbox.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(limitedCheckbox);

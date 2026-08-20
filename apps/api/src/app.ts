@@ -5,6 +5,7 @@ import { createAlertsRouter } from "./modules/alerts/router.js";
 import { createApiKeysRouter } from "./modules/api-keys/router.js";
 import { createAuthRouter, createSetupRouter } from "./modules/auth/router.js";
 import { createSessionMiddleware } from "./modules/auth/services.js";
+import { createDataDeletionsRouter } from "./modules/data-deletions/router.js";
 import { createEvaluationDatasetsRouter } from "./modules/evaluation-datasets/router.js";
 import { createEvaluationRunsRouter } from "./modules/evaluation-runs/router.js";
 import { createEvaluationsRouter } from "./modules/evaluations/router.js";
@@ -73,6 +74,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createProjectsRouter(deps))
     .route("/api/v1/projects", createApiKeysRouter(deps))
     .route("/api/v1/projects", createAlertsRouter(deps))
+    .route("/api/v1/projects", createDataDeletionsRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))
     .route("/api/v1/projects", createSessionsRouter(deps))
     .route("/api/v1/projects", createUsersRouter(deps))

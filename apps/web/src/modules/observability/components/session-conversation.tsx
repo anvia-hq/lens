@@ -8,9 +8,11 @@ import {
   Coins,
   ArrowSquareOut as ExternalLink,
   ChatCircle as MessageCircle,
+  Trash,
   User,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   formatCost,
   formatDuration,
@@ -19,6 +21,7 @@ import {
   shortId,
 } from "../utils/session";
 import { ConversationMessage } from "./conversation-message";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { MetricPill } from "./metric-pill";
 import { SessionMetadata } from "./session-metadata";
 import { StatusPill } from "./status-pill";
@@ -28,8 +31,11 @@ export function SessionConversation(props: {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  onDelete?: () => void;
+  deletionPending?: boolean;
 }) {
   const summary = props.detail.summary;
+  const [deleteOpen, setDeleteOpen] = useState(false);
   return (
     <main className="grid h-[calc(100svh-3.5rem)] min-h-0 w-full flex-1 overflow-auto bg-background lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_24rem]">
       <section className="min-w-0 lg:overflow-auto">
@@ -41,7 +47,14 @@ export function SessionConversation(props: {
               {props.detail.turns.length === 1 ? "turn" : "turns"}
             </p>
           </div>
-          <Badge variant="outline">{formatNumber(summary.traceCount)} traces</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{formatNumber(summary.traceCount)} traces</Badge>
+            {props.onDelete ? (
+              <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash /> Delete
+              </Button>
+            ) : null}
+          </div>
         </header>
         <div className="mx-auto grid w-full max-w-5xl content-start">
           {props.detail.turns.length === 0 ? (
@@ -131,6 +144,13 @@ export function SessionConversation(props: {
         </div>
       </section>
       <SessionMetadata detail={props.detail} />
+      <DataDeletionDialog
+        entityType="session"
+        ids={deleteOpen ? [summary.sessionId] : []}
+        pending={props.deletionPending ?? false}
+        onOpenChange={setDeleteOpen}
+        onConfirm={() => props.onDelete?.()}
+      />
     </main>
   );
 }

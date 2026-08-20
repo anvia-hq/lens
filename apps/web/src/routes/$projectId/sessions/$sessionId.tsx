@@ -9,7 +9,7 @@ export const Route = createFileRoute("/$projectId/sessions/$sessionId")({
 });
 
 function SessionDetailPage() {
-  const { detail, project, session } = useSessionDetail();
+  const { deleteSession, deletionPending, detail, project, session } = useSessionDetail();
   if (session.isLoading)
     return <FullPageMessage icon={<MessagesSquare />} text="Loading session" contained />;
   if (detail === undefined)
@@ -21,6 +21,8 @@ function SessionDetailPage() {
       hasMore={session.hasNextPage}
       isLoadingMore={session.isFetchingNextPage}
       onLoadMore={() => void session.fetchNextPage()}
+      onDelete={project.role === "owner" || project.role === "admin" ? deleteSession : undefined}
+      deletionPending={deletionPending}
     />
   );
 }

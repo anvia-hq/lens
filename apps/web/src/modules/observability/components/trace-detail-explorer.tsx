@@ -17,6 +17,7 @@ import {
   TRACE_LAYOUT_STORAGE_KEY,
   TRACE_PAYLOAD_STORAGE_KEY,
 } from "../utils/trace-detail";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { EmptyInspector } from "./empty-inspector";
 import { MobileTraceLayout } from "./mobile-trace-layout";
 import { SpanInspector } from "./span-inspector";
@@ -32,6 +33,8 @@ export function TraceDetailExplorer(props: {
   view: TraceSpanView;
   onSelectSpan: (spanId: string) => void;
   onViewChange: (view: TraceSpanView) => void;
+  onDelete?: () => void;
+  deletionPending?: boolean;
 }) {
   const isMobile = useIsMobile();
   const forest = useMemo(() => buildSpanForest(props.detail.spans), [props.detail.spans]);
@@ -42,6 +45,7 @@ export function TraceDetailExplorer(props: {
     props.selectedSpanId ? "data" : props.view,
   );
   const [payloadView, setPayloadView] = useState<TracePayloadView>(() => storedPayloadView());
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const layout = useMemo(readStoredLayout, []);
 
   const selectSpan = (spanId: string) => {
@@ -59,7 +63,12 @@ export function TraceDetailExplorer(props: {
 
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <TraceHeader detail={props.detail} projectId={props.projectId} />
+      <TraceHeader
+        detail={props.detail}
+        projectId={props.projectId}
+        canDelete={props.onDelete !== undefined}
+        onDelete={() => setDeleteOpen(true)}
+      />
       <TraceReviewPanel
         canManage={props.canManage ?? false}
         detail={props.detail}
@@ -140,6 +149,13 @@ export function TraceDetailExplorer(props: {
           </ResizablePanelGroup>
         )}
       </div>
+      <DataDeletionDialog
+        entityType="trace"
+        ids={deleteOpen ? [props.detail.summary.traceId] : []}
+        pending={props.deletionPending ?? false}
+        onOpenChange={setDeleteOpen}
+        onConfirm={() => props.onDelete?.()}
+      />
     </main>
   );
 }

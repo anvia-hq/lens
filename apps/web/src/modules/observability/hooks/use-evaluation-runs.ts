@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { EvaluationRunsSearch, RefreshInterval, ResolvedEvaluationRunsSearch } from "../types";
 import { evaluationRunActiveFilterCount, refreshMilliseconds, timeRangeForPreset } from "../utils";
+import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useEvaluationRuns() {
@@ -23,6 +24,7 @@ export function useEvaluationRuns() {
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedRuns, setSelectedRuns] = useState<EvaluationRunSummary[]>([]);
+  const deletions = useDataDeletions(project.id, "evaluation_run");
   const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<EvaluationRunsSearch>, resetPage = true) => {
@@ -101,16 +103,22 @@ export function useEvaluationRuns() {
   const toggleRunSelection = (run: EvaluationRunSummary, selected: boolean) => {
     setSelectedRuns((current) => {
       if (!selected) return current.filter((item) => item.id !== run.id);
-      if (run.status !== "completed" || current.some((item) => item.id === run.id)) return current;
-      const first = current[0];
-      if (
-        current.length >= 2 ||
-        (first !== undefined &&
-          (first.suiteName !== run.suiteName || first.environment !== run.environment))
-      ) {
-        return current;
-      }
+      if (current.some((item) => item.id === run.id) || current.length >= 100) return current;
       return [...current, run];
+    });
+  };
+  const toggleVisibleRunSelection = (visible: EvaluationRunSummary[], selected: boolean) => {
+    setSelectedRuns((current) => {
+      if (!selected) {
+        const ids = new Set(visible.map((run) => run.id));
+        return current.filter((run) => !ids.has(run.id));
+      }
+      const next = new Map(current.map((run) => [run.id, run]));
+      for (const run of visible) {
+        if (next.size >= 100) break;
+        next.set(run.id, run);
+      }
+      return [...next.values()];
     });
   };
   const compareSelectedRuns = () => {
@@ -135,6 +143,7 @@ export function useEvaluationRuns() {
     activeFilterCount: evaluationRunActiveFilterCount(filters),
     clearFilters,
     compareSelectedRuns,
+    deletions,
     facets,
     filterPanelCollapsed,
     filters,
@@ -153,6 +162,7 @@ export function useEvaluationRuns() {
     setRefreshInterval,
     setSearchDraft,
     toggleRunSelection,
+    toggleVisibleRunSelection,
     clearRunSelection: () => setSelectedRuns([]),
   };
 }
@@ -161,6 +171,7 @@ export function useEvaluationRunDetail(runId: string) {
   const { project } = useObservabilityProject();
   const search = useSearch({ from: "/$projectId/evaluations/runs/$runId" });
   const navigate = useNavigate();
+  const deletions = useDataDeletions(project.id, "evaluation_run");
   const detail = useQuery({
     queryKey: ["evaluation-run", project.id, runId],
     queryFn: () =>
@@ -179,7 +190,23 @@ export function useEvaluationRunDetail(runId: string) {
     },
     [navigate, project.id, runId],
   );
-  return { detail, project, search, selectCase };
+  const deleteRun = () =>
+    deletions.create.mutate([runId], {
+      onSuccess: () =>
+        void navigate({
+          to: "/$projectId/evaluations/runs",
+          params: { projectId: project.id },
+          search: { range: "24h" },
+        }),
+    });
+  return {
+    deleteRun,
+    deletionPending: deletions.create.isPending,
+    detail,
+    project,
+    search,
+    selectCase,
+  };
 }
 
 export type EvaluationRunsState = ReturnType<typeof useEvaluationRuns>;
@@ -189,6 +216,12 @@ export function assignComparisonRuns(
   runs: EvaluationRunSummary[],
 ): { baseline: EvaluationRunSummary; candidate: EvaluationRunSummary } | undefined {
   if (runs.length !== 2) return undefined;
+  if (
+    runs.some((run) => run.status !== "completed") ||
+    runs[0]?.suiteName !== runs[1]?.suiteName ||
+    runs[0]?.environment !== runs[1]?.environment
+  )
+    return undefined;
   const [baseline, candidate] = runs.toSorted(
     (left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt),
   );

@@ -27,6 +27,7 @@ import {
   CaretDown as ChevronDown,
   MagnifyingGlass as Search,
   SlidersHorizontal,
+  Trash,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
@@ -55,6 +56,9 @@ export function TraceExplorerTable(props: {
   onClearSelection?: () => void;
   onCompare?: () => void;
   onTraceSelectionChange?: (traceId: string, selected: boolean) => void;
+  onVisibleSelectionChange?: (traceIds: string[], selected: boolean) => void;
+  onDelete?: (ids: string[]) => void;
+  canManage?: boolean;
   actions?: ReactNode;
 }) {
   const sort = (field: TraceSortField) =>
@@ -89,11 +93,22 @@ export function TraceExplorerTable(props: {
         <Button
           variant="outline"
           size="sm"
-          disabled={(props.selectedTraceIds?.length ?? 0) < 2}
+          disabled={
+            (props.selectedTraceIds?.length ?? 0) < 2 || (props.selectedTraceIds?.length ?? 0) > 4
+          }
           onClick={props.onCompare}
         >
           <ArrowsLeftRight /> Compare ({props.selectedTraceIds?.length ?? 0})
         </Button>
+        {props.canManage && (props.selectedTraceIds?.length ?? 0) > 0 ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => props.onDelete?.(props.selectedTraceIds ?? [])}
+          >
+            <Trash /> Delete ({props.selectedTraceIds?.length ?? 0})
+          </Button>
+        ) : null}
         {(props.selectedTraceIds?.length ?? 0) > 0 ? (
           <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
             Clear
@@ -154,6 +169,8 @@ export function TraceExplorerTable(props: {
             onSort={sort}
             selectedTraceIds={props.selectedTraceIds}
             onTraceSelectionChange={props.onTraceSelectionChange}
+            onVisibleSelectionChange={props.onVisibleSelectionChange}
+            onDelete={props.canManage ? (traceId) => props.onDelete?.([traceId]) : undefined}
           />
         ) : (
           <EmptyState

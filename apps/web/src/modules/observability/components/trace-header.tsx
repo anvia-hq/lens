@@ -1,6 +1,7 @@
 import type { TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
-import { ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
+import { Button } from "@lens/ui/components/button";
+import { ArrowSquareOut as ExternalLink, Trash } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import {
   formatCost,
@@ -13,30 +14,47 @@ import { HeaderMetric } from "./header-metric";
 import { ObservationGlyph } from "./observation-glyph";
 import { StatusPill } from "./status-pill";
 
-export function TraceHeader({ detail, projectId }: { detail: TraceDetail; projectId: string }) {
+export function TraceHeader({
+  detail,
+  projectId,
+  canDelete,
+  onDelete,
+}: {
+  detail: TraceDetail;
+  projectId: string;
+  canDelete?: boolean;
+  onDelete?: () => void;
+}) {
   const summary = detail.summary;
   return (
     <header className="shrink-0 border-b bg-background px-4 py-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <ObservationGlyph kind={detail.spans[0]?.observationKind ?? "span"} size="large" />
-        <div className="grid min-w-0 gap-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold tracking-tight">{summary.name}</h1>
-            <StatusPill status={summary.status} />
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span>{formatTimestamp(summary.startedAt)}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono" title={summary.traceId}>
-              {shortId(summary.traceId)}
-            </span>
-            <Badge variant="outline">{summary.environment}</Badge>
-            <Badge variant="outline">
-              {summary.serviceName}
-              {summary.serviceVersion ? `@${summary.serviceVersion}` : ""}
-            </Badge>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <ObservationGlyph kind={detail.spans[0]?.observationKind ?? "span"} size="large" />
+          <div className="grid min-w-0 gap-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h1 className="truncate text-lg font-semibold tracking-tight">{summary.name}</h1>
+              <StatusPill status={summary.status} />
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>{formatTimestamp(summary.startedAt)}</span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono" title={summary.traceId}>
+                {shortId(summary.traceId)}
+              </span>
+              <Badge variant="outline">{summary.environment}</Badge>
+              <Badge variant="outline">
+                {summary.serviceName}
+                {summary.serviceVersion ? `@${summary.serviceVersion}` : ""}
+              </Badge>
+            </div>
           </div>
         </div>
+        {canDelete ? (
+          <Button size="sm" variant="destructive" onClick={onDelete}>
+            <Trash /> Delete
+          </Button>
+        ) : null}
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3 sm:grid-cols-3 lg:grid-cols-[repeat(4,minmax(6rem,8rem))_minmax(10rem,1fr)]">
         <HeaderMetric label="Duration" value={formatDuration(summary.durationMs)} />

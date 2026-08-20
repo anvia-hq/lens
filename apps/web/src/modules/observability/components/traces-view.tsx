@@ -7,13 +7,16 @@ import {
 } from "@lens/ui/components/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
 import { SlidersHorizontal } from "@phosphor-icons/react";
+import { useState } from "react";
 import type { TracesState } from "../hooks/use-traces";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { LiveBadge } from "./live-badge";
 import { RangeSelector } from "./range-selector";
 import { TraceExplorerTable } from "./trace-explorer-table";
 import { TraceFilterPanel } from "./trace-filter-panel";
 
 export function TracesView({ state }: { state: TracesState }) {
+  const [deleting, setDeleting] = useState<string[]>([]);
   const {
     activeFilterCount,
     clearFilters,
@@ -32,14 +35,22 @@ export function TracesView({ state }: { state: TracesState }) {
     setRefreshInterval,
     setSearchDraft,
     toggleTraceSelection,
+    toggleVisibleTraceSelection,
     traces,
+    deletions,
   } = state;
+  const data = traces.data
+    ? {
+        ...traces.data,
+        items: traces.data.items.filter((trace) => !deletions.pendingIds.has(trace.traceId)),
+      }
+    : undefined;
   const table = (
     <TraceExplorerTable
       filters={filters}
       searchDraft={searchDraft}
       onSearchChange={setSearchDraft}
-      data={traces.data}
+      data={data}
       loading={traces.isLoading}
       error={traces.error}
       activeFilterCount={activeFilterCount}
@@ -49,6 +60,9 @@ export function TracesView({ state }: { state: TracesState }) {
       onClearSelection={clearTraceSelection}
       onCompare={compareSelectedTraces}
       onTraceSelectionChange={toggleTraceSelection}
+      onVisibleSelectionChange={toggleVisibleTraceSelection}
+      canManage={state.project.role === "owner" || state.project.role === "admin"}
+      onDelete={setDeleting}
       actions={
         <>
           <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
@@ -114,6 +128,20 @@ export function TracesView({ state }: { state: TracesState }) {
           {filterPanel}
         </SheetContent>
       </Sheet>
+      <DataDeletionDialog
+        entityType="trace"
+        ids={deleting}
+        pending={deletions.create.isPending}
+        onOpenChange={(open) => !open && setDeleting([])}
+        onConfirm={() =>
+          deletions.create.mutate(deleting, {
+            onSuccess: () => {
+              state.clearTraceSelection();
+              setDeleting([]);
+            },
+          })
+        }
+      />
     </main>
   );
 }

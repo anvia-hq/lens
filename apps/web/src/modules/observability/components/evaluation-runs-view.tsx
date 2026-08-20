@@ -38,12 +38,14 @@ import {
   Flask,
   MagnifyingGlass as Search,
   SlidersHorizontal,
+  Trash,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { EvaluationRunsState } from "../hooks/use-evaluation-runs";
+import { assignComparisonRuns } from "../hooks/use-evaluation-runs";
 import {
   defaultEvaluationRunColumns,
   type EvaluationRunColumnId,
@@ -52,6 +54,7 @@ import {
   type ResolvedEvaluationRunsSearch,
 } from "../types";
 import { formatDuration, formatNumber, shortId } from "../utils/trace-detail";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationRunFilterPanel } from "./evaluation-filter-panel";
 import { EvaluationOverviewDrawer } from "./evaluation-overview-drawer";
@@ -94,6 +97,13 @@ const sortFields: Partial<Record<EvaluationRunColumnId, EvaluationRunSortField>>
 };
 
 export function EvaluationRunsView({ state }: { state: EvaluationRunsState }) {
+  const [deleting, setDeleting] = useState<string[]>([]);
+  const data = state.runs.data
+    ? {
+        ...state.runs.data,
+        items: state.runs.data.items.filter((run) => !state.deletions.pendingIds.has(run.id)),
+      }
+    : undefined;
   const filterPanel = (
     <EvaluationRunFilterPanel
       filters={state.filters}
@@ -109,7 +119,7 @@ export function EvaluationRunsView({ state }: { state: EvaluationRunsState }) {
   const table = (
     <EvaluationRunExplorerTable
       activeFilterCount={state.activeFilterCount}
-      data={state.runs.data}
+      data={data}
       error={state.runs.error}
       filters={state.filters}
       loading={state.runs.isLoading}
@@ -122,6 +132,9 @@ export function EvaluationRunsView({ state }: { state: EvaluationRunsState }) {
       onOpenOverview={() => state.setOverviewOpen(true)}
       onSearchChange={state.setSearchDraft}
       onSelectionChange={state.toggleRunSelection}
+      onVisibleSelectionChange={state.toggleVisibleRunSelection}
+      canManage={state.project.role === "owner" || state.project.role === "admin"}
+      onDelete={setDeleting}
       actions={
         <>
           <RangeSelector
@@ -149,6 +162,20 @@ export function EvaluationRunsView({ state }: { state: EvaluationRunsState }) {
         overview={state.overview}
         onOpenChange={state.setOverviewOpen}
       />
+      <DataDeletionDialog
+        entityType="evaluation_run"
+        ids={deleting}
+        pending={state.deletions.create.isPending}
+        onOpenChange={(open) => !open && setDeleting([])}
+        onConfirm={() =>
+          state.deletions.create.mutate(deleting, {
+            onSuccess: () => {
+              state.clearRunSelection();
+              setDeleting([]);
+            },
+          })
+        }
+      />
     </>
   );
 }
@@ -169,6 +196,9 @@ function EvaluationRunExplorerTable(props: {
   onClearSelection: () => void;
   onCompare: () => void;
   onSelectionChange: (run: EvaluationRunSummary, selected: boolean) => void;
+  onVisibleSelectionChange: (runs: EvaluationRunSummary[], selected: boolean) => void;
+  onDelete: (ids: string[]) => void;
+  canManage: boolean;
 }) {
   const sort = (field: EvaluationRunSortField) =>
     props.onChange({
@@ -205,11 +235,20 @@ function EvaluationRunExplorerTable(props: {
         <Button
           variant="outline"
           size="sm"
-          disabled={props.selectedRuns.length !== 2}
+          disabled={assignComparisonRuns(props.selectedRuns) === undefined}
           onClick={props.onCompare}
         >
           <ArrowsLeftRight /> Compare ({props.selectedRuns.length})
         </Button>
+        {props.canManage && props.selectedRuns.length > 0 ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => props.onDelete(props.selectedRuns.map((run) => run.id))}
+          >
+            <Trash /> Delete ({props.selectedRuns.length})
+          </Button>
+        ) : null}
         {props.selectedRuns.length > 0 ? (
           <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
             Clear
@@ -230,7 +269,18 @@ function EvaluationRunExplorerTable(props: {
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead className="w-10 pl-4">
-                  <span className="sr-only">Select</span>
+                  <Checkbox
+                    aria-label="Select all visible evaluation runs"
+                    checked={
+                      props.data.items.length > 0 &&
+                      props.data.items.every((run) =>
+                        props.selectedRuns.some((selected) => selected.id === run.id),
+                      )
+                    }
+                    onCheckedChange={(checked) =>
+                      props.onVisibleSelectionChange(props.data?.items ?? [], checked === true)
+                    }
+                  />
                 </TableHead>
                 {props.filters.columns.map((column) => {
                   const field = sortFields[column];
@@ -266,6 +316,7 @@ function EvaluationRunExplorerTable(props: {
                     </TableHead>
                   );
                 })}
+                {props.canManage ? <TableHead className="w-10" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,6 +327,7 @@ function EvaluationRunExplorerTable(props: {
                   columns={props.filters.columns}
                   selectedRuns={props.selectedRuns}
                   onSelectionChange={props.onSelectionChange}
+                  onDelete={props.canManage ? () => props.onDelete([run.id]) : undefined}
                 />
               ))}
             </TableBody>
@@ -304,16 +356,11 @@ function RunRow(props: {
   columns: EvaluationRunColumnId[];
   selectedRuns: EvaluationRunSummary[];
   onSelectionChange: (run: EvaluationRunSummary, selected: boolean) => void;
+  onDelete?: () => void;
 }) {
   const run = props.run;
   const selected = props.selectedRuns.some((item) => item.id === run.id);
-  const first = props.selectedRuns[0];
-  const disabled =
-    !selected &&
-    (run.status !== "completed" ||
-      props.selectedRuns.length >= 2 ||
-      (first !== undefined &&
-        (first.suiteName !== run.suiteName || first.environment !== run.environment)));
+  const disabled = !selected && props.selectedRuns.length >= 100;
   return (
     <TableRow>
       <TableCell className="pl-4">
@@ -327,6 +374,18 @@ function RunRow(props: {
       {props.columns.map((column) => (
         <TableCell key={column}>{runCell(run, column)}</TableCell>
       ))}
+      {props.onDelete ? (
+        <TableCell className="w-10">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Delete run ${run.id}`}
+            onClick={props.onDelete}
+          >
+            <Trash />
+          </Button>
+        </TableCell>
+      ) : null}
     </TableRow>
   );
 }

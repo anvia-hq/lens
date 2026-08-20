@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, ResolvedSessionsSearch, SessionsSearch } from "../types";
 import { refreshMilliseconds, sessionActiveFilterCount, timeRangeForPreset } from "../utils";
+import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useSessions() {
@@ -15,6 +16,8 @@ export function useSessions() {
   const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const deletions = useDataDeletions(project.id, "session");
   const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<SessionsSearch>, resetPage = true) => {
@@ -92,22 +95,47 @@ export function useSessions() {
       minTotalCost: undefined,
       maxTotalCost: undefined,
     });
+  const toggleSessionSelection = (sessionId: string, selected: boolean) => {
+    setSelectedSessionIds((current) => {
+      if (!selected) return current.filter((item) => item !== sessionId);
+      return current.includes(sessionId) || current.length >= 100
+        ? current
+        : [...current, sessionId];
+    });
+  };
+  const toggleVisibleSessionSelection = (sessionIds: string[], selected: boolean) => {
+    setSelectedSessionIds((current) => {
+      if (!selected) return current.filter((item) => !sessionIds.includes(item));
+      const next = new Set(current);
+      for (const id of sessionIds) {
+        if (next.size >= 100) break;
+        next.add(id);
+      }
+      return [...next];
+    });
+  };
 
   return {
     activeFilterCount,
     clearFilters,
+    clearSessionSelection: () => setSelectedSessionIds([]),
+    deletions,
     facets,
     filterPanelCollapsed,
     filters,
     mobileFiltersOpen,
+    project,
     refreshInterval,
     searchDraft,
+    selectedSessionIds,
     sessions,
     setFilterPanelCollapsed,
     setFilters,
     setMobileFiltersOpen,
     setRefreshInterval,
     setSearchDraft,
+    toggleSessionSelection,
+    toggleVisibleSessionSelection,
   };
 }
 

@@ -1,4 +1,5 @@
 import type {
+  DeleteDataJob,
   DeleteProjectTelemetryJob,
   EvaluateAlertsJob,
   IngestEvaluationsJob,
@@ -24,7 +25,7 @@ export type LensQueues = {
   ingest: Queue<IngestTraceJob>;
   evaluations: Queue<IngestEvaluationsJob>;
   materialize: Queue<MaterializeTraceJob>;
-  maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob>;
+  maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob | DeleteDataJob>;
   costs: Queue<RecalculateModelCostsJob>;
   alerts: Queue<EvaluateAlertsJob>;
   close: () => Promise<void>;
@@ -51,10 +52,9 @@ export function createQueues(redisUrl: string, connectionOptions: RedisOptions =
   const ingest = createQueue<IngestTraceJob>(queueNames.ingest, options);
   const evaluations = createQueue<IngestEvaluationsJob>(queueNames.evaluations, options);
   const materialize = createQueue<MaterializeTraceJob>(queueNames.materialize, options);
-  const maintenance = createQueue<ReconcileRetentionJob | DeleteProjectTelemetryJob>(
-    queueNames.maintenance,
-    options,
-  );
+  const maintenance = createQueue<
+    ReconcileRetentionJob | DeleteProjectTelemetryJob | DeleteDataJob
+  >(queueNames.maintenance, options);
   const costs = createQueue<RecalculateModelCostsJob>(queueNames.costs, options);
   const alerts = createQueue<EvaluateAlertsJob>(queueNames.alerts, options);
 

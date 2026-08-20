@@ -1,12 +1,15 @@
 import type { SessionDetail } from "@lens/contracts";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { api } from "../../../lib/api";
+import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useSessionDetail() {
   const { project } = useObservabilityProject();
   const { sessionId } = useParams({ from: "/$projectId/sessions/$sessionId" });
+  const navigate = useNavigate();
+  const deletions = useDataDeletions(project.id, "session");
   const session = useInfiniteQuery({
     queryKey: ["session", project.id, sessionId],
     initialPageParam: null as string | null,
@@ -44,5 +47,20 @@ export function useSessionDetail() {
           turns: uniqueTurns,
           nextCursor: pages?.at(-1)?.nextCursor ?? null,
         };
-  return { detail, project, session };
+  const deleteSession = () =>
+    deletions.create.mutate([sessionId], {
+      onSuccess: () =>
+        void navigate({
+          to: "/$projectId/sessions",
+          params: { projectId: project.id },
+          search: { range: "24h" },
+        }),
+    });
+  return {
+    deleteSession,
+    deletionPending: deletions.create.isPending,
+    detail,
+    project,
+    session,
+  };
 }

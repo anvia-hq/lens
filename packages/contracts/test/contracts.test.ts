@@ -3,6 +3,7 @@ import {
   alertRuleInputSchema,
   createApiKeySchema,
   createProjectSchema,
+  dataDeletionInputSchema,
   decodeCursor,
   encodeCursor,
   managedDatasetCaseImportSchema,
@@ -18,6 +19,37 @@ import {
 } from "../src/index";
 
 describe("contracts", () => {
+  it("validates and deduplicates bounded data deletion requests", () => {
+    expect(
+      dataDeletionInputSchema.parse({
+        entityType: "trace",
+        ids: ["A".repeat(32), "A".repeat(32)],
+      }),
+    ).toEqual({ entityType: "trace", ids: ["a".repeat(32)] });
+    expect(
+      dataDeletionInputSchema.parse({
+        entityType: "session",
+        ids: [" session-with-whitespace "],
+      }),
+    ).toEqual({ entityType: "session", ids: [" session-with-whitespace "] });
+    expect(
+      dataDeletionInputSchema.parse({
+        entityType: "evaluation_run",
+        ids: [" evaluation-run-with-whitespace "],
+      }),
+    ).toEqual({ entityType: "evaluation_run", ids: [" evaluation-run-with-whitespace "] });
+    expect(
+      dataDeletionInputSchema.safeParse({ entityType: "evaluation_run", ids: ["x".repeat(129)] })
+        .success,
+    ).toBe(false);
+    expect(
+      dataDeletionInputSchema.safeParse({
+        entityType: "session",
+        ids: Array.from({ length: 101 }, (_, index) => `session-${index}`),
+      }).success,
+    ).toBe(false);
+  });
+
   it("round-trips an opaque trace cursor", () => {
     const cursor = encodeCursor("2026-08-05T00:00:00.000Z", "a".repeat(32));
     expect(decodeCursor(cursor)).toEqual({

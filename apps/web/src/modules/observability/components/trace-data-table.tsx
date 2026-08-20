@@ -1,4 +1,5 @@
 import type { TraceSortField, TraceSummary } from "@lens/contracts";
+import { Button } from "@lens/ui/components/button";
 import { Checkbox } from "@lens/ui/components/checkbox";
 import {
   Table,
@@ -8,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
+import { Trash } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -23,6 +25,8 @@ export function TraceDataTable(props: {
   onSort?: (sort: TraceSortField) => void;
   selectedTraceIds?: string[];
   onTraceSelectionChange?: (traceId: string, selected: boolean) => void;
+  onVisibleSelectionChange?: (traceIds: string[], selected: boolean) => void;
+  onDelete?: (traceId: string) => void;
 }) {
   const { project } = useObservabilityProject();
   const columns = useMemo(
@@ -42,6 +46,9 @@ export function TraceDataTable(props: {
     getRowId: (trace) => trace.traceId,
   });
   const selectable = props.onTraceSelectionChange !== undefined;
+  const visibleIds = props.traces.map((trace) => trace.traceId);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => props.selectedTraceIds?.includes(id));
   return (
     <div className="min-h-0 w-full flex-1 overflow-auto">
       <Table className="w-full">
@@ -50,7 +57,13 @@ export function TraceDataTable(props: {
             <TableRow key={headerGroup.id}>
               {selectable ? (
                 <TableHead className="w-10">
-                  <span className="sr-only">Select traces</span>
+                  <Checkbox
+                    aria-label="Select all visible traces"
+                    checked={allVisibleSelected}
+                    onCheckedChange={(checked) =>
+                      props.onVisibleSelectionChange?.(visibleIds, checked === true)
+                    }
+                  />
                 </TableHead>
               ) : null}
               {headerGroup.headers.map((header) => {
@@ -70,13 +83,14 @@ export function TraceDataTable(props: {
                   </TableHead>
                 );
               })}
+              {props.onDelete ? <TableHead className="w-10" /> : null}
             </TableRow>
           ))}
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map((row) => {
             const selected = props.selectedTraceIds?.includes(row.original.traceId) ?? false;
-            const selectionLimitReached = (props.selectedTraceIds?.length ?? 0) >= 4;
+            const selectionLimitReached = (props.selectedTraceIds?.length ?? 0) >= 100;
             return (
               <TableRow key={row.id} data-state={selected ? "selected" : undefined}>
                 {selectable ? (
@@ -88,7 +102,7 @@ export function TraceDataTable(props: {
                       disabled={!selected && selectionLimitReached}
                       title={
                         !selected && selectionLimitReached
-                          ? "You can compare up to 4 traces"
+                          ? "You can select up to 100 traces"
                           : undefined
                       }
                       onCheckedChange={(checked) =>
@@ -116,6 +130,18 @@ export function TraceDataTable(props: {
                     </TableCell>
                   );
                 })}
+                {props.onDelete ? (
+                  <TableCell className="w-10">
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Delete ${row.original.name}`}
+                      onClick={() => props.onDelete?.(row.original.traceId)}
+                    >
+                      <Trash />
+                    </Button>
+                  </TableCell>
+                ) : null}
               </TableRow>
             );
           })}

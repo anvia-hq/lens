@@ -26,6 +26,7 @@ import {
   Chats as MessagesSquare,
   MagnifyingGlass as Search,
   SlidersHorizontal,
+  Trash,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
@@ -51,6 +52,11 @@ export function SessionExplorerTable(props: {
   onOpenMobileFilters: () => void;
   onChange: (changes: Partial<SessionsSearch>, resetPage?: boolean) => void;
   actions?: ReactNode;
+  selectedSessionIds?: string[];
+  onSelectionChange?: (sessionId: string, selected: boolean) => void;
+  onVisibleSelectionChange?: (sessionIds: string[], selected: boolean) => void;
+  onDelete?: (ids: string[]) => void;
+  canManage?: boolean;
 }) {
   const sort = (field: SessionSortField) =>
     props.onChange({
@@ -81,6 +87,24 @@ export function SessionExplorerTable(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
           />
         </div>
+        {props.canManage && (props.selectedSessionIds?.length ?? 0) > 0 ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => props.onDelete?.(props.selectedSessionIds ?? [])}
+          >
+            <Trash /> Delete ({props.selectedSessionIds?.length ?? 0})
+          </Button>
+        ) : null}
+        {(props.selectedSessionIds?.length ?? 0) > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => props.onVisibleSelectionChange?.(props.selectedSessionIds ?? [], false)}
+          >
+            Clear
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button className="h-8" variant="outline" size="sm" />}>
             Columns <ChevronDown />
@@ -134,6 +158,10 @@ export function SessionExplorerTable(props: {
             sort={props.filters.sort}
             order={props.filters.order}
             onSort={sort}
+            selectedSessionIds={props.selectedSessionIds}
+            onSelectionChange={props.onSelectionChange}
+            onVisibleSelectionChange={props.onVisibleSelectionChange}
+            onDelete={props.canManage ? (sessionId) => props.onDelete?.([sessionId]) : undefined}
           />
         ) : (
           <EmptyState

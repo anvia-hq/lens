@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { api } from "../../../lib/api";
 import type { TraceSpanView } from "../types";
+import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
 
 export function useTraceDetail() {
@@ -11,6 +12,7 @@ export function useTraceDetail() {
   const { traceId } = useParams({ from: "/$projectId/traces/$traceId" });
   const search = useSearch({ from: "/$projectId/traces/$traceId" });
   const navigate = useNavigate();
+  const deletions = useDataDeletions(project.id, "trace");
   const trace = useQuery({
     queryKey: ["trace", project.id, traceId],
     queryFn: () => api<TraceDetail>(`/api/v1/projects/${project.id}/traces/${traceId}`),
@@ -44,5 +46,24 @@ export function useTraceDetail() {
     });
   };
 
-  return { changeView, detail, project, search, selectSpan, trace };
+  const deleteTrace = () =>
+    deletions.create.mutate([traceId], {
+      onSuccess: () =>
+        void navigate({
+          to: "/$projectId/traces",
+          params: { projectId: project.id },
+          search: { range: "24h" },
+        }),
+    });
+
+  return {
+    changeView,
+    deleteTrace,
+    deletionPending: deletions.create.isPending,
+    detail,
+    project,
+    search,
+    selectSpan,
+    trace,
+  };
 }

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const dbFunctions = vi.hoisted(() => ({
   applyModelPrices: vi.fn((spans) => spans),
   deleteProjectTelemetry: vi.fn(),
+  deleteTelemetryEntities: vi.fn(),
   insertEvaluationRuns: vi.fn(),
   insertEvaluations: vi.fn(),
   insertSpans: vi.fn(),
@@ -32,6 +33,7 @@ import {
 const projectId = "10000000-0000-4000-8000-000000000001";
 const organizationId = "20000000-0000-4000-8000-000000000001";
 const recalculationId = "30000000-0000-4000-8000-000000000001";
+const deletionRequestId = "40000000-0000-4000-8000-000000000001";
 
 describe("worker processors", () => {
   beforeEach(() => {
@@ -146,6 +148,38 @@ describe("worker processors", () => {
 
     expect(dbFunctions.deleteProjectTelemetry).toHaveBeenCalledWith(deps.clickhouse, projectId);
     expect(deleteWhere).toHaveBeenCalledOnce();
+  });
+
+  it("tracks a data deletion request through completion", async () => {
+    const { deps, select, updates } = dependencies();
+    select.mockReturnValueOnce(
+      selectQuery(
+        [
+          {
+            id: deletionRequestId,
+            projectId,
+            entityType: "trace",
+            entityIds: ["a".repeat(32)],
+            status: "queued",
+            startedAt: null,
+          },
+        ],
+        true,
+      ),
+    );
+
+    await createMaintenanceProcessor(deps)(
+      job({ requestId: deletionRequestId }, { name: "delete-data" }),
+    );
+
+    expect(dbFunctions.deleteTelemetryEntities).toHaveBeenCalledWith(
+      deps.clickhouse,
+      projectId,
+      "trace",
+      ["a".repeat(32)],
+    );
+    expect(updates[0]).toMatchObject({ status: "running", error: null });
+    expect(updates[1]).toMatchObject({ status: "completed", error: null });
   });
 
   it("rejects unknown maintenance and cost jobs", async () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deleteDataJobSchema } from "./data-deletions.js";
 
 export const reconcileRetentionJobSchema = z.object({ projectId: z.uuid() });
 export type ReconcileRetentionJob = z.infer<typeof reconcileRetentionJobSchema>;
@@ -19,6 +20,11 @@ export const jobOutboxEventSchema = z.discriminatedUnion("name", [
     queue: z.literal("maintenance"),
     name: z.literal("delete-project"),
     payload: deleteProjectTelemetryJobSchema,
+  }),
+  z.object({
+    queue: z.literal("maintenance"),
+    name: z.literal("delete-data"),
+    payload: deleteDataJobSchema,
   }),
   z.object({
     queue: z.literal("costs"),

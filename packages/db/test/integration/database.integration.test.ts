@@ -22,6 +22,7 @@ import {
   deleteManagedDatasetCase,
   deleteProjectTelemetry,
   deleteQualityGate,
+  deleteTelemetryEntities,
   getAlertIncident,
   getAlertRule,
   getEvaluationDatasetDetail,
@@ -109,12 +110,13 @@ describe.sequential("database integration", () => {
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('alert_incidents', 'alert_rules', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
+        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
       "alert_incidents",
       "alert_rules",
+      "data_deletion_requests",
       "job_outbox",
       "managed_dataset_cases",
       "managed_dataset_versions",
@@ -459,6 +461,62 @@ describe.sequential("database integration", () => {
       name: "support-cases",
       selectedVersion: { version: "v1", status: "complete" },
       cases: [{ caseId: "case-1", conflict: false }],
+    });
+  });
+
+  it("deletes sessions, traces, and runs with their safe cascades", async () => {
+    await insertSpans(clickhouse, spans());
+    await materializeTrace(clickhouse, projectId, traceId);
+    const linked = await clickhouse.query({
+      query: `SELECT id FROM evaluation_results FINAL
+              WHERE project_id = {projectId:UUID} AND toString(trace_id) = {traceId:String}`,
+      query_params: { projectId, traceId },
+      format: "JSONEachRow",
+    });
+    expect(await linked.json()).toEqual([{ id: "result-1" }]);
+    await deleteTelemetryEntities(clickhouse, projectId, "session", ["session-1"]);
+    expect(await getTrace(clickhouse, projectId, traceId)).toBeUndefined();
+    expect(await getEvaluationRunDetail(clickhouse, projectId, "run-1")).toMatchObject({
+      run: { id: "run-1", results: 0 },
+      results: [],
+    });
+
+    await deleteTelemetryEntities(clickhouse, projectId, "evaluation_run", ["run-1"]);
+    expect(await getEvaluationRunDetail(clickhouse, projectId, "run-1")).toBeUndefined();
+
+    await insertEvaluationRuns(clickhouse, [
+      { ...evaluationRun(), id: "run-delete", datasetName: null, datasetVersion: null },
+    ]);
+    await insertEvaluations(clickhouse, [
+      { ...evaluationResult(), id: "result-delete", runId: "run-delete", traceId: null },
+    ]);
+    await deleteTelemetryEntities(clickhouse, projectId, "evaluation_run", ["run-delete"]);
+    const deletedRunResults = await clickhouse.query({
+      query: `SELECT count() AS count FROM evaluation_results FINAL
+              WHERE project_id = {projectId:UUID} AND id = 'result-delete'`,
+      query_params: { projectId },
+      format: "JSONEachRow",
+    });
+    expect(await deletedRunResults.json()).toEqual([{ count: 0 }]);
+
+    const nextTraceId = "2".repeat(32);
+    await insertSpans(
+      clickhouse,
+      spans().map((span) => ({ ...span, traceId: nextTraceId, sessionId: "session-2" })),
+    );
+    await materializeTrace(clickhouse, projectId, nextTraceId);
+    await insertEvaluationRuns(clickhouse, [
+      { ...evaluationRun(), id: "run-2", datasetName: null, datasetVersion: null },
+    ]);
+    await insertEvaluations(clickhouse, [
+      { ...evaluationResult(), id: "result-2", runId: "run-2", traceId: nextTraceId },
+    ]);
+
+    await deleteTelemetryEntities(clickhouse, projectId, "trace", [nextTraceId]);
+    expect(await getTrace(clickhouse, projectId, nextTraceId)).toBeUndefined();
+    expect(await getEvaluationRunDetail(clickhouse, projectId, "run-2")).toMatchObject({
+      run: { id: "run-2", results: 0 },
+      results: [],
     });
   });
 });

@@ -7,40 +7,62 @@ import {
 } from "@lens/ui/components/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
 import { SlidersHorizontal } from "@phosphor-icons/react";
+import { useState } from "react";
 import type { SessionsState } from "../hooks/use-sessions";
+import { DataDeletionDialog } from "./data-deletion-dialog";
 import { LiveBadge } from "./live-badge";
 import { RangeSelector } from "./range-selector";
 import { SessionExplorerTable } from "./session-explorer-table";
 import { SessionFilterPanel } from "./session-filter-panel";
 
 export function SessionsView({ state }: { state: SessionsState }) {
+  const [deleting, setDeleting] = useState<string[]>([]);
+  const canManage = state.project.role === "owner" || state.project.role === "admin";
   const {
     activeFilterCount,
     clearFilters,
+    clearSessionSelection,
+    deletions,
     facets,
     filterPanelCollapsed,
     filters,
     mobileFiltersOpen,
     refreshInterval,
     searchDraft,
+    selectedSessionIds,
     sessions,
     setFilterPanelCollapsed,
     setFilters,
     setMobileFiltersOpen,
     setRefreshInterval,
     setSearchDraft,
+    toggleSessionSelection,
+    toggleVisibleSessionSelection,
   } = state;
+  const data = sessions.data
+    ? {
+        ...sessions.data,
+        items: sessions.data.items.filter(
+          (session) => !deletions.pendingIds.has(session.sessionId),
+        ),
+      }
+    : undefined;
   const table = (
     <SessionExplorerTable
       filters={filters}
       searchDraft={searchDraft}
       onSearchChange={setSearchDraft}
-      data={sessions.data}
+      data={data}
       loading={sessions.isLoading}
       error={sessions.error}
       activeFilterCount={activeFilterCount}
       onOpenMobileFilters={() => setMobileFiltersOpen(true)}
       onChange={(changes, resetPage) => setFilters(changes, resetPage)}
+      selectedSessionIds={canManage ? selectedSessionIds : undefined}
+      onSelectionChange={canManage ? toggleSessionSelection : undefined}
+      onVisibleSelectionChange={canManage ? toggleVisibleSessionSelection : undefined}
+      onDelete={setDeleting}
+      canManage={canManage}
       actions={
         <>
           <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
@@ -106,6 +128,20 @@ export function SessionsView({ state }: { state: SessionsState }) {
           {filterPanel}
         </SheetContent>
       </Sheet>
+      <DataDeletionDialog
+        entityType="session"
+        ids={deleting}
+        pending={deletions.create.isPending}
+        onOpenChange={(open) => !open && setDeleting([])}
+        onConfirm={() =>
+          deletions.create.mutate(deleting, {
+            onSuccess: () => {
+              clearSessionSelection();
+              setDeleting([]);
+            },
+          })
+        }
+      />
     </main>
   );
 }

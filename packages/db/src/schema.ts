@@ -2,6 +2,8 @@ import type {
   AlertIncidentEvidence,
   AlertRuleInput,
   AlertRuleKind,
+  DataDeletionEntityType,
+  DataDeletionStatus,
   JobOutboxEvent,
   JsonValue,
   ManagedDatasetCaseInput,
@@ -444,6 +446,30 @@ export const jobOutbox = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("job_outbox_available_idx").on(table.availableAt, table.createdAt)],
+);
+
+export const dataDeletionRequest = pgTable(
+  "data_deletion_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").$type<DataDeletionEntityType>().notNull(),
+    entityIds: jsonb("entity_ids").$type<string[]>().notNull(),
+    status: text("status").$type<DataDeletionStatus>().notNull().default("queued"),
+    requestedBy: text("requested_by")
+      .notNull()
+      .references(() => user.id),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("data_deletion_requests_project_created_idx").on(table.projectId, table.createdAt),
+    index("data_deletion_requests_project_status_idx").on(table.projectId, table.status),
+  ],
 );
 
 export const userRelations = relations(user, ({ many }) => ({

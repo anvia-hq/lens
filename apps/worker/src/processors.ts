@@ -1,4 +1,5 @@
 import {
+  deleteDataJobSchema,
   deleteProjectTelemetryJobSchema,
   type IngestEvaluationsJob,
   type IngestTraceJob,
@@ -10,7 +11,9 @@ import {
   applyModelPrices,
   type ClickHouseClient,
   costRecalculation,
+  dataDeletionRequest,
   deleteProjectTelemetry,
+  deleteTelemetryEntities,
   insertEvaluationRuns,
   insertEvaluations,
   insertSpans,
@@ -126,6 +129,43 @@ export function createMaintenanceProcessor(deps: ProcessorDependencies) {
       const data = deleteProjectTelemetryJobSchema.parse(job.data);
       await deleteProjectTelemetry(deps.clickhouse, data.projectId);
       await deps.postgres.db.delete(project).where(eq(project.id, data.projectId));
+      return;
+    }
+    if (job.name === "delete-data") {
+      const data = deleteDataJobSchema.parse(job.data);
+      const [request] = await deps.postgres.db
+        .select()
+        .from(dataDeletionRequest)
+        .where(eq(dataDeletionRequest.id, data.requestId))
+        .limit(1);
+      if (request === undefined || request.status === "completed") return;
+      await deps.postgres.db
+        .update(dataDeletionRequest)
+        .set({ status: "running", startedAt: request.startedAt ?? new Date(), error: null })
+        .where(eq(dataDeletionRequest.id, request.id));
+      try {
+        await deleteTelemetryEntities(
+          deps.clickhouse,
+          request.projectId,
+          request.entityType,
+          request.entityIds,
+        );
+        await deps.postgres.db
+          .update(dataDeletionRequest)
+          .set({ status: "completed", completedAt: new Date(), error: null })
+          .where(eq(dataDeletionRequest.id, request.id));
+      } catch (error) {
+        const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+        await deps.postgres.db
+          .update(dataDeletionRequest)
+          .set({
+            status: finalAttempt ? "failed" : "queued",
+            completedAt: finalAttempt ? new Date() : null,
+            error: error instanceof Error ? error.message.slice(0, 2_000) : "Unknown error",
+          })
+          .where(eq(dataDeletionRequest.id, request.id));
+        throw error;
+      }
       return;
     }
     throw new Error(`Unsupported maintenance job: ${job.name}`);

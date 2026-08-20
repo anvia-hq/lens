@@ -250,14 +250,36 @@ describe("overview controls", () => {
   });
 
   it("assigns the newer selected evaluation run as the candidate", () => {
-    const baseline = { id: "baseline", startedAt: "2026-08-01T00:00:00.000Z" };
-    const candidate = { id: "candidate", startedAt: "2026-08-02T00:00:00.000Z" };
+    const baseline = {
+      id: "baseline",
+      startedAt: "2026-08-01T00:00:00.000Z",
+      status: "completed",
+      suiteName: "support",
+      environment: "production",
+    };
+    const candidate = {
+      id: "candidate",
+      startedAt: "2026-08-02T00:00:00.000Z",
+      status: "completed",
+      suiteName: "support",
+      environment: "production",
+    };
     expect(
       assignComparisonRuns([candidate, baseline] as Parameters<typeof assignComparisonRuns>[0]),
     ).toEqual({ baseline, candidate });
     expect(assignComparisonRuns([candidate] as Parameters<typeof assignComparisonRuns>[0])).toBe(
       undefined,
     );
+    expect(
+      assignComparisonRuns([candidate, { ...baseline, status: "running" }] as Parameters<
+        typeof assignComparisonRuns
+      >[0]),
+    ).toBeUndefined();
+    expect(
+      assignComparisonRuns([candidate, { ...baseline, environment: "staging" }] as Parameters<
+        typeof assignComparisonRuns
+      >[0]),
+    ).toBeUndefined();
   });
 
   it("normalizes ordered comparison trace IDs and enforces the maximum", () => {
