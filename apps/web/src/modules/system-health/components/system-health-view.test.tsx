@@ -26,6 +26,14 @@ describe("System Health", () => {
     expect(screen.getByRole("button", { name: /refresh/i })).toBeTruthy();
   });
 
+  it("arranges five machine cards as three then two", () => {
+    render(<SystemHealthView state={state(singleDiskHealth)} />);
+    const cells = [...document.querySelectorAll(".lg\\:grid-cols-6 > div")];
+    expect(cells).toHaveLength(5);
+    expect(cells.slice(0, 3).every((cell) => cell.className.includes("lg:col-span-2"))).toBe(true);
+    expect(cells.slice(3).every((cell) => cell.className.includes("lg:col-span-3"))).toBe(true);
+  });
+
   it("does not expose infrastructure data to members", () => {
     render(<SystemHealthView state={state(undefined, false)} />);
     expect(screen.getByText("Owner or admin access is required.")).toBeTruthy();
@@ -129,4 +137,17 @@ const health: SystemHealth = {
   },
   queueStatus: { status: "healthy", message: null },
   queues: [{ name: "Trace ingestion", waiting: 0, active: 1, delayed: 0, failed: 0 }],
+};
+
+const singleDiskHealth: SystemHealth = {
+  ...health,
+  machine: {
+    ...health.machine,
+    snapshot: health.machine.snapshot
+      ? {
+          ...health.machine.snapshot,
+          disks: health.machine.snapshot.disks?.slice(0, 1),
+        }
+      : null,
+  },
 };

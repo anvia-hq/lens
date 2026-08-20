@@ -37,7 +37,7 @@ export function SystemHealthView({ state }: { state: SystemHealthState }) {
   if (!state.canManage) {
     return (
       <Page
-        className="mx-auto max-w-6xl"
+        className="mx-auto max-w-7xl"
         title="System Health"
         description="Machine and service capacity for this Lens installation"
       >
@@ -105,44 +105,62 @@ function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
         <StatusBadge status={machine.status} />
       </div>
       {snapshot ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <ResourceCard
-            icon={<Cpu />}
-            label="CPU"
-            percent={snapshot.cpu.usagePercent}
-            value={
-              snapshot.cpu.usagePercent === null
-                ? "Sampling…"
-                : `${formatPercent(snapshot.cpu.usagePercent)}`
-            }
-            detail={`${snapshot.cpu.logicalCores} cores · load ${snapshot.cpu.load1.toFixed(2)}`}
-            status={cpuStatus(snapshot.cpu.usagePercent)}
-          />
-          <CapacityCard icon={<Memory />} label="RAM" capacity={snapshot.memory} kind="memory" />
-          <CapacityCard
-            icon={<Layers3 />}
-            label="Swap"
-            capacity={snapshot.swap}
-            kind="informational"
-          />
-          {disks.map((disk) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {[
+            <ResourceCard
+              key="cpu"
+              icon={<Cpu />}
+              label="CPU"
+              percent={snapshot.cpu.usagePercent}
+              value={
+                snapshot.cpu.usagePercent === null
+                  ? "Sampling…"
+                  : `${formatPercent(snapshot.cpu.usagePercent)}`
+              }
+              detail={`${snapshot.cpu.logicalCores} cores · load ${snapshot.cpu.load1.toFixed(2)}`}
+              status={cpuStatus(snapshot.cpu.usagePercent)}
+            />,
             <CapacityCard
-              key={`${disk.name ?? "Disk"}:${disk.path}`}
-              icon={<HardDrive />}
-              label={disk.name ?? (disk.path === "/" ? "Root disk" : "Disk")}
-              capacity={disk}
-              detailSuffix={disk.path}
-              kind="disk"
-            />
+              key="ram"
+              icon={<Memory />}
+              label="RAM"
+              capacity={snapshot.memory}
+              kind="memory"
+            />,
+            <CapacityCard
+              key="swap"
+              icon={<Layers3 />}
+              label="Swap"
+              capacity={snapshot.swap}
+              kind="informational"
+            />,
+            ...disks.map((disk) => (
+              <CapacityCard
+                key={`${disk.name ?? "Disk"}:${disk.path}`}
+                icon={<HardDrive />}
+                label={disk.name ?? (disk.path === "/" ? "Root disk" : "Disk")}
+                capacity={disk}
+                detailSuffix={disk.path}
+                kind="disk"
+              />
+            )),
+            <ResourceCard
+              key="uptime"
+              icon={<Hourglass />}
+              label="Uptime"
+              percent={null}
+              value={formatUptime(snapshot.uptimeSeconds)}
+              detail={`Sampled ${new Date(snapshot.sampledAt).toLocaleTimeString()}`}
+              status="healthy"
+            />,
+          ].map((card, index, cards) => (
+            <div
+              key={card.key}
+              className={cn("h-full", machineResourceCardClass(index, cards.length))}
+            >
+              {card}
+            </div>
           ))}
-          <ResourceCard
-            icon={<Hourglass />}
-            label="Uptime"
-            percent={null}
-            value={formatUptime(snapshot.uptimeSeconds)}
-            detail={`Sampled ${new Date(snapshot.sampledAt).toLocaleTimeString()}`}
-            status="healthy"
-          />
         </div>
       ) : (
         <Card>
@@ -216,17 +234,20 @@ function ServicesSection({ value }: { value: SystemHealth }) {
                   <StatusBadge status={service.status} />
                 </TableCell>
                 <TableCell>
-                  <span>{service.message ?? service.detail}</span>
-                  {service.name === "ClickHouse" && value.services.clickhouse.disks.length > 0 ? (
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {value.services.clickhouse.disks
-                        .map(
-                          (disk) =>
-                            `${disk.name}: ${formatBytes(disk.availableBytes)} free (${formatPercent(disk.usagePercent)} used)`,
-                        )
-                        .join(" · ")}
-                    </span>
-                  ) : null}
+                  <span className={cn(service.name === "ClickHouse" && "whitespace-nowrap")}>
+                    {service.message ?? service.detail}
+                    {service.name === "ClickHouse" && value.services.clickhouse.disks.length > 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        {" · "}
+                        {value.services.clickhouse.disks
+                          .map(
+                            (disk) =>
+                              `${disk.name}: ${formatBytes(disk.availableBytes)} free (${formatPercent(disk.usagePercent)} used)`,
+                          )
+                          .join(" · ")}
+                      </span>
+                    ) : null}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {service.latencyMs === null ? "—" : `${service.latencyMs.toFixed(1)} ms`}
@@ -286,6 +307,20 @@ function QueuesSection({ value }: { value: SystemHealth }) {
   );
 }
 
+function machineResourceCardClass(index: number, count: number): string {
+  const lastPairOnDesktop = count % 3 === 2 && index >= count - 2;
+  const lastAloneOnDesktop = count % 3 === 1 && index === count - 1;
+  const lastAloneOnTablet = count % 2 === 1 && index === count - 1;
+  return cn(
+    lastAloneOnTablet && "sm:col-span-2",
+    lastPairOnDesktop
+      ? "lg:col-span-3"
+      : lastAloneOnDesktop
+        ? "lg:col-span-2 lg:col-start-3"
+        : "lg:col-span-2",
+  );
+}
+
 function CapacityCard({
   capacity,
   detailSuffix,
@@ -333,7 +368,7 @@ function ResourceCard({
   value: string;
 }) {
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="gap-1">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">{icon}</span>
@@ -342,22 +377,24 @@ function ResourceCard({
         <CardDescription>{label}</CardDescription>
         <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-2">
-        {percent === null ? null : (
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width]",
-                status === "critical"
-                  ? "bg-destructive"
-                  : status === "warning"
-                    ? "bg-amber-500"
-                    : "bg-primary",
-              )}
-              style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-            />
-          </div>
-        )}
+      <CardContent className="mt-auto grid gap-2">
+        <div className="h-1.5">
+          {percent === null ? null : (
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width]",
+                  status === "critical"
+                    ? "bg-destructive"
+                    : status === "warning"
+                      ? "bg-amber-500"
+                      : "bg-primary",
+                )}
+                style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+              />
+            </div>
+          )}
+        </div>
         <span className="text-xs text-muted-foreground">{detail}</span>
       </CardContent>
     </Card>

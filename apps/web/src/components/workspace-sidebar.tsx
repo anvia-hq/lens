@@ -36,7 +36,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
       <SidebarContent>
-        <SidebarGroup className="pt-0">
+        <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {links.map(({ to, label, icon: Icon }) => (

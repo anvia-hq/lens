@@ -11,14 +11,7 @@ import {
 import { Avatar, AvatarFallback } from "@lens/ui/components/avatar";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@lens/ui/components/card";
+import { Card, CardContent, CardFooter } from "@lens/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -98,7 +91,7 @@ export function ProjectsView({
           )
         ) : null
       }
-      className="mx-auto max-w-6xl"
+      className="mx-auto max-w-7xl"
       title={section === "projects" ? "Projects" : "Members"}
       description={
         section === "projects"
@@ -137,11 +130,7 @@ export function ProjectsView({
           />
         )
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Members</CardTitle>
-            <CardDescription>Owners and admins can invite people and update roles.</CardDescription>
-          </CardHeader>
+        <Card className="gap-0 py-0">
           <CardContent className="px-0">
             <Table>
               <TableHeader>

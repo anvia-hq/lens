@@ -15,6 +15,7 @@ x-app-environment: &app-environment
   CLICKHOUSE_USERNAME: lens
   CLICKHOUSE_PASSWORD: lens
   REDIS_URL: redis://redis:6379
+  SYSTEM_MONITOR_URL: http://monitor:3100
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-only-secret-change-me-now}
   INGESTION_KEY_PEPPER: ${INGESTION_KEY_PEPPER:-development-ingestion-key-pepper}
   SMTP_HOST: mailpit
@@ -23,6 +24,50 @@ x-app-environment: &app-environment
   SMTP_SECURE: "false"
 
 services:
+  monitor:
+    image: lens-backend:dev
+    build: *backend-build
+    command: ["node", "apps/monitor/dist/index.js"]
+    environment:
+      NODE_ENV: production
+      SYSTEM_MONITOR_PORT: 3100
+      HOST_PROC_PATH: /host/proc
+      HOST_ROOT_PATH: /host/root
+      HOST_DATA_PATH: /host/data
+      HOST_DATA_DISPLAY_PATH: ${SYSTEM_MONITOR_DATA_PATH:-/var/lib/docker}
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+      - type: bind
+        source: /
+        target: /host/root
+        read_only: true
+        bind:
+          propagation: rslave
+      - type: bind
+        source: ${SYSTEM_MONITOR_DATA_PATH:-/var/lib/docker}
+        target: /host/data
+        read_only: true
+        bind:
+          propagation: rslave
+    networks:
+      - lens-monitor
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3100/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -91,6 +136,9 @@ services:
     image: lens-backend:dev
     build: *backend-build
     environment: *app-environment
+    networks:
+      - default
+      - lens-monitor
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -140,3 +188,8 @@ volumes:
   lens-clickhouse:
   lens-postgres:
   lens-redis:
+
+networks:
+  default:
+  lens-monitor:
+    internal: true

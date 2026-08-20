@@ -12,13 +12,7 @@ import {
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { Calendar } from "@lens/ui/components/calendar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@lens/ui/components/card";
+import { Card, CardContent } from "@lens/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -62,7 +56,7 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
     state.recalculate.error;
   return (
     <Page
-      className="mx-auto max-w-6xl"
+      className="mx-auto max-w-7xl"
       eyebrow="Anvia Lens"
       title="Cost Settings"
       description="Configure organization-wide USD pricing per million tokens."
@@ -86,86 +80,88 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
       }
     >
       {error ? <ErrorAlert error={error} /> : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>Model pricing</CardTitle>
-          <CardDescription>
+      <section className="grid gap-4">
+        <div>
+          <h2 className="font-medium">Model pricing</h2>
+          <p className="text-sm text-muted-foreground">
             Configured prices override costs reported by telemetry for matching model names.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          {state.models.isLoading ? (
-            <div className="grid min-h-36 place-items-center">
-              <Spinner />
-            </div>
-          ) : items.length === 0 ? (
-            <EmptyState
-              icon={<Calculator />}
-              title="No models found"
-              text="Add a model now or ingest telemetry to discover model names automatically."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Input / 1M</TableHead>
-                  <TableHead>Cached input / 1M</TableHead>
-                  <TableHead>Output / 1M</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.model}>
-                    <TableCell className="font-mono font-medium">{item.model}</TableCell>
-                    <TableCell>{formatRate(item.inputPricePerMillion)}</TableCell>
-                    <TableCell>
-                      {item.id !== null && item.cachedInputPricePerMillion === null
-                        ? "Uses input rate"
-                        : formatRate(item.cachedInputPricePerMillion)}
-                    </TableCell>
-                    <TableCell>{formatRate(item.outputPricePerMillion)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1.5">
-                        <Badge variant={item.id === null ? "outline" : "secondary"}>
-                          {item.id === null ? "Unconfigured" : "Configured"}
-                        </Badge>
-                        {item.observed ? <Badge variant="outline">Observed</Badge> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`${item.id === null ? "Configure" : "Edit"} ${item.model}`}
-                          onClick={() => setEditing(item)}
-                        >
-                          <Pencil />
-                        </Button>
-                        {item.id ? (
+          </p>
+        </div>
+        <Card className="py-0">
+          <CardContent className="px-0">
+            {state.models.isLoading ? (
+              <div className="grid min-h-36 place-items-center">
+                <Spinner />
+              </div>
+            ) : items.length === 0 ? (
+              <EmptyState
+                icon={<Calculator />}
+                title="No models found"
+                text="Add a model now or ingest telemetry to discover model names automatically."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Input / 1M</TableHead>
+                    <TableHead>Cached input / 1M</TableHead>
+                    <TableHead>Output / 1M</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.model}>
+                      <TableCell className="font-mono font-medium">{item.model}</TableCell>
+                      <TableCell>{formatRate(item.inputPricePerMillion)}</TableCell>
+                      <TableCell>
+                        {item.id !== null && item.cachedInputPricePerMillion === null
+                          ? "Uses input rate"
+                          : formatRate(item.cachedInputPricePerMillion)}
+                      </TableCell>
+                      <TableCell>{formatRate(item.outputPricePerMillion)}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1.5">
+                          <Badge variant={item.id === null ? "outline" : "secondary"}>
+                            {item.id === null ? "Unconfigured" : "Configured"}
+                          </Badge>
+                          {item.observed ? <Badge variant="outline">Observed</Badge> : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label={`Remove ${item.model} pricing`}
-                            onClick={() => setDeleting(item)}
+                            aria-label={`${item.id === null ? "Configure" : "Edit"} ${item.model}`}
+                            onClick={() => setEditing(item)}
                           >
-                            <Trash2 />
+                            <Pencil />
                           </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                          {item.id ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Remove ${item.model} pricing`}
+                              onClick={() => setDeleting(item)}
+                            >
+                              <Trash2 />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       <RecalculationHistory runs={state.recalculations.data?.recalculations ?? []} />
       <PriceDialog
@@ -407,54 +403,58 @@ function RecalculationDialog(props: {
 
 function RecalculationHistory({ runs }: { runs: CostRecalculation[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent recalculations</CardTitle>
-        <CardDescription>The ten most recent background pricing runs.</CardDescription>
-      </CardHeader>
-      <CardContent className="px-0">
-        {runs.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No recalculations yet.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Scope</TableHead>
-                <TableHead>Requested by</TableHead>
-                <TableHead>Result</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.map((run) => (
-                <TableRow key={run.id}>
-                  <TableCell>
-                    <RunBadge run={run} />
-                  </TableCell>
-                  <TableCell>{formatRunScope(run)}</TableCell>
-                  <TableCell>{run.requestedBy.name}</TableCell>
-                  <TableCell>
-                    {run.status === "completed" ? (
-                      `${run.affectedSpans ?? 0} spans · ${run.affectedTraces ?? 0} traces`
-                    ) : run.status === "failed" ? (
-                      <span className="text-destructive" title={run.error ?? undefined}>
-                        {run.error ?? "Failed"}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(run.createdAt).toLocaleString()}</TableCell>
+    <section className="grid gap-4">
+      <div>
+        <h2 className="font-medium">Recent recalculations</h2>
+        <p className="text-sm text-muted-foreground">
+          The ten most recent background pricing runs.
+        </p>
+      </div>
+      <Card className="py-0">
+        <CardContent className="px-0">
+          {runs.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+              No recalculations yet.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Scope</TableHead>
+                  <TableHead>Requested by</TableHead>
+                  <TableHead>Result</TableHead>
+                  <TableHead>Created</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {runs.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>
+                      <RunBadge run={run} />
+                    </TableCell>
+                    <TableCell>{formatRunScope(run)}</TableCell>
+                    <TableCell>{run.requestedBy.name}</TableCell>
+                    <TableCell>
+                      {run.status === "completed" ? (
+                        `${run.affectedSpans ?? 0} spans · ${run.affectedTraces ?? 0} traces`
+                      ) : run.status === "failed" ? (
+                        <span className="text-destructive" title={run.error ?? undefined}>
+                          {run.error ?? "Failed"}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(run.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
