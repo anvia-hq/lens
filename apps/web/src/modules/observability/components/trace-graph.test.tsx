@@ -3,6 +3,7 @@
 import type { SpanDetail } from "@lens/contracts";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildExpandedTraceGraph } from "../utils/trace-graph";
 import type { TraceGraphLayout } from "../utils/trace-graph-layout";
 import { requestTraceGraphLayout } from "../utils/trace-graph-layout-client";
 import TraceGraph from "./trace-graph";
@@ -25,7 +26,12 @@ const layout: TraceGraphLayout = {
 };
 
 beforeEach(() => {
-  vi.mocked(requestTraceGraphLayout).mockReset().mockResolvedValue(layout);
+  vi.mocked(requestTraceGraphLayout)
+    .mockReset()
+    .mockImplementation(async (spans) => ({
+      graph: buildExpandedTraceGraph(spans),
+      layout,
+    }));
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
     bottom: 500,
     height: 500,
@@ -104,7 +110,10 @@ describe("trace graph canvas", () => {
     );
 
     expect(await screen.findByText("Unable to lay out graph")).toBeTruthy();
-    vi.mocked(requestTraceGraphLayout).mockResolvedValueOnce(layout);
+    vi.mocked(requestTraceGraphLayout).mockImplementationOnce(async (spans) => ({
+      graph: buildExpandedTraceGraph(spans),
+      layout,
+    }));
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByRole("button", { name: "root, agent, ok" })).toBeTruthy();
   });

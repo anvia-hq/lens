@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import { createAlertsRouter } from "./modules/alerts/router.js";
@@ -59,6 +60,7 @@ export function createApp(deps: ApiDependencies) {
         maxAge: 600,
       }),
     )
+    .use("/api/v1/*", compress({ threshold: 1_024, contentTypeFilter: /^application\/json/ }))
     .route("/", createSystemRouter(deps, metrics))
     .route("/api/public/setup", createSetupRouter(deps))
     .route("/api/public/invitations", createInvitationsRouter(deps))

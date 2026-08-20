@@ -3,6 +3,7 @@ import type {
   ManagedDatasetCaseInput,
   SpanDetail,
   TraceDetail,
+  TraceSpanSummary,
 } from "@lens/contracts";
 import type { FlatSpanNode, SpanTreeNode, TracePayloadView } from "../types";
 
@@ -20,42 +21,50 @@ export const TRACE_PAYLOAD_STORAGE_KEY = "lens-trace-payload-view";
 export const NAVIGATION_PANEL_ID = "trace-navigation";
 export const DETAIL_PANEL_ID = "trace-data";
 export const TIMELINE_WIDTH = 720;
+export const MAX_TREE_VISUAL_DEPTH = 50;
 
-export function buildSpanForest(spans: SpanDetail[]): SpanTreeNode[] {
+export function buildSpanForest(spans: TraceSpanSummary[]): SpanTreeNode[] {
   const ordered = [...spans].sort(compareSpans);
-  const nodes = new Map(ordered.map((span) => [span.spanId, span]));
-  const children = new Map<string, SpanDetail[]>();
-  const roots: SpanDetail[] = [];
-
-  for (const span of ordered) {
+  const unique = [...new Map(ordered.map((span) => [span.spanId, span])).values()];
+  const nodes = new Map(
+    unique.map((span) => [span.spanId, { span, children: [] } as SpanTreeNode]),
+  );
+  const parents = new Map<string, string | null>();
+  for (const span of unique) {
     const parent = span.parentSpanId;
-    if (parent === null || parent === span.spanId || !nodes.has(parent)) {
-      roots.push(span);
-      continue;
-    }
-    children.set(parent, [...(children.get(parent) ?? []), span]);
+    parents.set(
+      span.spanId,
+      parent !== null && parent !== span.spanId && nodes.has(parent) ? parent : null,
+    );
   }
 
-  const visited = new Set<string>();
-  const build = (span: SpanDetail, ancestors: Set<string>): SpanTreeNode | null => {
-    if (visited.has(span.spanId) || ancestors.has(span.spanId)) return null;
-    visited.add(span.spanId);
-    const nextAncestors = new Set(ancestors).add(span.spanId);
-    return {
-      span,
-      children: (children.get(span.spanId) ?? [])
-        .map((child) => build(child, nextAncestors))
-        .filter((node): node is SpanTreeNode => node !== null),
-    };
-  };
+  const settled = new Set<string>();
+  for (const span of unique) {
+    if (settled.has(span.spanId)) continue;
+    const path: string[] = [];
+    const positions = new Map<string, number>();
+    let current: string | null = span.spanId;
+    while (current !== null && !settled.has(current)) {
+      const cycleStart = positions.get(current);
+      if (cycleStart !== undefined) {
+        parents.set(path[cycleStart] ?? current, null);
+        break;
+      }
+      positions.set(current, path.length);
+      path.push(current);
+      current = parents.get(current) ?? null;
+    }
+    for (const id of path) settled.add(id);
+  }
 
-  const forest = roots
-    .map((span) => build(span, new Set()))
-    .filter((node): node is SpanTreeNode => node !== null);
-  for (const span of ordered) {
-    if (visited.has(span.spanId)) continue;
-    const recovered = build(span, new Set());
-    if (recovered !== null) forest.push(recovered);
+  const forest: SpanTreeNode[] = [];
+  for (const span of unique) {
+    const node = nodes.get(span.spanId);
+    if (!node) continue;
+    const parent = parents.get(span.spanId);
+    const parentNode = parent ? nodes.get(parent) : undefined;
+    if (parentNode) parentNode.children.push(node);
+    else forest.push(node);
   }
   return forest;
 }
@@ -91,36 +100,15 @@ export function buildTraceSpanForest(detail: TraceDetail): SpanTreeNode[] {
         name: detail.summary.name,
         observationKind: "span",
         status: "unset",
-        statusMessage: "",
         startTimeUnixNano,
         endTimeUnixNano,
         durationNano: String(
           BigInt(Math.max(0, Math.trunc(detail.summary.durationMs * 1_000_000))),
         ),
         serviceName: detail.summary.serviceName,
-        resourceAttributes: {},
-        spanAttributes: {},
-        events: [],
-        links: [],
-        traceName: detail.summary.name,
-        userId: detail.summary.userId,
-        sessionId: detail.summary.sessionId,
-        tags: detail.summary.tags,
-        version: detail.summary.version,
-        environment: detail.summary.environment,
-        release: detail.summary.release,
-        serviceVersion: detail.summary.serviceVersion,
         model: detail.summary.model,
-        inputTokens: detail.summary.inputTokens,
-        cachedInputTokens: 0,
-        outputTokens: detail.summary.outputTokens,
         totalTokens: detail.summary.totalTokens,
-        inputCost: detail.summary.inputCost,
-        outputCost: detail.summary.outputCost,
         totalCost: detail.summary.totalCost,
-        input: null,
-        output: null,
-        ingestedAt: detail.summary.lastSeenAt,
       },
       children: forest,
     },
@@ -136,8 +124,8 @@ export function traceReview(detail: TraceDetail): EvaluationResult | undefined {
 export function traceReviewDatasetCase(
   detail: TraceDetail,
   review: EvaluationResult,
+  root: SpanDetail | undefined,
 ): ManagedDatasetCaseInput | undefined {
-  const root = buildSpanForest(detail.spans)[0]?.span;
   if (!root || root.input === null) return undefined;
   return {
     id: detail.summary.traceId,
@@ -159,27 +147,43 @@ export function flattenSpanForest(
   collapsed: ReadonlySet<string> = new Set(),
 ): FlatSpanNode[] {
   const rows: FlatSpanNode[] = [];
-  const visit = (nodes: SpanTreeNode[], depth: number, ancestorContinues: boolean[]) => {
-    nodes.forEach((node, index) => {
-      const isLastSibling = index === nodes.length - 1;
-      rows.push({
-        span: node.span,
-        depth,
-        ancestorContinues,
-        isLastSibling,
-        hasChildren: node.children.length > 0,
-        provisional: node.provisional === true,
-      });
-      if (!collapsed.has(node.span.spanId)) {
-        visit(node.children, depth + 1, depth === 0 ? [] : [...ancestorContinues, !isLastSibling]);
-      }
+  const stack = roots.toReversed().map((node, reversedIndex) => ({
+    node,
+    depth: 0,
+    ancestorContinues: [] as boolean[],
+    isLastSibling: reversedIndex === 0,
+  }));
+  while (stack.length > 0) {
+    const item = stack.pop();
+    if (!item) continue;
+    rows.push({
+      span: item.node.span,
+      depth: item.depth,
+      ancestorContinues: item.ancestorContinues,
+      isLastSibling: item.isLastSibling,
+      hasChildren: item.node.children.length > 0,
+      provisional: item.node.provisional === true,
     });
-  };
-  visit(roots, 0, []);
+    if (collapsed.has(item.node.span.spanId)) continue;
+    for (let index = item.node.children.length - 1; index >= 0; index -= 1) {
+      const child = item.node.children[index];
+      if (!child) continue;
+      const nextAncestors =
+        item.depth === 0
+          ? []
+          : [...item.ancestorContinues, !item.isLastSibling].slice(0, MAX_TREE_VISUAL_DEPTH);
+      stack.push({
+        node: child,
+        depth: item.depth + 1,
+        ancestorContinues: nextAncestors,
+        isLastSibling: index === item.node.children.length - 1,
+      });
+    }
+  }
   return rows;
 }
 
-export function searchTraceSpans(spans: SpanDetail[], query: string): SpanDetail[] {
+export function searchTraceSpans(spans: TraceSpanSummary[], query: string): TraceSpanSummary[] {
   const normalized = query.trim().toLowerCase();
   if (normalized.length === 0) return [];
   return [...spans]
@@ -204,7 +208,7 @@ export function traceTimelineBounds(detail: TraceDetail): { startMs: number; dur
 }
 
 export function spanTimelinePosition(
-  span: SpanDetail,
+  span: TraceSpanSummary,
   bounds: { startMs: number; durationMs: number },
 ): { left: number; width: number } {
   const left = Math.max(0, Math.min(1, (spanStartMs(span) - bounds.startMs) / bounds.durationMs));
@@ -343,7 +347,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function compareSpans(left: SpanDetail, right: SpanDetail): number {
+function compareSpans(left: TraceSpanSummary, right: TraceSpanSummary): number {
   try {
     const difference = BigInt(left.startTimeUnixNano) - BigInt(right.startTimeUnixNano);
     if (difference < 0n) return -1;
@@ -363,23 +367,23 @@ export function nanoToMs(value: string): number {
   }
 }
 
-function spanStartMs(span: SpanDetail): number {
+function spanStartMs(span: TraceSpanSummary): number {
   return nanoToMs(span.startTimeUnixNano);
 }
 
-export function spanDurationMs(span: SpanDetail): number {
+export function spanDurationMs(span: TraceSpanSummary): number {
   return Math.max(0, nanoToMs(span.durationNano));
 }
 
-function spanEndMs(span: SpanDetail): number {
+function spanEndMs(span: TraceSpanSummary): number {
   const end = nanoToMs(span.endTimeUnixNano);
   return end > 0 ? end : spanStartMs(span) + spanDurationMs(span);
 }
 
 export function resolveSelectedSpan(
-  spans: SpanDetail[],
+  spans: TraceSpanSummary[],
   selectedSpanId?: string,
-): SpanDetail | undefined {
+): TraceSpanSummary | undefined {
   if (selectedSpanId !== undefined) {
     const selected = spans.find((span) => span.spanId === selectedSpanId);
     if (selected !== undefined) return selected;

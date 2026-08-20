@@ -80,6 +80,23 @@ export type MaterializeTraceJob = {
 
 export type SpanDetail = Omit<NormalizedSpan, "projectId" | "expiresAt" | "ingestVersion">;
 
+export type TraceSpanSummary = Pick<
+  SpanDetail,
+  | "traceId"
+  | "spanId"
+  | "parentSpanId"
+  | "name"
+  | "observationKind"
+  | "status"
+  | "startTimeUnixNano"
+  | "endTimeUnixNano"
+  | "durationNano"
+  | "serviceName"
+  | "model"
+  | "totalTokens"
+  | "totalCost"
+>;
+
 export type TraceSummary = {
   projectId: string;
   traceId: string;
@@ -117,7 +134,7 @@ export type TraceListItem = TraceSummary & {
 
 export type TraceDetail = {
   summary: TraceSummary;
-  spans: SpanDetail[];
+  spans: TraceSpanSummary[];
   evaluations: EvaluationResult[];
 };
 

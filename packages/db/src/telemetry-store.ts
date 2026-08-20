@@ -12,6 +12,8 @@ import type {
   TraceFilters,
   TraceListItem,
   TraceSortField,
+  TraceSpanSummary,
+  TraceSummary,
 } from "@lens/contracts";
 import { listEvaluationsForTrace, listHumanReviewOutcomes } from "./evaluation-store.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
@@ -69,6 +71,50 @@ type SpanRow = {
   ingested_at: string;
   ingest_version: string | number;
 };
+
+type TraceSpanSummaryRow = Pick<
+  SpanRow,
+  | "trace_id"
+  | "span_id"
+  | "parent_span_id"
+  | "name"
+  | "observation_kind"
+  | "status"
+  | "start_time"
+  | "end_time"
+  | "duration_nano"
+  | "service_name"
+  | "model"
+  | "total_tokens"
+  | "total_cost"
+>;
+
+type MaterializationSpanRow = Pick<
+  SpanRow,
+  | "span_id"
+  | "parent_span_id"
+  | "name"
+  | "observation_kind"
+  | "status"
+  | "start_time"
+  | "end_time"
+  | "service_name"
+  | "trace_name"
+  | "user_id"
+  | "session_id"
+  | "tags"
+  | "version"
+  | "environment"
+  | "release"
+  | "service_version"
+  | "model"
+  | "input_tokens"
+  | "output_tokens"
+  | "input_cost"
+  | "output_cost"
+  | "total_cost"
+  | "ingest_version"
+> & { expires_at: string };
 
 export async function insertSpans(
   client: ClickHouseClient,
@@ -129,7 +175,7 @@ export async function materializeTrace(
   projectId: string,
   traceId: string,
 ): Promise<void> {
-  const spans = await readSpanRows(client, projectId, traceId);
+  const spans = await readMaterializationSpanRows(client, projectId, traceId);
   if (spans.length === 0) return;
   const root = spans.find((span) => span.parent_span_id.length === 0);
   const representative =
@@ -159,7 +205,10 @@ export async function materializeTrace(
     const version = BigInt(span.ingest_version);
     return version > maximum ? version : maximum;
   }, 0n);
-  const expiresAt = await currentTraceExpiration(client, projectId, traceId);
+  const expiresAt = spans.reduce(
+    (maximum, span) => (span.expires_at > maximum ? span.expires_at : maximum),
+    spans[0]?.expires_at ?? "2299-12-31 23:59:59.999",
+  );
 
   await client.insert({
     table: "trace_summaries",
@@ -496,10 +545,49 @@ export async function getTrace(
   const summary = summaries[0];
   if (summary === undefined) return undefined;
   const [spans, evaluations] = await Promise.all([
-    readSpanRows(client, projectId, traceId),
+    readTraceSpanSummaryRows(client, projectId, traceId),
     listEvaluationsForTrace(client, projectId, traceId),
   ]);
-  return { summary: summaryFromRow(summary), spans: spans.map(spanFromRow), evaluations };
+  return {
+    summary: summaryFromRow(summary),
+    spans: spans.map(traceSpanSummaryFromRow),
+    evaluations,
+  };
+}
+
+export async function getTraceSummary(
+  client: ClickHouseClient,
+  projectId: string,
+  traceId: string,
+): Promise<TraceSummary | undefined> {
+  const result = await client.query({
+    query: `SELECT * FROM trace_summaries FINAL
+            WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
+            LIMIT 1`,
+    query_params: { projectId, traceId },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<SummaryRow>();
+  return rows[0] === undefined ? undefined : summaryFromRow(rows[0]);
+}
+
+export async function getSpan(
+  client: ClickHouseClient,
+  projectId: string,
+  traceId: string,
+  spanId: string,
+): Promise<SpanDetail | undefined> {
+  const result = await client.query({
+    query: `SELECT * FROM spans FINAL
+            WHERE project_id = {projectId:UUID}
+              AND trace_id = {traceId:String}
+              AND span_id = {spanId:String}
+            LIMIT 1`,
+    query_params: { projectId, traceId, spanId },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<SpanRow>();
+  return rows[0] === undefined ? undefined : spanFromRow(rows[0]);
 }
 
 export async function reconcileProjectRetention(
@@ -559,19 +647,60 @@ export async function deleteProjectTelemetry(
   });
 }
 
-async function readSpanRows(
+async function readTraceSpanSummaryRows(
   client: ClickHouseClient,
   projectId: string,
   traceId: string,
-): Promise<SpanRow[]> {
+): Promise<TraceSpanSummaryRow[]> {
   const result = await client.query({
-    query: `SELECT * FROM spans FINAL
+    query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, status,
+                   start_time, end_time, duration_nano, service_name, model,
+                   total_tokens, total_cost
+            FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
             ORDER BY start_time ASC, span_id ASC`,
     query_params: { projectId, traceId },
     format: "JSONEachRow",
   });
-  return result.json<SpanRow>();
+  return result.json<TraceSpanSummaryRow>();
+}
+
+async function readMaterializationSpanRows(
+  client: ClickHouseClient,
+  projectId: string,
+  traceId: string,
+): Promise<MaterializationSpanRow[]> {
+  const result = await client.query({
+    query: `SELECT span_id, parent_span_id, name, observation_kind, status,
+                   start_time, end_time, service_name, trace_name, user_id, session_id,
+                   tags, version, environment, release, service_version, model,
+                   input_tokens, output_tokens, input_cost, output_cost, total_cost,
+                   expires_at, ingest_version
+            FROM spans FINAL
+            WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
+            ORDER BY start_time ASC, span_id ASC`,
+    query_params: { projectId, traceId },
+    format: "JSONEachRow",
+  });
+  return result.json<MaterializationSpanRow>();
+}
+
+function traceSpanSummaryFromRow(row: TraceSpanSummaryRow): TraceSpanSummary {
+  return {
+    traceId: row.trace_id,
+    spanId: row.span_id,
+    parentSpanId: row.parent_span_id || null,
+    name: row.name,
+    observationKind: row.observation_kind,
+    status: row.status,
+    startTimeUnixNano: clickHouseToNano(row.start_time),
+    endTimeUnixNano: clickHouseToNano(row.end_time),
+    durationNano: String(row.duration_nano),
+    serviceName: row.service_name,
+    model: row.model,
+    totalTokens: numeric(row.total_tokens),
+    totalCost: nullableNumeric(row.total_cost),
+  };
 }
 
 function spanFromRow(row: SpanRow): SpanDetail {

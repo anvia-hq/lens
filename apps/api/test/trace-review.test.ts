@@ -1,4 +1,4 @@
-import type { TraceDetail } from "@lens/contracts";
+import type { TraceSummary } from "@lens/contracts";
 import { describe, expect, it } from "vitest";
 import { traceReviewResult } from "../src/modules/traces/review.js";
 
@@ -7,14 +7,12 @@ describe("trace review", () => {
     const result = traceReviewResult({
       projectId: "11111111-1111-4111-8111-111111111111",
       trace: {
-        summary: {
-          traceId: "a".repeat(32),
-          startedAt: "2026-08-09T00:00:00.000Z",
-          serviceName: "support-agent",
-          environment: "production",
-          release: "v2",
-        },
-      } as TraceDetail,
+        traceId: "a".repeat(32),
+        startedAt: "2026-08-09T00:00:00.000Z",
+        serviceName: "support-agent",
+        environment: "production",
+        release: "v2",
+      } as TraceSummary,
       expiresAt: "2026-09-09T00:00:00.000Z",
       input: { outcome: "fail", explanation: "Wrong policy" },
       reviewer: { id: "user-1", name: "Ada" },

@@ -2,7 +2,8 @@ import type { TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { cn } from "@lens/ui/lib/utils";
 import { CaretRight as ChevronRight } from "@phosphor-icons/react";
-import { useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useMemo, useRef } from "react";
 import type { FlatSpanNode } from "../types";
 import {
   formatDuration,
@@ -12,6 +13,7 @@ import {
   toggleCollapsed,
   traceTimelineBounds,
 } from "../utils/trace-detail";
+import { observeVirtualElementRect } from "../utils/virtualization";
 import { TreeIndent } from "./tree-indent";
 
 export function SpanTimeline(props: {
@@ -23,8 +25,22 @@ export function SpanTimeline(props: {
   onSelectSpan: (id: string) => void;
 }) {
   const bounds = useMemo(() => traceTimelineBounds(props.detail), [props.detail]);
+  const scrollRef = useRef<HTMLElement>(null);
+  const virtualizer = useVirtualizer({
+    count: props.rows.length,
+    getScrollElement: () => scrollRef.current,
+    getItemKey: (index) => props.rows[index]?.span.spanId ?? index,
+    estimateSize: () => 32,
+    initialRect: { width: 960, height: 600 },
+    observeElementRect: observeVirtualElementRect,
+    overscan: 10,
+  });
   return (
-    <section className="h-full overflow-auto overscroll-contain" aria-label="Span timeline">
+    <section
+      className="h-full overflow-auto overscroll-contain"
+      aria-label="Span timeline"
+      ref={scrollRef}
+    >
       <div className="min-w-max" style={{ width: `${240 + TIMELINE_WIDTH}px` }}>
         <div className="sticky top-0 z-20 grid h-8 grid-cols-[240px_720px] border-b bg-background text-[10px] text-muted-foreground">
           <div className="sticky left-0 z-30 flex items-center border-r bg-background px-3 font-medium uppercase tracking-wide">
@@ -47,88 +63,93 @@ export function SpanTimeline(props: {
             ))}
           </div>
         </div>
-        {props.rows.map((row) => {
-          const position = spanTimelinePosition(row.span, bounds);
-          const selected = props.selectedSpanId === row.span.spanId;
-          const isCollapsed = props.collapsed.has(row.span.spanId);
-          return (
-            <div
-              className={cn(
-                "grid h-8 grid-cols-[240px_720px] border-b border-border/50 hover:bg-muted/40",
-                selected && "bg-muted",
-              )}
-              key={row.span.spanId}
-            >
-              <div className="sticky left-0 z-10 flex min-w-0 items-stretch border-r bg-background/95 px-2">
+        <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const row = props.rows[virtualRow.index];
+            if (!row) return null;
+            const position = spanTimelinePosition(row.span, bounds);
+            const selected = props.selectedSpanId === row.span.spanId;
+            const isCollapsed = props.collapsed.has(row.span.spanId);
+            return (
+              <div
+                className={cn(
+                  "absolute left-0 top-0 grid h-8 w-full grid-cols-[240px_720px] border-b border-border/50 hover:bg-muted/40",
+                  selected && "bg-muted",
+                )}
+                key={row.span.spanId}
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <div className="sticky left-0 z-10 flex min-w-0 items-stretch border-r bg-background/95 px-2">
+                  <button
+                    className="flex min-w-0 flex-1 items-stretch text-left"
+                    disabled={row.provisional}
+                    title={
+                      row.provisional
+                        ? "The root span will be available when the trace finishes"
+                        : undefined
+                    }
+                    type="button"
+                    onClick={() => props.onSelectSpan(row.span.spanId)}
+                  >
+                    <TreeIndent row={row} collapsed={isCollapsed} />
+                    <span className="min-w-0 flex-1 truncate py-2 pr-1 text-[11px] font-medium">
+                      {row.span.name}
+                    </span>
+                    {row.provisional ? (
+                      <Badge
+                        className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                        variant="secondary"
+                      >
+                        RUNNING
+                      </Badge>
+                    ) : row.span.status === "error" ? (
+                      <Badge
+                        className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                        variant="destructive"
+                      >
+                        ERROR
+                      </Badge>
+                    ) : null}
+                  </button>
+                  {row.hasChildren ? (
+                    <button
+                      aria-expanded={!isCollapsed}
+                      aria-label={
+                        isCollapsed ? `Expand ${row.span.name}` : `Collapse ${row.span.name}`
+                      }
+                      className="grid w-6 place-items-center"
+                      type="button"
+                      onClick={() =>
+                        toggleCollapsed(props.collapsed, row.span.spanId, props.onCollapsedChange)
+                      }
+                    >
+                      <ChevronRight
+                        className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")}
+                      />
+                    </button>
+                  ) : null}
+                </div>
                 <button
-                  className="flex min-w-0 flex-1 items-stretch text-left"
+                  className="relative text-left"
                   disabled={row.provisional}
-                  title={
-                    row.provisional
-                      ? "The root span will be available when the trace finishes"
-                      : undefined
-                  }
+                  title={`${row.span.name}: ${formatDuration(spanDurationMs(row.span))}`}
                   type="button"
                   onClick={() => props.onSelectSpan(row.span.spanId)}
                 >
-                  <TreeIndent row={row} collapsed={isCollapsed} />
-                  <span className="min-w-0 flex-1 truncate py-2 pr-1 text-[11px] font-medium">
-                    {row.span.name}
-                  </span>
-                  {row.provisional ? (
-                    <Badge
-                      className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
-                      variant="secondary"
-                    >
-                      RUNNING
-                    </Badge>
-                  ) : row.span.status === "error" ? (
-                    <Badge
-                      className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
-                      variant="destructive"
-                    >
-                      ERROR
-                    </Badge>
-                  ) : null}
+                  <span
+                    className={cn(
+                      "absolute top-2 h-4 rounded-sm bg-muted-foreground/25",
+                      row.span.status === "error" && "bg-destructive/50",
+                      selected && "bg-blue-500/70",
+                    )}
+                    data-timeline-bar={row.span.spanId}
+                    style={{ left: `${position.left}px`, width: `${position.width}px` }}
+                  />
                 </button>
-                {row.hasChildren ? (
-                  <button
-                    aria-expanded={!isCollapsed}
-                    aria-label={
-                      isCollapsed ? `Expand ${row.span.name}` : `Collapse ${row.span.name}`
-                    }
-                    className="grid w-6 place-items-center"
-                    type="button"
-                    onClick={() =>
-                      toggleCollapsed(props.collapsed, row.span.spanId, props.onCollapsedChange)
-                    }
-                  >
-                    <ChevronRight
-                      className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")}
-                    />
-                  </button>
-                ) : null}
               </div>
-              <button
-                className="relative text-left"
-                disabled={row.provisional}
-                title={`${row.span.name}: ${formatDuration(spanDurationMs(row.span))}`}
-                type="button"
-                onClick={() => props.onSelectSpan(row.span.spanId)}
-              >
-                <span
-                  className={cn(
-                    "absolute top-2 h-4 rounded-sm bg-muted-foreground/25",
-                    row.span.status === "error" && "bg-destructive/50",
-                    selected && "bg-blue-500/70",
-                  )}
-                  data-timeline-bar={row.span.spanId}
-                  style={{ left: `${position.left}px`, width: `${position.width}px` }}
-                />
-              </button>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </section>
   );

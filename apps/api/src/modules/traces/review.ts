@@ -1,15 +1,15 @@
-import type { EvaluationResult, TraceDetail, TraceReviewInput } from "@lens/contracts";
+import type { EvaluationResult, TraceReviewInput, TraceSummary } from "@lens/contracts";
 
 export function traceReviewResult(args: {
   projectId: string;
-  trace: TraceDetail;
+  trace: TraceSummary;
   expiresAt: string;
   input: TraceReviewInput;
   reviewer: { id: string; name: string };
   now?: Date;
 }): EvaluationResult {
   const now = args.now ?? new Date();
-  const summary = args.trace.summary;
+  const summary = args.trace;
   return {
     projectId: args.projectId,
     id: `review:${summary.traceId}`,

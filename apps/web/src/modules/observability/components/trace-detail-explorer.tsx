@@ -1,4 +1,4 @@
-import type { TraceDetail } from "@lens/contracts";
+import type { SpanDetail, TraceDetail } from "@lens/contracts";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -12,15 +12,13 @@ import {
   DETAIL_PANEL_ID,
   NAVIGATION_PANEL_ID,
   readStoredLayout,
-  resolveSelectedSpan,
   storedPayloadView,
   TRACE_LAYOUT_STORAGE_KEY,
   TRACE_PAYLOAD_STORAGE_KEY,
 } from "../utils/trace-detail";
 import { DataDeletionDialog } from "./data-deletion-dialog";
-import { EmptyInspector } from "./empty-inspector";
 import { MobileTraceLayout } from "./mobile-trace-layout";
-import { SpanInspector } from "./span-inspector";
+import { SpanInspectorState } from "./span-inspector-state";
 import { TraceHeader } from "./trace-header";
 import { TraceNavigator } from "./trace-navigator";
 import { TraceReviewPanel } from "./trace-review-panel";
@@ -30,15 +28,18 @@ export function TraceDetailExplorer(props: {
   detail: TraceDetail;
   projectId: string;
   selectedSpanId?: string;
+  selectedSpan?: SpanDetail;
+  selectedSpanError?: Error | null;
+  selectedSpanLoading?: boolean;
   view: TraceSpanView;
   onSelectSpan: (spanId: string) => void;
+  onRetrySelectedSpan?: () => void;
   onViewChange: (view: TraceSpanView) => void;
   onDelete?: () => void;
   deletionPending?: boolean;
 }) {
   const isMobile = useIsMobile();
   const forest = useMemo(() => buildTraceSpanForest(props.detail), [props.detail]);
-  const selected = resolveSelectedSpan(props.detail.spans, props.selectedSpanId);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");
   const [mobileTab, setMobileTab] = useState<TraceSpanView | "data">(() =>
@@ -83,12 +84,15 @@ export function TraceDetailExplorer(props: {
             forest={forest}
             payloadView={payloadView}
             search={search}
-            selected={selected}
-            selectedSpanId={selected?.spanId}
+            selectedSpan={props.selectedSpan}
+            selectedSpanError={props.selectedSpanError}
+            selectedSpanLoading={props.selectedSpanLoading ?? false}
+            selectedSpanId={props.selectedSpanId}
             onCollapsedChange={setCollapsed}
             onPayloadViewChange={changePayloadView}
             onSearchChange={setSearch}
             onSelectSpan={selectSpan}
+            onRetrySelectedSpan={() => props.onRetrySelectedSpan?.()}
             onTabChange={(tab) => {
               setMobileTab(tab);
               if (tab !== "data") props.onViewChange(tab);
@@ -121,7 +125,7 @@ export function TraceDetailExplorer(props: {
                 detail={props.detail}
                 forest={forest}
                 search={search}
-                selectedSpanId={selected?.spanId}
+                selectedSpanId={props.selectedSpanId}
                 view={props.view}
                 onCollapsedChange={setCollapsed}
                 onSearchChange={setSearch}
@@ -136,15 +140,15 @@ export function TraceDetailExplorer(props: {
               defaultSize="64"
               minSize={420}
             >
-              {selected === undefined ? (
-                <EmptyInspector />
-              ) : (
-                <SpanInspector
-                  payloadView={payloadView}
-                  span={selected}
-                  onPayloadViewChange={changePayloadView}
-                />
-              )}
+              <SpanInspectorState
+                error={props.selectedSpanError}
+                loading={props.selectedSpanLoading ?? false}
+                payloadView={payloadView}
+                selectedSpanId={props.selectedSpanId}
+                span={props.selectedSpan}
+                onPayloadViewChange={changePayloadView}
+                onRetry={() => props.onRetrySelectedSpan?.()}
+              />
             </ResizablePanel>
           </ResizablePanelGroup>
         )}

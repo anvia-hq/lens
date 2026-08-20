@@ -1,4 +1,4 @@
-import type { SpanDetail } from "@lens/contracts";
+import type { TraceSpanSummary } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import {
@@ -19,11 +19,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { buildExpandedTraceGraph, traceGraphNodeMatches } from "../utils/trace-graph";
-import type { TraceGraphLayout } from "../utils/trace-graph-layout";
+import { spanDurationMs } from "../utils/trace-detail";
+import { traceGraphNodeMatches } from "../utils/trace-graph";
 import {
   requestTraceGraphLayout,
   TraceGraphLayoutCancelledError,
+  type TraceGraphWorkerResult,
 } from "../utils/trace-graph-layout-client";
 import { TraceGraphNode } from "./trace-graph-node";
 
@@ -36,24 +37,27 @@ const MAX_FIT_SCALE = 1.2;
 const ZOOM_STEP = 1.4;
 
 export default function TraceGraph(props: {
-  spans: SpanDetail[];
+  spans: TraceSpanSummary[];
   search: string;
   selectedSpanId?: string;
   onSelectSpan: (spanId: string) => void;
 }) {
-  const graph = useMemo(() => buildExpandedTraceGraph(props.spans), [props.spans]);
-  const graphKey = useMemo(
-    () =>
-      `${graph.nodes.map((node) => node.id).join("|")}::${graph.edges
-        .map((edge) => edge.id)
-        .join("|")}`,
-    [graph.edges, graph.nodes],
-  );
   const [layoutAttempt, setLayoutAttempt] = useState(0);
-  const layoutRequestKey = `${graphKey}:${layoutAttempt}`;
+  const graphShapeKey = useMemo(
+    () =>
+      props.spans
+        .map((span) => `${span.spanId}:${span.parentSpanId ?? ""}:${span.observationKind}`)
+        .join("|"),
+    [props.spans],
+  );
+  const graphRequestRef = useRef({ shapeKey: graphShapeKey, spans: props.spans });
+  if (graphRequestRef.current.shapeKey !== graphShapeKey) {
+    graphRequestRef.current = { shapeKey: graphShapeKey, spans: props.spans };
+  }
   const [layoutState, setLayoutState] = useState<{
-    key: string;
-    layout: TraceGraphLayout;
+    attempt: number;
+    shapeKey: string;
+    result: TraceGraphWorkerResult;
   }>();
   const [layoutError, setLayoutError] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -65,30 +69,50 @@ export default function TraceGraph(props: {
   const programmaticRef = useRef(false);
   const userOverrideRef = useRef(false);
   const fittedRef = useRef(false);
-  const graphRef = useRef(graph);
-  const layout = layoutState?.key === layoutRequestKey ? layoutState.layout : undefined;
+  const current =
+    layoutState?.shapeKey === graphShapeKey && layoutState.attempt === layoutAttempt
+      ? layoutState.result
+      : undefined;
+  const graph = useMemo(() => {
+    if (!current?.graph) return undefined;
+    const spans = new Map(props.spans.map((span) => [span.spanId, span]));
+    return {
+      ...current.graph,
+      nodes: current.graph.nodes.map((node) => {
+        if (!node.spanId) return node;
+        const span = spans.get(node.spanId);
+        return span
+          ? {
+              ...node,
+              label: span.name,
+              status: span.status,
+              durationMs: spanDurationMs(span),
+              totalTokens: span.totalTokens,
+              totalCost: span.totalCost,
+              serviceName: span.serviceName,
+              model: span.model,
+            }
+          : node;
+      }),
+    };
+  }, [current?.graph, props.spans]);
+  const layout = current?.layout;
 
   useEffect(() => {
-    graphRef.current = graph;
-  }, [graph]);
-
-  useEffect(() => {
-    const currentGraph = graphRef.current;
-    if (currentGraph.nodes.length === 0 || currentGraph.limitExceeded) return;
     const controller = new AbortController();
     setLayoutError(false);
     setFitted(false);
     fittedRef.current = false;
     userOverrideRef.current = false;
-    void requestTraceGraphLayout(currentGraph, controller.signal).then(
-      (nextLayout) => setLayoutState({ key: layoutRequestKey, layout: nextLayout }),
+    void requestTraceGraphLayout(graphRequestRef.current.spans, controller.signal).then(
+      (result) => setLayoutState({ attempt: layoutAttempt, shapeKey: graphShapeKey, result }),
       (error: unknown) => {
         if (error instanceof TraceGraphLayoutCancelledError) return;
         setLayoutError(true);
       },
     );
     return () => controller.abort();
-  }, [layoutRequestKey]);
+  }, [graphShapeKey, layoutAttempt]);
 
   const writeTransform = useCallback((transform: Viewport) => {
     const world = worldRef.current;
@@ -193,10 +217,10 @@ export default function TraceGraph(props: {
     selection.call(behavior.scaleBy, factor);
   };
   const selectedNodeId = props.selectedSpanId
-    ? graph.spanToNodeId.get(props.selectedSpanId)
+    ? graph?.spanToNodeId.get(props.selectedSpanId)
     : undefined;
 
-  if (graph.limitExceeded) {
+  if (graph?.limitExceeded) {
     return (
       <GraphMessage
         icon={<WarningCircle />}
@@ -205,7 +229,7 @@ export default function TraceGraph(props: {
       />
     );
   }
-  if (graph.nodes.length === 0) {
+  if (graph && graph.nodes.length === 0) {
     return (
       <GraphMessage
         icon={<FlowArrow />}
@@ -233,7 +257,7 @@ export default function TraceGraph(props: {
     );
   }
 
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const nodeById = new Map(graph?.nodes.map((node) => [node.id, node]) ?? []);
   const strokeStyle = {
     strokeWidth: "calc(1.25px * var(--trace-graph-stroke-scale, 1))",
   } as CSSProperties;
