@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { SpanDetail, TraceDetail } from "@lens/contracts";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -21,7 +22,13 @@ afterEach(cleanup);
 
 describe("trace comparison panel", () => {
   it("keeps the span tree primary and opens span data inside the tile", () => {
-    render(<TraceComparePanel detail={detail()} projectId="project-1" />);
+    const client = new QueryClient();
+    client.setQueryData(["trace-span", "project-1", "trace-1", "span-1"], span());
+    render(
+      <QueryClientProvider client={client}>
+        <TraceComparePanel detail={detail()} projectId="project-1" />
+      </QueryClientProvider>,
+    );
 
     expect(screen.getByRole("region", { name: "Trace spans" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Selected span data" })).toBeNull();

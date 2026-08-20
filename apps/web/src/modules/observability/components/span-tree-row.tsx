@@ -18,7 +18,7 @@ export function SpanTreeRow(props: {
       aria-level={props.row.depth + 1}
       aria-selected={props.selected}
       className={cn(
-        "group flex min-w-0 items-stretch text-muted-foreground hover:bg-muted/60",
+        "group flex h-11 min-w-0 items-stretch text-muted-foreground hover:bg-muted/60",
         props.selected && "bg-muted text-foreground",
       )}
       role="treeitem"

@@ -6,9 +6,11 @@ import {
   MagnifyingGlass as Search,
   ArrowsOutLineVertical as UnfoldVertical,
 } from "@phosphor-icons/react";
-import { lazy, Suspense, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { lazy, Suspense, useMemo, useRef } from "react";
 import type { SpanTreeNode, TraceSpanView } from "../types";
 import { flattenSpanForest, searchTraceSpans, toggleCollapsed } from "../utils/trace-detail";
+import { observeVirtualElementRect } from "../utils/virtualization";
 import { SearchResults } from "./search-results";
 import { SpanTimeline } from "./span-timeline";
 import { SpanTreeRow } from "./span-tree-row";
@@ -49,6 +51,16 @@ export function TraceNavigator(props: {
     branchIds.length > 0 && branchIds.every((id) => props.collapsed.has(id));
   const toggleAll = () =>
     props.onCollapsedChange(everythingCollapsed ? new Set() : new Set(branchIds));
+  const treeRef = useRef<HTMLDivElement>(null);
+  const treeVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => treeRef.current,
+    getItemKey: (index) => rows[index]?.span.spanId ?? index,
+    estimateSize: () => 44,
+    initialRect: { width: 600, height: 600 },
+    observeElementRect: observeVirtualElementRect,
+    overscan: 10,
+  });
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Trace spans">
@@ -121,21 +133,33 @@ export function TraceNavigator(props: {
         ) : (
           <div
             className="h-full overflow-auto overscroll-contain px-2 py-1"
+            ref={treeRef}
             role="tree"
             aria-label="Span tree"
           >
-            {rows.map((row) => (
-              <SpanTreeRow
-                collapsed={props.collapsed.has(row.span.spanId)}
-                key={row.span.spanId}
-                row={row}
-                selected={props.selectedSpanId === row.span.spanId}
-                onSelect={() => props.onSelectSpan(row.span.spanId)}
-                onToggle={() =>
-                  toggleCollapsed(props.collapsed, row.span.spanId, props.onCollapsedChange)
-                }
-              />
-            ))}
+            <div className="relative w-full" style={{ height: treeVirtualizer.getTotalSize() }}>
+              {treeVirtualizer.getVirtualItems().map((virtualRow) => {
+                const row = rows[virtualRow.index];
+                if (!row) return null;
+                return (
+                  <div
+                    className="absolute left-0 top-0 w-full"
+                    key={row.span.spanId}
+                    style={{ transform: `translateY(${virtualRow.start}px)` }}
+                  >
+                    <SpanTreeRow
+                      collapsed={props.collapsed.has(row.span.spanId)}
+                      row={row}
+                      selected={props.selectedSpanId === row.span.spanId}
+                      onSelect={() => props.onSelectSpan(row.span.spanId)}
+                      onToggle={() =>
+                        toggleCollapsed(props.collapsed, row.span.spanId, props.onCollapsedChange)
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

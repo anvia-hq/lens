@@ -7,8 +7,8 @@ import type {
   MetricsRangePreset,
   SessionSortField,
   SessionStatus,
-  SpanDetail,
   TraceSortField,
+  TraceSpanSummary,
   TraceStatus,
   UserSortField,
 } from "@lens/contracts";
@@ -24,13 +24,13 @@ export type TraceSpanView = "tree" | "timeline" | "graph";
 export type TracePayloadView = "formatted" | "json";
 
 export type SpanTreeNode = {
-  span: SpanDetail;
+  span: TraceSpanSummary;
   children: SpanTreeNode[];
   provisional?: boolean;
 };
 
 export type FlatSpanNode = {
-  span: SpanDetail;
+  span: TraceSpanSummary;
   depth: number;
   ancestorContinues: boolean[];
   isLastSibling: boolean;

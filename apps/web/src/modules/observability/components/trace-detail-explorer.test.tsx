@@ -174,7 +174,7 @@ describe("trace detail model", () => {
       reviewer: { id: "user-1", name: "Ada" },
       ingestedAt: "2026-08-05T01:00:00.000Z",
     } as EvaluationResult;
-    expect(traceReviewDatasetCase(subject, review)).toEqual({
+    expect(traceReviewDatasetCase(subject, review, subject.spans[0] as SpanDetail)).toEqual({
       id: "trace-1",
       input: { prompt: "Hello" },
       expected: { answer: "Hi" },
@@ -328,6 +328,7 @@ describe("trace detail controls", () => {
         <TraceDetailExplorer
           detail={subject}
           projectId={subject.summary.projectId}
+          selectedSpan={subject.spans[0] as SpanDetail}
           selectedSpanId="root"
           view="tree"
           onSelectSpan={() => undefined}

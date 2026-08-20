@@ -1,4 +1,4 @@
-import type { EvaluationResult, QualityGateCheckResponse, TraceDetail } from "@lens/contracts";
+import type { EvaluationResult, QualityGateCheckResponse, TraceSummary } from "@lens/contracts";
 import {
   autoResolveAlertIncident,
   listEnabledAlertRules,
@@ -8,24 +8,24 @@ import {
 
 export async function recordHumanReviewAlert(
   postgres: PostgresConnection,
-  trace: TraceDetail,
+  trace: TraceSummary,
   review: EvaluationResult,
 ): Promise<void> {
   const rules = (await listEnabledAlertRules(postgres.db, review.projectId)).filter(
     (rule) =>
       rule.kind === "failed_human_review" &&
-      (!rule.environment || rule.environment === trace.summary.environment) &&
-      (!rule.serviceName || rule.serviceName === trace.summary.serviceName),
+      (!rule.environment || rule.environment === trace.environment) &&
+      (!rule.serviceName || rule.serviceName === trace.serviceName),
   );
   for (const rule of rules) {
     if (review.outcome === "fail") {
       await openAlertIncident(postgres.db, rule, {
-        subjectKey: trace.summary.traceId,
-        summary: `Trace ${trace.summary.name} failed human review`,
-        evidence: { traceIds: [trace.summary.traceId] },
+        subjectKey: trace.traceId,
+        summary: `Trace ${trace.name} failed human review`,
+        evidence: { traceIds: [trace.traceId] },
       });
     } else {
-      await autoResolveAlertIncident(postgres.db, rule.id, trace.summary.traceId, "review_passed");
+      await autoResolveAlertIncident(postgres.db, rule.id, trace.traceId, "review_passed");
     }
   }
 }

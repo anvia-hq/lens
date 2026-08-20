@@ -4,6 +4,7 @@ import {
   type ManagedDatasetSummary,
   type ManagedDatasetVersionDetail,
   managedDatasetCaseInputSchema,
+  type SpanDetail,
   type TraceDetail,
   type TraceReviewInput,
 } from "@lens/contracts";
@@ -25,7 +26,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../../lib/api";
 import { notify } from "../../projects/utils";
-import { traceReview, traceReviewDatasetCase } from "../utils/trace-detail";
+import { buildSpanForest, traceReview, traceReviewDatasetCase } from "../utils/trace-detail";
 
 export function TraceReviewPanel(props: {
   canManage: boolean;
@@ -155,9 +156,20 @@ function PromoteTraceButton(props: {
 }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const root = useMemo(() => buildSpanForest(props.detail.spans)[0]?.span, [props.detail.spans]);
+  const rootSpan = useQuery({
+    queryKey: ["trace-span", props.projectId, props.detail.summary.traceId, root?.spanId],
+    queryFn: ({ signal }) =>
+      api<SpanDetail>(
+        `/api/v1/projects/${props.projectId}/traces/${props.detail.summary.traceId}/spans/${root?.spanId}`,
+        { signal },
+      ),
+    enabled: open && root !== undefined,
+    staleTime: 5 * 60 * 1_000,
+  });
   const original = useMemo(
-    () => traceReviewDatasetCase(props.detail, props.review),
-    [props.detail, props.review],
+    () => traceReviewDatasetCase(props.detail, props.review, rootSpan.data),
+    [props.detail, props.review, rootSpan.data],
   );
   const [datasetId, setDatasetId] = useState("");
   const [form, setForm] = useState(() => caseForm(original));
@@ -214,7 +226,7 @@ function PromoteTraceButton(props: {
 
   return (
     <>
-      <Button size="sm" disabled={!original} onClick={() => setOpen(true)}>
+      <Button size="sm" disabled={!root} onClick={() => setOpen(true)}>
         Promote to dataset
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -226,8 +238,12 @@ function PromoteTraceButton(props: {
             </DialogDescription>
           </DialogHeader>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {datasets.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading datasets…</p>
+          {datasets.isLoading || rootSpan.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading trace and datasets…</p>
+          ) : rootSpan.isError ? (
+            <p className="text-sm text-destructive">Unable to load the trace input.</p>
+          ) : !original ? (
+            <p className="text-sm text-muted-foreground">The root span has no captured input.</p>
           ) : drafts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No dataset has an open draft. Create one in{" "}
@@ -283,7 +299,7 @@ function PromoteTraceButton(props: {
             </div>
           )}
           <DialogFooter showCloseButton>
-            <Button disabled={!selected?.draft || promote.isPending} onClick={submit}>
+            <Button disabled={!selected?.draft || !original || promote.isPending} onClick={submit}>
               {promote.isPending ? "Adding…" : "Add case"}
             </Button>
           </DialogFooter>

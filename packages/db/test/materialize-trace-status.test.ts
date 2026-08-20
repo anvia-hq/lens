@@ -6,6 +6,25 @@ const projectId = "11111111-1111-4111-8111-111111111111";
 const traceId = "a".repeat(32);
 
 describe("trace status materialization", () => {
+  it("does not select payload columns while building summaries", async () => {
+    const query = vi.fn(async (_options: { query: string }) => ({
+      json: async () => [spanRow({})],
+    }));
+    const insert = vi.fn(async () => ({}));
+    await materializeTrace(clickHouseClient({ query, insert }), projectId, traceId);
+    const sql = String(query.mock.calls[0]?.[0]?.query ?? "");
+    for (const column of [
+      "resource_attributes",
+      "span_attributes",
+      "events",
+      "links",
+      "input,",
+      "output,",
+    ]) {
+      expect(sql).not.toContain(column);
+    }
+  });
+
   it("marks a trace running when a successful child arrives before its root", async () => {
     const insert = await materialize([
       spanRow({
@@ -134,7 +153,7 @@ async function rematerialize(
   let rows = initialRows;
   const query = vi.fn(async ({ query: sql }: { query: string }) => ({
     json: async () =>
-      sql.includes("SELECT * FROM spans") ? rows : [{ expires_at: "2299-12-31 23:59:59.999" }],
+      sql.includes("FROM spans FINAL") ? rows : [{ expires_at: "2299-12-31 23:59:59.999" }],
   }));
   const insert = vi.fn(async (_options: { values: unknown }) => ({}));
   const client = clickHouseClient({ query, insert });
@@ -151,7 +170,7 @@ async function rematerialize(
 async function materialize(rows: Array<Record<string, unknown>>): Promise<Record<string, unknown>> {
   const query = vi.fn(async ({ query: sql }: { query: string }) => ({
     json: async () =>
-      sql.includes("SELECT * FROM spans") ? rows : [{ expires_at: "2299-12-31 23:59:59.999" }],
+      sql.includes("FROM spans FINAL") ? rows : [{ expires_at: "2299-12-31 23:59:59.999" }],
   }));
   const insert = vi.fn(async (_options: { values: unknown }) => ({}));
   await materializeTrace(clickHouseClient({ query, insert }), projectId, traceId);
@@ -201,6 +220,7 @@ function spanRow(overrides: Record<string, unknown>): Record<string, unknown> {
     input: null,
     output: null,
     ingested_at: "2026-08-06 08:00:02.000",
+    expires_at: "2299-12-31 23:59:59.999",
     ingest_version: "1786003202000000000",
     ...overrides,
   };

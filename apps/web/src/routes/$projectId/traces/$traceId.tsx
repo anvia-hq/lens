@@ -16,8 +16,18 @@ export const Route = createFileRoute("/$projectId/traces/$traceId")({
 });
 
 function TraceDetailPage() {
-  const { changeView, deleteTrace, deletionPending, detail, project, search, selectSpan, trace } =
-    useTraceDetail();
+  const {
+    changeView,
+    deleteTrace,
+    deletionPending,
+    detail,
+    project,
+    search,
+    selectedSpan,
+    selectedSpanId,
+    selectSpan,
+    trace,
+  } = useTraceDetail();
   if (trace.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading trace" contained />;
   if (detail === undefined)
@@ -28,9 +38,13 @@ function TraceDetailPage() {
       detail={detail}
       canManage={project.role === "owner" || project.role === "admin"}
       projectId={project.id}
-      selectedSpanId={search.span}
+      selectedSpan={selectedSpan.data}
+      selectedSpanError={selectedSpan.error}
+      selectedSpanId={selectedSpanId}
+      selectedSpanLoading={selectedSpan.isLoading}
       view={search.view ?? "tree"}
       onSelectSpan={selectSpan}
+      onRetrySelectedSpan={() => void selectedSpan.refetch()}
       onViewChange={changeView}
       onDelete={project.role === "owner" || project.role === "admin" ? deleteTrace : undefined}
       deletionPending={deletionPending}

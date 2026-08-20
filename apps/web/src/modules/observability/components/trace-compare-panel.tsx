@@ -1,10 +1,12 @@
-import type { TraceDetail } from "@lens/contracts";
+import type { SpanDetail, TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import { ArrowLeft, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { api } from "../../../lib/api";
 import type { TracePayloadView, TraceSpanView } from "../types";
 import {
   buildTraceSpanForest,
@@ -18,7 +20,7 @@ import {
 } from "../utils/trace-detail";
 import { HeaderMetric } from "./header-metric";
 import { ObservationGlyph } from "./observation-glyph";
-import { SpanInspector } from "./span-inspector";
+import { SpanInspectorState } from "./span-inspector-state";
 import { StatusPill } from "./status-pill";
 import { TraceNavigator } from "./trace-navigator";
 
@@ -31,6 +33,16 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
   const [view, setView] = useState<TraceSpanView>("tree");
   const [payloadView, setPayloadView] = useState<TracePayloadView>(() => storedPayloadView());
   const selected = props.detail.spans.find((span) => span.spanId === selectedSpanId);
+  const selectedSpan = useQuery({
+    queryKey: ["trace-span", props.projectId, summary.traceId, selectedSpanId],
+    queryFn: ({ signal }) =>
+      api<SpanDetail>(
+        `/api/v1/projects/${props.projectId}/traces/${summary.traceId}/spans/${selectedSpanId}`,
+        { signal },
+      ),
+    enabled: selected !== undefined,
+    staleTime: 5 * 60 * 1_000,
+  });
   const changePayloadView = (next: TracePayloadView) => {
     setPayloadView(next);
     try {
@@ -117,10 +129,14 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
                 </Button>
               </div>
               <div className="min-h-0 flex-1">
-                <SpanInspector
+                <SpanInspectorState
+                  error={selectedSpan.error}
+                  loading={selectedSpan.isLoading}
                   payloadView={payloadView}
-                  span={selected}
+                  selectedSpanId={selected.spanId}
+                  span={selectedSpan.data}
                   onPayloadViewChange={changePayloadView}
+                  onRetry={() => void selectedSpan.refetch()}
                 />
               </div>
             </>

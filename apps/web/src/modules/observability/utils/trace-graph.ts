@@ -1,4 +1,4 @@
-import type { ObservationKind, SpanDetail, SpanStatus } from "@lens/contracts";
+import type { ObservationKind, SpanStatus, TraceSpanSummary } from "@lens/contracts";
 import { spanDurationMs } from "./trace-detail";
 
 export const TRACE_GRAPH_START_ID = "__lens_trace_start__";
@@ -37,8 +37,8 @@ export type ExpandedTraceGraph = {
 
 type EdgeDraft = { from: string; to: string };
 
-export function buildExpandedTraceGraph(spans: SpanDetail[]): ExpandedTraceGraph {
-  const allById = new Map<string, SpanDetail>();
+export function buildExpandedTraceGraph(spans: TraceSpanSummary[]): ExpandedTraceGraph {
+  const allById = new Map<string, TraceSpanSummary>();
   for (const span of spans) {
     if (!allById.has(span.spanId)) allById.set(span.spanId, span);
   }
@@ -54,7 +54,7 @@ export function buildExpandedTraceGraph(spans: SpanDetail[]): ExpandedTraceGraph
   }
 
   const includedIds = new Set(included.map((span) => span.spanId));
-  const groups = new Map<string | null, SpanDetail[]>();
+  const groups = new Map<string | null, TraceSpanSummary[]>();
   for (const span of included) {
     const parentId = nearestIncludedParent(span, allById, includedIds);
     const group = groups.get(parentId);
@@ -183,8 +183,8 @@ export function traceGraphNodeMatches(node: TraceGraphNode, query: string): bool
 }
 
 function nearestIncludedParent(
-  span: SpanDetail,
-  allById: ReadonlyMap<string, SpanDetail>,
+  span: TraceSpanSummary,
+  allById: ReadonlyMap<string, TraceSpanSummary>,
   includedIds: ReadonlySet<string>,
 ): string | null {
   const seen = new Set<string>([span.spanId]);
@@ -199,7 +199,7 @@ function nearestIncludedParent(
   return nearest;
 }
 
-function spanNode(span: SpanDetail): TraceGraphNode {
+function spanNode(span: TraceSpanSummary): TraceGraphNode {
   return {
     id: span.spanId,
     spanId: span.spanId,
@@ -245,7 +245,7 @@ function dedupeEdges(edges: EdgeDraft[]): TraceGraphEdge[] {
   return [...unique.values()];
 }
 
-function compareGraphSpans(left: SpanDetail, right: SpanDetail): number {
+function compareGraphSpans(left: TraceSpanSummary, right: TraceSpanSummary): number {
   const leftTimes = spanTimes(left);
   const rightTimes = spanTimes(right);
   if (leftTimes.start !== rightTimes.start) return leftTimes.start < rightTimes.start ? -1 : 1;
@@ -253,7 +253,7 @@ function compareGraphSpans(left: SpanDetail, right: SpanDetail): number {
   return left.spanId.localeCompare(right.spanId);
 }
 
-function spanTimes(span: SpanDetail): { start: bigint; end: bigint } {
+function spanTimes(span: TraceSpanSummary): { start: bigint; end: bigint } {
   const start = safeBigInt(span.startTimeUnixNano);
   const reportedEnd = safeBigInt(span.endTimeUnixNano);
   const duration = safeBigInt(span.durationNano);

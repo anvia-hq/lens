@@ -52,8 +52,10 @@ export * from "./system-health-store.js";
 export {
   deleteProjectTelemetry,
   getSession,
+  getSpan,
   getTrace,
   getTraceExpiration,
+  getTraceSummary,
   getUser,
   insertSpans,
   listSessionFacets,

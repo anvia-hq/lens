@@ -1,14 +1,16 @@
 import type { FlatSpanNode } from "../types";
+import { MAX_TREE_VISUAL_DEPTH } from "../utils/trace-detail";
 import { ObservationGlyph } from "./observation-glyph";
 
 export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: boolean }) {
   const slot = 20;
-  const iconX = row.depth * slot;
+  const visualDepth = Math.min(row.depth, MAX_TREE_VISUAL_DEPTH);
+  const iconX = visualDepth * slot;
   return (
     <span
       className="relative shrink-0"
       data-tree-depth={row.depth}
-      style={{ width: `${(row.depth + 1) * slot + 4}px` }}
+      style={{ width: `${(visualDepth + 1) * slot + 4}px` }}
     >
       {row.ancestorContinues
         .map((continues, level) => ({
@@ -32,7 +34,7 @@ export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: b
             className="absolute top-0 h-1/2 rounded-bl-sm border-b border-l border-border"
             data-tree-line="elbow"
             style={{
-              left: `${(row.depth - 1) * slot + 10}px`,
+              left: `${(visualDepth - 1) * slot + 10}px`,
               width: `${slot}px`,
             }}
           />
@@ -41,12 +43,12 @@ export function TreeIndent({ row, collapsed }: { row: FlatSpanNode; collapsed: b
             <span
               className="absolute inset-y-0 w-px bg-border"
               data-tree-line="sibling-continuation"
-              style={{ left: `${(row.depth - 1) * slot + 10}px` }}
+              style={{ left: `${(visualDepth - 1) * slot + 10}px` }}
             />
             <span
               className="absolute top-1/2 h-px bg-border"
               data-tree-line="elbow"
-              style={{ left: `${(row.depth - 1) * slot + 10}px`, width: `${slot}px` }}
+              style={{ left: `${(visualDepth - 1) * slot + 10}px`, width: `${slot}px` }}
             />
           </>
         )

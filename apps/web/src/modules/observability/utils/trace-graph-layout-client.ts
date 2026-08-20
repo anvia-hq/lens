@@ -1,12 +1,6 @@
-import ELK from "elkjs/lib/elk-api";
+import type { TraceSpanSummary } from "@lens/contracts";
 import type { ExpandedTraceGraph } from "./trace-graph";
-import {
-  type ElkGraphResult,
-  normalizeTraceGraphLayout,
-  TRACE_GRAPH_LAYOUT_TIMEOUT_MS,
-  type TraceGraphLayout,
-  traceGraphElkInput,
-} from "./trace-graph-layout";
+import { TRACE_GRAPH_LAYOUT_TIMEOUT_MS, type TraceGraphLayout } from "./trace-graph-layout";
 
 export class TraceGraphLayoutCancelledError extends Error {
   constructor() {
@@ -15,19 +9,29 @@ export class TraceGraphLayoutCancelledError extends Error {
   }
 }
 
-export async function requestTraceGraphLayout(
-  graph: ExpandedTraceGraph,
-  signal?: AbortSignal,
-): Promise<TraceGraphLayout> {
-  if (signal?.aborted) throw new TraceGraphLayoutCancelledError();
+type WorkerResult = {
+  error?: string;
+  graph?: Omit<ExpandedTraceGraph, "spanToNodeId"> & {
+    spanToNodeEntries: Array<[string, string]>;
+  };
+  layout?: TraceGraphLayout;
+};
 
+export type TraceGraphWorkerResult = {
+  graph: ExpandedTraceGraph;
+  layout?: TraceGraphLayout;
+};
+
+export async function requestTraceGraphLayout(
+  spans: TraceSpanSummary[],
+  signal?: AbortSignal,
+): Promise<TraceGraphWorkerResult> {
+  if (signal?.aborted) throw new TraceGraphLayoutCancelledError();
   const worker = new Worker(
     new URL("../../../workers/trace-graph-layout.worker.ts", import.meta.url),
     { type: "module", name: "trace-graph-layout" },
   );
-  const elk = new ELK({ workerFactory: () => worker });
-
-  return new Promise<TraceGraphLayout>((resolve, reject) => {
+  return new Promise<TraceGraphWorkerResult>((resolve, reject) => {
     let settled = false;
     const finish = (callback: () => void) => {
       if (settled) return;
@@ -44,13 +48,25 @@ export async function requestTraceGraphLayout(
     );
     signal?.addEventListener("abort", cancel, { once: true });
     worker.addEventListener("error", () =>
-      finish(() => reject(new Error("Trace graph layout worker failed to load"))),
+      finish(() => reject(new Error("Trace graph layout worker failed"))),
     );
-
-    elk.layout(traceGraphElkInput(graph)).then(
-      (result) => finish(() => resolve(normalizeTraceGraphLayout(result as ElkGraphResult))),
-      (error: unknown) =>
-        finish(() => reject(error instanceof Error ? error : new Error(String(error)))),
+    worker.addEventListener("message", (event: MessageEvent<WorkerResult>) =>
+      finish(() => {
+        if (event.data.error || !event.data.graph) {
+          reject(new Error(event.data.error ?? "Trace graph worker returned no graph"));
+          return;
+        }
+        resolve({
+          graph: {
+            nodes: event.data.graph.nodes,
+            edges: event.data.graph.edges,
+            spanToNodeId: new Map(event.data.graph.spanToNodeEntries),
+            limitExceeded: event.data.graph.limitExceeded,
+          },
+          layout: event.data.layout,
+        });
+      }),
     );
+    worker.postMessage({ spans });
   });
 }

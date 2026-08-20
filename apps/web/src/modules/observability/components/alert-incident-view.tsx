@@ -8,6 +8,7 @@ import {
   type ManagedDatasetSummary,
   type ManagedDatasetVersionDetail,
   managedDatasetCaseImportSchema,
+  type SpanDetail,
   type TraceDetail,
 } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
@@ -656,15 +657,19 @@ function PromoteEvidenceDialog(props: {
       Promise.all(
         props.traceIds.map(async (traceId) => {
           try {
-            return {
-              traceId,
-              detail: await api<TraceDetail>(
-                `/api/v1/projects/${props.projectId}/traces/${traceId}`,
-              ),
-            };
+            const detail = await api<TraceDetail>(
+              `/api/v1/projects/${props.projectId}/traces/${traceId}`,
+            );
+            const root = buildSpanForest(detail.spans)[0]?.span;
+            const span = root
+              ? await api<SpanDetail>(
+                  `/api/v1/projects/${props.projectId}/traces/${traceId}/spans/${root.spanId}`,
+                )
+              : null;
+            return { traceId, span };
           } catch (cause) {
             if (!(cause instanceof ApiError) || cause.status !== 404) throw cause;
-            return { traceId, detail: null };
+            return { traceId, span: null };
           }
         }),
       ),
@@ -678,16 +683,15 @@ function PromoteEvidenceDialog(props: {
     if (!props.open) return;
     setDatasetId((current) => current || datasetDrafts[0]?.id || "");
     if (!details.data) return;
-    const next = details.data.flatMap(({ traceId, detail }) => {
-      const root = detail ? buildSpanForest(detail.spans)[0]?.span : undefined;
-      if (!root || root.input === null) return [];
+    const next = details.data.flatMap(({ traceId, span }) => {
+      if (!span || span.input === null) return [];
       return [
         {
           traceId,
           id: traceId,
-          input: JSON.stringify(root.input, null, 2),
+          input: JSON.stringify(span.input, null, 2),
           expected: "",
-          observed: root.output === null ? "" : JSON.stringify(root.output, null, 2),
+          observed: span.output === null ? "" : JSON.stringify(span.output, null, 2),
         },
       ];
     });
