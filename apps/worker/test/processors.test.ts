@@ -182,6 +182,75 @@ describe("worker processors", () => {
     expect(updates[1]).toMatchObject({ status: "completed", error: null });
   });
 
+  it("treats missing and completed data deletion requests as idempotent successes", async () => {
+    const missing = dependencies();
+    missing.select.mockReturnValueOnce(selectQuery([], true));
+    await createMaintenanceProcessor(missing.deps)(
+      job({ requestId: deletionRequestId }, { name: "delete-data" }),
+    );
+
+    const completed = dependencies();
+    completed.select.mockReturnValueOnce(
+      selectQuery([{ id: deletionRequestId, status: "completed" }], true),
+    );
+    await createMaintenanceProcessor(completed.deps)(
+      job({ requestId: deletionRequestId }, { name: "delete-data" }),
+    );
+
+    expect(missing.update).not.toHaveBeenCalled();
+    expect(completed.update).not.toHaveBeenCalled();
+    expect(dbFunctions.deleteTelemetryEntities).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      attemptsMade: 1,
+      opts: { attempts: 3 },
+      failure: new Error("clickhouse unavailable"),
+      status: "queued",
+      message: "clickhouse unavailable",
+    },
+    {
+      attemptsMade: 0,
+      opts: {},
+      failure: "clickhouse unavailable",
+      status: "failed",
+      message: "Unknown error",
+    },
+  ])(
+    "records data deletion retry and terminal failures",
+    async ({ attemptsMade, opts, failure, status, message }) => {
+      const { deps, select, updates } = dependencies();
+      const startedAt = new Date("2026-08-01T00:00:00.000Z");
+      select.mockReturnValueOnce(
+        selectQuery(
+          [
+            {
+              id: deletionRequestId,
+              projectId,
+              entityType: "session",
+              entityIds: ["session-1"],
+              status: "queued",
+              startedAt,
+            },
+          ],
+          true,
+        ),
+      );
+      dbFunctions.deleteTelemetryEntities.mockRejectedValue(failure);
+
+      await expect(
+        createMaintenanceProcessor(deps)(
+          job({ requestId: deletionRequestId }, { name: "delete-data", attemptsMade, opts }),
+        ),
+      ).rejects.toBe(failure);
+
+      expect(updates[0]).toMatchObject({ status: "running", startedAt });
+      expect(updates[1]).toMatchObject({ status, error: message });
+      expect(updates[1]?.completedAt === null).toBe(status === "queued");
+    },
+  );
+
   it("rejects unknown maintenance and cost jobs", async () => {
     const { deps } = dependencies();
     await expect(createMaintenanceProcessor(deps)(job({}, { name: "unexpected" }))).rejects.toThrow(
