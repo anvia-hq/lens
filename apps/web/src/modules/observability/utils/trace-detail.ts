@@ -60,6 +60,73 @@ export function buildSpanForest(spans: SpanDetail[]): SpanTreeNode[] {
   return forest;
 }
 
+export function buildTraceSpanForest(detail: TraceDetail): SpanTreeNode[] {
+  const forest = buildSpanForest(detail.spans);
+  if (
+    detail.summary.status !== "running" ||
+    forest.length === 0 ||
+    detail.spans.some((span) => span.parentSpanId === null)
+  ) {
+    return forest;
+  }
+
+  const representative = forest[0]?.span;
+  if (representative === undefined) return forest;
+  const startedAtMs = Date.parse(detail.summary.startedAt);
+  const endedAtMs = Date.parse(detail.summary.endedAt);
+  const startTimeUnixNano = Number.isFinite(startedAtMs)
+    ? String(BigInt(Math.trunc(startedAtMs)) * 1_000_000n)
+    : representative.startTimeUnixNano;
+  const endTimeUnixNano = Number.isFinite(endedAtMs)
+    ? String(BigInt(Math.trunc(endedAtMs)) * 1_000_000n)
+    : representative.endTimeUnixNano;
+
+  return [
+    {
+      provisional: true,
+      span: {
+        ...representative,
+        spanId: `lens-running-root:${detail.summary.traceId}`,
+        parentSpanId: null,
+        name: detail.summary.name,
+        observationKind: "span",
+        status: "unset",
+        statusMessage: "",
+        startTimeUnixNano,
+        endTimeUnixNano,
+        durationNano: String(
+          BigInt(Math.max(0, Math.trunc(detail.summary.durationMs * 1_000_000))),
+        ),
+        serviceName: detail.summary.serviceName,
+        resourceAttributes: {},
+        spanAttributes: {},
+        events: [],
+        links: [],
+        traceName: detail.summary.name,
+        userId: detail.summary.userId,
+        sessionId: detail.summary.sessionId,
+        tags: detail.summary.tags,
+        version: detail.summary.version,
+        environment: detail.summary.environment,
+        release: detail.summary.release,
+        serviceVersion: detail.summary.serviceVersion,
+        model: detail.summary.model,
+        inputTokens: detail.summary.inputTokens,
+        cachedInputTokens: 0,
+        outputTokens: detail.summary.outputTokens,
+        totalTokens: detail.summary.totalTokens,
+        inputCost: detail.summary.inputCost,
+        outputCost: detail.summary.outputCost,
+        totalCost: detail.summary.totalCost,
+        input: null,
+        output: null,
+        ingestedAt: detail.summary.lastSeenAt,
+      },
+      children: forest,
+    },
+  ];
+}
+
 export function traceReview(detail: TraceDetail): EvaluationResult | undefined {
   return detail.evaluations.find(
     (result) => result.source === "human" && result.metricName === "human-review",
@@ -101,6 +168,7 @@ export function flattenSpanForest(
         ancestorContinues,
         isLastSibling,
         hasChildren: node.children.length > 0,
+        provisional: node.provisional === true,
       });
       if (!collapsed.has(node.span.spanId)) {
         visit(node.children, depth + 1, depth === 0 ? [] : [...ancestorContinues, !isLastSibling]);

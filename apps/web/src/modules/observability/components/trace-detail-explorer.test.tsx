@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TraceSpanView } from "../types";
 import {
   buildSpanForest,
+  buildTraceSpanForest,
   flattenSpanForest,
   formattedPayloadRows,
   jsonSyntaxTokens,
@@ -93,6 +94,56 @@ describe("trace detail model", () => {
     ).toBe(2);
   });
 
+  it("shows a provisional root while a running trace is waiting for its root span", () => {
+    const subject = detail([
+      span({
+        spanId: "child",
+        parentSpanId: "pending-root",
+        name: "tool.read_file",
+        observationKind: "tool",
+      }),
+    ]);
+    subject.summary.status = "running";
+
+    const forest = buildTraceSpanForest(subject);
+    expect(forest).toHaveLength(1);
+    expect(forest[0]?.span.name).toBe("support-agent");
+    expect(forest[0]?.provisional).toBe(true);
+    expect(forest[0]?.children.map((node) => node.span.spanId)).toEqual(["child"]);
+    expect(flattenSpanForest(forest).map((row) => [row.span.name, row.depth])).toEqual([
+      ["support-agent", 0],
+      ["tool.read_file", 1],
+    ]);
+
+    const onSelectSpan = vi.fn();
+    const { container } = render(
+      <TraceNavigator
+        collapsed={new Set()}
+        detail={subject}
+        forest={forest}
+        search=""
+        view="tree"
+        onCollapsedChange={() => undefined}
+        onSearchChange={() => undefined}
+        onSelectSpan={onSelectSpan}
+        onViewChange={() => undefined}
+      />,
+    );
+    const provisionalRoot = screen.getByText("support-agent").closest("button");
+    expect(provisionalRoot?.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("RUNNING")).toBeTruthy();
+    expect(container.querySelector('[data-tree-line="children"]')).toBeTruthy();
+    expect(container.querySelector('[data-tree-depth="1"] [data-tree-line="elbow"]')).toBeTruthy();
+
+    const finished = detail([
+      span({ spanId: "pending-root", name: "agent.run" }),
+      subject.spans[0] as SpanDetail,
+    ]);
+    const finishedForest = buildTraceSpanForest(finished);
+    expect(finishedForest[0]?.span.spanId).toBe("pending-root");
+    expect(finishedForest[0]?.provisional).not.toBe(true);
+  });
+
   it("formats message payloads and tokenizes raw JSON", () => {
     const value = {
       instructions: "Answer clearly.",
@@ -147,6 +198,7 @@ describe("trace detail controls", () => {
         spanId: "turn-1",
         parentSpanId: "root",
         name: "turn.1",
+        status: "error",
         startTimeUnixNano: nano(10),
       }),
       span({
@@ -201,6 +253,10 @@ describe("trace detail controls", () => {
     expect(
       container.querySelector('[data-tree-depth="2"] [data-tree-line="ancestor"]'),
     ).toBeTruthy();
+    const failedTurnTreeRow = screen.getByText("turn.1").closest("button");
+    const failedToolTreeRow = screen.getByText("tool.read_file").closest("button");
+    expect(failedTurnTreeRow?.textContent).toContain("ERROR");
+    expect(failedToolTreeRow?.textContent).toContain("ERROR");
     fireEvent.click(screen.getByRole("button", { name: "Collapse agent.run" }));
     expect(screen.queryByText("model.generate")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand agent.run" }));
@@ -216,7 +272,7 @@ describe("trace detail controls", () => {
     expect(screen.getByRole("button", { name: "Graph view" })).toBeTruthy();
     const failedToolRow = screen.getByText("tool.read_file").closest("button");
     expect(failedToolRow?.querySelector(".bg-amber-600")).toBeTruthy();
-    expect(screen.getByText("ERROR")).toBeTruthy();
+    expect(screen.getAllByText("ERROR")).toHaveLength(2);
   });
 
   it("offers graph as a responsive navigation tab", () => {

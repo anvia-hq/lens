@@ -1,3 +1,4 @@
+import { Badge } from "@lens/ui/components/badge";
 import { cn } from "@lens/ui/lib/utils";
 import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import type { FlatSpanNode } from "../types";
@@ -24,7 +25,13 @@ export function SpanTreeRow(props: {
       tabIndex={-1}
     >
       <button
-        className="flex min-w-0 flex-1 items-stretch text-left"
+        className="flex min-w-0 flex-1 items-stretch text-left disabled:cursor-default"
+        disabled={props.row.provisional}
+        title={
+          props.row.provisional
+            ? "The root span will be available when the trace finishes"
+            : undefined
+        }
         type="button"
         onClick={props.onSelect}
       >
@@ -39,6 +46,21 @@ export function SpanTreeRow(props: {
             {span.totalCost !== null ? <span>{formatCost(span.totalCost)}</span> : null}
           </span>
         </span>
+        {props.row.provisional ? (
+          <Badge
+            className="my-auto mr-1 h-4 shrink-0 px-1 text-[9px] leading-none"
+            variant="secondary"
+          >
+            RUNNING
+          </Badge>
+        ) : span.status === "error" ? (
+          <Badge
+            className="my-auto mr-1 h-4 shrink-0 px-1 text-[9px] leading-none"
+            variant="destructive"
+          >
+            ERROR
+          </Badge>
+        ) : null}
       </button>
       {props.row.hasChildren ? (
         <button

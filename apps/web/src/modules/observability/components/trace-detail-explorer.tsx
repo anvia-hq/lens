@@ -8,7 +8,7 @@ import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { useMemo, useState } from "react";
 import type { TracePayloadView, TraceSpanView } from "../types";
 import {
-  buildSpanForest,
+  buildTraceSpanForest,
   DETAIL_PANEL_ID,
   NAVIGATION_PANEL_ID,
   readStoredLayout,
@@ -37,7 +37,7 @@ export function TraceDetailExplorer(props: {
   deletionPending?: boolean;
 }) {
   const isMobile = useIsMobile();
-  const forest = useMemo(() => buildSpanForest(props.detail.spans), [props.detail.spans]);
+  const forest = useMemo(() => buildTraceSpanForest(props.detail), [props.detail]);
   const selected = resolveSelectedSpan(props.detail.spans, props.selectedSpanId);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");

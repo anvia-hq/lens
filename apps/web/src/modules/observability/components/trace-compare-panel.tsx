@@ -7,7 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { TracePayloadView, TraceSpanView } from "../types";
 import {
-  buildSpanForest,
+  buildTraceSpanForest,
   formatCost,
   formatDuration,
   formatNumber,
@@ -24,7 +24,7 @@ import { TraceNavigator } from "./trace-navigator";
 
 export function TraceComparePanel(props: { detail: TraceDetail; projectId: string }) {
   const summary = props.detail.summary;
-  const forest = useMemo(() => buildSpanForest(props.detail.spans), [props.detail.spans]);
+  const forest = useMemo(() => buildTraceSpanForest(props.detail), [props.detail]);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");
   const [selectedSpanId, setSelectedSpanId] = useState<string>();

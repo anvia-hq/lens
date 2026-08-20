@@ -26,6 +26,7 @@ export type TracePayloadView = "formatted" | "json";
 export type SpanTreeNode = {
   span: SpanDetail;
   children: SpanTreeNode[];
+  provisional?: boolean;
 };
 
 export type FlatSpanNode = {
@@ -34,6 +35,7 @@ export type FlatSpanNode = {
   ancestorContinues: boolean[];
   isLastSibling: boolean;
   hasChildren: boolean;
+  provisional: boolean;
 };
 
 export type OverviewSearch = { range: MetricsRangePreset };

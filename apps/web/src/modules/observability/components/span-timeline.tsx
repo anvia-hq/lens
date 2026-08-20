@@ -62,6 +62,12 @@ export function SpanTimeline(props: {
               <div className="sticky left-0 z-10 flex min-w-0 items-stretch border-r bg-background/95 px-2">
                 <button
                   className="flex min-w-0 flex-1 items-stretch text-left"
+                  disabled={row.provisional}
+                  title={
+                    row.provisional
+                      ? "The root span will be available when the trace finishes"
+                      : undefined
+                  }
                   type="button"
                   onClick={() => props.onSelectSpan(row.span.spanId)}
                 >
@@ -69,7 +75,14 @@ export function SpanTimeline(props: {
                   <span className="min-w-0 flex-1 truncate py-2 pr-1 text-[11px] font-medium">
                     {row.span.name}
                   </span>
-                  {row.span.status === "error" ? (
+                  {row.provisional ? (
+                    <Badge
+                      className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                      variant="secondary"
+                    >
+                      RUNNING
+                    </Badge>
+                  ) : row.span.status === "error" ? (
                     <Badge
                       className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
                       variant="destructive"
@@ -98,6 +111,7 @@ export function SpanTimeline(props: {
               </div>
               <button
                 className="relative text-left"
+                disabled={row.provisional}
                 title={`${row.span.name}: ${formatDuration(spanDurationMs(row.span))}`}
                 type="button"
                 onClick={() => props.onSelectSpan(row.span.spanId)}
