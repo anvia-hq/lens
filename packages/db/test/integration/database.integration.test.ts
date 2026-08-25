@@ -31,6 +31,7 @@ import {
   getManagedDatasetVersion,
   getPublishedManagedDataset,
   getQualityGate,
+  getSpan,
   getTrace,
   importManagedDatasetCases,
   insertEvaluationRuns,
@@ -110,7 +111,7 @@ describe.sequential("database integration", () => {
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'quality_gates')
+        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'project_mcp_tokens', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
@@ -121,6 +122,7 @@ describe.sequential("database integration", () => {
       "managed_dataset_cases",
       "managed_dataset_versions",
       "managed_datasets",
+      "project_mcp_tokens",
       "projects",
       "quality_gates",
     ]);
@@ -358,6 +360,28 @@ describe.sequential("database integration", () => {
       summary: { traceId },
       spans: [{ spanId: rootSpanId }, { spanId: generationSpanId }],
     });
+    await insertEvaluations(clickhouse, [evaluationResult()]);
+    expect(
+      await getTrace(clickhouse, projectId, traceId, {
+        spanLimit: 1,
+        includeEvaluationPayloads: false,
+      }),
+    ).toMatchObject({
+      spans: [{ spanId: rootSpanId }],
+      evaluations: [{ payload: null, metadata: {} }],
+    });
+    expect(
+      await getSpan(clickhouse, projectId, traceId, generationSpanId, {
+        includePayloads: false,
+      }),
+    ).toMatchObject({
+      resourceAttributes: {},
+      spanAttributes: {},
+      events: [],
+      links: [],
+      input: null,
+      output: null,
+    });
     const metrics = await queryMetrics(
       clickhouse,
       projectId,
@@ -570,6 +594,7 @@ function integrationConfig() {
     SMTP_PASSWORD: undefined,
     OTLP_MAX_BODY_BYTES: 10 * 1024 * 1024,
     OTLP_RATE_LIMIT_PER_MINUTE: 600,
+    MCP_RATE_LIMIT_PER_MINUTE: 120,
     LOG_LEVEL: "error" as const,
   };
 }

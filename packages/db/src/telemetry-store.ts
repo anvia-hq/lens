@@ -533,6 +533,7 @@ export async function getTrace(
   client: ClickHouseClient,
   projectId: string,
   traceId: string,
+  options: { spanLimit?: number; includeEvaluationPayloads?: boolean } = {},
 ): Promise<TraceDetail | undefined> {
   const summaryResult = await client.query({
     query: `SELECT * FROM trace_summaries FINAL
@@ -545,8 +546,15 @@ export async function getTrace(
   const summary = summaries[0];
   if (summary === undefined) return undefined;
   const [spans, evaluations] = await Promise.all([
-    readTraceSpanSummaryRows(client, projectId, traceId),
-    listEvaluationsForTrace(client, projectId, traceId),
+    readTraceSpanSummaryRows(client, projectId, traceId, options.spanLimit),
+    listEvaluationsForTrace(
+      client,
+      projectId,
+      traceId,
+      options.includeEvaluationPayloads === undefined
+        ? {}
+        : { includePayloads: options.includeEvaluationPayloads },
+    ),
   ]);
   return {
     summary: summaryFromRow(summary),
@@ -576,9 +584,20 @@ export async function getSpan(
   projectId: string,
   traceId: string,
   spanId: string,
+  options: { includePayloads?: boolean } = {},
 ): Promise<SpanDetail | undefined> {
+  const payloadColumns =
+    options.includePayloads === false
+      ? "'{}' AS resource_attributes, '{}' AS span_attributes, '[]' AS events, '[]' AS links, CAST(NULL, 'Nullable(String)') AS input, CAST(NULL, 'Nullable(String)') AS output"
+      : "resource_attributes, span_attributes, events, links, input, output";
   const result = await client.query({
-    query: `SELECT * FROM spans FINAL
+    query: `SELECT project_id, trace_id, span_id, parent_span_id, trace_state, name, kind,
+                   observation_kind, status, status_message, start_time, end_time, duration_nano,
+                   service_name, scope_name, scope_version, ${payloadColumns}, trace_name, user_id,
+                   session_id, tags, version, environment, release, service_version, model,
+                   input_tokens, cached_input_tokens, output_tokens, total_tokens, input_cost,
+                   output_cost, total_cost, ingested_at, ingest_version
+            FROM spans FINAL
             WHERE project_id = {projectId:UUID}
               AND trace_id = {traceId:String}
               AND span_id = {spanId:String}
@@ -651,15 +670,18 @@ async function readTraceSpanSummaryRows(
   client: ClickHouseClient,
   projectId: string,
   traceId: string,
+  spanLimit: number | undefined,
 ): Promise<TraceSpanSummaryRow[]> {
+  const limit =
+    spanLimit === undefined ? undefined : Math.max(1, Math.min(1_000, Math.trunc(spanLimit)));
   const result = await client.query({
     query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, status,
                    start_time, end_time, duration_nano, service_name, model,
                    total_tokens, total_cost
             FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
-            ORDER BY start_time ASC, span_id ASC`,
-    query_params: { projectId, traceId },
+            ORDER BY start_time ASC, span_id ASC${limit === undefined ? "" : "\n            LIMIT {spanLimit:UInt16}"}`,
+    query_params: { projectId, traceId, ...(limit === undefined ? {} : { spanLimit: limit }) },
     format: "JSONEachRow",
   });
   return result.json<TraceSpanSummaryRow>();

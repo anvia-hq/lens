@@ -105,6 +105,22 @@ export type CreatedProjectApiKey = ProjectApiKey & {
   secretKey: string;
 };
 
+export type ProjectMcpToken = {
+  id: string;
+  projectId: string;
+  name: string;
+  tokenPrefix: string;
+  allowRawPayloads: boolean;
+  createdAt: string;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+};
+
+export type CreatedProjectMcpToken = ProjectMcpToken & {
+  token: string;
+};
+
 export const projectSettingsSchema = z.object({
   retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.null()]),
 });
@@ -122,3 +138,14 @@ export const createProjectSchema = z.object({
 export const createApiKeySchema = z.object({
   name: z.string().trim().min(1).max(80),
 });
+
+export const createMcpTokenSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  allowRawPayloads: z.boolean().default(false),
+  expiresAt: z.iso
+    .datetime({ offset: true })
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
+});
+export type CreateMcpTokenInput = z.infer<typeof createMcpTokenSchema>;

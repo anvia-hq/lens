@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   alertRuleInputSchema,
   createApiKeySchema,
+  createMcpTokenSchema,
   createProjectSchema,
   dataDeletionInputSchema,
   decodeCursor,
@@ -235,6 +236,14 @@ describe("contracts", () => {
       false,
     );
     expect(createApiKeySchema.safeParse({ name: "   " }).success).toBe(false);
+    expect(createMcpTokenSchema.parse({ name: " Assistant " })).toEqual({
+      name: "Assistant",
+      allowRawPayloads: false,
+      expiresAt: null,
+    });
+    expect(
+      createMcpTokenSchema.safeParse({ name: "Assistant", expiresAt: "not-a-date" }).success,
+    ).toBe(false);
   });
 
   it("validates managed dataset cases and rejects duplicate import IDs", () => {

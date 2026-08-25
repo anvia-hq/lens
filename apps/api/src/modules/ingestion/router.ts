@@ -7,14 +7,15 @@ import {
 } from "@lens/telemetry";
 import { Hono } from "hono";
 import { apiError } from "../../utils/http.js";
-import type { IngestionMetrics } from "../../utils/metrics.js";
+import type { ApiMetrics } from "../../utils/metrics.js";
 import { parseRetentionDays } from "../../utils/project.js";
+import { withinFixedWindowRateLimit } from "../../utils/rate-limit.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
-import { authenticateIngestionKey, recordProjectKeyUsage, withinRateLimit } from "./services.js";
+import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
-export const createIngestionRouter = (deps: ApiDependencies, metrics: IngestionMetrics) =>
+export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
   new Hono<AppEnv>().post("/", async (c) => {
     const startedAt = performance.now();
     const contentType = parseOtlpContentType(c.req.header("content-type"));
@@ -43,7 +44,12 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: IngestionM
       return apiError(c, 401, "unauthorized", "Invalid or revoked ingestion key");
     }
     if (
-      !(await withinRateLimit(deps.redis, key.project.id, deps.config.OTLP_RATE_LIMIT_PER_MINUTE))
+      !(await withinFixedWindowRateLimit(
+        deps.redis,
+        "ingestion",
+        key.project.id,
+        deps.config.OTLP_RATE_LIMIT_PER_MINUTE,
+      ))
     ) {
       metrics.rejected.inc({ reason: "rate_limit" });
       c.header("Retry-After", "60");

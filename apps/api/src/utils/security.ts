@@ -11,10 +11,30 @@ export type BasicCredentials = {
   secretKey: string;
 };
 
+export type McpCredentials = {
+  token: string;
+  hash: string;
+  prefix: string;
+};
+
 export function createIngestionCredentials(pepper: string): IngestionCredentials {
   const publicKey = `pk-lens-${randomBytes(18).toString("base64url")}`;
   const secretKey = `sk-lens-${randomBytes(32).toString("base64url")}`;
   return { publicKey, secretKey, hash: hashIngestionSecret(secretKey, pepper) };
+}
+
+export function createMcpCredentials(pepper: string): McpCredentials {
+  const token = `mcp-lens-${randomBytes(32).toString("base64url")}`;
+  return { token, hash: hashMcpToken(token, pepper), prefix: token.slice(0, 21) };
+}
+
+export function parseBearerAuthorization(value: string | undefined): string | undefined {
+  const token = /^Bearer\s+(mcp-lens-[A-Za-z0-9_-]{43})$/i.exec(value ?? "")?.[1];
+  return token;
+}
+
+export function hashMcpToken(token: string, pepper: string): string {
+  return createHmac("sha256", pepper).update(`mcp-token:${token}`).digest("hex");
 }
 
 export function parseBasicAuthorization(value: string | undefined): BasicCredentials | undefined {

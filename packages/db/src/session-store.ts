@@ -162,6 +162,7 @@ export async function getSession(
   options: {
     pageSize?: 25 | 50 | 100;
     cursor?: { startedAt: string; traceId: string };
+    includeTurns?: boolean;
   } = {},
 ): Promise<SessionDetail | undefined> {
   const pageSize = options.pageSize ?? 100;
@@ -203,11 +204,14 @@ export async function getSession(
   const traceRows = await traceResult.json<SummaryRow>();
   const hasMore = traceRows.length > pageSize;
   const traces = traceRows.slice(0, pageSize).map(summaryFromRow);
-  const conversationRows = await readSessionConversationRows(
-    client,
-    projectId,
-    traces.map((trace) => trace.traceId),
-  );
+  const conversationRows =
+    options.includeTurns === false
+      ? []
+      : await readSessionConversationRows(
+          client,
+          projectId,
+          traces.map((trace) => trace.traceId),
+        );
   const rowsByTrace = new Map<string, SessionConversationRow[]>();
   for (const row of conversationRows) {
     rowsByTrace.set(row.trace_id, [...(rowsByTrace.get(row.trace_id) ?? []), row]);

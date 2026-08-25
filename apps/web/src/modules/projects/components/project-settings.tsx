@@ -26,6 +26,7 @@ import { useState } from "react";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { ProjectSettingsState } from "../hooks/use-project-settings";
+import { McpAccessCard } from "./mcp-access-card";
 import { SecretReveal } from "./secret-reveal";
 
 export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
@@ -138,6 +139,8 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             </div>
           </CardContent>
         </Card>
+
+        {canManage ? <McpAccessCard state={state} /> : null}
 
         <Card>
           <CardHeader>

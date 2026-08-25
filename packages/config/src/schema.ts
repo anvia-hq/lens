@@ -38,6 +38,7 @@ const envSchema = z
       .positive()
       .default(10 * 1024 * 1024),
     OTLP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(600),
+    MCP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
     LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   })
   .refine((value) => (value.SMTP_USER === undefined) === (value.SMTP_PASSWORD === undefined), {

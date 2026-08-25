@@ -16,6 +16,8 @@ import { createInvitationsRouter } from "./modules/invitations/router.js";
 import { createLlmModelsRouter } from "./modules/llm-models/router.js";
 import { createPublicDatasetsRouter } from "./modules/managed-datasets/public-router.js";
 import { createManagedDatasetsRouter } from "./modules/managed-datasets/router.js";
+import { createMcpRouter } from "./modules/mcp/router.js";
+import { createMcpTokensRouter } from "./modules/mcp-tokens/router.js";
 import { createMembersRouter } from "./modules/members/router.js";
 import { createMetricsRouter } from "./modules/metrics/router.js";
 import { createProjectsRouter } from "./modules/projects/router.js";
@@ -27,13 +29,13 @@ import { createSystemRouter } from "./modules/system/router.js";
 import { createTracesRouter } from "./modules/traces/router.js";
 import { createUsersRouter } from "./modules/users/router.js";
 import { apiError } from "./utils/http.js";
-import { createIngestionMetrics } from "./utils/metrics.js";
+import { createApiMetrics } from "./utils/metrics.js";
 import type { ApiDependencies, AppEnv } from "./utils/types.js";
 
 export type { ApiDependencies } from "./utils/types.js";
 
 export function createApp(deps: ApiDependencies) {
-  const metrics = createIngestionMetrics();
+  const metrics = createApiMetrics();
   const app = new Hono<AppEnv>()
     .use("*", requestId())
     .use("*", async (c, next) => {
@@ -54,9 +56,16 @@ export function createApp(deps: ApiDependencies) {
       "/api/*",
       cors({
         origin: deps.config.WEB_ORIGIN,
-        allowHeaders: ["Content-Type", "Authorization"],
+        allowHeaders: [
+          "Content-Type",
+          "Authorization",
+          "MCP-Protocol-Version",
+          "MCP-Session-Id",
+          "Last-Event-ID",
+        ],
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         credentials: true,
+        exposeHeaders: ["MCP-Protocol-Version", "MCP-Session-Id"],
         maxAge: 600,
       }),
     )
@@ -69,12 +78,14 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/public/otel/v1/logs", createLogsIngestionRouter(deps, metrics))
     .route("/api/public/datasets", createPublicDatasetsRouter(deps))
     .route("/api/public/quality-gates", createPublicQualityGatesRouter(deps))
+    .route("/api/mcp", createMcpRouter(deps, metrics))
     .use("/api/v1/*", createSessionMiddleware(deps))
     .route("/api/v1/system", createSystemHealthRouter(deps))
     .route("/api/v1/members", createMembersRouter(deps))
     .route("/api/v1/llm-models", createLlmModelsRouter(deps))
     .route("/api/v1/projects", createProjectsRouter(deps))
     .route("/api/v1/projects", createApiKeysRouter(deps))
+    .route("/api/v1/projects", createMcpTokensRouter(deps))
     .route("/api/v1/projects", createAlertsRouter(deps))
     .route("/api/v1/projects", createDataDeletionsRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))

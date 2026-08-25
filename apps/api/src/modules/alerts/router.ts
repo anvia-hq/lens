@@ -1,25 +1,13 @@
-import {
-  type AlertIncident,
-  type AlertRuleInput,
-  alertRuleInputSchema,
-  alertRuleKinds,
-} from "@lens/contracts";
+import { alertRuleInputSchema, alertRuleKinds } from "@lens/contracts";
 import {
   acknowledgeAlertIncident,
   activeAlertCount,
   alertRuleCount,
-  alertRuleSnapshot,
   createAlertRule,
   deleteAlertRule,
-  getAlertIncident,
-  getAlertRule,
   getQualityGate,
   listAlertIncidents,
   listAlertRules,
-  listTracesByIds,
-  queryAlertContributorAnalysis,
-  queryAlertSignalSeries,
-  resolveAlertContributorRange,
   resolveAlertIncident,
   updateAlertRule,
 } from "@lens/db";
@@ -27,6 +15,7 @@ import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
 import { apiError, requiredSession, safeJson } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
+import { loadAlertIncidentDetail } from "./services.js";
 
 export const createAlertsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
@@ -124,39 +113,14 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
     .get("/:projectId/alerts/:incidentId", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
-      const stored = await getAlertIncident(
-        deps.postgres.db,
+      const detail = await loadAlertIncidentDetail(
+        deps,
         access.project.id,
         c.req.param("incidentId"),
       );
-      if (!stored) return apiError(c, 404, "not_found", "Alert incident not found");
-      const currentRule =
-        !stored.rule && stored.incident.ruleId
-          ? await getAlertRule(deps.postgres.db, access.project.id, stored.incident.ruleId)
-          : undefined;
-      const rule = stored.rule ?? (currentRule ? alertRuleSnapshot(currentRule) : null);
-      const [traces, signal, contributorAnalysis] = await Promise.all([
-        listTracesByIds(
-          deps.clickhouse,
-          access.project.id,
-          stored.incident.evidence.traceIds ?? [],
-        ),
-        rule
-          ? queryAlertSignalSeries(deps.clickhouse, access.project.id, rule, stored.incident)
-          : null,
-        rule ? incidentContributorAnalysis(deps, access.project.id, rule, stored.incident) : null,
-      ]);
-      const tracesById = new Map(traces.map((trace) => [trace.traceId, trace]));
-      return c.json({
-        incident: stored.incident,
-        rule,
-        signal,
-        contributorAnalysis,
-        evidenceTraces: (stored.incident.evidence.traceIds ?? []).map((traceId) => ({
-          traceId,
-          trace: tracesById.get(traceId) ?? null,
-        })),
-      });
+      return detail === undefined
+        ? apiError(c, 404, "not_found", "Alert incident not found")
+        : c.json(detail);
     })
     .post("/:projectId/alerts/:incidentId/acknowledge", async (c) => {
       const access = await accessFor(c, deps);
@@ -226,26 +190,4 @@ function duplicateOrThrow(c: Parameters<typeof requiredSession>[0], error: unkno
 function positiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-async function incidentContributorAnalysis(
-  deps: ApiDependencies,
-  projectId: string,
-  rule: AlertRuleInput,
-  incident: AlertIncident,
-) {
-  if (!("windowMinutes" in rule)) return null;
-  try {
-    return await queryAlertContributorAnalysis(deps.clickhouse, projectId, rule, incident);
-  } catch (error) {
-    deps.logger.warn(
-      { err: error, projectId, incidentId: incident.id },
-      "failed to analyze alert contributors",
-    );
-    return {
-      ...resolveAlertContributorRange(rule.windowMinutes, incident),
-      hints: [],
-      unavailableReason: "analysis_failed" as const,
-    };
-  }
 }

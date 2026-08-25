@@ -1,0 +1,155 @@
+import { project, projectMcpToken } from "@lens/db";
+import { type AuthInfo, createMcpHandler } from "@modelcontextprotocol/server";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
+import type { Context } from "hono";
+import { Hono } from "hono";
+import type { ApiMetrics } from "../../utils/metrics.js";
+import { withinFixedWindowRateLimit } from "../../utils/rate-limit.js";
+import { hashMcpToken, parseBearerAuthorization } from "../../utils/security.js";
+import type { ApiDependencies, AppEnv } from "../../utils/types.js";
+import { createLensMcpServer, type McpPrincipal } from "./tools.js";
+
+export function createMcpRouter(deps: ApiDependencies, metrics: ApiMetrics) {
+  const handler = createMcpHandler(
+    (context) => {
+      const principal = principalFromAuth(context.authInfo);
+      return createLensMcpServer(deps, metrics, principal);
+    },
+    {
+      legacy: "stateless",
+      responseMode: "auto",
+      onerror: (error) => deps.logger.error({ err: error }, "MCP transport failed"),
+    },
+  );
+
+  const router = new Hono<AppEnv>();
+  const serve = async (c: Context<AppEnv>) => {
+    const rejected = validatePublicRequest(c, deps);
+    if (rejected !== undefined) return tracked(metrics, rejected);
+    const token = parseBearerAuthorization(c.req.header("authorization"));
+    if (token === undefined) return tracked(metrics, unauthorized(c));
+    const authenticated = await authenticateMcpToken(deps, token);
+    if (authenticated === undefined) return tracked(metrics, unauthorized(c));
+    if (
+      !(await withinFixedWindowRateLimit(
+        deps.redis,
+        "mcp",
+        authenticated.principal.tokenId,
+        deps.config.MCP_RATE_LIMIT_PER_MINUTE,
+      ))
+    ) {
+      c.header("Retry-After", "60");
+      return tracked(
+        metrics,
+        c.json({ error: "rate_limited", message: "MCP request rate limit exceeded" }, 429),
+      );
+    }
+    recordTokenUsage(deps, authenticated.principal);
+    const response = await handler.fetch(c.req.raw, { authInfo: authenticated.authInfo });
+    return tracked(metrics, response);
+  };
+  router.all("/", serve).all("", serve);
+  return router;
+}
+
+async function authenticateMcpToken(deps: ApiDependencies, token: string) {
+  const tokenHash = hashMcpToken(token, deps.config.INGESTION_KEY_PEPPER);
+  const [row] = await deps.postgres.db
+    .select({ token: projectMcpToken, project })
+    .from(projectMcpToken)
+    .innerJoin(project, eq(projectMcpToken.projectId, project.id))
+    .where(eq(projectMcpToken.tokenHash, tokenHash))
+    .limit(1);
+  if (
+    row === undefined ||
+    row.token.revokedAt !== null ||
+    (row.token.expiresAt !== null && row.token.expiresAt.getTime() <= Date.now()) ||
+    row.project.state !== "active"
+  ) {
+    return undefined;
+  }
+  const principal: McpPrincipal = {
+    tokenId: row.token.id,
+    allowRawPayloads: row.token.allowRawPayloads,
+    project: { id: row.project.id, name: row.project.name, slug: row.project.slug },
+  };
+  const endpoint = new URL("/api/mcp", deps.config.PUBLIC_APP_URL);
+  const authInfo: AuthInfo = {
+    token,
+    clientId: row.token.id,
+    scopes: row.token.allowRawPayloads
+      ? ["observability:read", "payloads:read"]
+      : ["observability:read"],
+    expiresAt: row.token.expiresAt ? Math.floor(row.token.expiresAt.getTime() / 1_000) : undefined,
+    resource: endpoint,
+    extra: { principal },
+  };
+  return { authInfo, principal };
+}
+
+function principalFromAuth(authInfo: AuthInfo | undefined): McpPrincipal {
+  const principal = authInfo?.extra?.principal as McpPrincipal | undefined;
+  if (
+    principal === undefined ||
+    typeof principal.tokenId !== "string" ||
+    typeof principal.allowRawPayloads !== "boolean" ||
+    typeof principal.project?.id !== "string" ||
+    typeof principal.project.name !== "string" ||
+    typeof principal.project.slug !== "string"
+  ) {
+    throw new Error("Authenticated MCP principal is missing");
+  }
+  return principal;
+}
+
+function validatePublicRequest(c: Context<AppEnv>, deps: ApiDependencies): Response | undefined {
+  const allowedUrls = [new URL(deps.config.PUBLIC_APP_URL), new URL(deps.config.WEB_ORIGIN)];
+  const origin = c.req.header("origin");
+  if (origin !== undefined && !allowedUrls.some((url) => url.origin === origin)) {
+    return c.json({ error: "forbidden_origin", message: "Origin is not allowed" }, 403);
+  }
+  const host = c.req.header("host")?.toLowerCase();
+  const allowedHosts = new Set(
+    allowedUrls.flatMap((url) => [url.host.toLowerCase(), url.hostname.toLowerCase()]),
+  );
+  if (deps.config.NODE_ENV !== "production") {
+    allowedHosts.add(`localhost:${deps.config.API_PORT}`);
+    allowedHosts.add(`127.0.0.1:${deps.config.API_PORT}`);
+    allowedHosts.add("localhost");
+    allowedHosts.add("127.0.0.1");
+  }
+  if (host === undefined || !allowedHosts.has(host)) {
+    return c.json({ error: "forbidden_host", message: "Host is not allowed" }, 403);
+  }
+  return undefined;
+}
+
+function recordTokenUsage(deps: ApiDependencies, principal: McpPrincipal): void {
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - 5 * 60_000);
+  void deps.postgres.db
+    .update(projectMcpToken)
+    .set({ lastUsedAt: now })
+    .where(
+      and(
+        eq(projectMcpToken.id, principal.tokenId),
+        or(isNull(projectMcpToken.lastUsedAt), lt(projectMcpToken.lastUsedAt, staleBefore)),
+      ),
+    )
+    .catch((error: unknown) =>
+      deps.logger.warn(
+        { err: error, projectId: principal.project.id, tokenId: principal.tokenId },
+        "failed to record MCP token usage",
+      ),
+    );
+}
+
+function unauthorized(c: Context<AppEnv>) {
+  c.header("WWW-Authenticate", 'Bearer realm="Lens MCP"');
+  return c.json({ error: "unauthorized", message: "A valid Lens MCP token is required" }, 401);
+}
+
+function tracked(metrics: ApiMetrics, response: Response): Response {
+  metrics.mcpHttpRequests.labels(String(response.status)).inc();
+  return response;
+}

@@ -91,6 +91,7 @@ export async function listEvaluations(
     pageSize?: number;
     sort?: EvaluationSortField;
     order?: "asc" | "desc";
+    includePayloads?: boolean;
   },
 ): Promise<Page<EvaluationResult>> {
   const page = Math.max(1, Math.trunc(options.page ?? 1));
@@ -100,9 +101,18 @@ export async function listEvaluations(
   const offset = (page - 1) * pageSize;
   const where = evaluationWhere(projectId, options);
   const sortColumn = evaluationSortColumns[sort];
+  const payloadColumns =
+    options.includePayloads === false
+      ? "CAST(NULL, 'Nullable(String)') AS payload, payload_status, '{}' AS metadata"
+      : "payload, payload_status, metadata";
   const [rowsResult, countResult] = await Promise.all([
     client.query({
-      query: `SELECT * FROM evaluation_results FINAL
+      query: `SELECT project_id, id, run_id, timestamp, trace_id, observation_id, response_id,
+                     suite_name, case_id, metric_name, outcome, data_type, numeric_value,
+                     categorical_value, explanation, ${payloadColumns}, config_id, service_name,
+                     environment, release, source, reviewer_id, reviewer_name, expires_at,
+                     ingested_at, ingest_version
+              FROM evaluation_results FINAL
               WHERE ${where.filters.join(" AND ")}
               ORDER BY isNull(${sortColumn}) ASC, ${sortColumn} ${order.toUpperCase()}, timestamp DESC, id ASC
               LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}`,
@@ -132,8 +142,17 @@ export async function listEvaluationsForTrace(
   client: ClickHouseClient,
   projectId: string,
   traceId: string,
+  options: { includePayloads?: boolean } = {},
 ): Promise<EvaluationResult[]> {
-  return (await listEvaluations(client, projectId, { traceId, pageSize: 100 })).items;
+  return (
+    await listEvaluations(client, projectId, {
+      traceId,
+      pageSize: 100,
+      ...(options.includePayloads === undefined
+        ? {}
+        : { includePayloads: options.includePayloads }),
+    })
+  ).items;
 }
 
 export async function listHumanReviewOutcomes(

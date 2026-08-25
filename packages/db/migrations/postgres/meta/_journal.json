@@ -92,6 +92,13 @@
       "when": 1787220532747,
       "tag": "0012_common_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787636076291,
+      "tag": "0013_easy_stranger",
+      "breakpoints": true
     }
   ]
 }

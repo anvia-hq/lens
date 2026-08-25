@@ -18,6 +18,7 @@ x-app-environment: &app-environment
   SYSTEM_MONITOR_URL: http://monitor:3100
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-only-secret-change-me-now}
   INGESTION_KEY_PEPPER: ${INGESTION_KEY_PEPPER:-development-ingestion-key-pepper}
+  MCP_RATE_LIMIT_PER_MINUTE: ${MCP_RATE_LIMIT_PER_MINUTE:-120}
   SMTP_HOST: mailpit
   SMTP_PORT: 1025
   SMTP_FROM: Anvia Lens <lens@localhost>

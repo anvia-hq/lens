@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getSpan, getTraceSummary } from "../src/telemetry-store.js";
+import { getSpan, getTrace, getTraceSummary } from "../src/telemetry-store.js";
 import { clickHouseClient } from "./clickhouse-client.js";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -35,6 +35,50 @@ describe("trace detail reads", () => {
 
     await expect(getSpan(clickHouseClient({ query }), projectId, traceId, spanId)).resolves.toBe(
       undefined,
+    );
+  });
+
+  it("projects payload columns out of operational span reads", async () => {
+    const query = vi.fn(async () => ({ json: async () => [spanRow()] }));
+
+    await getSpan(clickHouseClient({ query }), projectId, traceId, spanId, {
+      includePayloads: false,
+    });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.stringContaining("'{}' AS resource_attributes"),
+      }),
+    );
+  });
+
+  it("applies span and evaluation payload limits at the query boundary", async () => {
+    const query = vi.fn(async ({ query: sql }: { query: string }) => ({
+      json: async () => {
+        if (sql.includes("trace_summaries")) return [summaryRow()];
+        if (sql.includes("count() AS total")) return [{ total: 0 }];
+        return [];
+      },
+    }));
+
+    await getTrace(clickHouseClient({ query }), projectId, traceId, {
+      spanLimit: 500,
+      includeEvaluationPayloads: false,
+    });
+
+    const requests = query.mock.calls.map(
+      ([request]) => request as { query: string; query_params: unknown },
+    );
+    expect(requests).toContainEqual(
+      expect.objectContaining({
+        query: expect.stringContaining("LIMIT {spanLimit:UInt16}"),
+        query_params: { projectId, traceId, spanLimit: 500 },
+      }),
+    );
+    expect(requests).toContainEqual(
+      expect.objectContaining({
+        query: expect.stringContaining("CAST(NULL, 'Nullable(String)') AS payload"),
+      }),
     );
   });
 

@@ -9,6 +9,7 @@ describe("loadConfig", () => {
     const config = loadConfig({});
     expect(config.API_PORT).toBe(3001);
     expect(config.OTLP_MAX_BODY_BYTES).toBe(10 * 1024 * 1024);
+    expect(config.MCP_RATE_LIMIT_PER_MINUTE).toBe(120);
   });
 
   it("coerces supported numeric and boolean values", () => {
@@ -20,6 +21,7 @@ describe("loadConfig", () => {
       SMTP_USER: "lens",
       SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: "2048",
+      MCP_RATE_LIMIT_PER_MINUTE: "90",
     });
     expect(config).toMatchObject({
       API_PORT: 4100,
@@ -28,6 +30,7 @@ describe("loadConfig", () => {
       SMTP_USER: "lens",
       SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: 2048,
+      MCP_RATE_LIMIT_PER_MINUTE: 90,
     });
   });
 
@@ -36,6 +39,7 @@ describe("loadConfig", () => {
     [{ PUBLIC_APP_URL: "not-a-url" }, "PUBLIC_APP_URL"],
     [{ BETTER_AUTH_SECRET: "short" }, "BETTER_AUTH_SECRET"],
     [{ INGESTION_KEY_PEPPER: "short" }, "INGESTION_KEY_PEPPER"],
+    [{ MCP_RATE_LIMIT_PER_MINUTE: "0" }, "MCP_RATE_LIMIT_PER_MINUTE"],
     [{ SMTP_SECURE: "yes" }, "SMTP_SECURE"],
     [{ SMTP_USER: "lens" }, "SMTP_PASSWORD"],
     [{ LOG_LEVEL: "verbose" }, "LOG_LEVEL"],

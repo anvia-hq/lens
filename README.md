@@ -21,6 +21,42 @@ Langfuse OTLP instrumentation.
 - Connect native Anvia applications or Langfuse-compatible instrumentation.
 - Keep all application and telemetry data in your own infrastructure.
 
+## Connect an AI assistant with MCP
+
+Owners and admins can create a project-scoped MCP token from **Project settings → MCP access**.
+Lens exposes a remote Streamable HTTP endpoint at:
+
+```text
+https://lens.example.com/api/mcp
+```
+
+Configure a remote MCP client with that URL and the one-time token:
+
+```json
+{
+  "mcpServers": {
+    "anvia-lens": {
+      "type": "http",
+      "url": "https://lens.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer mcp-lens-..."
+      }
+    }
+  }
+}
+```
+
+The MCP server is read-only and scoped to the token's project. It can inspect overview metrics,
+traces, spans, sessions, and alert incidents. Raw inputs, outputs, attributes, events, links, and
+evaluation payloads require both an MCP token created with **Allow raw payload access** and an
+explicit `includePayload` argument on the relevant tool call. Tokens can be revoked immediately and
+may have an optional expiry.
+
+Use HTTPS whenever Lens is available beyond localhost. Clients must support Streamable HTTP and a
+static `Authorization` header; OAuth and local stdio connections are not included in this release.
+To verify a connection independently, run `npx @modelcontextprotocol/inspector`, select Streamable
+HTTP, and enter the endpoint and `Authorization` header shown above.
+
 ## Run with Docker Compose
 
 Lens ships as two public multi-platform images and a production-ready

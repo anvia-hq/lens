@@ -60,7 +60,7 @@ function fakeClient(options: { secondInput: string; secondOutput: string }): Cli
       }
       if (sql.includes("SELECT traces.run_id")) return [];
       if (sql.includes("SELECT count() AS total FROM evaluation_results")) return [{ total: "1" }];
-      if (sql.includes("SELECT * FROM evaluation_results")) {
+      if (sql.includes("FROM evaluation_results FINAL")) {
         const runId = (params?.runIds as string[] | undefined)?.[0] ?? "run-1";
         return [
           evaluationRow(

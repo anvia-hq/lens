@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import type { IngestionMetrics } from "../../utils/metrics.js";
+import type { ApiMetrics } from "../../utils/metrics.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { liveStatus, readyStatus, unavailableStatus } from "./schema.js";
 
-export const createSystemRouter = (deps: ApiDependencies, metrics: IngestionMetrics) =>
+export const createSystemRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
   new Hono<AppEnv>()
     .get("/health/live", (c) => c.json(liveStatus))
     .get("/health/ready", async (c) => {

@@ -1,6 +1,6 @@
 import { Counter, Histogram, Registry } from "prom-client";
 
-export function createIngestionMetrics() {
+export function createApiMetrics() {
   const registry = new Registry();
   const accepted = new Counter({
     name: "lens_ingest_spans_accepted_total",
@@ -29,6 +29,24 @@ export function createIngestionMetrics() {
     labelNames: ["reason"],
     registers: [registry],
   });
+  const mcpHttpRequests = new Counter({
+    name: "lens_mcp_http_requests_total",
+    help: "MCP HTTP requests",
+    labelNames: ["status"],
+    registers: [registry],
+  });
+  const mcpToolCalls = new Counter({
+    name: "lens_mcp_tool_calls_total",
+    help: "MCP tool calls",
+    labelNames: ["tool", "outcome"],
+    registers: [registry],
+  });
+  const mcpToolDuration = new Histogram({
+    name: "lens_mcp_tool_duration_seconds",
+    help: "MCP tool execution latency",
+    labelNames: ["tool"],
+    registers: [registry],
+  });
   return {
     registry,
     accepted,
@@ -36,7 +54,10 @@ export function createIngestionMetrics() {
     duration,
     evaluationsAccepted,
     evaluationLogsRejected,
+    mcpHttpRequests,
+    mcpToolCalls,
+    mcpToolDuration,
   };
 }
 
-export type IngestionMetrics = ReturnType<typeof createIngestionMetrics>;
+export type ApiMetrics = ReturnType<typeof createApiMetrics>;
