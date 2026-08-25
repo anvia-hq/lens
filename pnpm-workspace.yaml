@@ -2,7 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "examples/*"
-  - "www"
 allowBuilds:
   esbuild: true
   msgpackr-extract: true

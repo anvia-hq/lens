@@ -81,20 +81,11 @@ jobs:
       version: ${{ needs.validate.outputs.version }}
     secrets: inherit
 
-  deploy-www:
-    name: Deploy www
-    needs:
-      - validate
-      - publish
-    uses: ./.github/workflows/deploy-www.yml
-    secrets: inherit
-
   release:
     name: Create GitHub release
     needs:
       - validate
       - publish
-      - deploy-www
     runs-on: ubuntu-latest
     steps:
       - name: Create tag and release

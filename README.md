@@ -208,14 +208,6 @@ pnpm test
 pnpm test:integration
 ```
 
-The documentation website lives in [`www`](www) and runs separately from the application stack:
-
-```sh
-pnpm www:dev
-```
-
-Open <http://localhost:4321> while authoring documentation.
-
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request and
