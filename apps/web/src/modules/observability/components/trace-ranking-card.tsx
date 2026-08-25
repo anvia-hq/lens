@@ -33,7 +33,7 @@ export function TraceRankingCard(props: {
           props.traces.map((trace) => (
             <Link
               key={trace.traceId}
-              className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60"
+              className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-row-hover hover:text-foreground"
               to="/$projectId/traces/$traceId"
               params={{ projectId: props.projectId, traceId: trace.traceId }}
             >

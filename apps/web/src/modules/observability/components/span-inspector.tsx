@@ -7,7 +7,6 @@ import {
   Sparkle as Sparkles,
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
-import type { TracePayloadView } from "../types";
 import {
   formatCost,
   formatDuration,
@@ -17,16 +16,11 @@ import {
 } from "../utils/trace-detail";
 import { MetricPill } from "./metric-pill";
 import { ObservationGlyph } from "./observation-glyph";
-import { PayloadSection } from "./payload-section";
-import { PayloadViewSwitch } from "./payload-view-switch";
 import { SectionTitle } from "./section-title";
+import { SpanPayloadSection } from "./span-payload-section";
 import { StatusPill } from "./status-pill";
 
-export function SpanInspector(props: {
-  span: SpanDetail;
-  payloadView: TracePayloadView;
-  onPayloadViewChange: (view: TracePayloadView) => void;
-}) {
+export function SpanInspector(props: { span: SpanDetail }) {
   const span = props.span;
   const metadata = useMemo(
     () => ({
@@ -74,7 +68,6 @@ export function SpanInspector(props: {
               </span>
             </div>
           </div>
-          <PayloadViewSwitch value={props.payloadView} onChange={props.onPayloadViewChange} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <MetricPill
@@ -100,9 +93,9 @@ export function SpanInspector(props: {
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <div className="grid content-start gap-6 p-4 md:p-6">
-          <PayloadSection title="Input" value={span.input} view={props.payloadView} />
-          <PayloadSection title="Output" value={span.output} view={props.payloadView} />
+        <div className="grid content-start gap-8 p-4 md:p-6">
+          <SpanPayloadSection field="input" title="Input" value={span.input} />
+          <SpanPayloadSection field="output" title="Output" value={span.output} />
           {span.status === "error" || span.statusMessage ? (
             <section className="grid gap-2">
               <SectionTitle title="Error" />
@@ -111,7 +104,7 @@ export function SpanInspector(props: {
               </div>
             </section>
           ) : null}
-          <PayloadSection title="Metadata" value={metadata} view={props.payloadView} />
+          <SpanPayloadSection field="metadata" title="Metadata" value={metadata} />
         </div>
       </div>
     </section>

@@ -36,9 +36,9 @@ import { ErrorAlert } from "../../../components/error-alert";
 import { formatNumber } from "../utils/trace-detail";
 
 const chartConfig = {
-  passed: { label: "Passed", color: "var(--chart-2)" },
-  failed: { label: "Failed", color: "var(--destructive)" },
-  invalid: { label: "Invalid", color: "var(--chart-4)" },
+  passed: { label: "Passed", color: "var(--viz-success)" },
+  failed: { label: "Failed", color: "var(--viz-red)" },
+  invalid: { label: "Invalid", color: "var(--viz-gold)" },
 } satisfies ChartConfig;
 
 export function EvaluationOverviewDrawer(props: {

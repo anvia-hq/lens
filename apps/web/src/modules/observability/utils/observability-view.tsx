@@ -120,20 +120,20 @@ export function validateTracesSearch(search: Record<string, unknown>): TracesSea
 }
 
 export const throughputChartConfig = {
-  traces: { label: "Traces", color: "var(--chart-2)" },
-  generations: { label: "Generations", color: "var(--chart-1)" },
-  traceErrors: { label: "Errors", color: "var(--destructive)" },
+  traces: { label: "Traces", color: "var(--viz-indigo)" },
+  generations: { label: "Generations", color: "var(--viz-indigo-muted)" },
+  traceErrors: { label: "Errors", color: "var(--viz-neutral)" },
 } satisfies ChartConfig;
 export const tokenChartConfig = {
-  inputTokens: { label: "Input tokens", color: "var(--chart-2)" },
-  outputTokens: { label: "Output tokens", color: "var(--chart-1)" },
+  inputTokens: { label: "Input tokens", color: "var(--viz-indigo)" },
+  outputTokens: { label: "Output tokens", color: "var(--viz-neutral)" },
 } satisfies ChartConfig;
 export const latencyChartConfig = {
-  generationDurationP50Ms: { label: "P50", color: "var(--chart-2)" },
-  generationDurationP95Ms: { label: "P95", color: "var(--chart-1)" },
+  generationDurationP50Ms: { label: "P50", color: "var(--viz-neutral)" },
+  generationDurationP95Ms: { label: "P95", color: "var(--viz-indigo)" },
 } satisfies ChartConfig;
 export const modelChartConfig = {
-  totalTokens: { label: "Total tokens", color: "var(--chart-2)" },
+  totalTokens: { label: "Total tokens", color: "var(--viz-indigo)" },
 } satisfies ChartConfig;
 export const dataTableFeatures = tableFeatures({
   rowSortingFeature,

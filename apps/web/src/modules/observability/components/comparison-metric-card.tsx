@@ -34,7 +34,7 @@ export function ComparisonMetricCard(props: {
         <p
           className={cn(
             "text-xs tabular-nums text-muted-foreground",
-            improved && "text-emerald-600 dark:text-emerald-400",
+            improved && "text-status-success",
             worsened && "text-destructive",
           )}
         >

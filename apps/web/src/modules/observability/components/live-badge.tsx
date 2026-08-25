@@ -39,7 +39,7 @@ export function LiveBadge(props: {
           <span
             className={
               autoRefreshEnabled
-                ? "size-1.5 rounded-full bg-emerald-500"
+                ? "size-1.5 rounded-full bg-status-success"
                 : "size-1.5 rounded-full bg-muted-foreground/50"
             }
             aria-hidden="true"

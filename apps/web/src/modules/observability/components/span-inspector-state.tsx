@@ -1,28 +1,19 @@
 import type { SpanDetail } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { Spinner } from "@lens/ui/components/spinner";
-import type { TracePayloadView } from "../types";
 import { EmptyInspector } from "./empty-inspector";
 import { SpanInspector } from "./span-inspector";
 
 export function SpanInspectorState(props: {
   error?: Error | null;
   loading: boolean;
-  payloadView: TracePayloadView;
   selectedSpanId?: string;
   span?: SpanDetail;
-  onPayloadViewChange: (view: TracePayloadView) => void;
   onRetry: () => void;
 }) {
   if (props.selectedSpanId === undefined) return <EmptyInspector />;
   if (props.span !== undefined) {
-    return (
-      <SpanInspector
-        payloadView={props.payloadView}
-        span={props.span}
-        onPayloadViewChange={props.onPayloadViewChange}
-      />
-    );
+    return <SpanInspector span={props.span} />;
   }
   if (props.error) {
     return (

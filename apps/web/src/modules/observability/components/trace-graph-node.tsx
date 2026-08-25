@@ -47,9 +47,11 @@ export function TraceGraphNode(props: {
       aria-label={`${props.node.label}, ${props.node.kind}, ${props.node.status}`}
       aria-pressed={props.selected}
       className={cn(
-        "absolute grid grid-cols-[auto_minmax(0,1fr)] content-center gap-x-2 rounded-lg border bg-background px-3 text-left shadow-sm transition-[border-color,box-shadow,opacity] hover:border-foreground/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "absolute grid grid-cols-[auto_minmax(0,1fr)] content-center gap-x-2 rounded-lg border bg-background px-3 text-left shadow-sm transition-[border-color,background-color,box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         props.node.status === "error" && "border-destructive/50",
-        props.selected && "border-primary ring-2 ring-primary/25 shadow-md",
+        props.selected
+          ? "border-viz-indigo bg-row-active ring-2 ring-viz-indigo/20 shadow-md"
+          : "hover:border-foreground/30 hover:bg-muted hover:shadow-md",
         props.dimmed && "opacity-20",
       )}
       data-graph-node={props.node.id}

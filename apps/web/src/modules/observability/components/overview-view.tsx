@@ -19,7 +19,7 @@ import {
   Lightning as Zap,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
@@ -156,20 +156,46 @@ export function OverviewView({ state }: { state: OverviewState }) {
           <div className="grid gap-4 xl:grid-cols-2">
             <OverviewChartCard title="Token usage" description="Input and output tokens over time">
               <ChartContainer className="h-72 w-full" config={tokenChartConfig}>
-                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <AreaChart data={value.series} margin={{ left: 0, right: 12 }}>
+                  <defs>
+                    <OverviewAreaGradient
+                      id="overview-input-tokens-gradient"
+                      color="var(--color-inputTokens)"
+                    />
+                    <OverviewAreaGradient
+                      id="overview-output-tokens-gradient"
+                      color="var(--color-outputTokens)"
+                    />
+                  </defs>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
-                  <YAxis tickFormatter={formatCompactAxis} tickLine={false} axisLine={false} />
+                  <YAxis
+                    tickFormatter={formatCompactAxis}
+                    tickLine={false}
+                    axisLine={false}
+                    width={42}
+                  />
                   {metricsTooltip(search.range)}
-                  <Bar dataKey="inputTokens" stackId="tokens" fill="var(--color-inputTokens)" />
-                  <Bar
+                  <Area
+                    dataKey="inputTokens"
+                    type="linear"
+                    stroke="var(--color-inputTokens)"
+                    strokeWidth={1.75}
+                    fill="url(#overview-input-tokens-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
+                  />
+                  <Area
                     dataKey="outputTokens"
-                    stackId="tokens"
-                    fill="var(--color-outputTokens)"
-                    radius={[3, 3, 0, 0]}
+                    type="linear"
+                    stroke="var(--color-outputTokens)"
+                    strokeWidth={1.5}
+                    fill="url(#overview-output-tokens-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
+                </AreaChart>
               </ChartContainer>
             </OverviewChartCard>
 
@@ -178,24 +204,55 @@ export function OverviewView({ state }: { state: OverviewState }) {
               description="Traces and LLM generations, with failed traces highlighted"
             >
               <ChartContainer className="h-72 w-full" config={throughputChartConfig}>
-                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <AreaChart data={value.series} margin={{ left: 0, right: 12 }}>
+                  <defs>
+                    <OverviewAreaGradient
+                      id="overview-generations-gradient"
+                      color="var(--color-generations)"
+                    />
+                    <OverviewAreaGradient
+                      id="overview-traces-gradient"
+                      color="var(--color-traces)"
+                    />
+                    <OverviewAreaGradient
+                      id="overview-trace-errors-gradient"
+                      color="var(--color-traceErrors)"
+                    />
+                  </defs>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                   {metricsTooltip(search.range)}
-                  <Bar
+                  <Area
                     dataKey="generations"
-                    fill="var(--color-generations)"
-                    radius={[3, 3, 0, 0]}
+                    type="linear"
+                    stroke="var(--color-generations)"
+                    strokeWidth={1.5}
+                    fill="url(#overview-generations-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                   />
-                  <Bar dataKey="traces" fill="var(--color-traces)" radius={[3, 3, 0, 0]} />
-                  <Bar
+                  <Area
+                    dataKey="traces"
+                    type="linear"
+                    stroke="var(--color-traces)"
+                    strokeWidth={1.75}
+                    fill="url(#overview-traces-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
+                  />
+                  <Area
                     dataKey="traceErrors"
-                    fill="var(--color-traceErrors)"
-                    radius={[3, 3, 0, 0]}
+                    type="linear"
+                    stroke="var(--color-traceErrors)"
+                    strokeWidth={1.25}
+                    strokeDasharray="4 4"
+                    fill="url(#overview-trace-errors-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
+                </AreaChart>
               </ChartContainer>
             </OverviewChartCard>
 
@@ -204,7 +261,17 @@ export function OverviewView({ state }: { state: OverviewState }) {
               description="P50 and P95 duration for generation observations"
             >
               <ChartContainer className="h-72 w-full" config={latencyChartConfig}>
-                <BarChart data={value.series} margin={{ left: 0, right: 12 }}>
+                <AreaChart data={value.series} margin={{ left: 0, right: 12 }}>
+                  <defs>
+                    <OverviewAreaGradient
+                      id="overview-duration-p95-gradient"
+                      color="var(--color-generationDurationP95Ms)"
+                    />
+                    <OverviewAreaGradient
+                      id="overview-duration-p50-gradient"
+                      color="var(--color-generationDurationP50Ms)"
+                    />
+                  </defs>
                   <CartesianGrid vertical={false} />
                   {metricsXAxis(search.range)}
                   <YAxis
@@ -214,18 +281,26 @@ export function OverviewView({ state }: { state: OverviewState }) {
                     width={58}
                   />
                   {metricsTooltip(search.range, true)}
-                  <Bar
+                  <Area
                     dataKey="generationDurationP95Ms"
-                    fill="var(--color-generationDurationP95Ms)"
-                    radius={[3, 3, 0, 0]}
+                    type="linear"
+                    stroke="var(--color-generationDurationP95Ms)"
+                    strokeWidth={1.75}
+                    fill="url(#overview-duration-p95-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                   />
-                  <Bar
+                  <Area
                     dataKey="generationDurationP50Ms"
-                    fill="var(--color-generationDurationP50Ms)"
-                    radius={[3, 3, 0, 0]}
+                    type="linear"
+                    stroke="var(--color-generationDurationP50Ms)"
+                    strokeWidth={1.5}
+                    fill="url(#overview-duration-p50-gradient)"
+                    dot={false}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
+                </AreaChart>
               </ChartContainer>
             </OverviewChartCard>
 
@@ -292,5 +367,15 @@ export function OverviewView({ state }: { state: OverviewState }) {
         </>
       )}
     </Page>
+  );
+}
+
+function OverviewAreaGradient({ id, color }: { id: string; color: string }) {
+  return (
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor={color} stopOpacity={0.24} />
+      <stop offset="72%" stopColor={color} stopOpacity={0.06} />
+      <stop offset="100%" stopColor={color} stopOpacity={0} />
+    </linearGradient>
   );
 }

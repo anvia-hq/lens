@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TraceSpanView } from "../types";
+import { analyzeSpanPayload, flattenStructuredEntries } from "../utils/span-payload";
 import {
   buildSpanForest,
   buildTraceSpanForest,
@@ -162,6 +163,36 @@ describe("trace detail model", () => {
     expect(jsonSyntaxTokens('{"ok":true,"count":2}').map((token) => token.type)).toContain(
       "boolean",
     );
+
+    const analyzed = analyzeSpanPayload({
+      messages: [{ role: "user", content: "Hello" }],
+      model: "gpt-5",
+      temperature: 0.2,
+    });
+    expect(analyzed.messages).toHaveLength(1);
+    expect(analyzed.additional).toEqual({ model: "gpt-5", temperature: 0.2 });
+
+    const completion = analyzeSpanPayload({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [{ function: { name: "lookup_order", arguments: '{"orderId":"A-1"}' } }],
+          },
+        },
+      ],
+      usage: { total_tokens: 42 },
+    });
+    expect(completion.messages[0]?.toolCalls[0]).toMatchObject({
+      name: "lookup_order",
+      value: { orderId: "A-1" },
+    });
+    expect(completion.additional).toEqual({ usage: { total_tokens: 42 } });
+    expect(flattenStructuredEntries({ trace: { id: "trace-1" }, sampled: true })).toEqual([
+      { path: "trace.id", label: "Id", value: "trace-1" },
+      { path: "sampled", label: "Sampled", value: true },
+    ]);
   });
 
   it("turns a reviewed trace into a managed dataset case", () => {
@@ -271,7 +302,7 @@ describe("trace detail controls", () => {
     expect(screen.getByRole("region", { name: "Span timeline" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Graph view" })).toBeTruthy();
     const failedToolRow = screen.getByText("tool.read_file").closest("button");
-    expect(failedToolRow?.querySelector(".bg-amber-600")).toBeTruthy();
+    expect(failedToolRow?.querySelector(".bg-observation-tool")).toBeTruthy();
     expect(screen.getAllByText("ERROR")).toHaveLength(2);
   });
 
@@ -284,10 +315,8 @@ describe("trace detail controls", () => {
         collapsed={new Set()}
         detail={subject}
         forest={buildSpanForest(subject.spans)}
-        payloadView="formatted"
         search=""
         onCollapsedChange={() => undefined}
-        onPayloadViewChange={() => undefined}
         onSearchChange={() => undefined}
         onSelectSpan={() => undefined}
         onTabChange={onTabChange}
@@ -298,25 +327,21 @@ describe("trace detail controls", () => {
     expect(onTabChange).toHaveBeenCalledWith("graph");
   });
 
-  it("switches the whole selected-span preview between formatted and JSON", () => {
+  it("switches span fields independently without hiding additional input", () => {
     const subject = span({
-      input: [{ role: "user", content: "Hello" }],
+      input: { messages: [{ role: "user", content: "Hello" }], model: "gpt-5" },
       output: { role: "assistant", content: "Hi" },
     });
-    const onViewChange = vi.fn();
-    const rendered = render(
-      <SpanInspector span={subject} payloadView="formatted" onPayloadViewChange={onViewChange} />,
-    );
+    render(<SpanInspector span={subject} />);
     expect(screen.getByText("Hello")).toBeTruthy();
     expect(screen.getByText("Hi")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
-    expect(onViewChange).toHaveBeenCalledWith("json");
-
-    rendered.rerender(
-      <SpanInspector span={subject} payloadView="json" onPayloadViewChange={onViewChange} />,
-    );
+    expect(screen.getByText("Additional fields")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Raw" })[0] as HTMLElement);
     expect(screen.getByRole("button", { name: "Copy Input JSON" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Copy Output JSON" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copy Output JSON" })).toBeNull();
+
+    fireEvent.click(screen.getByText("Metadata"));
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
     expect(screen.getByRole("button", { name: "Copy Metadata JSON" })).toBeTruthy();
   });
 

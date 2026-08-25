@@ -19,11 +19,11 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
             render={
               <Link
                 aria-label="Projects"
-                className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent"
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                 to="/"
               >
-                <span className="grid size-8 place-items-center rounded-md bg-sidebar-foreground">
-                  <AnviaLensLogo markClassName="text-sidebar" />
+                <span className="grid size-8 place-items-center rounded-md bg-sidebar-logo">
+                  <AnviaLensLogo markClassName="text-sidebar-logo-foreground" />
                 </span>
               </Link>
             }
@@ -44,7 +44,7 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
                     <Link
                       aria-current={active ? "page" : undefined}
                       aria-label={`Switch to ${item.name}`}
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                       to="/$projectId"
                       params={{ projectId: item.id }}
                       search={{ range: "24h" }}

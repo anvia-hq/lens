@@ -84,7 +84,7 @@ export function SessionFilterPanel(props: {
                           <label
                             key={option.value}
                             htmlFor={`session-facet-${section.id}-${option.value}`}
-                            className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 hover:bg-muted"
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 hover:bg-control-hover"
                           >
                             <Checkbox
                               id={`session-facet-${section.id}-${option.value}`}

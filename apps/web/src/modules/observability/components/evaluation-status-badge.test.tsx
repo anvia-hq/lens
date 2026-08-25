@@ -21,7 +21,7 @@ describe("EvaluationStatusBadge", () => {
     const pass = screen.getByText("Pass");
     expect(pass.className).toBe(success.className);
     expect(pass.className).toContain("border-0");
-    expect(pass.className).toContain("bg-emerald-200");
+    expect(pass.className).toContain("bg-status-success-fill-foreground");
   });
 
   it("matches the filled trace success treatment for completed runs", () => {
@@ -37,15 +37,15 @@ describe("EvaluationStatusBadge", () => {
 
   it("uses the same semantic family for fail and incomplete outcomes", () => {
     const { rerender } = render(<EvaluationStatusBadge status="fail" />);
-    expect(screen.getByText("Fail").className).toContain("bg-rose-200");
+    expect(screen.getByText("Fail").className).toContain("bg-status-error-fill-foreground");
 
     rerender(<EvaluationStatusBadge status="invalid" />);
-    expect(screen.getByText("Invalid").className).toContain("bg-amber-200");
+    expect(screen.getByText("Invalid").className).toContain("bg-status-warning-fill");
 
     rerender(<EvaluationStatusBadge status="insufficient_data" />);
-    expect(screen.getByText("Insufficient data").className).toContain("bg-slate-200");
+    expect(screen.getByText("Insufficient data").className).toContain("bg-status-neutral-fill");
 
     rerender(<EvaluationStatusBadge status="unknown" />);
-    expect(screen.getByText("Unknown").className).toContain("bg-slate-200");
+    expect(screen.getByText("Unknown").className).toContain("bg-status-neutral-fill");
   });
 });

@@ -24,15 +24,15 @@ export function RawJsonBlock({ title, value }: { title: string; value: unknown }
       >
         {copied ? <Check /> : <Copy />}
       </Button>
-      <pre className="max-h-[32rem] overflow-auto p-4 pr-12 font-mono text-xs leading-5">
+      <pre className="max-h-[32rem] overflow-auto p-4 pr-12 font-mono text-xs leading-5 text-syntax-base">
         {jsonSyntaxTokens(json).map((token) => (
           <span
             className={cn(
-              token.type === "key" && "text-blue-600 dark:text-blue-400",
-              token.type === "string" && "text-emerald-700 dark:text-emerald-400",
-              token.type === "number" && "text-amber-700 dark:text-amber-400",
-              token.type === "boolean" && "text-violet-700 dark:text-violet-400",
-              token.type === "null" && "text-muted-foreground",
+              token.type === "key" && "text-syntax-key",
+              token.type === "string" && "text-syntax-string",
+              token.type === "number" && "text-syntax-number",
+              token.type === "boolean" && "text-syntax-literal",
+              token.type === "null" && "text-syntax-comment",
             )}
             key={token.start}
           >
