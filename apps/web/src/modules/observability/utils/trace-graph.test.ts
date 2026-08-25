@@ -154,10 +154,15 @@ describe("expanded trace graph", () => {
 });
 
 describe("trace graph layout model", () => {
-  it("builds rightward ELK input and normalizes routed edge sections", () => {
+  it("builds downward, generously spaced ELK input and normalizes routed edge sections", () => {
     const graph = buildExpandedTraceGraph([span({ spanId: "root" })]);
     const input = traceGraphElkInput(graph);
-    expect(input.layoutOptions["elk.direction"]).toBe("RIGHT");
+    expect(input.layoutOptions).toMatchObject({
+      "elk.direction": "DOWN",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "88",
+      "elk.spacing.nodeNode": "40",
+      "elk.spacing.edgeNode": "28",
+    });
     expect(input.children.find((node) => node.id === "root")).toMatchObject({
       width: 220,
       height: 72,

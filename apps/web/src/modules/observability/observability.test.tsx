@@ -37,7 +37,7 @@ import {
   defaultUserColumns,
 } from "./types";
 import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
-import { traceColumnLabels } from "./utils/observability-view";
+import { formatListDuration, traceColumnLabels } from "./utils/observability-view";
 
 afterEach(cleanup);
 
@@ -422,6 +422,9 @@ describe("overview controls", () => {
 
   it("uses adaptive refresh and meaningful comparison labels", () => {
     expect(traceColumnLabels.durationMs).toBe("Duration");
+    expect(formatListDuration(59_000)).toBe("59.00s");
+    expect(formatListDuration(125_900)).toBe("2m 5s");
+    expect(formatListDuration(3_900_000)).toBe("1h 5m");
     expect(adaptiveRefreshInterval("24h")).toBe("5s");
     expect(adaptiveRefreshInterval("30d")).toBe("30s");
     expect(refreshMilliseconds("10s")).toBe(10_000);

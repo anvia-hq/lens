@@ -191,7 +191,7 @@ export function traceTableColumns(options: {
     durationMs: traceColumnHelper.accessor("durationMs", {
       header: header("Duration", "durationMs"),
       cell: ({ row }) => (
-        <span className="font-mono">{formatDuration(row.original.durationMs)}</span>
+        <span className="font-mono">{formatListDuration(row.original.durationMs)}</span>
       ),
     }),
     totalCost: traceColumnHelper.accessor("totalCost", {
@@ -353,7 +353,7 @@ export function sessionTableColumns(options: {
     durationMs: sessionColumnHelper.accessor("durationMs", {
       header: header("Duration", "durationMs"),
       cell: ({ row }) => (
-        <span className="font-mono">{formatDuration(row.original.durationMs)}</span>
+        <span className="font-mono">{formatListDuration(row.original.durationMs)}</span>
       ),
     }),
     totalTokens: sessionColumnHelper.accessor("totalTokens", {
@@ -667,6 +667,14 @@ export function formatDuration(value?: number) {
   if (value < 1) return `${Math.round(value * 1_000)}µs`;
   if (value < 1_000) return `${Math.round(value)}ms`;
   return `${(value / 1_000).toFixed(2)}s`;
+}
+export function formatListDuration(value?: number) {
+  if (value === undefined || value < 60_000) return formatDuration(value);
+  const totalSeconds = Math.floor(value / 1_000);
+  if (totalSeconds < 3_600) {
+    return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+  }
+  return `${Math.floor(totalSeconds / 3_600)}h ${Math.floor((totalSeconds % 3_600) / 60)}m`;
 }
 export function formatCost(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";

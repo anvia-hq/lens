@@ -1,12 +1,16 @@
 import type { TraceSpanSummary } from "@lens/contracts";
-import ELK from "elkjs/lib/elk.bundled";
+import ELK from "elkjs/lib/elk-api";
+import ElkWorker from "elkjs/lib/elk-worker.min.js?worker";
 import { buildExpandedTraceGraph } from "../modules/observability/utils/trace-graph";
 import {
   normalizeTraceGraphLayout,
   traceGraphElkInput,
 } from "../modules/observability/utils/trace-graph-layout";
 
-const elk = new ELK();
+// `elk.bundled` embeds its CommonJS worker shim. Vite can compile that shim into
+// an invalid constructor inside a module worker, so keep the API and layout
+// worker as explicit, independently bundled modules.
+const elk = new ELK({ workerFactory: () => new ElkWorker() });
 
 self.addEventListener("message", (event: MessageEvent<{ spans: TraceSpanSummary[] }>) => {
   const graph = buildExpandedTraceGraph(event.data.spans);
