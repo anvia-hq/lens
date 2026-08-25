@@ -73,13 +73,20 @@ export function SpanTimeline(props: {
             return (
               <div
                 className={cn(
-                  "absolute left-0 top-0 grid h-8 w-full grid-cols-[240px_720px] border-b border-border/50 hover:bg-muted/40",
-                  selected && "bg-muted",
+                  "group/timeline absolute left-0 top-0 grid h-8 w-full grid-cols-[240px_720px] border-b border-border/50",
+                  selected
+                    ? "border-border-strong bg-row-active"
+                    : "hover:border-border-strong hover:bg-muted",
                 )}
                 key={row.span.spanId}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                <div className="sticky left-0 z-10 flex min-w-0 items-stretch border-r bg-background/95 px-2">
+                <div
+                  className={cn(
+                    "sticky left-0 z-10 flex min-w-0 items-stretch border-r px-2",
+                    selected ? "bg-row-active" : "bg-background/95 group-hover/timeline:bg-muted",
+                  )}
+                >
                   <button
                     className="flex min-w-0 flex-1 items-stretch text-left"
                     disabled={row.provisional}
@@ -139,8 +146,8 @@ export function SpanTimeline(props: {
                   <span
                     className={cn(
                       "absolute top-2 h-4 rounded-sm bg-muted-foreground/25",
-                      row.span.status === "error" && "bg-destructive/50",
-                      selected && "bg-blue-500/70",
+                      row.span.status === "error" && "bg-status-error/50",
+                      selected && "bg-viz-indigo",
                     )}
                     data-timeline-bar={row.span.spanId}
                     style={{ left: `${position.left}px`, width: `${position.width}px` }}

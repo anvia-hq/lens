@@ -37,7 +37,7 @@ import {
   defaultUserColumns,
 } from "./types";
 import { adaptiveRefreshInterval, comparisonDelta, refreshMilliseconds } from "./utils";
-import { traceColumnLabels } from "./utils/observability-view";
+import { formatListDuration, traceColumnLabels } from "./utils/observability-view";
 
 afterEach(cleanup);
 
@@ -422,6 +422,9 @@ describe("overview controls", () => {
 
   it("uses adaptive refresh and meaningful comparison labels", () => {
     expect(traceColumnLabels.durationMs).toBe("Duration");
+    expect(formatListDuration(59_000)).toBe("59.00s");
+    expect(formatListDuration(125_900)).toBe("2m 5s");
+    expect(formatListDuration(3_900_000)).toBe("1h 5m");
     expect(adaptiveRefreshInterval("24h")).toBe("5s");
     expect(adaptiveRefreshInterval("30d")).toBe("30s");
     expect(refreshMilliseconds("10s")).toBe(10_000);
@@ -451,15 +454,15 @@ describe("overview controls", () => {
   it("uses opaque borderless colors for status badges", () => {
     const { rerender } = render(<StatusBadge status="ok" />);
     expect(screen.getByText("Success").className).toContain("border-0");
-    expect(screen.getByText("Success").className).toContain("bg-emerald-200");
+    expect(screen.getByText("Success").className).toContain("bg-status-success-fill-foreground");
 
     rerender(<StatusBadge status="error" />);
     expect(screen.getByText("Error").className).toContain("border-0");
-    expect(screen.getByText("Error").className).toContain("bg-rose-200");
+    expect(screen.getByText("Error").className).toContain("bg-status-error-fill-foreground");
 
     rerender(<StatusBadge status="running" />);
     expect(screen.getByText("Running").className).toContain("border-0");
-    expect(screen.getByText("Running").className).toContain("bg-amber-200");
+    expect(screen.getByText("Running").className).toContain("bg-status-warning-fill");
   });
 
   it("renders previous-period context on metric cards", () => {

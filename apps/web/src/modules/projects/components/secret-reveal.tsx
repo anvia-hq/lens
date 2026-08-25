@@ -7,9 +7,9 @@ export function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose
   const [copied, setCopied] = useState(false);
   const environment = `ANVIA_LENS_BASE_URL=${window.location.origin}\nANVIA_LENS_PUBLIC_KEY=${props.credentials.publicKey}\nANVIA_LENS_SECRET_KEY=${props.credentials.secretKey}\nANVIA_LENS_MEDIA_UPLOAD_ENABLED=false`;
   return (
-    <div className="overflow-hidden rounded-xl border border-amber-300/60 bg-amber-50/70 dark:border-amber-300/20 dark:bg-amber-300/5">
-      <div className="flex items-start gap-3 border-b border-amber-300/40 px-4 py-3 dark:border-amber-300/15">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-200 text-amber-950 dark:bg-amber-300 dark:text-amber-950">
+    <div className="overflow-hidden rounded-xl border border-status-warning/40 bg-status-warning/10">
+      <div className="flex items-start gap-3 border-b border-status-warning/30 px-4 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-status-warning-fill text-status-warning-fill-foreground">
           <KeyRound className="size-4" />
         </span>
         <div className="min-w-0 flex-1">

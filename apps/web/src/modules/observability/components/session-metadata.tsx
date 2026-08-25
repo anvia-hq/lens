@@ -11,7 +11,7 @@ export function SessionMetadata({ detail }: { detail: SessionDetail }) {
     <aside className="min-w-0 border-t bg-background lg:overflow-auto lg:border-t-0 lg:border-l">
       <div className="grid gap-6 p-4">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-violet-600 text-white">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-observation-agent text-observation-foreground">
             <MessagesSquare className="size-4" />
           </span>
           <div className="min-w-0">

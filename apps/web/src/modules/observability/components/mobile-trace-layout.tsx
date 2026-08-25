@@ -1,6 +1,6 @@
 import type { SpanDetail, TraceDetail } from "@lens/contracts";
 import { cn } from "@lens/ui/lib/utils";
-import type { SpanTreeNode, TracePayloadView, TraceSpanView } from "../types";
+import type { SpanTreeNode, TraceSpanView } from "../types";
 import { SpanInspectorState } from "./span-inspector-state";
 import { TraceNavigator } from "./trace-navigator";
 
@@ -9,14 +9,12 @@ export function MobileTraceLayout(props: {
   collapsed: Set<string>;
   detail: TraceDetail;
   forest: SpanTreeNode[];
-  payloadView: TracePayloadView;
   search: string;
   selectedSpan?: SpanDetail;
   selectedSpanError?: Error | null;
   selectedSpanLoading?: boolean;
   selectedSpanId?: string;
   onCollapsedChange: (value: Set<string>) => void;
-  onPayloadViewChange: (view: TracePayloadView) => void;
   onSearchChange: (value: string) => void;
   onSelectSpan: (id: string) => void;
   onRetrySelectedSpan?: () => void;
@@ -46,10 +44,8 @@ export function MobileTraceLayout(props: {
           <SpanInspectorState
             error={props.selectedSpanError}
             loading={props.selectedSpanLoading ?? false}
-            payloadView={props.payloadView}
             selectedSpanId={props.selectedSpanId}
             span={props.selectedSpan}
-            onPayloadViewChange={props.onPayloadViewChange}
             onRetry={() => props.onRetrySelectedSpan?.()}
           />
         ) : (

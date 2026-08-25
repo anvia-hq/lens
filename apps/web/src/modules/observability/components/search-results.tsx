@@ -56,7 +56,7 @@ export function SearchResults(props: {
             >
               <button
                 className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/60",
+                  "flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-row-hover hover:text-foreground",
                   props.selectedSpanId === span.spanId && "bg-muted",
                 )}
                 type="button"

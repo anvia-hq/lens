@@ -3,7 +3,14 @@
 import type { SessionDetail } from "@lens/contracts";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { extractSessionMessageText } from "../utils/session";
+import {
+  extractSessionMessageText,
+  formatCost,
+  formatDuration,
+  formatNumber,
+  formatTimestamp,
+  shortId,
+} from "../utils/session";
 import { SessionConversation } from "./session-conversation";
 
 afterEach(cleanup);
@@ -47,6 +54,22 @@ describe("session conversation", () => {
     expect(extractSessionMessageText({ custom: { nested: true } }, "assistant")).toContain(
       '"custom"',
     );
+  });
+
+  it("formats session metrics and identifiers across their display thresholds", () => {
+    expect(formatNumber(12_345)).toBe("12,345");
+    expect(formatNumber(123_456)).toBe("123K");
+    expect(formatDuration(0.125)).toBe("125µs");
+    expect(formatDuration(125)).toBe("125ms");
+    expect(formatDuration(1_250)).toBe("1.25s");
+    expect(formatCost(null)).toBe("—");
+    expect(formatCost(0.00001)).toBe("<$0.0001");
+    expect(formatCost(0.005)).toBe("$0.0050");
+    expect(formatCost(1.25)).toBe("$1.25");
+    expect(formatTimestamp("not-a-date")).toBe("not-a-date");
+    expect(formatTimestamp("2026-08-05T00:00:00.000Z")).not.toBe("2026-08-05T00:00:00.000Z");
+    expect(shortId("trace-1")).toBe("trace-1");
+    expect(shortId("1234567890abcdef")).toBe("123456…cdef");
   });
 
   it("renders a clear empty conversation state without a card wrapper", () => {

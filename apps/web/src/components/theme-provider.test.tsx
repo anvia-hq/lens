@@ -19,8 +19,20 @@ function ThemeHarness() {
 
 describe("ThemeProvider", () => {
   beforeEach(() => {
-    localStorage.clear();
+    const values = new Map<string, string>();
+    const storage = {
+      get length() {
+        return values.size;
+      },
+      clear: () => values.clear(),
+      getItem: (key: string) => values.get(key) ?? null,
+      key: (index: number) => Array.from(values.keys())[index] ?? null,
+      removeItem: (key: string) => values.delete(key),
+      setItem: (key: string, value: string) => values.set(key, value),
+    } satisfies Storage;
+    Object.defineProperty(window, "localStorage", { configurable: true, value: storage });
     document.documentElement.className = "";
+    document.head.innerHTML = '<link id="favicon" rel="icon" href="/favicon.svg">';
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockReturnValue({
@@ -40,10 +52,12 @@ describe("ThemeProvider", () => {
 
     await waitFor(() => expect(document.documentElement.classList.contains("light")).toBe(true));
     expect(screen.getByText("system")).toBeDefined();
+    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-light.svg");
 
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
-    expect(localStorage.getItem("lens-ui-theme")).toBe("dark");
+    expect(window.localStorage.getItem("lens-ui-theme")).toBe("dark");
+    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-dark.svg");
   });
 });

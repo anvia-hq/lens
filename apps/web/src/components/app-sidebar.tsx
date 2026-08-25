@@ -163,7 +163,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       </SidebarContent>
       <SidebarFooter>
         <a
-          className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3 transition-colors hover:bg-sidebar-accent"
+          className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-promo p-3 transition-colors hover:border-border-strong hover:bg-sidebar-hover hover:text-sidebar-accent-foreground"
           href="https://github.com/anvia-hq/lens"
           target="_blank"
           rel="noreferrer"

@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { api } from "../../../lib/api";
-import type { TracePayloadView, TraceSpanView } from "../types";
+import type { TraceSpanView } from "../types";
 import {
   buildTraceSpanForest,
   formatCost,
@@ -15,8 +15,6 @@ import {
   formatNumber,
   formatTimestamp,
   shortId,
-  storedPayloadView,
-  TRACE_PAYLOAD_STORAGE_KEY,
 } from "../utils/trace-detail";
 import { HeaderMetric } from "./header-metric";
 import { ObservationGlyph } from "./observation-glyph";
@@ -31,7 +29,6 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
   const [search, setSearch] = useState("");
   const [selectedSpanId, setSelectedSpanId] = useState<string>();
   const [view, setView] = useState<TraceSpanView>("tree");
-  const [payloadView, setPayloadView] = useState<TracePayloadView>(() => storedPayloadView());
   const selected = props.detail.spans.find((span) => span.spanId === selectedSpanId);
   const selectedSpan = useQuery({
     queryKey: ["trace-span", props.projectId, summary.traceId, selectedSpanId],
@@ -43,15 +40,6 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
     enabled: selected !== undefined,
     staleTime: 5 * 60 * 1_000,
   });
-  const changePayloadView = (next: TracePayloadView) => {
-    setPayloadView(next);
-    try {
-      window.localStorage.setItem(TRACE_PAYLOAD_STORAGE_KEY, next);
-    } catch {
-      // The tile still keeps the in-memory preference when storage is unavailable.
-    }
-  };
-
   return (
     <article className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-background">
       <header className="shrink-0 border-b px-3 py-2.5">
@@ -132,10 +120,8 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
                 <SpanInspectorState
                   error={selectedSpan.error}
                   loading={selectedSpan.isLoading}
-                  payloadView={payloadView}
                   selectedSpanId={selected.spanId}
                   span={selectedSpan.data}
-                  onPayloadViewChange={changePayloadView}
                   onRetry={() => void selectedSpan.refetch()}
                 />
               </div>

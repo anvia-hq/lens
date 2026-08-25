@@ -7,6 +7,7 @@ const manifestPath = new URL(".vite/manifest.json", webDist);
 const initialGzipBudget = 250 * 1024;
 const chunkBudget = 500 * 1024;
 const graphLayoutWorkerBudget = 2 * 1024 * 1024;
+const graphLayoutWorkerPrefixes = ["trace-graph-layout.worker-", "elk-worker.min-"];
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const entry = Object.values(manifest).find((item) => item.isEntry);
@@ -46,7 +47,7 @@ const oversizedGraphWorkers = [];
 for (const file of await readdir(assetDirectory)) {
   if (!file.endsWith(".js")) continue;
   const size = (await stat(join(assetDirectory.pathname, file))).size;
-  if (file.startsWith("trace-graph-layout.worker-")) {
+  if (graphLayoutWorkerPrefixes.some((prefix) => file.startsWith(prefix))) {
     if (size > graphLayoutWorkerBudget) oversizedGraphWorkers.push({ file, size });
   } else if (size > chunkBudget) {
     oversizedChunks.push({ file, size });

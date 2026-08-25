@@ -341,7 +341,9 @@ function SignalChart({ detail }: { detail: AlertIncidentDetail }) {
         {hasData ? (
           <ChartContainer
             className="h-72 w-full"
-            config={{ value: { label: kindLabels[detail.incident.kind], color: "var(--chart-1)" } }}
+            config={{
+              value: { label: kindLabels[detail.incident.kind], color: "var(--viz-gold)" },
+            }}
           >
             <LineChart data={signal.points} margin={{ left: 4, right: 16, top: 8 }}>
               <CartesianGrid vertical={false} />
@@ -370,7 +372,7 @@ function SignalChart({ detail }: { detail: AlertIncidentDetail }) {
               {detail.incident.threshold !== null ? (
                 <ReferenceLine
                   y={detail.incident.threshold}
-                  stroke="var(--destructive)"
+                  stroke="var(--viz-red)"
                   strokeDasharray="4 4"
                   label="Threshold"
                 />

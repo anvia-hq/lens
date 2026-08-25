@@ -18,8 +18,10 @@ export function SpanTreeRow(props: {
       aria-level={props.row.depth + 1}
       aria-selected={props.selected}
       className={cn(
-        "group flex h-11 min-w-0 items-stretch text-muted-foreground hover:bg-muted/60",
-        props.selected && "bg-muted text-foreground",
+        "group flex h-11 min-w-0 items-stretch border-l-2 border-transparent text-muted-foreground",
+        props.selected
+          ? "border-l-viz-indigo bg-row-active text-foreground"
+          : "hover:bg-muted hover:text-foreground",
       )}
       role="treeitem"
       tabIndex={-1}
@@ -66,7 +68,7 @@ export function SpanTreeRow(props: {
         <button
           aria-expanded={!props.collapsed}
           aria-label={props.collapsed ? `Expand ${span.name}` : `Collapse ${span.name}`}
-          className="m-1 grid size-7 shrink-0 place-items-center rounded-md hover:bg-background"
+          className="m-1 grid size-7 shrink-0 place-items-center rounded-md hover:bg-control-hover"
           type="button"
           onClick={props.onToggle}
         >

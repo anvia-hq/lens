@@ -385,9 +385,9 @@ function ResourceCard({
                 className={cn(
                   "h-full rounded-full transition-[width]",
                   status === "critical"
-                    ? "bg-destructive"
+                    ? "bg-status-error"
                     : status === "warning"
-                      ? "bg-amber-500"
+                      ? "bg-status-warning"
                       : "bg-primary",
                 )}
                 style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
@@ -416,9 +416,9 @@ function StatusBadge({
       variant="outline"
       className={cn(
         "capitalize",
-        status === "healthy" && "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-        status === "warning" && "border-amber-500/40 text-amber-600 dark:text-amber-400",
-        status === "critical" && "border-destructive/40 text-destructive",
+        status === "healthy" && "border-status-success/40 text-status-success",
+        status === "warning" && "border-status-warning/40 text-status-warning",
+        status === "critical" && "border-status-error/40 text-status-error",
         (status === "unavailable" || status === "not_configured") && "text-muted-foreground",
       )}
     >
@@ -429,11 +429,11 @@ function StatusBadge({
           className={cn(
             "size-1.5 rounded-full",
             status === "healthy"
-              ? "bg-emerald-500"
+              ? "bg-status-success"
               : status === "warning"
-                ? "bg-amber-500"
+                ? "bg-status-warning"
                 : status === "critical"
-                  ? "bg-destructive"
+                  ? "bg-status-error"
                   : "bg-muted-foreground",
           )}
         />

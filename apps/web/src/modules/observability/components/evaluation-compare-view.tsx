@@ -147,10 +147,10 @@ function ComparisonResults(props: {
         <div className="grid gap-2">
           {comparison.warnings.map((warning) => (
             <div
-              className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+              className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-sm"
               key={warning}
             >
-              <WarningCircle className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" />
+              <WarningCircle className="mt-0.5 size-4 shrink-0 text-status-warning" />
               {warning}
             </div>
           ))}
@@ -218,13 +218,15 @@ function RunIdentityCard(props: {
         aria-hidden="true"
         className={cn(
           "pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b to-transparent",
-          candidate ? "from-emerald-500/20 via-emerald-500/5" : "from-zinc-500/15 via-zinc-500/5",
+          candidate
+            ? "from-status-success/20 via-status-success/5"
+            : "from-muted-foreground/15 via-muted-foreground/5",
         )}
       />
       <span
         className={cn(
           "absolute top-4 right-4 z-10 font-heading text-base font-semibold",
-          candidate ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground",
+          candidate ? "text-status-success" : "text-muted-foreground",
         )}
       >
         {props.label}
@@ -332,7 +334,7 @@ function DeltaCard(props: {
         <p
           className={cn(
             "text-xs font-medium tabular-nums text-muted-foreground",
-            tone === "positive" && "text-emerald-600 dark:text-emerald-400",
+            tone === "positive" && "text-status-success",
             tone === "negative" && "text-destructive",
           )}
         >
@@ -385,7 +387,7 @@ function MetricComparisonTable({ metrics }: { metrics: EvaluationMetricCompariso
                 className={cn(
                   metric.passRateDelta !== null &&
                     metric.passRateDelta > 0 &&
-                    "text-emerald-600 dark:text-emerald-400",
+                    "text-status-success",
                   metric.passRateDelta !== null && metric.passRateDelta < 0 && "text-destructive",
                 )}
               >

@@ -6,15 +6,13 @@ import {
 } from "@lens/ui/components/resizable";
 import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { useMemo, useState } from "react";
-import type { TracePayloadView, TraceSpanView } from "../types";
+import type { TraceSpanView } from "../types";
 import {
   buildTraceSpanForest,
   DETAIL_PANEL_ID,
   NAVIGATION_PANEL_ID,
   readStoredLayout,
-  storedPayloadView,
   TRACE_LAYOUT_STORAGE_KEY,
-  TRACE_PAYLOAD_STORAGE_KEY,
 } from "../utils/trace-detail";
 import { DataDeletionDialog } from "./data-deletion-dialog";
 import { MobileTraceLayout } from "./mobile-trace-layout";
@@ -45,7 +43,6 @@ export function TraceDetailExplorer(props: {
   const [mobileTab, setMobileTab] = useState<TraceSpanView | "data">(() =>
     props.selectedSpanId ? "data" : props.view,
   );
-  const [payloadView, setPayloadView] = useState<TracePayloadView>(() => storedPayloadView());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const layout = useMemo(readStoredLayout, []);
 
@@ -53,15 +50,6 @@ export function TraceDetailExplorer(props: {
     props.onSelectSpan(spanId);
     if (isMobile) setMobileTab("data");
   };
-  const changePayloadView = (view: TracePayloadView) => {
-    setPayloadView(view);
-    try {
-      window.localStorage.setItem(TRACE_PAYLOAD_STORAGE_KEY, view);
-    } catch {
-      // Local storage may be disabled; the in-memory preference still works.
-    }
-  };
-
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       <TraceHeader
@@ -82,14 +70,12 @@ export function TraceDetailExplorer(props: {
             collapsed={collapsed}
             detail={props.detail}
             forest={forest}
-            payloadView={payloadView}
             search={search}
             selectedSpan={props.selectedSpan}
             selectedSpanError={props.selectedSpanError}
             selectedSpanLoading={props.selectedSpanLoading ?? false}
             selectedSpanId={props.selectedSpanId}
             onCollapsedChange={setCollapsed}
-            onPayloadViewChange={changePayloadView}
             onSearchChange={setSearch}
             onSelectSpan={selectSpan}
             onRetrySelectedSpan={() => props.onRetrySelectedSpan?.()}
@@ -143,10 +129,8 @@ export function TraceDetailExplorer(props: {
               <SpanInspectorState
                 error={props.selectedSpanError}
                 loading={props.selectedSpanLoading ?? false}
-                payloadView={payloadView}
                 selectedSpanId={props.selectedSpanId}
                 span={props.selectedSpan}
-                onPayloadViewChange={changePayloadView}
                 onRetry={() => props.onRetrySelectedSpan?.()}
               />
             </ResizablePanel>
