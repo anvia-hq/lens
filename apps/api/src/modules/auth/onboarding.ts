@@ -28,7 +28,7 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-export function invitationOnboarding() {
+export function invitationOnboarding(options: { passwordLoginEnabled: boolean }) {
   return {
     id: "invitation-onboarding" as const,
     endpoints: {
@@ -93,6 +93,12 @@ export function invitationOnboarding() {
         "/claim-invitation",
         { method: "POST", body: claimInvitationSchema },
         async (ctx) => {
+          if (!options.passwordLoginEnabled) {
+            throw new APIError("FORBIDDEN", {
+              message: "Password-based invitation claiming is disabled",
+              code: "password_login_disabled",
+            });
+          }
           const result = await runWithTransaction(ctx.context.adapter, async () => {
             const orgAdapter = getOrgAdapter(ctx.context);
             const invitation = await orgAdapter.findInvitationById(ctx.body.invitationId);

@@ -2,7 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { api } from "../../../lib/api";
 import { authClient } from "../../../lib/auth";
+import { oidcErrorFromSearch } from "../oidc-error";
 import type { AuthMode, SetupStatus } from "../types";
+
+function initialAuthError(): string {
+  return oidcErrorFromSearch(window.location.search)?.message ?? "";
+}
 
 export function useAuthForm() {
   const setup = useQuery({
@@ -14,8 +19,9 @@ export function useAuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialAuthError);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOidcSubmitting, setIsOidcSubmitting] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -43,9 +49,29 @@ export function useAuthForm() {
     }
   };
 
+  const signInWithOidc = async () => {
+    const oidc = setup.data?.oidc;
+    if (oidc === null || oidc === undefined) return;
+    setError("");
+    setIsOidcSubmitting(true);
+    try {
+      const result = await authClient.signIn.oauth2({
+        providerId: oidc.providerId,
+        callbackURL: "/",
+        errorCallbackURL: "/",
+      });
+      if (result.error) setError(result.error.message ?? "OIDC authentication failed");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "OIDC authentication failed");
+    } finally {
+      setIsOidcSubmitting(false);
+    }
+  };
+
   return {
     email,
     error,
+    isOidcSubmitting,
     isSubmitting,
     mode,
     name,
@@ -55,6 +81,7 @@ export function useAuthForm() {
     setName,
     setPassword,
     setPasswordConfirmation,
+    signInWithOidc,
     setup,
     submit,
   };

@@ -146,6 +146,35 @@ database and queue ports.
 SMTP is optional and is used only for password resets. Leave `SMTP_HOST`, `SMTP_USER`, and
 `SMTP_PASSWORD` empty to disable it. Invitations use copyable links and do not require email.
 
+### OpenID Connect (OIDC)
+
+Lens can use a deployment-configured OpenID Connect provider such as Keycloak, Okta, Auth0, or
+Microsoft Entra ID. Configure the following values in `.env`:
+
+```dotenv
+OIDC_ENABLED=true
+OIDC_PROVIDER_ID=oidc
+OIDC_DISPLAY_NAME=Company SSO
+OIDC_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
+OIDC_CLIENT_ID=lens
+OIDC_CLIENT_SECRET=replace-with-the-oidc-client-secret
+OIDC_SCOPES=openid profile email
+OIDC_REQUIRE_ISSUER_VALIDATION=false
+OIDC_AUTO_PROVISION=true
+OIDC_ALLOWED_DOMAINS=example.com
+PASSWORD_LOGIN_ENABLED=true
+```
+
+Register `${PUBLIC_APP_URL}/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
+Lens requires the provider to return a verified email. Existing members and users with pending
+invitations can sign in through OIDC. When `OIDC_AUTO_PROVISION=true`, users whose verified email
+matches `OIDC_ALLOWED_DOMAINS` join the workspace as members automatically. Multiple domains may be
+separated by spaces or commas.
+
+Keep password login enabled until OIDC is confirmed working. Afterward,
+`PASSWORD_LOGIN_ENABLED=false` makes OIDC the only login method; the initial owner setup form remains
+available on a fresh installation.
+
 Useful operations:
 
 ```sh

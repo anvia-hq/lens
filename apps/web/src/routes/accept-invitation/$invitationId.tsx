@@ -11,9 +11,9 @@ export const Route = createFileRoute("/accept-invitation/$invitationId")({
 function AcceptInvitationPage() {
   const { invitationId } = Route.useParams();
   const invitation = useInvitation(invitationId);
-  if (invitation.invitation.isLoading)
+  if (invitation.invitation.isLoading || invitation.setup.isLoading)
     return <FullPageMessage icon={<MailPlus />} text="Loading invitation" />;
-  if (invitation.invitation.isError || invitation.detail === undefined)
+  if (invitation.invitation.isError || invitation.setup.isError || invitation.detail === undefined)
     return <FullPageMessage icon={<AlertCircle />} text="This invitation is unavailable" />;
   return <InvitationCard state={invitation} />;
 }
