@@ -19,12 +19,14 @@ import type {
   ResolvedEvaluationRunsSearch,
 } from "../types";
 import { formatNumber } from "../utils/observability-view";
+import { formatEvaluationSource } from "./evaluation-source";
 
 type FacetSection = {
   id: string;
   label: string;
   selected: string[];
   options: TraceFacetValue[];
+  formatOption?: ((value: string) => string) | undefined;
   onToggle: (value: string, selected: boolean) => void;
 };
 
@@ -84,6 +86,8 @@ export function EvaluationResultFilterPanel(props: {
     label,
     selected: props.filters[field] ?? [],
     options: props.facets?.[id] ?? [],
+    formatOption:
+      id === "source" ? (value: string) => formatEvaluationSource(value, true) : undefined,
     onToggle: (value: string, selected: boolean) => {
       const current = props.filters[field] ?? [];
       props.onChange({
@@ -167,7 +171,7 @@ function FacetFilterPanel(props: {
                           onCheckedChange={(checked) => section.onToggle(option.value, checked)}
                         />
                         <span className="min-w-0 flex-1 truncate" title={option.value}>
-                          {option.value}
+                          {section.formatOption?.(option.value) ?? option.value}
                         </span>
                         <span className="font-mono text-xs text-muted-foreground">
                           {formatNumber(option.count)}

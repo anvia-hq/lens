@@ -9,7 +9,7 @@ import type { TraceFacetValue } from "./telemetry.js";
 export const evaluationOutcomes = ["pass", "fail", "invalid", "unknown"] as const;
 export type EvaluationOutcome = (typeof evaluationOutcomes)[number];
 
-export const evaluationSources = ["telemetry", "human"] as const;
+export const evaluationSources = ["telemetry", "human", "end_user"] as const;
 export type EvaluationSource = (typeof evaluationSources)[number];
 
 export const evaluationPayloadStatuses = [

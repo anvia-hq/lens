@@ -8,6 +8,7 @@ import {
   normalizeOtlpLogsRequest,
   normalizeOtlpRequest,
 } from "../src/index";
+import { evaluationSource } from "../src/normalization";
 
 const traceId = "00112233445566778899aabbccddeeff";
 const spanId = "0011223344556677";
@@ -56,6 +57,13 @@ function normalizeModel(attributes: Record<string, string>): string | null {
 }
 
 describe("OTLP ingestion", () => {
+  it("reserves human provenance for authenticated reviews", () => {
+    expect(evaluationSource(null)).toBe("telemetry");
+    expect(evaluationSource("external")).toBe("telemetry");
+    expect(evaluationSource("human")).toBe("telemetry");
+    expect(evaluationSource("end_user")).toBe("end_user");
+  });
+
   it("normalizes Anvia attributes and redacts before queueing", () => {
     const request = decodeOtlpRequest(
       new TextEncoder().encode(
@@ -480,6 +488,7 @@ describe("OTLP ingestion", () => {
                         { key: "gen_ai.evaluation.score.value", value: { doubleValue: 0.93 } },
                         { key: "anvia.eval.outcome", value: { stringValue: "pass" } },
                         { key: "anvia.eval.data_type", value: { stringValue: "NUMERIC" } },
+                        { key: "anvia.eval.source", value: { stringValue: "end_user" } },
                         { key: "anvia.eval.suite.name", value: { stringValue: "release-gate" } },
                         { key: "anvia.eval.case.id", value: { stringValue: "case-42" } },
                         { key: "anvia.eval.run.id", value: { stringValue: "run-1" } },
@@ -543,6 +552,7 @@ describe("OTLP ingestion", () => {
       caseId: "case-42",
       numericValue: 0.93,
       outcome: "pass",
+      source: "end_user",
       serviceName: "support-service",
       environment: "production",
       release: "2026.08.07",

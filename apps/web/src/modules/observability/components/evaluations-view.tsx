@@ -52,6 +52,7 @@ import { formatNumber, shortId } from "../utils/trace-detail";
 import { EvaluationExplorerLayout } from "./evaluation-explorer-layout";
 import { EvaluationResultFilterPanel } from "./evaluation-filter-panel";
 import { EvaluationResultDrawer, formatEvaluationResultValue } from "./evaluation-result-drawer";
+import { formatEvaluationSource } from "./evaluation-source";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
@@ -326,7 +327,7 @@ function resultCell(
     ) : (
       "—"
     );
-  if (column === "source") return result.source === "human" ? "Human" : "Telemetry";
+  if (column === "source") return formatEvaluationSource(result.source);
   if (column === "resultId") {
     return <span className="whitespace-nowrap font-mono text-primary">{result.id}</span>;
   }

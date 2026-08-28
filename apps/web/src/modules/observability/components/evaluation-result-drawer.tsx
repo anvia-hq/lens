@@ -13,6 +13,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { formatTimestamp } from "../utils/trace-detail";
+import { formatEvaluationSource } from "./evaluation-source";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { PayloadSection } from "./payload-section";
 import { PayloadViewSwitch } from "./payload-view-switch";
@@ -60,7 +61,7 @@ export function EvaluationResultDrawer(props: {
                     <DetailField label="Service">{result.serviceName}</DetailField>
                     <DetailField label="Release">{result.release ?? "—"}</DetailField>
                     <DetailField label="Source">
-                      {result.source === "human" ? "Human review" : "Telemetry"}
+                      {formatEvaluationSource(result.source, true)}
                     </DetailField>
                     {result.reviewer ? (
                       <DetailField label="Reviewer">{result.reviewer.name}</DetailField>

@@ -50,7 +50,7 @@ export function parseEvaluationRequest(c: Context):
       queryKey === "source" &&
       values.some((value) => !evaluationSources.includes(value as never))
     ) {
-      return "source must be telemetry or human";
+      return "source must be telemetry, human, or end_user";
     }
     if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
   }

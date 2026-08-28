@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { parseRunRequest } from "../src/modules/evaluation-runs/schema";
+import { parseEvaluationRequest } from "../src/modules/evaluations/schema";
 import { parseMemberRole } from "../src/modules/members/schema";
 import { parseSessionDetailRequest, parseSessionRequest } from "../src/modules/sessions/schema";
 import { parseTraceRequest } from "../src/modules/traces/schema";
@@ -40,6 +41,18 @@ describe("API module schemas", () => {
     );
     expect(await parseRequest("/?review=unknown", parseTraceRequest)).toBe(
       "review must be unreviewed, pass, or fail",
+    );
+  });
+
+  it("accepts end-user evaluation source filters", async () => {
+    expect(
+      await parseRequest<ReturnType<typeof parseEvaluationRequest>>(
+        "/?source=end_user",
+        parseEvaluationRequest,
+      ),
+    ).toMatchObject({ filters: { sources: ["end_user"] } });
+    expect(await parseRequest("/?source=external", parseEvaluationRequest)).toBe(
+      "source must be telemetry, human, or end_user",
     );
   });
 

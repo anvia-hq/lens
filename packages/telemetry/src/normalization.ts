@@ -6,6 +6,7 @@ import {
   type EvaluationPayloadStatus,
   type EvaluationResult,
   type EvaluationRun,
+  type EvaluationSource,
   type JsonValue,
   type NormalizedSpan,
   type ObservationKind,
@@ -102,6 +103,10 @@ export function evaluationDataType(value: string | null): EvaluationResult["data
   return candidate === "NUMERIC" || candidate === "CATEGORICAL" || candidate === "BOOLEAN"
     ? candidate
     : null;
+}
+
+export function evaluationSource(value: string | null): EvaluationSource {
+  return value === "end_user" ? "end_user" : "telemetry";
 }
 
 export function evaluationPayloadStatus(
