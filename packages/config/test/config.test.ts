@@ -13,6 +13,11 @@ describe("loadConfig", () => {
     expect(config.OIDC_SCOPES).toEqual(["openid", "profile", "email"]);
     expect(config.OTLP_MAX_BODY_BYTES).toBe(10 * 1024 * 1024);
     expect(config.MCP_RATE_LIMIT_PER_MINUTE).toBe(120);
+    expect(config.POSTGRES_MAX_CONNECTIONS).toBe(10);
+    expect(config.CLICKHOUSE_MAX_THREADS).toBe(0);
+    expect(config.INGESTION_QUEUE_MAX_WAITING).toBe(0);
+    expect(config.WORKER_INGEST_CONCURRENCY).toBe(8);
+    expect(config.MATERIALIZE_DELAY_MS).toBe(1_500);
   });
 
   it("parses an OIDC provider and normalizes list values", () => {
@@ -78,6 +83,15 @@ describe("loadConfig", () => {
       SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: "2048",
       MCP_RATE_LIMIT_PER_MINUTE: "90",
+      POSTGRES_MAX_CONNECTIONS: "4",
+      CLICKHOUSE_MAX_THREADS: "2",
+      CLICKHOUSE_MAX_MEMORY_USAGE_BYTES: "536870912",
+      INGESTION_QUEUE_MAX_WAITING: "500",
+      WORKER_INGEST_CONCURRENCY: "2",
+      MATERIALIZE_DELAY_MS: "3000",
+      QUEUE_RETAIN_COMPLETED_AGE_SECONDS: "300",
+      QUEUE_RETAIN_COMPLETED_COUNT: "1000",
+      QUEUE_RETAIN_FAILED_AGE_SECONDS: "86400",
     });
     expect(config).toMatchObject({
       API_PORT: 4100,
@@ -87,6 +101,15 @@ describe("loadConfig", () => {
       SMTP_PASSWORD: "secret",
       OTLP_MAX_BODY_BYTES: 2048,
       MCP_RATE_LIMIT_PER_MINUTE: 90,
+      POSTGRES_MAX_CONNECTIONS: 4,
+      CLICKHOUSE_MAX_THREADS: 2,
+      CLICKHOUSE_MAX_MEMORY_USAGE_BYTES: 536_870_912,
+      INGESTION_QUEUE_MAX_WAITING: 500,
+      WORKER_INGEST_CONCURRENCY: 2,
+      MATERIALIZE_DELAY_MS: 3_000,
+      QUEUE_RETAIN_COMPLETED_AGE_SECONDS: 300,
+      QUEUE_RETAIN_COMPLETED_COUNT: 1_000,
+      QUEUE_RETAIN_FAILED_AGE_SECONDS: 86_400,
     });
   });
 
@@ -96,6 +119,11 @@ describe("loadConfig", () => {
     [{ BETTER_AUTH_SECRET: "short" }, "BETTER_AUTH_SECRET"],
     [{ INGESTION_KEY_PEPPER: "short" }, "INGESTION_KEY_PEPPER"],
     [{ MCP_RATE_LIMIT_PER_MINUTE: "0" }, "MCP_RATE_LIMIT_PER_MINUTE"],
+    [{ POSTGRES_MAX_CONNECTIONS: "0" }, "POSTGRES_MAX_CONNECTIONS"],
+    [{ CLICKHOUSE_MAX_THREADS: "-1" }, "CLICKHOUSE_MAX_THREADS"],
+    [{ WORKER_INGEST_CONCURRENCY: "0" }, "WORKER_INGEST_CONCURRENCY"],
+    [{ QUEUE_RETAIN_FAILED_COUNT: "0" }, "QUEUE_RETAIN_FAILED_COUNT"],
+    [{ QUEUE_RETAIN_COMPLETED_AGE_SECONDS: "0" }, "QUEUE_RETAIN_COMPLETED_AGE_SECONDS"],
     [{ SMTP_SECURE: "yes" }, "SMTP_SECURE"],
     [{ SMTP_USER: "lens" }, "SMTP_PASSWORD"],
     [{ LOG_LEVEL: "verbose" }, "LOG_LEVEL"],

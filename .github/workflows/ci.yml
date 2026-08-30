@@ -64,6 +64,7 @@ jobs:
       - name: Validate Compose files
         run: |
           docker compose --env-file .env.example config >/dev/null
+          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.small.yml config >/dev/null
           docker compose --env-file .env.dev.example -f docker-compose.dev.yml config >/dev/null
 
       - name: Set up Docker Buildx

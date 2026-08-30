@@ -1,0 +1,58 @@
+services:
+  monitor:
+    mem_limit: 96m
+    environment:
+      NODE_OPTIONS: --max-old-space-size=64
+
+  postgres:
+    mem_limit: 384m
+
+  redis:
+    # Leave headroom above maxmemory for Redis metadata and AOF rewrites.
+    mem_limit: 384m
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 192mb
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+
+  clickhouse:
+    mem_limit: 1536m
+
+  migrate:
+    mem_limit: 384m
+    environment: &small-app-environment
+      POSTGRES_MAX_CONNECTIONS: 4
+      CLICKHOUSE_MAX_THREADS: 2
+      CLICKHOUSE_MAX_MEMORY_USAGE_BYTES: 402653184
+      CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY: 201326592
+      CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_SORT: 201326592
+      OTLP_MAX_BODY_BYTES: 2097152
+      INGESTION_QUEUE_MAX_WAITING: 500
+      WORKER_INGEST_CONCURRENCY: 2
+      WORKER_MATERIALIZE_CONCURRENCY: 1
+      WORKER_EVALUATION_CONCURRENCY: 1
+      MATERIALIZE_DELAY_MS: 3000
+      QUEUE_RETAIN_COMPLETED_AGE_SECONDS: 300
+      QUEUE_RETAIN_COMPLETED_COUNT: 100
+      QUEUE_RETAIN_FAILED_AGE_SECONDS: 86400
+      QUEUE_RETAIN_FAILED_COUNT: 100
+      NODE_OPTIONS: --max-old-space-size=256
+
+  api:
+    mem_limit: 384m
+    environment: *small-app-environment
+
+  worker:
+    mem_limit: 512m
+    environment:
+      <<: *small-app-environment
+      NODE_OPTIONS: --max-old-space-size=384
+
+  web:
+    mem_limit: 64m

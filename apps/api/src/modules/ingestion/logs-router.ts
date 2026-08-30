@@ -13,6 +13,7 @@ import { withinFixedWindowRateLimit } from "../../utils/rate-limit.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
+import { queueHasCapacity } from "./capacity.js";
 import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
 export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
@@ -55,6 +56,20 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMet
       c.header("Retry-After", "60");
       return apiError(c, 429, "rate_limited", "Project ingestion rate limit exceeded");
     }
+    try {
+      if (
+        !(await queueHasCapacity(deps.queues.evaluations, deps.config.INGESTION_QUEUE_MAX_WAITING))
+      ) {
+        metrics.evaluationLogsRejected.inc({ reason: "queue_capacity" });
+        c.header("Retry-After", "5");
+        return apiError(c, 503, "ingestion_busy", "Telemetry ingestion is temporarily busy");
+      }
+    } catch (error) {
+      metrics.evaluationLogsRejected.inc({ reason: "queue_unavailable" });
+      deps.logger.warn({ err: error, projectId: key.project.id }, "ingestion queue unavailable");
+      c.header("Retry-After", "5");
+      return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
+    }
 
     let bytes: Uint8Array;
     try {
@@ -67,12 +82,23 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMet
       return apiError(c, status, error.code, error.message);
     }
 
+    let normalized: ReturnType<typeof normalizeOtlpLogsRequest>;
     try {
-      const normalized = normalizeOtlpLogsRequest(decodeOtlpLogsRequest(bytes, contentType), {
+      normalized = normalizeOtlpLogsRequest(decodeOtlpLogsRequest(bytes, contentType), {
         projectId: key.project.id,
         retentionDays: parseRetentionDays(key.project.retentionDays),
       });
-      if (normalized.evaluations.length > 0 || normalized.runs.length > 0) {
+    } catch (error) {
+      metrics.evaluationLogsRejected.inc({ reason: "decode" });
+      return apiError(
+        c,
+        400,
+        "invalid_otlp",
+        error instanceof Error ? error.message : "Invalid OTLP logs request",
+      );
+    }
+    if (normalized.evaluations.length > 0 || normalized.runs.length > 0) {
+      try {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");
         await deps.queues.evaluations.add(
           "ingest",
@@ -86,31 +112,31 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMet
           { jobId: `evaluations-${ingestId}` },
         );
         metrics.evaluationsAccepted.inc(normalized.evaluations.length);
-      }
-      if (normalized.rejectedLogRecords > 0) {
-        metrics.evaluationLogsRejected.inc(
-          { reason: "invalid_evaluation" },
-          normalized.rejectedLogRecords,
+      } catch (error) {
+        metrics.evaluationLogsRejected.inc({ reason: "queue_unavailable" });
+        deps.logger.warn(
+          { err: error, projectId: key.project.id },
+          "failed to enqueue evaluations",
         );
+        c.header("Retry-After", "5");
+        return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
       }
-      recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
-      metrics.duration.observe((performance.now() - startedAt) / 1_000);
-      const response = encodeOtlpLogsResponse(
-        contentType,
+    }
+    if (normalized.rejectedLogRecords > 0) {
+      metrics.evaluationLogsRejected.inc(
+        { reason: "invalid_evaluation" },
         normalized.rejectedLogRecords,
-        normalized.errors.slice(0, 3).join("; "),
-      );
-      return new Response(response as BodyInit, {
-        status: 200,
-        headers: { "Content-Type": contentType },
-      });
-    } catch (error) {
-      metrics.evaluationLogsRejected.inc({ reason: "decode" });
-      return apiError(
-        c,
-        400,
-        "invalid_otlp",
-        error instanceof Error ? error.message : "Invalid OTLP logs request",
       );
     }
+    recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
+    metrics.duration.observe((performance.now() - startedAt) / 1_000);
+    const response = encodeOtlpLogsResponse(
+      contentType,
+      normalized.rejectedLogRecords,
+      normalized.errors.slice(0, 3).join("; "),
+    );
+    return new Response(response as BodyInit, {
+      status: 200,
+      headers: { "Content-Type": contentType },
+    });
   });

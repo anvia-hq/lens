@@ -17,13 +17,7 @@ import type {
 } from "@lens/contracts";
 import { listEvaluationsForTrace, listHumanReviewOutcomes } from "./evaluation-store.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
-import {
-  clickHouseDateTimeParam,
-  ensureIso,
-  nullableNumeric,
-  numeric,
-  sumNullable,
-} from "./values.js";
+import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
 
 export { getSession, listSessionFacets, listSessions } from "./session-store.js";
 export { type SummaryRow, summaryFromRow } from "./trace-summary.js";
@@ -89,33 +83,6 @@ type TraceSpanSummaryRow = Pick<
   | "total_cost"
 >;
 
-type MaterializationSpanRow = Pick<
-  SpanRow,
-  | "span_id"
-  | "parent_span_id"
-  | "name"
-  | "observation_kind"
-  | "status"
-  | "start_time"
-  | "end_time"
-  | "service_name"
-  | "trace_name"
-  | "user_id"
-  | "session_id"
-  | "tags"
-  | "version"
-  | "environment"
-  | "release"
-  | "service_version"
-  | "model"
-  | "input_tokens"
-  | "output_tokens"
-  | "input_cost"
-  | "output_cost"
-  | "total_cost"
-  | "ingest_version"
-> & { expires_at: string };
-
 export async function insertSpans(
   client: ClickHouseClient,
   spans: NormalizedSpan[],
@@ -175,82 +142,65 @@ export async function materializeTrace(
   projectId: string,
   traceId: string,
 ): Promise<void> {
-  const spans = await readMaterializationSpanRows(client, projectId, traceId);
-  if (spans.length === 0) return;
-  const root = spans.find((span) => span.parent_span_id.length === 0);
-  const representative =
-    root ?? spans.toSorted((left, right) => left.start_time.localeCompare(right.start_time))[0];
-  if (representative === undefined) return;
-  const startedAt = spans.reduce(
-    (minimum, span) => (span.start_time < minimum ? span.start_time : minimum),
-    representative.start_time,
-  );
-  const endedAt = spans.reduce(
-    (maximum, span) => (span.end_time > maximum ? span.end_time : maximum),
-    representative.end_time,
-  );
-  const inputTokens = spans
-    .filter((span) => span.observation_kind === "generation")
-    .reduce((sum, span) => sum + numeric(span.input_tokens), 0);
-  const outputTokens = spans
-    .filter((span) => span.observation_kind === "generation")
-    .reduce((sum, span) => sum + numeric(span.output_tokens), 0);
-  const costSpans = spans.filter(
-    (span) => span.observation_kind === "generation" || span.observation_kind === "embedding",
-  );
-  const inputCost = sumNullable(costSpans.map((span) => span.input_cost));
-  const outputCost = sumNullable(costSpans.map((span) => span.output_cost));
-  const totalCost = sumNullable(costSpans.map((span) => span.total_cost));
-  const summaryVersion = spans.reduce((maximum, span) => {
-    const version = BigInt(span.ingest_version);
-    return version > maximum ? version : maximum;
-  }, 0n);
-  const expiresAt = spans.reduce(
-    (maximum, span) => (span.expires_at > maximum ? span.expires_at : maximum),
-    spans[0]?.expires_at ?? "2299-12-31 23:59:59.999",
-  );
-
-  await client.insert({
-    table: "trace_summaries",
-    format: "JSONEachRow",
-    values: [
-      {
-        project_id: projectId,
-        trace_id: traceId,
-        name: representative.trace_name ?? representative.name,
-        service_name: representative.service_name,
-        status: root?.status ?? "running",
-        started_at: startedAt,
-        ended_at: endedAt,
-        duration_ms: Math.max(
-          0,
-          Number(BigInt(clickHouseToNano(endedAt)) - BigInt(clickHouseToNano(startedAt))) /
-            1_000_000,
-        ),
-        span_count: spans.length,
-        generation_count: spans.filter((span) => span.observation_kind === "generation").length,
-        tool_count: spans.filter((span) => span.observation_kind === "tool").length,
-        error_count: spans.filter((span) => span.status === "error").length,
-        user_id: representative.user_id ?? firstDefined(spans.map((span) => span.user_id)),
-        session_id: representative.session_id ?? firstDefined(spans.map((span) => span.session_id)),
-        tags: Array.from(new Set(spans.flatMap((span) => span.tags))),
-        model: firstDefined(spans.map((span) => span.model)),
-        environment: representative.environment || "default",
-        release: representative.release ?? firstDefined(spans.map((span) => span.release)),
-        version: representative.version ?? firstDefined(spans.map((span) => span.version)),
-        service_version:
-          representative.service_version ?? firstDefined(spans.map((span) => span.service_version)),
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        total_tokens: inputTokens + outputTokens,
-        input_cost: inputCost,
-        output_cost: outputCost,
-        total_cost: totalCost,
-        last_seen_at: new Date().toISOString().replace("T", " ").replace("Z", ""),
-        expires_at: expiresAt,
-        summary_version: summaryVersion.toString(),
-      },
-    ],
+  const order = "tuple(span.start_time, span.span_id)";
+  const hasRoot = "countIf(span.parent_span_id = '') > 0";
+  const representative = (expression: string) =>
+    `if(${hasRoot}, argMinIf(${expression}, ${order}, span.parent_span_id = ''), argMin(${expression}, ${order}))`;
+  const firstNonNull = (column: string) =>
+    `if(countIf(${column} IS NOT NULL) = 0, null, argMinIf(ifNull(${column}, ''), ${order}, ${column} IS NOT NULL))`;
+  const representativeNullable = (column: string) => {
+    const value = representative(`tuple(isNull(${column}), ifNull(${column}, ''))`);
+    return `if(tupleElement(${value}, 1), ${firstNonNull(column)}, tupleElement(${value}, 2))`;
+  };
+  const orderedTags =
+    `arrayDistinct(arrayFlatten(arrayMap(item -> tupleElement(item, 2), ` +
+    `arraySort(item -> tupleElement(item, 1), groupArray(tuple(${order}, span.tags))))))`;
+  const cost = (column: string) =>
+    `if(countIf(span.observation_kind IN ('generation', 'embedding') AND ${column} IS NOT NULL) = 0, null, sumIf(ifNull(${column}, 0), span.observation_kind IN ('generation', 'embedding')))`;
+  await client.command({
+    query: `INSERT INTO trace_summaries
+            (
+              project_id, trace_id, name, service_name, status, started_at, ended_at, duration_ms,
+              span_count, generation_count, tool_count, error_count, user_id, session_id, tags,
+              model, environment, release, version, service_version, input_tokens, output_tokens,
+              total_tokens, input_cost, output_cost, total_cost, last_seen_at, expires_at,
+              summary_version
+            )
+            SELECT
+              span.project_id,
+              span.trace_id,
+              ${representative("ifNull(span.trace_name, span.name)")} AS name,
+              ${representative("span.service_name")} AS service_name,
+              if(${hasRoot}, argMinIf(span.status, ${order}, span.parent_span_id = ''), 'running') AS status,
+              min(span.start_time) AS started_at,
+              max(span.end_time) AS ended_at,
+              greatest(0, dateDiff('nanosecond', min(span.start_time), max(span.end_time)) / 1000000) AS duration_ms,
+              toUInt32(count()) AS span_count,
+              toUInt32(countIf(span.observation_kind = 'generation')) AS generation_count,
+              toUInt32(countIf(span.observation_kind = 'tool')) AS tool_count,
+              toUInt32(countIf(span.status = 'error')) AS error_count,
+              ${representativeNullable("span.user_id")} AS user_id,
+              ${representativeNullable("span.session_id")} AS session_id,
+              ${orderedTags} AS tags,
+              ${firstNonNull("span.model")} AS model,
+              if(empty(${representative("span.environment")}), 'default', ${representative("span.environment")}) AS environment,
+              ${representativeNullable("span.release")} AS release,
+              ${representativeNullable("span.version")} AS version,
+              ${representativeNullable("span.service_version")} AS service_version,
+              sumIf(span.input_tokens, span.observation_kind = 'generation') AS input_tokens,
+              sumIf(span.output_tokens, span.observation_kind = 'generation') AS output_tokens,
+              sumIf(span.input_tokens, span.observation_kind = 'generation') +
+                sumIf(span.output_tokens, span.observation_kind = 'generation') AS total_tokens,
+              ${cost("span.input_cost")} AS input_cost,
+              ${cost("span.output_cost")} AS output_cost,
+              ${cost("span.total_cost")} AS total_cost,
+              now64(3) AS last_seen_at,
+              max(span.expires_at) AS expires_at,
+              max(span.ingest_version) AS summary_version
+            FROM spans AS span FINAL
+            WHERE span.project_id = {projectId:UUID} AND span.trace_id = {traceId:String}
+            GROUP BY span.project_id, span.trace_id`,
+    query_params: { projectId, traceId },
   });
 }
 
@@ -687,26 +637,6 @@ async function readTraceSpanSummaryRows(
   return result.json<TraceSpanSummaryRow>();
 }
 
-async function readMaterializationSpanRows(
-  client: ClickHouseClient,
-  projectId: string,
-  traceId: string,
-): Promise<MaterializationSpanRow[]> {
-  const result = await client.query({
-    query: `SELECT span_id, parent_span_id, name, observation_kind, status,
-                   start_time, end_time, service_name, trace_name, user_id, session_id,
-                   tags, version, environment, release, service_version, model,
-                   input_tokens, output_tokens, input_cost, output_cost, total_cost,
-                   expires_at, ingest_version
-            FROM spans FINAL
-            WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
-            ORDER BY start_time ASC, span_id ASC`,
-    query_params: { projectId, traceId },
-    format: "JSONEachRow",
-  });
-  return result.json<MaterializationSpanRow>();
-}
-
 function traceSpanSummaryFromRow(row: TraceSpanSummaryRow): TraceSpanSummary {
   return {
     traceId: row.trace_id,
@@ -766,10 +696,6 @@ function spanFromRow(row: SpanRow): SpanDetail {
     output: parseNullableJson(row.output),
     ingestedAt: ensureIso(row.ingested_at),
   };
-}
-
-function firstDefined<T>(values: Array<T | null>): T | null {
-  return values.find((value): value is T => value !== null) ?? null;
 }
 
 function parseNullableJson(value: string | null): JsonValue | null {

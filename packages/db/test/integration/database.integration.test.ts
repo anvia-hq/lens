@@ -1,3 +1,4 @@
+import { loadConfig } from "@lens/config";
 import type {
   AlertIncident,
   EvaluationResult,
@@ -33,6 +34,7 @@ import {
   getQualityGate,
   getSpan,
   getTrace,
+  getTraceSummary,
   importManagedDatasetCases,
   insertEvaluationRuns,
   insertEvaluations,
@@ -328,14 +330,19 @@ describe.sequential("database integration", () => {
     if (root === undefined || generation === undefined)
       throw new Error("Expected integration spans");
 
-    await insertSpans(clickhouse, [generation]);
+    await insertSpans(clickhouse, [{ ...generation, status: "error" }]);
     await materializeTrace(clickhouse, projectId, traceId);
     const partial = await listTraces(clickhouse, projectId, {
       statuses: ["running"],
       page: 1,
       pageSize: 10,
     });
-    expect(partial.items[0]).toMatchObject({ traceId, status: "running", spanCount: 1 });
+    expect(partial.items[0]).toMatchObject({
+      traceId,
+      status: "running",
+      spanCount: 1,
+      errorCount: 1,
+    });
 
     await insertSpans(clickhouse, [root]);
     await materializeTrace(clickhouse, projectId, traceId);
@@ -353,6 +360,7 @@ describe.sequential("database integration", () => {
       traceId,
       spanCount: 2,
       generationCount: 1,
+      errorCount: 1,
       model: "gpt-test",
       totalTokens: 15,
     });
@@ -543,6 +551,82 @@ describe.sequential("database integration", () => {
       results: [],
     });
   });
+
+  it("preserves representative metadata fallbacks and tag order during materialization", async () => {
+    const [baseRoot, baseChild] = spans();
+    if (baseRoot === undefined || baseChild === undefined)
+      throw new Error("Expected integration spans");
+
+    const fallbackTraceId = "3".repeat(32);
+    const firstRootSpanId = "3".repeat(16);
+    const laterRootSpanId = "4".repeat(16);
+    const childSpanId = "5".repeat(16);
+    await insertSpans(clickhouse, [
+      {
+        ...baseChild,
+        traceId: fallbackTraceId,
+        spanId: childSpanId,
+        parentSpanId: firstRootSpanId,
+        startTimeUnixNano: "1786060800000000000",
+        endTimeUnixNano: "1786060800100000000",
+        userId: "child-user",
+        sessionId: "child-session",
+        tags: ["child", "shared"],
+        version: "child-version",
+        release: "child-release",
+        serviceVersion: "child-service-version",
+        model: "child-model",
+      },
+      {
+        ...baseRoot,
+        traceId: fallbackTraceId,
+        spanId: firstRootSpanId,
+        name: "first-root",
+        traceName: "",
+        status: "error",
+        startTimeUnixNano: "1786060800200000000",
+        endTimeUnixNano: "1786060800300000000",
+        userId: null,
+        sessionId: "",
+        tags: ["first-root", "shared"],
+        version: "",
+        environment: "",
+        release: null,
+        serviceVersion: null,
+      },
+      {
+        ...baseRoot,
+        traceId: fallbackTraceId,
+        spanId: laterRootSpanId,
+        name: "later-root",
+        traceName: "Later root",
+        startTimeUnixNano: "1786060800400000000",
+        endTimeUnixNano: "1786060800500000000",
+        userId: "later-root-user",
+        sessionId: "later-root-session",
+        tags: ["later-root"],
+        version: "later-root-version",
+        release: "later-root-release",
+        serviceVersion: "later-root-service-version",
+      },
+    ]);
+
+    await materializeTrace(clickhouse, projectId, fallbackTraceId);
+
+    expect(await getTraceSummary(clickhouse, projectId, fallbackTraceId)).toMatchObject({
+      traceId: fallbackTraceId,
+      name: "",
+      status: "error",
+      userId: "child-user",
+      sessionId: "",
+      tags: ["child", "shared", "first-root", "later-root"],
+      model: "child-model",
+      environment: "default",
+      release: "child-release",
+      version: "",
+      serviceVersion: "child-service-version",
+    });
+  });
 });
 
 function signalIncident(kind: AlertIncident["kind"]): AlertIncident {
@@ -573,41 +657,13 @@ function integrationConfig() {
   for (const key of required) {
     if (process.env[key] === undefined) throw new Error(`${key} is required for integration tests`);
   }
-  return {
-    NODE_ENV: "test" as const,
-    PUBLIC_APP_URL: "http://localhost:3000",
-    API_PORT: 3001,
-    WEB_ORIGIN: "http://localhost:3000",
+  return loadConfig({
+    NODE_ENV: "test",
     POSTGRES_URL: process.env.POSTGRES_URL as string,
     CLICKHOUSE_URL: process.env.CLICKHOUSE_URL as string,
-    CLICKHOUSE_DATABASE: "lens",
-    CLICKHOUSE_USERNAME: "lens",
-    CLICKHOUSE_PASSWORD: "lens",
     REDIS_URL: process.env.REDIS_URL as string,
-    BETTER_AUTH_SECRET: "integration-test-secret-at-least-32-characters",
-    PASSWORD_LOGIN_ENABLED: true,
-    OIDC_ENABLED: false,
-    OIDC_PROVIDER_ID: "oidc",
-    OIDC_DISPLAY_NAME: "Company SSO",
-    OIDC_DISCOVERY_URL: undefined,
-    OIDC_CLIENT_ID: undefined,
-    OIDC_CLIENT_SECRET: undefined,
-    OIDC_SCOPES: ["openid", "profile", "email"],
-    OIDC_REQUIRE_ISSUER_VALIDATION: false,
-    OIDC_AUTO_PROVISION: false,
-    OIDC_ALLOWED_DOMAINS: [],
-    INGESTION_KEY_PEPPER: "integration-test-pepper",
-    SMTP_HOST: "localhost",
-    SMTP_PORT: 1025,
-    SMTP_FROM: "Lens <lens@localhost>",
-    SMTP_SECURE: false,
-    SMTP_USER: undefined,
-    SMTP_PASSWORD: undefined,
-    OTLP_MAX_BODY_BYTES: 10 * 1024 * 1024,
-    OTLP_RATE_LIMIT_PER_MINUTE: 600,
-    MCP_RATE_LIMIT_PER_MINUTE: 120,
-    LOG_LEVEL: "error" as const,
-  };
+    LOG_LEVEL: "error",
+  });
 }
 
 function spans(): NormalizedSpan[] {

@@ -70,13 +70,24 @@ describe("queue lifecycle", () => {
   });
 
   it("creates and closes every queue before disconnecting Redis", async () => {
-    const queues = createQueues("redis://cache:6379");
+    const queues = createQueues(
+      "redis://cache:6379",
+      {},
+      {
+        completedAgeSeconds: 300,
+        completedCount: 500,
+        failedAgeSeconds: 86_400,
+        failedCount: 750,
+      },
+    );
 
     expect(mocks.queueInstances.map(({ name }) => name)).toEqual(Object.values(queueNames));
     expect(mocks.queueInstances[0]?.options).toMatchObject({
       defaultJobOptions: {
         attempts: 5,
         backoff: { type: "exponential", delay: 1_000 },
+        removeOnComplete: { age: 300, count: 500 },
+        removeOnFail: { age: 86_400, count: 750 },
       },
     });
 

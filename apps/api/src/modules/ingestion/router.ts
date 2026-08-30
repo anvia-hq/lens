@@ -13,6 +13,7 @@ import { withinFixedWindowRateLimit } from "../../utils/rate-limit.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
+import { queueHasCapacity } from "./capacity.js";
 import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
 export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
@@ -55,6 +56,18 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
       c.header("Retry-After", "60");
       return apiError(c, 429, "rate_limited", "Project ingestion rate limit exceeded");
     }
+    try {
+      if (!(await queueHasCapacity(deps.queues.ingest, deps.config.INGESTION_QUEUE_MAX_WAITING))) {
+        metrics.rejected.inc({ reason: "queue_capacity" });
+        c.header("Retry-After", "5");
+        return apiError(c, 503, "ingestion_busy", "Telemetry ingestion is temporarily busy");
+      }
+    } catch (error) {
+      metrics.rejected.inc({ reason: "queue_unavailable" });
+      deps.logger.warn({ err: error, projectId: key.project.id }, "ingestion queue unavailable");
+      c.header("Retry-After", "5");
+      return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
+    }
 
     let bytes: Uint8Array;
     try {
@@ -67,14 +80,23 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
       return apiError(c, status, error.code, error.message);
     }
 
+    let normalized: ReturnType<typeof normalizeOtlpRequest>;
     try {
-      const request = decodeOtlpRequest(bytes, contentType);
-      const retentionDays = parseRetentionDays(key.project.retentionDays);
-      const normalized = normalizeOtlpRequest(request, {
+      normalized = normalizeOtlpRequest(decodeOtlpRequest(bytes, contentType), {
         projectId: key.project.id,
-        retentionDays,
+        retentionDays: parseRetentionDays(key.project.retentionDays),
       });
-      if (normalized.spans.length > 0) {
+    } catch (error) {
+      metrics.rejected.inc({ reason: "decode" });
+      return apiError(
+        c,
+        400,
+        "invalid_otlp",
+        error instanceof Error ? error.message : "Invalid OTLP request",
+      );
+    }
+    if (normalized.spans.length > 0) {
+      try {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");
         await deps.queues.ingest.add(
           "ingest",
@@ -87,28 +109,25 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
           { jobId: `ingest-${ingestId}` },
         );
         metrics.accepted.inc(normalized.spans.length);
+      } catch (error) {
+        metrics.rejected.inc({ reason: "queue_unavailable" });
+        deps.logger.warn({ err: error, projectId: key.project.id }, "failed to enqueue telemetry");
+        c.header("Retry-After", "5");
+        return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
       }
-      if (normalized.rejectedSpans > 0) {
-        metrics.rejected.inc({ reason: "invalid_span" }, normalized.rejectedSpans);
-      }
-      recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
-      metrics.duration.observe((performance.now() - startedAt) / 1_000);
-      const response = encodeOtlpResponse(
-        contentType,
-        normalized.rejectedSpans,
-        normalized.errors.slice(0, 3).join("; "),
-      );
-      return new Response(response as BodyInit, {
-        status: 200,
-        headers: { "Content-Type": contentType },
-      });
-    } catch (error) {
-      metrics.rejected.inc({ reason: "decode" });
-      return apiError(
-        c,
-        400,
-        "invalid_otlp",
-        error instanceof Error ? error.message : "Invalid OTLP request",
-      );
     }
+    if (normalized.rejectedSpans > 0) {
+      metrics.rejected.inc({ reason: "invalid_span" }, normalized.rejectedSpans);
+    }
+    recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
+    metrics.duration.observe((performance.now() - startedAt) / 1_000);
+    const response = encodeOtlpResponse(
+      contentType,
+      normalized.rejectedSpans,
+      normalized.errors.slice(0, 3).join("; "),
+    );
+    return new Response(response as BodyInit, {
+      status: 200,
+      headers: { "Content-Type": contentType },
+    });
   });

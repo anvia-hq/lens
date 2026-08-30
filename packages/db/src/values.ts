@@ -9,11 +9,6 @@ export function nullableNumeric(value: number | string | null | undefined): numb
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function sumNullable(values: Array<number | string | null>): number | null {
-  const present = values.map(nullableNumeric).filter((value): value is number => value !== null);
-  return present.length === 0 ? null : present.reduce((sum, value) => sum + value, 0);
-}
-
 export function ensureIso(value: string): string {
   if (value.endsWith("Z")) return value;
   return `${value.replace(" ", "T")}Z`;

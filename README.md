@@ -98,6 +98,35 @@ docker compose ps
 Open <http://localhost>. The first person to create an account becomes the owner, and public account
 creation closes automatically after that.
 
+### Constrained VM profile
+
+For light workloads on a 2 vCPU / 4 GB VM, also download the constrained Compose override:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/anvia-hq/lens/main/docker-compose.small.yml
+docker compose -f docker-compose.yml -f docker-compose.small.yml up -d
+```
+
+The override caps steady-state containers at roughly 3.3 GB in total, limits ClickHouse queries to
+two threads and 384 MB,
+reduces PostgreSQL connections and worker concurrency, bounds retained queue history, rejects new
+telemetry with a retryable `503` when 500 ingestion jobs are waiting, and limits OTLP requests to 2
+MB. Redis keeps durable `noeviction` behavior with a 256 MB data limit, so accepted queued jobs are
+never silently discarded.
+
+This profile is intended for low ingestion volume and short retention. Start with 7 or 14 days of
+retention, monitor **System Health**, and use the standard profile or a larger VM if queues remain
+backlogged, ClickHouse reaches its query limit, or Redis rejects writes. Keep the same pair of
+Compose files in every command, including `pull`, `up`, `logs`, and `down`.
+
+The individual controls are also available in `.env` for custom sizing:
+`POSTGRES_MAX_CONNECTIONS`, `CLICKHOUSE_MAX_THREADS`, `CLICKHOUSE_MAX_MEMORY_USAGE_BYTES`,
+`CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY`, `CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_SORT`,
+`INGESTION_QUEUE_MAX_WAITING`, the three `WORKER_*_CONCURRENCY` values,
+`MATERIALIZE_DELAY_MS`, and the `QUEUE_RETAIN_*` age and count values. A value of zero disables the
+ClickHouse and ingestion backlog limits; worker concurrency and retained-job settings must be
+positive.
+
 Only the Lens web port is exposed. PostgreSQL, ClickHouse, Redis, the API, the worker, and the
 read-only Linux host monitor stay on private Compose networks. Owners and admins can use **System
 Health** to inspect current CPU, RAM, disk, dependency, worker, and queue status.

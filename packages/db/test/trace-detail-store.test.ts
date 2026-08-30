@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { getSpan, getTrace, getTraceSummary } from "../src/telemetry-store.js";
+import {
+  getSpan,
+  getTrace,
+  getTraceExpiration,
+  getTraceSummary,
+} from "../src/telemetry-store.js";
 import { clickHouseClient } from "./clickhouse-client.js";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -102,6 +107,22 @@ describe("trace detail reads", () => {
 
     await expect(getTraceSummary(clickHouseClient({ query }), projectId, traceId)).resolves.toBe(
       undefined,
+    );
+  });
+
+  it.each([
+    ["2026-09-20 08:00:00.000", "2026-09-20T08:00:00.000Z"],
+    [undefined, "2299-12-31T23:59:59.999Z"],
+  ])("reads and normalizes trace expiration %s", async (expiresAt, expected) => {
+    const query = vi.fn(async () => ({
+      json: async () => (expiresAt === undefined ? [] : [{ expires_at: expiresAt }]),
+    }));
+
+    await expect(
+      getTraceExpiration(clickHouseClient({ query }), projectId, traceId),
+    ).resolves.toBe(expected);
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({ query_params: { projectId, traceId } }),
     );
   });
 });

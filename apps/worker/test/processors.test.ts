@@ -42,6 +42,7 @@ describe("worker processors", () => {
 
   it("prices, inserts, and schedules each distinct trace in an ingest batch", async () => {
     const { deps, select, materializeAdd, logger } = dependencies();
+    deps.materializeDelayMs = 3_000;
     select.mockReturnValueOnce(selectQuery([{ organizationId }], true)).mockReturnValueOnce(
       selectQuery([
         {
@@ -71,6 +72,16 @@ describe("worker processors", () => {
     ]);
     expect(dbFunctions.insertSpans).toHaveBeenCalledWith(deps.clickhouse, spans);
     expect(materializeAdd).toHaveBeenCalledTimes(2);
+    expect(materializeAdd).toHaveBeenNthCalledWith(
+      1,
+      "materialize",
+      { projectId, traceId: "a".repeat(32) },
+      {
+        delay: 3_000,
+        jobId: `materialize-${projectId}-${"a".repeat(32)}`,
+        removeOnComplete: true,
+      },
+    );
     expect(logger.info).toHaveBeenCalledWith(
       { jobId: "ingest-1", spans: 3 },
       "ingested trace batch",
@@ -351,6 +362,7 @@ function dependencies() {
     } as unknown as ProcessorDependencies["postgres"],
     queues: { materialize: { add: materializeAdd } } as unknown as LensQueues,
     logger,
+    materializeDelayMs: 1_500,
   };
   return { deps, deleteWhere, logger, materializeAdd, select, update, updates };
 }

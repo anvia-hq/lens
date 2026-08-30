@@ -34,6 +34,7 @@ export type ProcessorDependencies = {
   postgres: PostgresConnection;
   queues: LensQueues;
   logger: Logger;
+  materializeDelayMs: number;
 };
 
 export function createIngestTraceProcessor(deps: ProcessorDependencies) {
@@ -81,7 +82,7 @@ export function createIngestTraceProcessor(deps: ProcessorDependencies) {
         "materialize",
         { projectId: job.data.projectId, traceId },
         {
-          delay: 1_500,
+          delay: deps.materializeDelayMs,
           jobId: materializeJobId(job.data.projectId, traceId),
           removeOnComplete: true,
         },

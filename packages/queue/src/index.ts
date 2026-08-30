@@ -38,6 +38,13 @@ const defaultJobOptions = {
   removeOnFail: { age: 7 * 86_400, count: 10_000 },
 };
 
+export type QueueRetentionOptions = {
+  completedAgeSeconds?: number;
+  completedCount?: number;
+  failedAgeSeconds?: number;
+  failedCount?: number;
+};
+
 export function createRedisConnection(redisUrl: string, options: RedisOptions = {}): IORedis {
   return new IORedis(redisUrl, {
     enableReadyCheck: true,
@@ -46,9 +53,28 @@ export function createRedisConnection(redisUrl: string, options: RedisOptions = 
   });
 }
 
-export function createQueues(redisUrl: string, connectionOptions: RedisOptions = {}): LensQueues {
+export function createQueues(
+  redisUrl: string,
+  connectionOptions: RedisOptions = {},
+  retention: QueueRetentionOptions = {},
+): LensQueues {
   const connection = createRedisConnection(redisUrl, connectionOptions);
-  const options = { connection, defaultJobOptions } satisfies QueueOptions;
+  const options = {
+    connection,
+    defaultJobOptions: {
+      ...defaultJobOptions,
+      removeOnComplete: {
+        ...defaultJobOptions.removeOnComplete,
+        age: retention.completedAgeSeconds ?? defaultJobOptions.removeOnComplete.age,
+        count: retention.completedCount ?? defaultJobOptions.removeOnComplete.count,
+      },
+      removeOnFail: {
+        ...defaultJobOptions.removeOnFail,
+        age: retention.failedAgeSeconds ?? defaultJobOptions.removeOnFail.age,
+        count: retention.failedCount ?? defaultJobOptions.removeOnFail.count,
+      },
+    },
+  } satisfies QueueOptions;
   const ingest = createQueue<IngestTraceJob>(queueNames.ingest, options);
   const evaluations = createQueue<IngestEvaluationsJob>(queueNames.evaluations, options);
   const materialize = createQueue<MaterializeTraceJob>(queueNames.materialize, options);

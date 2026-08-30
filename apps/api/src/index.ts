@@ -11,17 +11,27 @@ const logger = pino({ level: config.LOG_LEVEL, name: "lens-api" });
 const postgres = createPostgres(config);
 const clickhouse = createClickHouse(config);
 const redis = createRedisConnection(config.REDIS_URL);
-const queues = createQueues(config.REDIS_URL);
+const queueRetention = {
+  completedAgeSeconds: config.QUEUE_RETAIN_COMPLETED_AGE_SECONDS,
+  completedCount: config.QUEUE_RETAIN_COMPLETED_COUNT,
+  failedAgeSeconds: config.QUEUE_RETAIN_FAILED_AGE_SECONDS,
+  failedCount: config.QUEUE_RETAIN_FAILED_COUNT,
+};
+const queues = createQueues(config.REDIS_URL, {}, queueRetention);
 const systemHealthRedis = createRedisConnection(config.REDIS_URL, {
   commandTimeout: 2_500,
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,
 });
-const systemHealthQueues = createQueues(config.REDIS_URL, {
-  commandTimeout: 2_500,
-  enableOfflineQueue: false,
-  maxRetriesPerRequest: 1,
-});
+const systemHealthQueues = createQueues(
+  config.REDIS_URL,
+  {
+    commandTimeout: 2_500,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+  },
+  queueRetention,
+);
 const auth = createAuth(postgres.db, config);
 const app = createApp({
   config,

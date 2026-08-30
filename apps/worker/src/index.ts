@@ -24,7 +24,16 @@ const config = loadConfig();
 const logger = pino({ level: config.LOG_LEVEL, name: "lens-worker" });
 const clickhouse = createClickHouse(config);
 const postgres = createPostgres(config);
-const queues = createQueues(config.REDIS_URL);
+const queues = createQueues(
+  config.REDIS_URL,
+  {},
+  {
+    completedAgeSeconds: config.QUEUE_RETAIN_COMPLETED_AGE_SECONDS,
+    completedCount: config.QUEUE_RETAIN_COMPLETED_COUNT,
+    failedAgeSeconds: config.QUEUE_RETAIN_FAILED_AGE_SECONDS,
+    failedCount: config.QUEUE_RETAIN_FAILED_COUNT,
+  },
+);
 const ingestConnection = createRedisConnection(config.REDIS_URL);
 const materializeConnection = createRedisConnection(config.REDIS_URL);
 const evaluationConnection = createRedisConnection(config.REDIS_URL);
@@ -40,22 +49,28 @@ const workerHeartbeat = startWorkerHeartbeat(
   heartbeatConnection,
   process.env.HOSTNAME || randomUUID(),
 );
-const processorDeps = { clickhouse, postgres, queues, logger };
+const processorDeps = {
+  clickhouse,
+  postgres,
+  queues,
+  logger,
+  materializeDelayMs: config.MATERIALIZE_DELAY_MS,
+};
 
 const ingestWorker = new Worker<IngestTraceJob>(
   queueNames.ingest,
   createIngestTraceProcessor(processorDeps),
-  { connection: ingestConnection, concurrency: 8 },
+  { connection: ingestConnection, concurrency: config.WORKER_INGEST_CONCURRENCY },
 );
 const materializeWorker = new Worker<MaterializeTraceJob>(
   queueNames.materialize,
   createMaterializeTraceProcessor(processorDeps),
-  { connection: materializeConnection, concurrency: 8 },
+  { connection: materializeConnection, concurrency: config.WORKER_MATERIALIZE_CONCURRENCY },
 );
 const evaluationWorker = new Worker<IngestEvaluationsJob>(
   queueNames.evaluations,
   createEvaluationProcessor(processorDeps),
-  { connection: evaluationConnection, concurrency: 8 },
+  { connection: evaluationConnection, concurrency: config.WORKER_EVALUATION_CONCURRENCY },
 );
 const maintenanceWorker = new Worker(
   queueNames.maintenance,
