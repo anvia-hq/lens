@@ -6,11 +6,11 @@ import {
 } from "@lens/db";
 import { Hono } from "hono";
 import { requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession } from "../../utils/http.js";
+import { apiError, queryInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { recordQualityGateAlert } from "../alerts/events.js";
 import { checkEvaluationRuns } from "../quality-gates/check.js";
-import { parseRunRequest } from "./schema.js";
+import { runQuerySchema } from "./schema.js";
 
 export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
@@ -48,7 +48,7 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       }
       return c.json(checked.comparison);
     })
-    .get("/:projectId/evaluation-runs", async (c) => {
+    .get("/:projectId/evaluation-runs", queryInput(runQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -56,11 +56,10 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseRunRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       return c.json(await listEvaluationRuns(deps.clickhouse, projectId, parsed));
     })
-    .get("/:projectId/evaluation-runs/facets", async (c) => {
+    .get("/:projectId/evaluation-runs/facets", queryInput(runQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -68,8 +67,7 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseRunRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       return c.json(await listEvaluationRunFacets(deps.clickhouse, projectId, parsed));
     })
     .get("/:projectId/evaluation-runs/:runId", async (c) => {

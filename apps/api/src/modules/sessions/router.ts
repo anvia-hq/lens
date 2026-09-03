@@ -1,13 +1,13 @@
 import { getSession, listSessionFacets, listSessions } from "@lens/db";
 import { Hono } from "hono";
 import { requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession } from "../../utils/http.js";
+import { apiError, queryInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { parseSessionDetailRequest, parseSessionRequest } from "./schema.js";
+import { sessionDetailQuerySchema, sessionQuerySchema } from "./schema.js";
 
 export const createSessionsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
-    .get("/:projectId/sessions", async (c) => {
+    .get("/:projectId/sessions", queryInput(sessionQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -15,11 +15,10 @@ export const createSessionsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseSessionRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       return c.json(await listSessions(deps.clickhouse, projectId, parsed));
     })
-    .get("/:projectId/sessions/facets", async (c) => {
+    .get("/:projectId/sessions/facets", queryInput(sessionQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -27,11 +26,10 @@ export const createSessionsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseSessionRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       return c.json(await listSessionFacets(deps.clickhouse, projectId, parsed));
     })
-    .get("/:projectId/sessions/:sessionId", async (c) => {
+    .get("/:projectId/sessions/:sessionId", queryInput(sessionDetailQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -39,8 +37,7 @@ export const createSessionsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseSessionDetailRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       const session = await getSession(
         deps.clickhouse,
         projectId,

@@ -1,5 +1,5 @@
-export type MemberRole = "admin" | "member";
+import { z } from "zod";
 
-export function parseMemberRole(value: unknown): MemberRole | undefined {
-  return value === "admin" || value === "member" ? value : undefined;
-}
+export const memberRoleSchema = z.object({ role: z.enum(["admin", "member"]) });
+
+export type MemberRole = z.infer<typeof memberRoleSchema>["role"];

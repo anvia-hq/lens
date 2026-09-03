@@ -12,15 +12,15 @@ import {
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import { apiError, jsonInput, queryInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { recordHumanReviewAlert } from "../alerts/events.js";
 import { traceReviewResult } from "./review.js";
-import { parseTraceRequest } from "./schema.js";
+import { traceQuerySchema } from "./schema.js";
 
 export const createTracesRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
-    .get("/:projectId/traces", async (c) => {
+    .get("/:projectId/traces", queryInput(traceQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -28,8 +28,7 @@ export const createTracesRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseTraceRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       const page = await listTraces(deps.clickhouse, projectId, {
         ...parsed.filters,
         page: parsed.page,
@@ -39,7 +38,7 @@ export const createTracesRouter = (deps: ApiDependencies) =>
       });
       return c.json(page);
     })
-    .get("/:projectId/traces/facets", async (c) => {
+    .get("/:projectId/traces/facets", queryInput(traceQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -47,8 +46,7 @@ export const createTracesRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const parsed = parseTraceRequest(c);
-      if (typeof parsed === "string") return apiError(c, 400, "invalid_query", parsed);
+      const parsed = c.req.valid("query");
       return c.json(await listTraceFacets(deps.clickhouse, projectId, parsed.filters));
     })
     .get("/:projectId/traces/:traceId", async (c) => {
@@ -93,29 +91,32 @@ export const createTracesRouter = (deps: ApiDependencies) =>
         ? apiError(c, 404, "not_found", "Span not found")
         : cachedJson(c, JSON.stringify(span));
     })
-    .put("/:projectId/traces/:traceId/review", async (c) => {
-      const projectId = c.req.param("projectId");
-      const session = requiredSession(c);
-      const access = await requireProjectAccess(deps.postgres.db, projectId, session.user.id);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const input = traceReviewInputSchema.safeParse(await safeJson(c));
-      if (!input.success) return apiError(c, 400, "invalid_review", "Invalid trace review");
-      const traceId = c.req.param("traceId");
-      const trace = await getTraceSummary(deps.clickhouse, projectId, traceId);
-      if (trace === undefined) return apiError(c, 404, "not_found", "Trace not found");
-      const result = traceReviewResult({
-        projectId,
-        trace,
-        expiresAt: await getTraceExpiration(deps.clickhouse, projectId, traceId),
-        input: input.data,
-        reviewer: { id: session.user.id, name: session.user.name },
-      });
-      await insertEvaluations(deps.clickhouse, [result]);
-      await recordHumanReviewAlert(deps.postgres, trace, result).catch((error: unknown) =>
-        deps.logger.warn({ err: error, projectId, traceId }, "failed to record review alert"),
-      );
-      return c.json(result);
-    });
+    .put(
+      "/:projectId/traces/:traceId/review",
+      jsonInput(traceReviewInputSchema, "invalid_review", "Invalid trace review"),
+      async (c) => {
+        const projectId = c.req.param("projectId");
+        const session = requiredSession(c);
+        const access = await requireProjectAccess(deps.postgres.db, projectId, session.user.id);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        const input = c.req.valid("json");
+        const traceId = c.req.param("traceId");
+        const trace = await getTraceSummary(deps.clickhouse, projectId, traceId);
+        if (trace === undefined) return apiError(c, 404, "not_found", "Trace not found");
+        const result = traceReviewResult({
+          projectId,
+          trace,
+          expiresAt: await getTraceExpiration(deps.clickhouse, projectId, traceId),
+          input,
+          reviewer: { id: session.user.id, name: session.user.name },
+        });
+        await insertEvaluations(deps.clickhouse, [result]);
+        await recordHumanReviewAlert(deps.postgres, trace, result).catch((error: unknown) =>
+          deps.logger.warn({ err: error, projectId, traceId }, "failed to record review alert"),
+        );
+        return c.json(result);
+      },
+    );
 
 export function cachedJson(c: Context<AppEnv>, body: string): Response {
   const tag = `"${createHash("sha256").update(body).digest("base64url")}"`;

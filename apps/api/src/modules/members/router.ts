@@ -2,9 +2,9 @@ import { invitation, member, user } from "@lens/db";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { appMembership, canManage } from "../../utils/access.js";
-import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
-import { parseMemberRole } from "./schema.js";
+import { memberRoleSchema } from "./schema.js";
 
 export const createMembersRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
@@ -56,39 +56,39 @@ export const createMembersRouter = (deps: ApiDependencies) =>
         })),
       });
     })
-    .patch("/:memberId", async (c) => {
-      const session = requiredSession(c);
-      const app = await appMembership(deps.postgres.db, session.user.id);
-      if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
-      if (!canManage(app.membership.role)) {
-        return apiError(c, 403, "forbidden", "Admin access is required");
-      }
-      const body = await safeJson(c);
-      const role = parseMemberRole(body?.role);
-      if (role === undefined) {
-        return apiError(c, 400, "invalid_role", "Role must be admin or member");
-      }
-      const [target] = await deps.postgres.db
-        .select()
-        .from(member)
-        .where(
-          and(
-            eq(member.id, c.req.param("memberId")),
-            eq(member.organizationId, app.organization.id),
-          ),
-        )
-        .limit(1);
-      if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
-      if (target.role === "owner") {
-        return apiError(c, 403, "owner_protected", "The owner role cannot be changed");
-      }
-      const [updated] = await deps.postgres.db
-        .update(member)
-        .set({ role })
-        .where(eq(member.id, target.id))
-        .returning();
-      return c.json({ id: updated?.id, role: updated?.role });
-    })
+    .patch(
+      "/:memberId",
+      jsonInput(memberRoleSchema, "invalid_role", "Role must be admin or member"),
+      async (c) => {
+        const session = requiredSession(c);
+        const app = await appMembership(deps.postgres.db, session.user.id);
+        if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+        if (!canManage(app.membership.role)) {
+          return apiError(c, 403, "forbidden", "Admin access is required");
+        }
+        const { role } = c.req.valid("json");
+        const [target] = await deps.postgres.db
+          .select()
+          .from(member)
+          .where(
+            and(
+              eq(member.id, c.req.param("memberId")),
+              eq(member.organizationId, app.organization.id),
+            ),
+          )
+          .limit(1);
+        if (target === undefined) return apiError(c, 404, "not_found", "Member not found");
+        if (target.role === "owner") {
+          return apiError(c, 403, "owner_protected", "The owner role cannot be changed");
+        }
+        const [updated] = await deps.postgres.db
+          .update(member)
+          .set({ role })
+          .where(eq(member.id, target.id))
+          .returning();
+        return c.json({ id: updated?.id, role: updated?.role });
+      },
+    )
     .delete("/:memberId", async (c) => {
       const session = requiredSession(c);
       const app = await appMembership(deps.postgres.db, session.user.id);
