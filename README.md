@@ -189,16 +189,24 @@ OIDC_CLIENT_ID=lens
 OIDC_CLIENT_SECRET=replace-with-the-oidc-client-secret
 OIDC_SCOPES=openid profile email
 OIDC_REQUIRE_ISSUER_VALIDATION=false
+OIDC_TOKEN_ENDPOINT_AUTH=auto
+OIDC_REQUIRE_VERIFIED_EMAIL=false
 OIDC_AUTO_PROVISION=true
 OIDC_ALLOWED_DOMAINS=example.com
 PASSWORD_LOGIN_ENABLED=true
 ```
 
 Register `${PUBLIC_APP_URL}/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
-Lens requires the provider to return a verified email. Existing members and users with pending
-invitations can sign in through OIDC. When `OIDC_AUTO_PROVISION=true`, users whose verified email
-matches `OIDC_ALLOWED_DOMAINS` join the workspace as members automatically. Multiple domains may be
-separated by spaces or commas.
+`OIDC_TOKEN_ENDPOINT_AUTH` controls how Lens authenticates to the provider's token endpoint: `auto`
+(default) follows the provider's own discovery metadata and falls back to the OAuth default
+`client_secret_basic` when the metadata is silent; set `basic` or `post` to force a method for
+providers whose metadata is wrong. Existing members and users with pending invitations can sign in
+through OIDC even when the provider never asserts `email_verified`, because admin intent is what
+grants their access. When `OIDC_AUTO_PROVISION=true`, users whose provider-verified email matches
+`OIDC_ALLOWED_DOMAINS` join the workspace as members automatically; auto-provisioning always
+requires a verified email, since the email domain itself is what grants access. Multiple domains may
+be separated by spaces or commas. Set `OIDC_REQUIRE_VERIFIED_EMAIL=true` to additionally require a
+provider-verified email for invitations and existing members.
 
 Keep password login enabled until OIDC is confirmed working. Afterward,
 `PASSWORD_LOGIN_ENABLED=false` makes OIDC the only login method; the initial owner setup form remains

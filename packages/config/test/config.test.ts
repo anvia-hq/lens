@@ -9,7 +9,8 @@ describe("loadConfig", () => {
     const config = loadConfig({});
     expect(config.API_PORT).toBe(3001);
     expect(config.PASSWORD_LOGIN_ENABLED).toBe(true);
-    expect(config.OIDC_ENABLED).toBe(false);
+    expect(config.OIDC_TOKEN_ENDPOINT_AUTH).toBe("auto");
+    expect(config.OIDC_REQUIRE_VERIFIED_EMAIL).toBe(false);
     expect(config.OIDC_SCOPES).toEqual(["openid", "profile", "email"]);
     expect(config.OTLP_MAX_BODY_BYTES).toBe(10 * 1024 * 1024);
     expect(config.MCP_RATE_LIMIT_PER_MINUTE).toBe(120);
@@ -30,6 +31,8 @@ describe("loadConfig", () => {
       OIDC_AUTO_PROVISION: "true",
       OIDC_ALLOWED_DOMAINS: "Example.COM, subsidiary.example.com",
       OIDC_REQUIRE_ISSUER_VALIDATION: "true",
+      OIDC_TOKEN_ENDPOINT_AUTH: "post",
+      OIDC_REQUIRE_VERIFIED_EMAIL: "true",
       PASSWORD_LOGIN_ENABLED: "false",
     });
 
@@ -40,7 +43,8 @@ describe("loadConfig", () => {
       OIDC_ALLOWED_DOMAINS: ["example.com", "subsidiary.example.com"],
       OIDC_AUTO_PROVISION: true,
       OIDC_REQUIRE_ISSUER_VALIDATION: true,
-      PASSWORD_LOGIN_ENABLED: false,
+      OIDC_TOKEN_ENDPOINT_AUTH: "post",
+      OIDC_REQUIRE_VERIFIED_EMAIL: true,
     });
   });
 
@@ -127,6 +131,7 @@ describe("loadConfig", () => {
     [{ SMTP_SECURE: "yes" }, "SMTP_SECURE"],
     [{ SMTP_USER: "lens" }, "SMTP_PASSWORD"],
     [{ LOG_LEVEL: "verbose" }, "LOG_LEVEL"],
+    [{ OIDC_TOKEN_ENDPOINT_AUTH: "digest" }, "OIDC_TOKEN_ENDPOINT_AUTH"],
   ])("reports invalid configuration for %s", (source, field) => {
     expect(() => loadConfig(source)).toThrow(
       new RegExp(`Invalid Anvia Lens configuration.*${field}`, "s"),

@@ -105,6 +105,19 @@ const oidcDenied = () =>
     message: "Your account is not approved for this Anvia Lens workspace",
   });
 
+function requiresVerifiedOidcEmail(config: LensConfig, access: OidcAccess): boolean {
+  // Domain auto-provisioning grants access from the email address itself, so it
+  // always demands a provider-verified address. Invitations and existing
+  // memberships carry admin intent and sign in even without email_verified.
+  return config.OIDC_REQUIRE_VERIFIED_EMAIL || access.invitationId === undefined;
+}
+
+const oidcEmailUnverified = () =>
+  new APIError("FORBIDDEN", {
+    code: "oidc_email_unverified",
+    message: "The identity provider must verify your email address",
+  });
+
 export function oidcDatabaseHooks(db: LensPostgres, config: LensConfig) {
   const approvedAccess = new WeakMap<object, OidcAccess>();
 
@@ -113,14 +126,11 @@ export function oidcDatabaseHooks(db: LensPostgres, config: LensConfig) {
       create: {
         async before(user: { email: string; emailVerified: boolean }, context: OidcHookContext) {
           if (!isOidcCallback(context, config.OIDC_PROVIDER_ID)) return;
-          if (!user.emailVerified) {
-            throw new APIError("FORBIDDEN", {
-              code: "oidc_email_unverified",
-              message: "The identity provider must verify your email address",
-            });
-          }
           const access = await resolveOidcAccess(db, user.email, config);
           if (access === undefined) throw oidcDenied();
+          if (!user.emailVerified && requiresVerifiedOidcEmail(config, access)) {
+            throw oidcEmailUnverified();
+          }
           if (context !== null) approvedAccess.set(context, access);
         },
       },
@@ -151,12 +161,15 @@ export function oidcDatabaseHooks(db: LensPostgres, config: LensConfig) {
             .from(userTable)
             .where(eq(userTable.id, session.userId))
             .limit(1);
-          if (user === undefined || !user.emailVerified) throw oidcDenied();
+          if (user === undefined) throw oidcDenied();
 
           const access =
             (context === null ? undefined : approvedAccess.get(context)) ??
             (await resolveOidcAccess(db, user.email, config));
           if (access === undefined) throw oidcDenied();
+          if (!user.emailVerified && requiresVerifiedOidcEmail(config, access)) {
+            throw oidcEmailUnverified();
+          }
 
           const activeOrganizationId = await db.transaction(async (tx) => {
             await tx

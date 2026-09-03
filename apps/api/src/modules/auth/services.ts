@@ -10,6 +10,7 @@ import nodemailer from "nodemailer";
 import { apiError } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { isRecoverableOidcUser, oidcDatabaseHooks } from "./oidc.js";
+import { createOidcTokenExchange } from "./oidc-token-auth.js";
 import { invitationOnboarding } from "./onboarding.js";
 
 function requiredOidcSetting(value: string | undefined, name: string): string {
@@ -30,6 +31,7 @@ function oidcPlugins(config: LensConfig) {
           scopes: config.OIDC_SCOPES,
           pkce: true,
           requireIssuerValidation: config.OIDC_REQUIRE_ISSUER_VALIDATION,
+          getToken: createOidcTokenExchange(config),
         },
       ],
     }),
@@ -62,7 +64,20 @@ export function createAuth(db: LensPostgres, config: LensConfig) {
       provider: "pg",
       schema: authSchema,
     }),
-    ...(config.OIDC_ENABLED ? { databaseHooks: oidcDatabaseHooks(db, config) } : {}),
+    ...(config.OIDC_ENABLED
+      ? {
+          databaseHooks: oidcDatabaseHooks(db, config),
+          account: {
+            accountLinking: {
+              // The admin-configured OIDC provider is the identity root; its
+              // assertions link accounts even when it never asserts
+              // email_verified. Workspace access is still gated by the hooks.
+              trustedProviders: [config.OIDC_PROVIDER_ID],
+              requireLocalEmailVerified: false,
+            },
+          },
+        }
+      : {}),
     emailAndPassword: {
       enabled: config.PASSWORD_LOGIN_ENABLED,
       disableSignUp: true,

@@ -15,17 +15,89 @@ describe("OIDC workspace access", () => {
     expect(isOidcEmailAllowed("person@sub.example.com", ["example.com"])).toBe(false);
   });
 
-  it("rejects unverified emails before querying workspace access", async () => {
+  it("rejects unverified auto-provisioned emails", async () => {
     const hooks = oidcDatabaseHooks(
-      {} as never,
+      readDatabase([], [{ id: "workspace-1" }]) as never,
       {
         OIDC_PROVIDER_ID: "oidc",
+        OIDC_AUTO_PROVISION: true,
+        OIDC_ALLOWED_DOMAINS: ["example.com"],
       } as never,
     );
 
     await expect(
       hooks.user.create.before(
         { email: "person@example.com", emailVerified: false },
+        { path: "/oauth2/callback/oidc" },
+      ),
+    ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });
+  });
+
+  it("admits invited users whose provider never asserts email_verified", async () => {
+    const database = mockDatabase([
+      [{ id: "invitation-1", organizationId: "workspace-1", role: "member" }],
+      [],
+      [{ email: "person@example.com", emailVerified: false }],
+      [{ organizationId: "workspace-1" }],
+    ]);
+    const hooks = oidcDatabaseHooks(
+      database as never,
+      {
+        OIDC_PROVIDER_ID: "oidc",
+        OIDC_AUTO_PROVISION: false,
+        OIDC_ALLOWED_DOMAINS: [],
+      } as never,
+    );
+    const context = { path: "/oauth2/callback/oidc" };
+
+    await expect(
+      hooks.user.create.before({ email: "person@example.com", emailVerified: false }, context),
+    ).resolves.toBeUndefined();
+    await expect(
+      hooks.session.create.before({ userId: "user-1", activeOrganizationId: null }, context),
+    ).resolves.toEqual({
+      data: { userId: "user-1", activeOrganizationId: "workspace-1" },
+    });
+    expect(database.updateQueries[0]?.set).toHaveBeenCalledWith({ status: "accepted" });
+  });
+
+  it("requires verified emails for every sign-in when OIDC_REQUIRE_VERIFIED_EMAIL is set", async () => {
+    const hooks = oidcDatabaseHooks(
+      readDatabase([
+        [{ id: "invitation-1", organizationId: "workspace-1", role: "member" }],
+      ]) as never,
+      {
+        OIDC_PROVIDER_ID: "oidc",
+        OIDC_REQUIRE_VERIFIED_EMAIL: true,
+      } as never,
+    );
+
+    await expect(
+      hooks.user.create.before(
+        { email: "person@example.com", emailVerified: false },
+        { path: "/oauth2/callback/oidc" },
+      ),
+    ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });
+  });
+
+  it("rejects unverified auto-provision fallback at session creation", async () => {
+    const hooks = oidcDatabaseHooks(
+      mockDatabase([
+        [],
+        [{ email: "person@example.com", emailVerified: false }],
+        [],
+        [{ id: "workspace-1" }],
+      ]) as never,
+      {
+        OIDC_PROVIDER_ID: "oidc",
+        OIDC_AUTO_PROVISION: true,
+        OIDC_ALLOWED_DOMAINS: ["example.com"],
+      } as never,
+    );
+
+    await expect(
+      hooks.session.create.before(
+        { userId: "user-1", activeOrganizationId: null },
         { path: "/oauth2/callback/oidc" },
       ),
     ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });

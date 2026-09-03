@@ -74,6 +74,8 @@ const envSchema = z
     OIDC_CLIENT_SECRET: optionalString,
     OIDC_SCOPES: caseSensitiveStringList.default(["openid", "profile", "email"]),
     OIDC_REQUIRE_ISSUER_VALIDATION: booleanString,
+    OIDC_TOKEN_ENDPOINT_AUTH: z.enum(["auto", "basic", "post"]).default("auto"),
+    OIDC_REQUIRE_VERIFIED_EMAIL: booleanString,
     OIDC_AUTO_PROVISION: booleanString,
     OIDC_ALLOWED_DOMAINS: domainList.default([]),
     INGESTION_KEY_PEPPER: z.string().min(16).default("development-ingestion-key-pepper"),
