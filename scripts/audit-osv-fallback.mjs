@@ -95,7 +95,12 @@ export function parseLockfile(text) {
       }
       continue;
     }
-    if ((section === "packages" || section === "snapshots") && snapshotKey && depTarget && indent === 6) {
+    if (
+      (section === "packages" || section === "snapshots") &&
+      snapshotKey &&
+      depTarget &&
+      indent === 6
+    ) {
       const match = /^(?:'([^']+)'|([^:]+)):\s?(.*)$/.exec(trimmed);
       if (match) depTarget.set(match[1] ?? match[2], match[3]);
     }
@@ -185,7 +190,9 @@ async function main() {
   }
 
   if (findings.length === 0) {
-    console.log(`0 high/critical advisories across ${packages.length} production dependencies (via OSV)`);
+    console.log(
+      `0 high/critical advisories across ${packages.length} production dependencies (via OSV)`,
+    );
     process.exit(0);
   }
 
