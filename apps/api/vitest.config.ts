@@ -1,7 +1,11 @@
 import { defineConfig } from "vitest/config";
-
 export default defineConfig({
   test: {
+    exclude: [
+      "**/node_modules/**",
+      "**/.git/**",
+      ...(process.env.LENS_INTEGRATION === "1" ? [] : ["test/integration/**"]),
+    ],
     coverage: {
       provider: "v8",
       // These files contain parsing, security, ingestion, and gate-evaluation logic. Routers remain
