@@ -52,7 +52,22 @@ jobs:
         run: pnpm test:coverage
 
       - name: Audit production dependencies
-        run: pnpm audit:prod
+        # pnpm audit fails both on genuine high/critical findings and on npm's
+        # bulk-advisory endpoint having outages while the registry itself stays
+        # up (2026-09-04: ~3h of timeouts on main). On endpoint unavailability,
+        # fall back to the OSV database (same GitHub advisory data) so the gate
+        # keeps working; real findings still fail immediately.
+        run: |
+          if out=$(pnpm audit:prod 2>&1); then
+            printf '%s\n' "$out"
+            exit 0
+          fi
+          printf '%s\n' "$out"
+          if ! grep -qE 'security/advisories/bulk error|aborted due to timeout' <<<"$out"; then
+            exit 1
+          fi
+          echo "::warning::npm advisory endpoint unreachable; falling back to OSV"
+          node scripts/audit-osv-fallback.mjs
 
   containers:
     name: Containers
