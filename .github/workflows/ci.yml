@@ -52,24 +52,22 @@ jobs:
         run: pnpm test:coverage
 
       - name: Audit production dependencies
-        # The npm bulk-advisory endpoint has recurring partial outages while the
-        # registry itself stays up (e.g. 2026-09-04: ~3h of timeouts on main).
-        # Retry only network-class failures with backoff; genuine audit findings
-        # still fail the gate immediately.
+        # pnpm audit fails both on genuine high/critical findings and on npm's
+        # bulk-advisory endpoint having outages while the registry itself stays
+        # up (2026-09-04: ~3h of timeouts on main). On endpoint unavailability,
+        # fall back to the OSV database (same GitHub advisory data) so the gate
+        # keeps working; real findings still fail immediately.
         run: |
-          for attempt in 1 2 3 4 5; do
-            if out=$(pnpm audit:prod 2>&1); then
-              printf '%s\n' "$out"
-              exit 0
-            fi
+          if out=$(pnpm audit:prod 2>&1); then
             printf '%s\n' "$out"
-            if ! grep -qE 'security/advisories/bulk error|aborted due to timeout' <<<"$out"; then
-              exit 1
-            fi
-            echo "::warning::npm advisory endpoint unreachable (attempt ${attempt}/5); retrying in 3 minutes"
-            if [ "$attempt" -lt 5 ]; then sleep 180; fi
-          done
-          exit 1
+            exit 0
+          fi
+          printf '%s\n' "$out"
+          if ! grep -qE 'security/advisories/bulk error|aborted due to timeout' <<<"$out"; then
+            exit 1
+          fi
+          echo "::warning::npm advisory endpoint unreachable; falling back to OSV"
+          node scripts/audit-osv-fallback.mjs
 
   containers:
     name: Containers
