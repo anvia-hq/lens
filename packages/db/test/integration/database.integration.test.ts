@@ -113,7 +113,7 @@ describe.sequential("database integration", () => {
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'projects', 'project_mcp_tokens', 'quality_gates')
+        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'mcp_tokens', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
@@ -124,7 +124,7 @@ describe.sequential("database integration", () => {
       "managed_dataset_cases",
       "managed_dataset_versions",
       "managed_datasets",
-      "project_mcp_tokens",
+      "mcp_tokens",
       "projects",
       "quality_gates",
     ]);

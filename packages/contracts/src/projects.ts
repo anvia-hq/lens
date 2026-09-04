@@ -105,9 +105,8 @@ export type CreatedProjectApiKey = ProjectApiKey & {
   secretKey: string;
 };
 
-export type ProjectMcpToken = {
+export type McpToken = {
   id: string;
-  projectId: string;
   name: string;
   tokenPrefix: string;
   allowRawPayloads: boolean;
@@ -117,7 +116,7 @@ export type ProjectMcpToken = {
   revokedAt: string | null;
 };
 
-export type CreatedProjectMcpToken = ProjectMcpToken & {
+export type CreatedMcpToken = McpToken & {
   token: string;
 };
 

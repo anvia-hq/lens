@@ -1,4 +1,4 @@
-import { jobOutbox, jobOutboxValues, project, projectApiKey, projectMcpToken } from "@lens/db";
+import { jobOutbox, jobOutboxValues, project, projectApiKey } from "@lens/db";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { appMembership, canManage, requireProjectAccess } from "../../utils/access.js";
@@ -111,10 +111,6 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
           .update(projectApiKey)
           .set({ revokedAt: new Date() })
           .where(eq(projectApiKey.projectId, access.project.id));
-        await tx
-          .update(projectMcpToken)
-          .set({ revokedAt: new Date() })
-          .where(eq(projectMcpToken.projectId, access.project.id));
         await tx.insert(jobOutbox).values(
           jobOutboxValues({
             queue: "maintenance",

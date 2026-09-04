@@ -8,10 +8,10 @@ import type { ApiDependencies, AppEnv } from "../src/utils/types.js";
 const access = vi.hoisted(() => ({ role: "owner" }));
 
 vi.mock("../src/utils/access.js", () => ({
-  requireProjectAccess: vi.fn().mockImplementation(() =>
+  appMembership: vi.fn().mockImplementation(() =>
     Promise.resolve({
-      role: access.role,
-      project: { id: "10000000-0000-4000-8000-000000000001" },
+      membership: { role: access.role },
+      organization: { id: "org-1" },
     }),
   ),
   canManage: (role: string) => role === "owner" || role === "admin",
@@ -22,9 +22,9 @@ beforeEach(() => {
 });
 
 describe("MCP token management", () => {
-  it("creates a project-scoped token and only returns its secret once", async () => {
+  it("creates a workspace-global token and only returns its secret once", async () => {
     const { app, inserted } = testApp();
-    const response = await app.request("/project-1/mcp-tokens", {
+    const response = await app.request("/mcp-tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "AI assistant", allowRawPayloads: true, expiresAt: null }),
@@ -34,17 +34,17 @@ describe("MCP token management", () => {
     expect(body.token).toMatch(/^mcp-lens-[A-Za-z0-9_-]{43}$/);
     expect(body.tokenPrefix).toBe(body.token.slice(0, 21));
     expect(inserted()).toMatchObject({
-      projectId: "10000000-0000-4000-8000-000000000001",
       name: "AI assistant",
       allowRawPayloads: true,
       createdBy: "user-1",
     });
+    expect(inserted()).not.toHaveProperty("projectId");
     expect(inserted()).not.toHaveProperty("token");
   });
 
   it("lists token metadata without returning secrets or hashes", async () => {
     const { app } = testApp();
-    const response = await app.request("/project-1/mcp-tokens");
+    const response = await app.request("/mcp-tokens");
     expect(response.status).toBe(200);
     const text = await response.text();
     expect(JSON.parse(text)).toMatchObject({
@@ -53,28 +53,28 @@ describe("MCP token management", () => {
     expect(text).not.toContain("tokenHash");
     expect(text).not.toContain("stored-token-hash");
     expect(text).not.toContain('"token"');
+    expect(text).not.toContain("projectId");
   });
 
-  it("revokes a token through the project-scoped endpoint", async () => {
+  it("revokes a token by id alone", async () => {
     const { app, update, updatePredicate, updateWhere } = testApp();
-    const response = await app.request(
-      "/project-1/mcp-tokens/20000000-0000-4000-8000-000000000001",
-      { method: "DELETE" },
-    );
+    const response = await app.request("/mcp-tokens/20000000-0000-4000-8000-000000000001", {
+      method: "DELETE",
+    });
     expect(response.status).toBe(204);
     expect(update).toHaveBeenCalledOnce();
     expect(updateWhere).toHaveBeenCalledOnce();
     const predicate = updatePredicate();
     expect(predicate).toBeDefined();
     expect(new PgDialect().sqlToQuery(predicate as SQL)).toMatchObject({
-      sql: expect.stringContaining('"project_mcp_tokens"."project_id" = $2'),
-      params: ["20000000-0000-4000-8000-000000000001", "10000000-0000-4000-8000-000000000001"],
+      sql: expect.stringContaining('"mcp_tokens"."id" = $1'),
+      params: ["20000000-0000-4000-8000-000000000001"],
     });
   });
 
   it("rejects an expiry that is not in the future", async () => {
     const { app, insert } = testApp();
-    const response = await app.request("/project-1/mcp-tokens", {
+    const response = await app.request("/mcp-tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Expired", expiresAt: "2020-01-01T00:00:00.000Z" }),
@@ -84,9 +84,9 @@ describe("MCP token management", () => {
   });
 
   it.each([
-    ["create", "/project-1/mcp-tokens", "POST"],
-    ["list", "/project-1/mcp-tokens", "GET"],
-    ["revoke", "/project-1/mcp-tokens/20000000-0000-4000-8000-000000000001", "DELETE"],
+    ["create", "/mcp-tokens", "POST"],
+    ["list", "/mcp-tokens", "GET"],
+    ["revoke", "/mcp-tokens/20000000-0000-4000-8000-000000000001", "DELETE"],
   ])("requires an owner or admin to %s tokens", async (_action, path, method) => {
     access.role = "member";
     const { app, insert, select, update } = testApp();
@@ -112,7 +112,6 @@ function testApp() {
   const returning = vi.fn(async () => [
     {
       id: "20000000-0000-4000-8000-000000000001",
-      projectId: "10000000-0000-4000-8000-000000000001",
       name: insertedValue?.name,
       tokenPrefix: insertedValue?.tokenPrefix,
       tokenHash: insertedValue?.tokenHash,
@@ -131,7 +130,6 @@ function testApp() {
   const insert = vi.fn(() => ({ values }));
   const storedRow = {
     id: "20000000-0000-4000-8000-000000000001",
-    projectId: "10000000-0000-4000-8000-000000000001",
     name: "AI assistant",
     tokenPrefix: "mcp-lens-prefix",
     tokenHash: "stored-token-hash",
@@ -143,7 +141,7 @@ function testApp() {
     revokedAt: null,
   };
   const orderBy = vi.fn(async () => [storedRow]);
-  const select = vi.fn(() => ({ from: () => ({ where: () => ({ orderBy }) }) }));
+  const select = vi.fn(() => ({ from: () => ({ orderBy }) }));
   let predicate: SQL | undefined;
   const updateWhere = vi.fn(async (value: SQL) => {
     predicate = value;
@@ -158,7 +156,7 @@ function testApp() {
     c.set("session", { user: { id: "user-1" } } as never);
     await next();
   });
-  app.route("/", createMcpTokensRouter(deps));
+  app.route("/mcp-tokens", createMcpTokensRouter(deps));
   return {
     app,
     insert,

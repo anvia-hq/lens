@@ -23,8 +23,8 @@ Langfuse OTLP instrumentation.
 
 ## Connect an AI assistant with MCP
 
-Owners and admins can create a project-scoped MCP token from **Project settings → MCP access**.
-Lens exposes a remote Streamable HTTP endpoint at:
+Owners and admins can create a workspace-wide MCP token from the **MCP Access** page. One token
+works across every project in the workspace. Lens exposes a remote Streamable HTTP endpoint at:
 
 ```text
 https://lens.example.com/api/mcp
@@ -46,11 +46,15 @@ Configure a remote MCP client with that URL and the one-time token:
 }
 ```
 
-The MCP server is read-only and scoped to the token's project. It can inspect overview metrics,
-traces, spans, sessions, and alert incidents. Raw inputs, outputs, attributes, events, links, and
-evaluation payloads require both an MCP token created with **Allow raw payload access** and an
-explicit `includePayload` argument on the relevant tool call. Tokens can be revoked immediately and
-may have an optional expiry.
+The MCP server is read-only and workspace-wide. It can inspect overview metrics, traces, spans,
+sessions, and alert incidents. Every data tool takes a `projectId` argument; call `list_projects`
+first to discover the available projects and pass a returned `id` to the other tools. Raw inputs,
+outputs, attributes, events, links, and evaluation payloads require both an MCP token created with
+**Allow raw payload access** and an explicit `includePayload` argument on the relevant tool call.
+Tokens can be revoked immediately and may have an optional expiry.
+
+Upgrading from a Lens release before workspace-wide tokens: previously issued project-scoped MCP
+tokens are revoked by the database migration and must be recreated from the **MCP Access** page.
 
 Use HTTPS whenever Lens is available beyond localhost. Clients must support Streamable HTTP and a
 static `Authorization` header; OAuth and local stdio connections are not included in this release.

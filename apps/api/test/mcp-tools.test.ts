@@ -1,5 +1,5 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createLensMcpServer, type McpPrincipal } from "../src/modules/mcp/tools.js";
 import { createApiMetrics } from "../src/utils/metrics.js";
 import type { ApiDependencies } from "../src/utils/types.js";
@@ -12,29 +12,50 @@ const db = vi.hoisted(() => ({
   listSessions: vi.fn(),
   listTraces: vi.fn(),
   queryMetrics: vi.fn(),
+  projectRow: undefined as Record<string, unknown> | undefined,
 }));
 
-vi.mock("@lens/db", () => db);
+vi.mock("@lens/db", () => ({ ...db, project: {} }));
 vi.mock("../src/modules/alerts/services.js", () => ({ loadAlertIncidentDetail: vi.fn() }));
+
+const PROJECT = {
+  id: "10000000-0000-4000-8000-000000000001",
+  name: "Support",
+  slug: "support",
+  state: "active",
+};
+
+const postgresDb = {
+  select: () => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => (db.projectRow === undefined ? [] : [db.projectRow]),
+        orderBy: async () =>
+          db.projectRow === undefined
+            ? []
+            : [{ id: db.projectRow.id, name: db.projectRow.name, slug: db.projectRow.slug }],
+      }),
+    }),
+  }),
+};
 
 const deps = {
   config: { PUBLIC_APP_URL: "https://lens.example.com" },
   clickhouse: {},
-  postgres: { db: {} },
+  postgres: { db: postgresDb },
   logger: { info: vi.fn(), error: vi.fn() },
 } as unknown as ApiDependencies;
 
 const basePrincipal: McpPrincipal = {
   tokenId: "token-1",
   allowRawPayloads: false,
-  project: {
-    id: "10000000-0000-4000-8000-000000000001",
-    name: "Support",
-    slug: "support",
-  },
 };
 
 const connections: Array<{ client: Client; server: ReturnType<typeof createLensMcpServer> }> = [];
+
+beforeEach(() => {
+  db.projectRow = { ...PROJECT };
+});
 
 afterEach(async () => {
   vi.clearAllMocks();
@@ -46,10 +67,11 @@ afterEach(async () => {
 });
 
 describe("Lens MCP tools", () => {
-  it("advertises the read-only diagnosis tool set", async () => {
+  it("advertises the read-only diagnosis tool set including project discovery", async () => {
     const { client } = await connect(basePrincipal);
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name)).toEqual([
+      "list_projects",
       "get_overview",
       "search_traces",
       "get_trace",
@@ -62,11 +84,73 @@ describe("Lens MCP tools", () => {
     expect(tools.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
   });
 
+  it("lists active projects without echoing a selected project", async () => {
+    const { client } = await connect(basePrincipal);
+    const result = await client.callTool({ name: "list_projects", arguments: {} });
+    const structured = result.structuredContent as {
+      project: unknown;
+      webUrl: unknown;
+      data: { projects: Array<{ id: string; name: string; slug: string }> };
+    };
+    expect(structured.project).toBeNull();
+    expect(structured.webUrl).toBeNull();
+    expect(structured.data.projects).toEqual([
+      { id: PROJECT.id, name: "Support", slug: "support" },
+    ]);
+  });
+
+  it("rejects data tool calls for an unknown project", async () => {
+    db.projectRow = undefined;
+    const { client } = await connect(basePrincipal);
+    const result = await client.callTool({
+      name: "get_overview",
+      arguments: { projectId: "20000000-0000-4000-8000-000000000009" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textResult(result)).toContain("not_found");
+    expect(textResult(result)).toContain("Project not found");
+    expect(db.queryMetrics).not.toHaveBeenCalled();
+  });
+
+  it("rejects data tool calls for a project that is not active", async () => {
+    db.projectRow = { ...PROJECT, state: "deleting" };
+    const { client } = await connect(basePrincipal);
+    const result = await client.callTool({
+      name: "get_overview",
+      arguments: { projectId: PROJECT.id },
+    });
+    expect(result.isError).toBe(true);
+    expect(textResult(result)).toContain("not_found");
+    expect(db.queryMetrics).not.toHaveBeenCalled();
+  });
+
+  it("resolves the requested project for the overview", async () => {
+    db.queryMetrics.mockResolvedValue({ errorRate: 0 });
+    const { client } = await connect(basePrincipal);
+    const result = await client.callTool({
+      name: "get_overview",
+      arguments: { projectId: PROJECT.id },
+    });
+    expect(db.queryMetrics).toHaveBeenCalledWith(deps.clickhouse, PROJECT.id, "24h");
+    const structured = result.structuredContent as {
+      project: { id: string; name: string; slug: string };
+      webUrl: string;
+      data: Record<string, unknown>;
+    };
+    expect(structured.project).toEqual({ id: PROJECT.id, name: "Support", slug: "support" });
+    expect(structured.webUrl).toBe(`https://lens.example.com/${PROJECT.id}`);
+  });
+
   it("rejects payload requests before loading span data when the token lacks permission", async () => {
     const { client } = await connect(basePrincipal);
     const result = await client.callTool({
       name: "get_span",
-      arguments: { traceId: "trace-1", spanId: "span-1", includePayload: true },
+      arguments: {
+        projectId: PROJECT.id,
+        traceId: "trace-1",
+        spanId: "span-1",
+        includePayload: true,
+      },
     });
     expect(result.isError).toBe(true);
     expect(textResult(result)).toContain("payload_access_denied");
@@ -90,22 +174,23 @@ describe("Lens MCP tools", () => {
 
     const summary = await client.callTool({
       name: "get_span",
-      arguments: { traceId: "trace-1", spanId: "span-1" },
+      arguments: { projectId: PROJECT.id, traceId: "trace-1", spanId: "span-1" },
     });
     const summaryData = structuredData(summary);
     expect(summaryData.payloadIncluded).toBe(false);
     expect(summaryData).not.toHaveProperty("payload");
-    expect(db.getSpan).toHaveBeenLastCalledWith(
-      deps.clickhouse,
-      basePrincipal.project.id,
-      "trace-1",
-      "span-1",
-      { includePayloads: false },
-    );
+    expect(db.getSpan).toHaveBeenLastCalledWith(deps.clickhouse, PROJECT.id, "trace-1", "span-1", {
+      includePayloads: false,
+    });
 
     const raw = await client.callTool({
       name: "get_span",
-      arguments: { traceId: "trace-1", spanId: "span-1", includePayload: true },
+      arguments: {
+        projectId: PROJECT.id,
+        traceId: "trace-1",
+        spanId: "span-1",
+        includePayload: true,
+      },
     });
     const rawData = structuredData(raw);
     expect(rawData.payloadIncluded).toBe(true);
@@ -113,13 +198,9 @@ describe("Lens MCP tools", () => {
       input: { message: "hello" },
       spanAttributes: { truncated: true },
     });
-    expect(db.getSpan).toHaveBeenLastCalledWith(
-      deps.clickhouse,
-      basePrincipal.project.id,
-      "trace-1",
-      "span-1",
-      { includePayloads: true },
-    );
+    expect(db.getSpan).toHaveBeenLastCalledWith(deps.clickhouse, PROJECT.id, "trace-1", "span-1", {
+      includePayloads: true,
+    });
   });
 
   it("bounds trace reads and excludes evaluation payloads by default", async () => {
@@ -129,8 +210,11 @@ describe("Lens MCP tools", () => {
       evaluations: [],
     });
     const { client } = await connect(basePrincipal);
-    const result = await client.callTool({ name: "get_trace", arguments: { traceId: "trace-1" } });
-    expect(db.getTrace).toHaveBeenCalledWith(deps.clickhouse, basePrincipal.project.id, "trace-1", {
+    const result = await client.callTool({
+      name: "get_trace",
+      arguments: { projectId: PROJECT.id, traceId: "trace-1" },
+    });
+    expect(db.getTrace).toHaveBeenCalledWith(deps.clickhouse, PROJECT.id, "trace-1", {
       spanLimit: 500,
       includeEvaluationPayloads: false,
     });
@@ -140,7 +224,7 @@ describe("Lens MCP tools", () => {
   it("defaults searches to a bounded 24-hour range", async () => {
     db.listTraces.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25, pageCount: 0 });
     const { client } = await connect(basePrincipal);
-    await client.callTool({ name: "search_traces", arguments: {} });
+    await client.callTool({ name: "search_traces", arguments: { projectId: PROJECT.id } });
     const options = db.listTraces.mock.calls[0]?.[2] as { from: string; to: string };
     expect(Date.parse(options.to) - Date.parse(options.from)).toBe(24 * 60 * 60 * 1_000);
   });
@@ -155,11 +239,11 @@ describe("Lens MCP tools", () => {
     const { client } = await connect(basePrincipal);
     const result = await client.callTool({
       name: "get_session",
-      arguments: { sessionId: "session-1" },
+      arguments: { projectId: PROJECT.id, sessionId: "session-1" },
     });
     expect(db.getSession).toHaveBeenCalledWith(
       deps.clickhouse,
-      basePrincipal.project.id,
+      PROJECT.id,
       "session-1",
       expect.objectContaining({ includeTurns: false }),
     );

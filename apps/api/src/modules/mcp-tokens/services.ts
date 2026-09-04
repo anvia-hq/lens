@@ -1,10 +1,9 @@
-import type { ProjectMcpToken } from "@lens/contracts";
-import type { projectMcpToken } from "@lens/db";
+import type { McpToken } from "@lens/contracts";
+import type { mcpToken } from "@lens/db";
 
-export function mcpTokenFromRow(row: typeof projectMcpToken.$inferSelect): ProjectMcpToken {
+export function mcpTokenFromRow(row: typeof mcpToken.$inferSelect): McpToken {
   return {
     id: row.id,
-    projectId: row.projectId,
     name: row.name,
     tokenPrefix: row.tokenPrefix,
     allowRawPayloads: row.allowRawPayloads,
