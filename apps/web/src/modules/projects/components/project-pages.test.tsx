@@ -59,27 +59,16 @@ describe("simple project pages", () => {
         state={
           {
             createKey: { error: null, isPending: false, mutate: vi.fn() },
-            createMcpToken: { error: null, isPending: false, mutate: vi.fn() },
             deleteProject: { error: null, isPending: false, mutate: vi.fn() },
-            allowRawPayloads: false,
             keyName: "Development",
             keys: { data: { items: [] }, isPending: false },
-            mcpExpiryDays: "never",
-            mcpTokenName: "AI assistant",
-            mcpTokens: { data: { items: [] }, isPending: false },
             newKey: null,
-            newMcpToken: null,
             project,
             retention: "30",
             revokeKey: { isPending: false, mutate: vi.fn() },
-            revokeMcpToken: { isPending: false, mutate: vi.fn() },
             saveSettings: { error: null, isPending: false, isSuccess: false, mutate: vi.fn() },
             setKeyName: vi.fn(),
-            setAllowRawPayloads: vi.fn(),
-            setMcpExpiryDays: vi.fn(),
-            setMcpTokenName: vi.fn(),
             setNewKey: vi.fn(),
-            setNewMcpToken: vi.fn(),
             setRetention: vi.fn(),
           } as unknown as ProjectSettingsState
         }
@@ -87,7 +76,7 @@ describe("simple project pages", () => {
     );
 
     expect(screen.getByText("Ingestion keys")).toBeTruthy();
-    expect(screen.getByText("MCP access")).toBeTruthy();
+    expect(screen.queryByText("MCP access")).toBeNull();
     expect(screen.getByText("Data retention")).toBeTruthy();
     expect(screen.queryByText(/redaction/i)).toBeNull();
     expect(screen.queryByText("Project controls")).toBeNull();

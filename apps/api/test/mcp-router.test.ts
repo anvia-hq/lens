@@ -57,7 +57,6 @@ describe("remote MCP endpoint", () => {
   it.each([
     ["revoked", { revokedAt: new Date("2026-08-24T00:00:00.000Z") }],
     ["expired", { expiresAt: new Date("2026-08-24T00:00:00.000Z") }],
-    ["deleting project", { projectState: "deleting" as const }],
   ])("rejects a %s token", async (_label, tokenState) => {
     const { app } = testApp(tokenState);
     const token = createMcpCredentials(pepper).token;
@@ -73,7 +72,7 @@ describe("remote MCP endpoint", () => {
     expect(response.status).toBe(401);
   });
 
-  it("serves the MCP initialization handshake for an active project token", async () => {
+  it("serves the MCP initialization handshake for an active token", async () => {
     const { app } = testApp();
     const token = createMcpCredentials(pepper).token;
     const response = await app.request("https://lens.example.com/api/mcp", {
@@ -111,6 +110,7 @@ describe("remote MCP endpoint", () => {
         params: {
           name: "get_span",
           arguments: {
+            projectId,
             traceId: "trace-1",
             spanId: "span-1",
             includePayload: true,
@@ -160,32 +160,25 @@ function mcpHeaders(token: string) {
   };
 }
 
-function testApp(
-  options: {
-    rateCount?: number;
-    expiresAt?: Date;
-    revokedAt?: Date;
-    projectState?: "active" | "deleting";
-  } = {},
-) {
-  const row = {
-    token: {
-      id: "20000000-0000-4000-8000-000000000001",
-      allowRawPayloads: false,
-      expiresAt: options.expiresAt ?? null,
-      revokedAt: options.revokedAt ?? null,
-    },
-    project: {
-      id: projectId,
-      name: "Support",
-      slug: "support",
-      state: options.projectState ?? "active",
-    },
+function testApp(options: { rateCount?: number; expiresAt?: Date; revokedAt?: Date } = {}) {
+  const tokenRow = {
+    id: "20000000-0000-4000-8000-000000000001",
+    allowRawPayloads: false,
+    expiresAt: options.expiresAt ?? null,
+    revokedAt: options.revokedAt ?? null,
   };
-  const limit = vi.fn().mockResolvedValue([row]);
-  const select = vi.fn(() => ({
-    from: () => ({ innerJoin: () => ({ where: () => ({ limit }) }) }),
-  }));
+  const projectRow = {
+    id: projectId,
+    name: "Support",
+    slug: "support",
+    state: "active",
+  };
+  const select = vi.fn().mockImplementation((projection: unknown) => {
+    const result = projection === undefined ? [tokenRow] : [projectRow];
+    return {
+      from: () => ({ where: () => ({ limit: vi.fn().mockResolvedValue(result) }) }),
+    };
+  });
   const updateWhere = vi.fn().mockResolvedValue(undefined);
   const update = vi.fn(() => ({ set: () => ({ where: updateWhere }) }));
   const multi = () => {

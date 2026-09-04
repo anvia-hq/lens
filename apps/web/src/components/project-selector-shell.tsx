@@ -14,7 +14,9 @@ export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
         ? "Cost Settings"
         : pathname === "/system"
           ? "System Health"
-          : "Projects";
+          : pathname === "/mcp"
+            ? "MCP Access"
+            : "Projects";
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden">
       <ProjectRail logoOnly />

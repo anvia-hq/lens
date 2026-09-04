@@ -15,6 +15,7 @@ import {
   Database,
   Stack as Layers3,
   SignOut as LogOut,
+  Robot,
   UsersThree as Users,
 } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -30,6 +31,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
     { to: "/" as const, label: "Projects", icon: Layers3 },
     { to: "/members" as const, label: "Members", icon: Users },
     { to: "/cost-settings" as const, label: "Cost Settings", icon: Database },
+    ...(canManage ? [{ to: "/mcp" as const, label: "MCP Access", icon: Robot }] : []),
     ...(canManage ? [{ to: "/system" as const, label: "System Health", icon: Activity }] : []),
   ];
 

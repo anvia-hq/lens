@@ -85,7 +85,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/llm-models", createLlmModelsRouter(deps))
     .route("/api/v1/projects", createProjectsRouter(deps))
     .route("/api/v1/projects", createApiKeysRouter(deps))
-    .route("/api/v1/projects", createMcpTokensRouter(deps))
+    .route("/api/v1/mcp-tokens", createMcpTokensRouter(deps))
     .route("/api/v1/projects", createAlertsRouter(deps))
     .route("/api/v1/projects", createDataDeletionsRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))

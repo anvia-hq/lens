@@ -6,9 +6,11 @@ import {
   listAlertIncidents,
   listSessions,
   listTraces,
+  project,
   queryMetrics,
 } from "@lens/db";
 import { McpServer } from "@modelcontextprotocol/server";
+import { eq } from "drizzle-orm";
 import type { ApiMetrics } from "../../utils/metrics.js";
 import type { ApiDependencies } from "../../utils/types.js";
 import { loadAlertIncidentDetail } from "../alerts/services.js";
@@ -19,6 +21,7 @@ import {
   getSpanInputSchema,
   getTraceInputSchema,
   listAlertsInputSchema,
+  listProjectsInputSchema,
   overviewInputSchema,
   searchSessionsInputSchema,
   searchTracesInputSchema,
@@ -34,7 +37,6 @@ const DEFAULT_RANGE_MS = 24 * 60 * 60 * 1_000;
 export type McpPrincipal = {
   tokenId: string;
   allowRawPayloads: boolean;
-  project: { id: string; name: string; slug: string };
 };
 
 export function createLensMcpServer(
@@ -51,11 +53,33 @@ export function createLensMcpServer(
   };
 
   server.registerTool(
+    "list_projects",
+    {
+      title: "List Lens projects",
+      description:
+        "List the Lens projects this token can read. Pass a returned id as the projectId argument of every other Lens tool.",
+      inputSchema: listProjectsInputSchema,
+      outputSchema: toolOutputSchema,
+      annotations,
+    },
+    (raw) =>
+      runTool(deps, metrics, principal, "list_projects", async () => {
+        listProjectsInputSchema.parse(raw);
+        const rows = await deps.postgres.db
+          .select({ id: project.id, name: project.name, slug: project.slug })
+          .from(project)
+          .where(eq(project.state, "active"))
+          .orderBy(project.name);
+        return success(null, null, { projects: rows });
+      }),
+  );
+
+  server.registerTool(
     "get_overview",
     {
       title: "Get observability overview",
       description:
-        "Summarize current and previous trace, error, latency, token, cost, model, service, and tool metrics for this Lens project.",
+        "Summarize current and previous trace, error, latency, token, cost, model, service, and tool metrics for the Lens project selected with projectId.",
       inputSchema: overviewInputSchema,
       outputSchema: toolOutputSchema,
       annotations,
@@ -63,10 +87,11 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_overview", async () => {
         const input = overviewInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         return success(
-          principal,
-          projectUrl(deps, principal, ""),
-          await queryMetrics(deps.clickhouse, principal.project.id, input.range),
+          project,
+          projectUrl(deps, project, ""),
+          await queryMetrics(deps.clickhouse, project.id, input.range),
         );
       }),
   );
@@ -84,13 +109,14 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "search_traces", async () => {
         const input = searchTracesInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         const range = normalizeRange(input.from, input.to);
         validateBounds(input);
-        const page = await listTraces(deps.clickhouse, principal.project.id, {
+        const page = await listTraces(deps.clickhouse, project.id, {
           ...input,
           ...range,
         });
-        return success(principal, projectUrl(deps, principal, "/traces"), page);
+        return success(project, projectUrl(deps, project, "/traces"), page);
       }),
   );
 
@@ -107,8 +133,9 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_trace", async () => {
         const input = getTraceInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         authorizePayload(principal, input.includePayload);
-        const trace = await getTrace(deps.clickhouse, principal.project.id, input.traceId, {
+        const trace = await getTrace(deps.clickhouse, project.id, input.traceId, {
           spanLimit: MAX_TRACE_SPANS,
           includeEvaluationPayloads: input.includePayload,
         });
@@ -131,8 +158,8 @@ export function createLensMcpServer(
               };
         });
         return success(
-          principal,
-          projectUrl(deps, principal, `/traces/${encodeURIComponent(input.traceId)}`),
+          project,
+          projectUrl(deps, project, `/traces/${encodeURIComponent(input.traceId)}`),
           {
             summary: trace.summary,
             spans,
@@ -158,14 +185,11 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_span", async () => {
         const input = getSpanInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         authorizePayload(principal, input.includePayload);
-        const span = await getSpan(
-          deps.clickhouse,
-          principal.project.id,
-          input.traceId,
-          input.spanId,
-          { includePayloads: input.includePayload },
-        );
+        const span = await getSpan(deps.clickhouse, project.id, input.traceId, input.spanId, {
+          includePayloads: input.includePayload,
+        });
         if (span === undefined) throw new ToolError("not_found", "Span not found");
         const {
           resourceAttributes,
@@ -188,10 +212,10 @@ export function createLensMcpServer(
             }
           : undefined;
         return success(
-          principal,
+          project,
           projectUrl(
             deps,
-            principal,
+            project,
             `/traces/${encodeURIComponent(input.traceId)}?span=${encodeURIComponent(input.spanId)}`,
           ),
           {
@@ -216,13 +240,14 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "search_sessions", async () => {
         const input = searchSessionsInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         const range = normalizeRange(input.from, input.to);
         validateBounds(input);
-        const page = await listSessions(deps.clickhouse, principal.project.id, {
+        const page = await listSessions(deps.clickhouse, project.id, {
           ...input,
           ...range,
         });
-        return success(principal, projectUrl(deps, principal, "/sessions"), page);
+        return success(project, projectUrl(deps, project, "/sessions"), page);
       }),
   );
 
@@ -239,12 +264,13 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_session", async () => {
         const input = getSessionInputSchema.parse(raw);
+        const project = await resolveProject(deps, input.projectId);
         authorizePayload(principal, input.includePayload);
         const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor);
         if (input.cursor !== undefined && !validCursor(cursor)) {
           throw new ToolError("invalid_cursor", "Session cursor is invalid");
         }
-        const session = await getSession(deps.clickhouse, principal.project.id, input.sessionId, {
+        const session = await getSession(deps.clickhouse, project.id, input.sessionId, {
           pageSize: input.pageSize,
           cursor,
           includeTurns: input.includePayload,
@@ -265,8 +291,8 @@ export function createLensMcpServer(
             }))
           : [];
         return success(
-          principal,
-          projectUrl(deps, principal, `/sessions/${encodeURIComponent(input.sessionId)}`),
+          project,
+          projectUrl(deps, project, `/sessions/${encodeURIComponent(input.sessionId)}`),
           {
             ...session,
             turns,
@@ -290,8 +316,9 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "list_alerts", async () => {
         const input = listAlertsInputSchema.parse(raw);
-        const page = await listAlertIncidents(deps.postgres.db, principal.project.id, input);
-        return success(principal, projectUrl(deps, principal, "/alerts"), page);
+        const project = await resolveProject(deps, input.projectId);
+        const page = await listAlertIncidents(deps.postgres.db, project.id, input);
+        return success(project, projectUrl(deps, project, "/alerts"), page);
       }),
   );
 
@@ -308,11 +335,12 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_alert", async () => {
         const input = getAlertInputSchema.parse(raw);
-        const detail = await loadAlertIncidentDetail(deps, principal.project.id, input.incidentId);
+        const project = await resolveProject(deps, input.projectId);
+        const detail = await loadAlertIncidentDetail(deps, project.id, input.incidentId);
         if (detail === undefined) throw new ToolError("not_found", "Alert incident not found");
         return success(
-          principal,
-          projectUrl(deps, principal, `/alerts/${encodeURIComponent(input.incidentId)}`),
+          project,
+          projectUrl(deps, project, `/alerts/${encodeURIComponent(input.incidentId)}`),
           detail,
         );
       }),
@@ -335,10 +363,7 @@ async function runTool(
   } catch (error) {
     outcome = error instanceof ToolError ? error.code : "internal_error";
     if (!(error instanceof ToolError)) {
-      deps.logger.error(
-        { err: error, projectId: principal.project.id, tokenId: principal.tokenId, tool: name },
-        "MCP tool failed",
-      );
+      deps.logger.error({ err: error, tokenId: principal.tokenId, tool: name }, "MCP tool failed");
     }
     const message = error instanceof ToolError ? error.message : "The Lens tool could not complete";
     return {
@@ -351,7 +376,6 @@ async function runTool(
     metrics.mcpToolDuration.labels(name).observe(durationSeconds);
     deps.logger.info(
       {
-        projectId: principal.project.id,
         tokenId: principal.tokenId,
         tool: name,
         outcome,
@@ -362,9 +386,28 @@ async function runTool(
   }
 }
 
-function success(principal: McpPrincipal, webUrl: string | null, data: unknown) {
+async function resolveProject(
+  deps: ApiDependencies,
+  projectId: string,
+): Promise<{ id: string; name: string; slug: string }> {
+  const [row] = await deps.postgres.db
+    .select({ id: project.id, name: project.name, slug: project.slug, state: project.state })
+    .from(project)
+    .where(eq(project.id, projectId))
+    .limit(1);
+  if (row === undefined || row.state !== "active") {
+    throw new ToolError("not_found", "Project not found");
+  }
+  return { id: row.id, name: row.name, slug: row.slug };
+}
+
+function success(
+  project: { id: string; name: string; slug: string } | null,
+  webUrl: string | null,
+  data: unknown,
+) {
   const output = {
-    project: principal.project,
+    project,
     webUrl,
     data: jsonValue(data),
   };
@@ -424,8 +467,12 @@ function validCursor(
   );
 }
 
-function projectUrl(deps: ApiDependencies, principal: McpPrincipal, suffix: string): string {
-  return new URL(`/${principal.project.id}${suffix}`, deps.config.PUBLIC_APP_URL).toString();
+function projectUrl(
+  deps: ApiDependencies,
+  project: { id: string; name: string; slug: string },
+  suffix: string,
+): string {
+  return new URL(`/${project.id}${suffix}`, deps.config.PUBLIC_APP_URL).toString();
 }
 
 class ToolError extends Error {

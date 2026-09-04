@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectIdRouteRouteImport } from './routes/$projectId/route'
 import { Route as CostSettingsRouteImport } from './routes/cost-settings'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as SystemRouteImport } from './routes/system'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
@@ -50,6 +51,11 @@ const ProjectIdRouteRoute = ProjectIdRouteRouteImport.update({
 const CostSettingsRoute = CostSettingsRouteImport.update({
   id: '/cost-settings',
   path: '/cost-settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersRoute = MembersRouteImport.update({
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
+  '/mcp': typeof McpRoute
   '/members': typeof MembersRoute
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cost-settings': typeof CostSettingsRoute
+  '/mcp': typeof McpRoute
   '/members': typeof MembersRoute
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$projectId': typeof ProjectIdRouteRouteWithChildren
   '/cost-settings': typeof CostSettingsRoute
+  '/mcp': typeof McpRoute
   '/members': typeof MembersRoute
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
@@ -278,6 +287,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$projectId'
     | '/cost-settings'
+    | '/mcp'
     | '/members'
     | '/system'
     | '/$projectId/alerts'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cost-settings'
+    | '/mcp'
     | '/members'
     | '/system'
     | '/$projectId/alerts'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$projectId'
     | '/cost-settings'
+    | '/mcp'
     | '/members'
     | '/system'
     | '/$projectId/alerts'
@@ -365,6 +377,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectIdRouteRoute: typeof ProjectIdRouteRouteWithChildren
   CostSettingsRoute: typeof CostSettingsRoute
+  McpRoute: typeof McpRoute
   MembersRoute: typeof MembersRoute
   SystemRoute: typeof SystemRoute
   AcceptInvitationInvitationIdRoute: typeof AcceptInvitationInvitationIdRoute
@@ -391,6 +404,13 @@ declare module '@tanstack/react-router' {
       path: '/cost-settings'
       fullPath: '/cost-settings'
       preLoaderRoute: typeof CostSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/members': {
@@ -622,6 +642,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectIdRouteRoute: ProjectIdRouteRouteWithChildren,
   CostSettingsRoute: CostSettingsRoute,
+  McpRoute: McpRoute,
   MembersRoute: MembersRoute,
   SystemRoute: SystemRoute,
   AcceptInvitationInvitationIdRoute: AcceptInvitationInvitationIdRoute,

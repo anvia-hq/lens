@@ -81,7 +81,7 @@ describe("AuthenticatedApp shell", () => {
     expect(screen.getByText("Theme toggle")).toBeTruthy();
   });
 
-  it.each(["/members", "/cost-settings", "/system"])(
+  it.each(["/members", "/cost-settings", "/system", "/mcp"])(
     "keeps workspace navigation on %s",
     (pathname) => {
       mocks.pathname = pathname;

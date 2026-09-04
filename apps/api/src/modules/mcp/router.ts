@@ -1,4 +1,4 @@
-import { project, projectMcpToken } from "@lens/db";
+import { mcpToken } from "@lens/db";
 import { type AuthInfo, createMcpHandler } from "@modelcontextprotocol/server";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import type { Context } from "hono";
@@ -55,32 +55,27 @@ export function createMcpRouter(deps: ApiDependencies, metrics: ApiMetrics) {
 async function authenticateMcpToken(deps: ApiDependencies, token: string) {
   const tokenHash = hashMcpToken(token, deps.config.INGESTION_KEY_PEPPER);
   const [row] = await deps.postgres.db
-    .select({ token: projectMcpToken, project })
-    .from(projectMcpToken)
-    .innerJoin(project, eq(projectMcpToken.projectId, project.id))
-    .where(eq(projectMcpToken.tokenHash, tokenHash))
+    .select()
+    .from(mcpToken)
+    .where(eq(mcpToken.tokenHash, tokenHash))
     .limit(1);
   if (
     row === undefined ||
-    row.token.revokedAt !== null ||
-    (row.token.expiresAt !== null && row.token.expiresAt.getTime() <= Date.now()) ||
-    row.project.state !== "active"
+    row.revokedAt !== null ||
+    (row.expiresAt !== null && row.expiresAt.getTime() <= Date.now())
   ) {
     return undefined;
   }
   const principal: McpPrincipal = {
-    tokenId: row.token.id,
-    allowRawPayloads: row.token.allowRawPayloads,
-    project: { id: row.project.id, name: row.project.name, slug: row.project.slug },
+    tokenId: row.id,
+    allowRawPayloads: row.allowRawPayloads,
   };
   const endpoint = new URL("/api/mcp", deps.config.PUBLIC_APP_URL);
   const authInfo: AuthInfo = {
     token,
-    clientId: row.token.id,
-    scopes: row.token.allowRawPayloads
-      ? ["observability:read", "payloads:read"]
-      : ["observability:read"],
-    expiresAt: row.token.expiresAt ? Math.floor(row.token.expiresAt.getTime() / 1_000) : undefined,
+    clientId: row.id,
+    scopes: row.allowRawPayloads ? ["observability:read", "payloads:read"] : ["observability:read"],
+    expiresAt: row.expiresAt ? Math.floor(row.expiresAt.getTime() / 1_000) : undefined,
     resource: endpoint,
     extra: { principal },
   };
@@ -92,10 +87,7 @@ function principalFromAuth(authInfo: AuthInfo | undefined): McpPrincipal {
   if (
     principal === undefined ||
     typeof principal.tokenId !== "string" ||
-    typeof principal.allowRawPayloads !== "boolean" ||
-    typeof principal.project?.id !== "string" ||
-    typeof principal.project.name !== "string" ||
-    typeof principal.project.slug !== "string"
+    typeof principal.allowRawPayloads !== "boolean"
   ) {
     throw new Error("Authenticated MCP principal is missing");
   }
@@ -128,17 +120,17 @@ function recordTokenUsage(deps: ApiDependencies, principal: McpPrincipal): void 
   const now = new Date();
   const staleBefore = new Date(now.getTime() - 5 * 60_000);
   void deps.postgres.db
-    .update(projectMcpToken)
+    .update(mcpToken)
     .set({ lastUsedAt: now })
     .where(
       and(
-        eq(projectMcpToken.id, principal.tokenId),
-        or(isNull(projectMcpToken.lastUsedAt), lt(projectMcpToken.lastUsedAt, staleBefore)),
+        eq(mcpToken.id, principal.tokenId),
+        or(isNull(mcpToken.lastUsedAt), lt(mcpToken.lastUsedAt, staleBefore)),
       ),
     )
     .catch((error: unknown) =>
       deps.logger.warn(
-        { err: error, projectId: principal.project.id, tokenId: principal.tokenId },
+        { err: error, tokenId: principal.tokenId },
         "failed to record MCP token usage",
       ),
     );

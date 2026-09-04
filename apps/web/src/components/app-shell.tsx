@@ -17,7 +17,8 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
     pathname === "/" ||
     pathname === "/members" ||
     pathname === "/cost-settings" ||
-    pathname === "/system";
+    pathname === "/system" ||
+    pathname === "/mcp";
   const { project, projects, projectsQuery } = useProjects();
 
   if (projectsQuery.isLoading)

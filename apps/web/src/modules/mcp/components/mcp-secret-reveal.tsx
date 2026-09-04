@@ -1,12 +1,9 @@
-import type { CreatedProjectMcpToken } from "@lens/contracts";
+import type { CreatedMcpToken } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { Check, Copy, Robot, X } from "@phosphor-icons/react";
 import { useState } from "react";
 
-export function McpSecretReveal(props: {
-  credentials: CreatedProjectMcpToken;
-  onClose: () => void;
-}) {
+export function McpSecretReveal(props: { credentials: CreatedMcpToken; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const configuration = JSON.stringify(
     {

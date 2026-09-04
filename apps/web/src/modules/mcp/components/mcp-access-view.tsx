@@ -1,4 +1,4 @@
-import type { ProjectMcpToken } from "@lens/contracts";
+import type { McpToken } from "@lens/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,19 +25,40 @@ import { Spinner } from "@lens/ui/components/spinner";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
 import { ErrorAlert } from "../../../components/error-alert";
-import type { ProjectSettingsState } from "../hooks/use-project-settings";
+import { Page } from "../../../components/page";
+import type { McpAccessState } from "../hooks/use-mcp-access";
 import { McpSecretReveal } from "./mcp-secret-reveal";
 
-export function McpAccessCard({ state }: { state: ProjectSettingsState }) {
-  const [tokenToRevoke, setTokenToRevoke] = useState<ProjectMcpToken | null>(null);
+export function McpAccessView({ state }: { state: McpAccessState }) {
+  const [tokenToRevoke, setTokenToRevoke] = useState<McpToken | null>(null);
+  if (!state.canManage) {
+    return (
+      <Page
+        className="mx-auto max-w-7xl"
+        title="MCP Access"
+        description="Workspace-wide Model Context Protocol access for AI assistants"
+      >
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            Owner or admin access is required.
+          </CardContent>
+        </Card>
+      </Page>
+    );
+  }
   const tokens = state.mcpTokens.data?.items ?? [];
   return (
-    <>
+    <Page
+      className="mx-auto max-w-7xl"
+      title="MCP Access"
+      description="Give AI assistants read-only access to every project in this workspace"
+    >
       <Card>
         <CardHeader>
           <CardTitle>MCP access</CardTitle>
           <CardDescription>
-            Give an AI assistant read-only access to this project&apos;s observability data.
+            Give an AI assistant read-only access to all projects&apos; observability data in this
+            workspace.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -185,11 +206,11 @@ export function McpAccessCard({ state }: { state: ProjectSettingsState }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </Page>
   );
 }
 
-function tokenStatus(token: ProjectMcpToken): string {
+function tokenStatus(token: McpToken): string {
   if (token.revokedAt !== null) return "Revoked";
   if (token.expiresAt !== null && Date.parse(token.expiresAt) <= Date.now()) return "Expired";
   return "Active";

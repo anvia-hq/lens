@@ -14,16 +14,20 @@ const stringFilter = z.array(z.string().trim().min(1).max(128)).max(50).optional
 const nonNegative = z.number().finite().nonnegative().optional();
 
 export const toolOutputSchema = z.object({
-  project: z.object({ id: z.string(), name: z.string(), slug: z.string() }),
+  project: z.object({ id: z.string(), name: z.string(), slug: z.string() }).nullable(),
   webUrl: z.string().nullable(),
   data: z.json(),
 });
 
+export const listProjectsInputSchema = z.object({});
+
 export const overviewInputSchema = z.object({
+  projectId: z.uuid(),
   range: z.enum(["24h", "7d", "30d"]).default("24h"),
 });
 
 export const searchTracesInputSchema = z.object({
+  projectId: z.uuid(),
   from: isoDate.optional(),
   to: isoDate.optional(),
   statuses: z.array(z.enum(traceStatuses)).max(4).optional(),
@@ -52,17 +56,20 @@ export const searchTracesInputSchema = z.object({
 });
 
 export const getTraceInputSchema = z.object({
+  projectId: z.uuid(),
   traceId: z.string().trim().min(1).max(256),
   includePayload: z.boolean().default(false),
 });
 
 export const getSpanInputSchema = z.object({
+  projectId: z.uuid(),
   traceId: z.string().trim().min(1).max(256),
   spanId: z.string().trim().min(1).max(256),
   includePayload: z.boolean().default(false),
 });
 
 export const searchSessionsInputSchema = z.object({
+  projectId: z.uuid(),
   from: isoDate.optional(),
   to: isoDate.optional(),
   statuses: z.array(z.enum(sessionStatuses)).max(3).optional(),
@@ -85,6 +92,7 @@ export const searchSessionsInputSchema = z.object({
 });
 
 export const getSessionInputSchema = z.object({
+  projectId: z.uuid(),
   sessionId: z.string().trim().min(1).max(256),
   cursor: z.string().trim().min(1).max(2_000).optional(),
   pageSize,
@@ -92,6 +100,7 @@ export const getSessionInputSchema = z.object({
 });
 
 export const listAlertsInputSchema = z.object({
+  projectId: z.uuid(),
   status: z.enum(["active", "resolved"]).default("active"),
   kind: z.enum(alertRuleKinds).optional(),
   page: z.number().int().positive().max(1_000_000).default(1),
@@ -99,5 +108,6 @@ export const listAlertsInputSchema = z.object({
 });
 
 export const getAlertInputSchema = z.object({
+  projectId: z.uuid(),
   incidentId: z.uuid(),
 });
