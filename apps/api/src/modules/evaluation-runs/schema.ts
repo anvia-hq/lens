@@ -1,5 +1,22 @@
 import type { EvaluationRunFilters, EvaluationRunSortField } from "@lens/contracts";
-import type { Context } from "hono";
+import { z } from "zod";
+import {
+  clippedText,
+  isoDate,
+  orderField,
+  pageField,
+  pageSizeField,
+  sortField,
+  stripUndefined,
+  valueList,
+} from "../../utils/query-schema.js";
+
+export type RunRequest = EvaluationRunFilters & {
+  page: number;
+  pageSize: number;
+  sort: EvaluationRunSortField;
+  order: "asc" | "desc";
+};
 
 const evaluationRunStatuses = ["running", "completed", "failed"] as const;
 const evaluationRunSortFields = [
@@ -17,57 +34,37 @@ const evaluationRunSortFields = [
   "traceCoverage",
 ] as const satisfies readonly EvaluationRunSortField[];
 
-export function parseRunRequest(c: Context):
-  | (EvaluationRunFilters & {
-      page: number;
-      pageSize: number;
-      sort: EvaluationRunSortField;
-      order: "asc" | "desc";
-    })
-  | string {
-  const filters: EvaluationRunFilters = {};
-  for (const key of ["from", "to"] as const) {
-    const value = c.req.query(key);
-    if (!value) continue;
-    if (!Number.isFinite(Date.parse(value))) return `${key} must be an ISO date`;
-    filters[key] = value;
-  }
-  for (const [queryKey, field] of [
-    ["suite", "suites"],
-    ["status", "statuses"],
-    ["environment", "environments"],
-    ["release", "releases"],
-  ] as const) {
-    const values = (c.req.queries(queryKey) ?? []).map((value) => value.trim()).filter(Boolean);
-    if (values.length > 50) return `${queryKey} accepts at most 50 values`;
-    if (
-      queryKey === "status" &&
-      values.some((value) => !evaluationRunStatuses.includes(value as never))
-    ) {
-      return "status must be running, completed, or failed";
-    }
-    if (values.length > 0) Object.assign(filters, { [field]: Array.from(new Set(values)) });
-  }
-  const search = c.req.query("search")?.trim();
-  if (search) {
-    if (search.length > 256) return "search must be at most 256 characters";
-    filters.search = search;
-  }
-  const page = Number(c.req.query("page") ?? 1);
-  if (!Number.isInteger(page) || page < 1 || page > 1_000_000) return "page must be positive";
-  const pageSize = Number(c.req.query("pageSize") ?? 25);
-  if (![25, 50, 100].includes(pageSize)) return "pageSize must be 25, 50, or 100";
-  const rawSort = c.req.query("sort") ?? "startedAt";
-  if (!evaluationRunSortFields.includes(rawSort as EvaluationRunSortField)) {
-    return "Unsupported evaluation run sort field";
-  }
-  const rawOrder = c.req.query("order") ?? "desc";
-  if (rawOrder !== "asc" && rawOrder !== "desc") return "order must be asc or desc";
-  return {
-    ...filters,
-    page,
-    pageSize,
-    sort: rawSort as EvaluationRunSortField,
-    order: rawOrder,
-  };
-}
+export const runQuerySchema = z
+  .object({
+    from: isoDate("from"),
+    to: isoDate("to"),
+    suite: valueList("suite"),
+    status: valueList("status", {
+      allowed: evaluationRunStatuses,
+      allowedMessage: "status must be running, completed, or failed",
+    }),
+    environment: valueList("environment"),
+    release: valueList("release"),
+    search: clippedText("search"),
+    page: pageField("page must be positive"),
+    pageSize: pageSizeField(25),
+    sort: sortField(evaluationRunSortFields, "startedAt", "Unsupported evaluation run sort field"),
+    order: orderField(),
+  })
+  .transform(
+    (value): RunRequest => ({
+      ...stripUndefined({
+        from: value.from,
+        to: value.to,
+        suites: value.suite,
+        statuses: value.status,
+        environments: value.environment,
+        releases: value.release,
+        search: value.search,
+      }),
+      page: value.page,
+      pageSize: value.pageSize,
+      sort: value.sort,
+      order: value.order,
+    }),
+  );

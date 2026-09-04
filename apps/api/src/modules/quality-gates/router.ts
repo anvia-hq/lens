@@ -10,7 +10,7 @@ import {
 } from "@lens/db";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 
 export const createQualityGatesRouter = (deps: ApiDependencies) =>
@@ -20,48 +20,67 @@ export const createQualityGatesRouter = (deps: ApiDependencies) =>
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
       return c.json({ items: await listQualityGates(deps.postgres.db, access.project.id) });
     })
-    .post("/:projectId/quality-gates", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return apiError(c, 403, "forbidden", "Admin access is required");
-      const parsed = qualityGateInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_gate", "Invalid quality gate");
-      try {
-        return c.json(
-          await createQualityGate(deps.postgres.db, access.project.id, parsed.data),
-          201,
-        );
-      } catch (error) {
-        if ((error as { code?: unknown }).code === "23505") {
-          return apiError(c, 409, "duplicate_gate", "A gate with this name already exists");
+    .post(
+      "/:projectId/quality-gates",
+      jsonInput(qualityGateInputSchema, "invalid_gate", "Invalid quality gate"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role))
+          return apiError(c, 403, "forbidden", "Admin access is required");
+        const parsed = c.req.valid("json");
+        try {
+          return c.json(await createQualityGate(deps.postgres.db, access.project.id, parsed), 201);
+        } catch (error) {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "23505"
+          ) {
+            return apiError(c, 409, "duplicate_gate", "A gate with this name already exists");
+          }
+          throw error;
         }
-        throw error;
-      }
-    })
-    .patch("/:projectId/quality-gates/:gateId", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return apiError(c, 403, "forbidden", "Admin access is required");
-      const parsed = qualityGateInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_gate", "Invalid quality gate");
-      const gate = await getQualityGate(deps.postgres.db, access.project.id, c.req.param("gateId"));
-      if (gate === undefined) return apiError(c, 404, "not_found", "Quality gate not found");
-      try {
-        return c.json(
-          await updateQualityGate(
-            deps.postgres.db,
-            access.project.id,
-            c.req.param("gateId"),
-            parsed.data,
-          ),
+      },
+    )
+    .patch(
+      "/:projectId/quality-gates/:gateId",
+      jsonInput(qualityGateInputSchema, "invalid_gate", "Invalid quality gate"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role))
+          return apiError(c, 403, "forbidden", "Admin access is required");
+        const parsed = c.req.valid("json");
+        const gate = await getQualityGate(
+          deps.postgres.db,
+          access.project.id,
+          c.req.param("gateId"),
         );
-      } catch (error) {
-        if ((error as { code?: unknown }).code === "23505") {
-          return apiError(c, 409, "duplicate_gate", "A gate with this name already exists");
+        if (gate === undefined) return apiError(c, 404, "not_found", "Quality gate not found");
+        try {
+          return c.json(
+            await updateQualityGate(
+              deps.postgres.db,
+              access.project.id,
+              c.req.param("gateId"),
+              parsed,
+            ),
+          );
+        } catch (error) {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "23505"
+          ) {
+            return apiError(c, 409, "duplicate_gate", "A gate with this name already exists");
+          }
+          throw error;
         }
-        throw error;
-      }
-    })
+      },
+    )
     .delete("/:projectId/quality-gates/:gateId", async (c) => {
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");

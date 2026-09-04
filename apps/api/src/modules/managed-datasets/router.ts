@@ -25,7 +25,7 @@ import {
 } from "@lens/db";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 
 export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
@@ -35,77 +35,85 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
       return c.json({ items: await listManagedDatasets(deps.postgres.db, access.project.id) });
     })
-    .post("/:projectId/managed-datasets", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_dataset", "Invalid dataset");
-      try {
-        return c.json(
-          await createManagedDataset(
-            deps.postgres.db,
-            access.project.id,
-            requiredSession(c).user.id,
-            parsed.data,
-          ),
-          201,
+    .post(
+      "/:projectId/managed-datasets",
+      jsonInput(managedDatasetInputSchema, "invalid_dataset", "Invalid dataset"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        try {
+          return c.json(
+            await createManagedDataset(
+              deps.postgres.db,
+              access.project.id,
+              requiredSession(c).user.id,
+              parsed,
+            ),
+            201,
+          );
+        } catch (error) {
+          return duplicateOrThrow(c, error, "A dataset with this name already exists");
+        }
+      },
+    )
+    .post(
+      "/:projectId/managed-datasets/import-observed",
+      jsonInput(
+        managedDatasetObservedImportSchema,
+        "invalid_import",
+        "Invalid observed dataset import",
+      ),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        const observed = await getEvaluationDatasetDetail(
+          deps.clickhouse,
+          access.project.id,
+          parsed.sourceName,
+          parsed.sourceVersion,
         );
-      } catch (error) {
-        return duplicateOrThrow(c, error, "A dataset with this name already exists");
-      }
-    })
-    .post("/:projectId/managed-datasets/import-observed", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetObservedImportSchema.safeParse(await safeJson(c));
-      if (!parsed.success) {
-        return apiError(c, 400, "invalid_import", "Invalid observed dataset import");
-      }
-      const observed = await getEvaluationDatasetDetail(
-        deps.clickhouse,
-        access.project.id,
-        parsed.data.sourceName,
-        parsed.data.sourceVersion,
-      );
-      if (observed === undefined) {
-        return apiError(c, 404, "not_found", "Observed dataset version was not found");
-      }
-      if (observed.selectedVersion.status !== "complete") {
-        return apiError(
-          c,
-          409,
-          "observed_dataset_incomplete",
-          "Only complete, conflict-free observed versions can be imported",
-        );
-      }
-      const items = observed.cases.map(observedCaseInput);
-      if (items.some((item) => item === undefined)) {
-        return apiError(
-          c,
-          409,
-          "observed_dataset_incomplete",
-          "Every observed case must have a captured payload",
-        );
-      }
-      const { sourceName: _, sourceVersion: __, version, ...input } = parsed.data;
-      try {
-        return c.json(
-          await createManagedDatasetWithCases(
-            deps.postgres.db,
-            access.project.id,
-            requiredSession(c).user.id,
-            input,
-            version,
-            items as ManagedDatasetCaseInput[],
-          ),
-          201,
-        );
-      } catch (error) {
-        return duplicateOrThrow(c, error, "A dataset with this name already exists");
-      }
-    })
+        if (observed === undefined) {
+          return apiError(c, 404, "not_found", "Observed dataset version was not found");
+        }
+        if (observed.selectedVersion.status !== "complete") {
+          return apiError(
+            c,
+            409,
+            "observed_dataset_incomplete",
+            "Only complete, conflict-free observed versions can be imported",
+          );
+        }
+        const items = observed.cases.map(observedCaseInput);
+        if (items.some((item) => item === undefined)) {
+          return apiError(
+            c,
+            409,
+            "observed_dataset_incomplete",
+            "Every observed case must have a captured payload",
+          );
+        }
+        const { sourceName: _, sourceVersion: __, version, ...input } = parsed;
+        try {
+          return c.json(
+            await createManagedDatasetWithCases(
+              deps.postgres.db,
+              access.project.id,
+              requiredSession(c).user.id,
+              input,
+              version,
+              items as ManagedDatasetCaseInput[],
+            ),
+            201,
+          );
+        } catch (error) {
+          return duplicateOrThrow(c, error, "A dataset with this name already exists");
+        }
+      },
+    )
     .get("/:projectId/managed-datasets/:datasetId", async (c) => {
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
@@ -118,26 +126,29 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
         ? apiError(c, 404, "not_found", "Managed dataset not found")
         : c.json(dataset);
     })
-    .patch("/:projectId/managed-datasets/:datasetId", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetUpdateSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_dataset", "Invalid dataset update");
-      try {
-        const dataset = await updateManagedDataset(
-          deps.postgres.db,
-          access.project.id,
-          c.req.param("datasetId"),
-          parsed.data,
-        );
-        return dataset === undefined
-          ? apiError(c, 404, "not_found", "Managed dataset not found")
-          : c.json(dataset);
-      } catch (error) {
-        return duplicateOrThrow(c, error, "A dataset with this name already exists");
-      }
-    })
+    .patch(
+      "/:projectId/managed-datasets/:datasetId",
+      jsonInput(managedDatasetUpdateSchema, "invalid_dataset", "Invalid dataset update"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        try {
+          const dataset = await updateManagedDataset(
+            deps.postgres.db,
+            access.project.id,
+            c.req.param("datasetId"),
+            parsed,
+          );
+          return dataset === undefined
+            ? apiError(c, 404, "not_found", "Managed dataset not found")
+            : c.json(dataset);
+        } catch (error) {
+          return duplicateOrThrow(c, error, "A dataset with this name already exists");
+        }
+      },
+    )
     .delete("/:projectId/managed-datasets/:datasetId", async (c) => {
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
@@ -151,27 +162,30 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
         ? c.body(null, 204)
         : apiError(c, 404, "not_found", "Managed dataset not found");
     })
-    .post("/:projectId/managed-datasets/:datasetId/versions", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetVersionInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_version", "Invalid version label");
-      try {
-        const version = await createManagedDatasetVersion(
-          deps.postgres.db,
-          access.project.id,
-          c.req.param("datasetId"),
-          requiredSession(c).user.id,
-          parsed.data.version,
-        );
-        return version === undefined
-          ? apiError(c, 404, "not_found", "Managed dataset not found")
-          : c.json(version, 201);
-      } catch (error) {
-        return duplicateOrThrow(c, error, "A draft or version with this label already exists");
-      }
-    })
+    .post(
+      "/:projectId/managed-datasets/:datasetId/versions",
+      jsonInput(managedDatasetVersionInputSchema, "invalid_version", "Invalid version label"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        try {
+          const version = await createManagedDatasetVersion(
+            deps.postgres.db,
+            access.project.id,
+            c.req.param("datasetId"),
+            requiredSession(c).user.id,
+            parsed.version,
+          );
+          return version === undefined
+            ? apiError(c, 404, "not_found", "Managed dataset not found")
+            : c.json(version, 201);
+        } catch (error) {
+          return duplicateOrThrow(c, error, "A draft or version with this label already exists");
+        }
+      },
+    )
     .get("/:projectId/managed-datasets/:datasetId/versions/:versionId", async (c) => {
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
@@ -180,44 +194,50 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
         ? apiError(c, 404, "not_found", "Managed dataset version not found")
         : c.json(version);
     })
-    .post("/:projectId/managed-datasets/:datasetId/versions/:versionId/cases", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetCaseInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_case", "Invalid dataset case");
-      const state = await requireDraft(c, deps, access.project.id);
-      if (state !== undefined) return state;
-      const version = await upsertManagedDatasetCase(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("datasetId"),
-        c.req.param("versionId"),
-        parsed.data,
-      );
-      return version === undefined
-        ? apiError(c, 404, "not_found", "Managed dataset version not found")
-        : c.json(version);
-    })
-    .post("/:projectId/managed-datasets/:datasetId/versions/:versionId/cases/import", async (c) => {
-      const access = await accessFor(c, deps);
-      if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = managedDatasetCaseImportSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_import", "Invalid case import");
-      const state = await requireDraft(c, deps, access.project.id);
-      if (state !== undefined) return state;
-      const version = await importManagedDatasetCases(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("datasetId"),
-        c.req.param("versionId"),
-        parsed.data.items,
-      );
-      return version === undefined
-        ? apiError(c, 404, "not_found", "Managed dataset version not found")
-        : c.json(version);
-    })
+    .post(
+      "/:projectId/managed-datasets/:datasetId/versions/:versionId/cases",
+      jsonInput(managedDatasetCaseInputSchema, "invalid_case", "Invalid dataset case"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        const state = await requireDraft(c, deps, access.project.id);
+        if (state !== undefined) return state;
+        const version = await upsertManagedDatasetCase(
+          deps.postgres.db,
+          access.project.id,
+          c.req.param("datasetId"),
+          c.req.param("versionId"),
+          parsed,
+        );
+        return version === undefined
+          ? apiError(c, 404, "not_found", "Managed dataset version not found")
+          : c.json(version);
+      },
+    )
+    .post(
+      "/:projectId/managed-datasets/:datasetId/versions/:versionId/cases/import",
+      jsonInput(managedDatasetCaseImportSchema, "invalid_import", "Invalid case import"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        const state = await requireDraft(c, deps, access.project.id);
+        if (state !== undefined) return state;
+        const version = await importManagedDatasetCases(
+          deps.postgres.db,
+          access.project.id,
+          c.req.param("datasetId"),
+          c.req.param("versionId"),
+          parsed.items,
+        );
+        return version === undefined
+          ? apiError(c, 404, "not_found", "Managed dataset version not found")
+          : c.json(version);
+      },
+    )
     .delete(
       "/:projectId/managed-datasets/:datasetId/versions/:versionId/cases/:caseId",
       async (c) => {
@@ -298,7 +318,7 @@ function adminRequired(c: Parameters<typeof apiError>[0]) {
 }
 
 function duplicateOrThrow(c: Parameters<typeof apiError>[0], error: unknown, message: string) {
-  if ((error as { code?: unknown }).code === "23505") {
+  if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
     return apiError(c, 409, "duplicate_dataset", message);
   }
   throw error;

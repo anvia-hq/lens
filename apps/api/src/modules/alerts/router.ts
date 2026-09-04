@@ -13,7 +13,7 @@ import {
 } from "@lens/db";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, requiredSession, safeJson } from "../../utils/http.js";
+import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { loadAlertIncidentDetail } from "./services.js";
 
@@ -24,54 +24,60 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
       if (!access) return apiError(c, 404, "not_found", "Project not found");
       return c.json({ items: await listAlertRules(deps.postgres.db, access.project.id) });
     })
-    .post("/:projectId/alert-rules", async (c) => {
-      const access = await accessFor(c, deps);
-      if (!access) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = alertRuleInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_rule", "Invalid alert rule");
-      if ((await alertRuleCount(deps.postgres.db, access.project.id)) >= 25) {
-        return apiError(c, 409, "rule_limit", "A project can have up to 25 alert rules");
-      }
-      if (!(await gateExists(deps, access.project.id, parsed.data))) {
-        return apiError(c, 400, "invalid_gate", "Quality gate not found");
-      }
-      try {
-        const rule = await createAlertRule(
-          deps.postgres.db,
-          access.project.id,
-          requiredSession(c).user.id,
-          parsed.data,
-        );
-        queueEvaluation(deps, access.project.id);
-        return c.json(rule, 201);
-      } catch (error) {
-        return duplicateOrThrow(c, error);
-      }
-    })
-    .patch("/:projectId/alert-rules/:ruleId", async (c) => {
-      const access = await accessFor(c, deps);
-      if (!access) return apiError(c, 404, "not_found", "Project not found");
-      if (!canManage(access.role)) return adminRequired(c);
-      const parsed = alertRuleInputSchema.safeParse(await safeJson(c));
-      if (!parsed.success) return apiError(c, 400, "invalid_rule", "Invalid alert rule");
-      if (!(await gateExists(deps, access.project.id, parsed.data))) {
-        return apiError(c, 400, "invalid_gate", "Quality gate not found");
-      }
-      try {
-        const rule = await updateAlertRule(
-          deps.postgres.db,
-          access.project.id,
-          c.req.param("ruleId"),
-          parsed.data,
-        );
-        if (!rule) return apiError(c, 404, "not_found", "Alert rule not found");
-        queueEvaluation(deps, access.project.id);
-        return c.json(rule);
-      } catch (error) {
-        return duplicateOrThrow(c, error);
-      }
-    })
+    .post(
+      "/:projectId/alert-rules",
+      jsonInput(alertRuleInputSchema, "invalid_rule", "Invalid alert rule"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (!access) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        if ((await alertRuleCount(deps.postgres.db, access.project.id)) >= 25) {
+          return apiError(c, 409, "rule_limit", "A project can have up to 25 alert rules");
+        }
+        if (!(await gateExists(deps, access.project.id, parsed))) {
+          return apiError(c, 400, "invalid_gate", "Quality gate not found");
+        }
+        try {
+          const rule = await createAlertRule(
+            deps.postgres.db,
+            access.project.id,
+            requiredSession(c).user.id,
+            parsed,
+          );
+          queueEvaluation(deps, access.project.id);
+          return c.json(rule, 201);
+        } catch (error) {
+          return duplicateOrThrow(c, error);
+        }
+      },
+    )
+    .patch(
+      "/:projectId/alert-rules/:ruleId",
+      jsonInput(alertRuleInputSchema, "invalid_rule", "Invalid alert rule"),
+      async (c) => {
+        const access = await accessFor(c, deps);
+        if (!access) return apiError(c, 404, "not_found", "Project not found");
+        if (!canManage(access.role)) return adminRequired(c);
+        const parsed = c.req.valid("json");
+        if (!(await gateExists(deps, access.project.id, parsed))) {
+          return apiError(c, 400, "invalid_gate", "Quality gate not found");
+        }
+        try {
+          const rule = await updateAlertRule(
+            deps.postgres.db,
+            access.project.id,
+            c.req.param("ruleId"),
+            parsed,
+          );
+          if (!rule) return apiError(c, 404, "not_found", "Alert rule not found");
+          queueEvaluation(deps, access.project.id);
+          return c.json(rule);
+        } catch (error) {
+          return duplicateOrThrow(c, error);
+        }
+      },
+    )
     .delete("/:projectId/alert-rules/:ruleId", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
@@ -181,7 +187,7 @@ function adminRequired(c: Parameters<typeof requiredSession>[0]) {
 }
 
 function duplicateOrThrow(c: Parameters<typeof requiredSession>[0], error: unknown) {
-  if ((error as { code?: unknown }).code === "23505") {
+  if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
     return apiError(c, 409, "duplicate_rule", "An alert rule with this name already exists");
   }
   throw error;
