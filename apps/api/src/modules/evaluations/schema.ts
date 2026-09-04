@@ -104,5 +104,10 @@ export const evaluationOverviewQuerySchema = z
       outcomes: value.outcome,
       environments: value.environment,
       releases: value.release,
+      sources: value.source,
+      traceId: value.traceId,
+      search: value.search,
+      // from/to stay preset-controlled: queryEvaluationOverview derives them
+      // from the range.
     }),
   );

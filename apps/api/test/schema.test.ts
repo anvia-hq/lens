@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { runQuerySchema } from "../src/modules/evaluation-runs/schema";
-import { evaluationQuerySchema } from "../src/modules/evaluations/schema";
+import {
+  evaluationOverviewQuerySchema,
+  evaluationQuerySchema,
+} from "../src/modules/evaluations/schema";
 import { memberRoleSchema } from "../src/modules/members/schema";
 import { sessionDetailQuerySchema, sessionQuerySchema } from "../src/modules/sessions/schema";
 import { traceQuerySchema } from "../src/modules/traces/schema";
@@ -41,6 +44,23 @@ describe("API module schemas", () => {
     });
   });
 
+  it("passes overview filters through with the range default", async () => {
+    const parsed = await parseQuery<typeof evaluationOverviewQuerySchema._output>(
+      "/?range=7d&suite=core&metric=accuracy&outcome=pass&environment=prod&release=v1&source=telemetry&traceId=t-1&search=checkout",
+      evaluationOverviewQuerySchema,
+    );
+    expect(parsed).toEqual({
+      range: "7d",
+      suites: ["core"],
+      metrics: ["accuracy"],
+      outcomes: ["pass"],
+      environments: ["prod"],
+      releases: ["v1"],
+      sources: ["telemetry"],
+      traceId: "t-1",
+      search: "checkout",
+    });
+  });
   it("preserves trace range validation messages", async () => {
     expect(await queryError("/?minDurationMs=20&maxDurationMs=10", traceQuerySchema)).toBe(
       "minDurationMs must not exceed maxDurationMs",

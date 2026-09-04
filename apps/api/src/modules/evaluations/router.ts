@@ -60,8 +60,13 @@ export const createEvaluationsRouter = (deps: ApiDependencies) =>
         return c.json(
           await queryEvaluationOverview(deps.clickhouse, projectId, parsed.range, new Date(), {
             suites: parsed.suites,
+            metrics: parsed.metrics,
+            outcomes: parsed.outcomes,
             environments: parsed.environments,
             releases: parsed.releases,
+            sources: parsed.sources,
+            traceId: parsed.traceId,
+            search: parsed.search,
           }),
         );
       },
