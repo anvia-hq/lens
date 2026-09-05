@@ -74,7 +74,7 @@ function incidentRow() {
 // Universal drizzle-builder stub: every method returns the same thenable chain,
 // so `await db.select().from().where()` (and any builder tail) resolves rows.
 function mockDb(rows: unknown[] | (() => unknown[])) {
-  const builder: Record<string, unknown> = {};
+  const builder = {} as Record<string, ReturnType<typeof vi.fn>>;
   // biome-ignore lint/suspicious/noThenProperty: the stub must be thenable like real drizzle builders
   Object.defineProperty(builder, "then", {
     value: (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
@@ -228,7 +228,7 @@ describe("alert channel store", () => {
   it("deletes the channel and strips it from rule channel ids", async () => {
     db = mockDb([{ id: channelId }]);
     expect(await deleteAlertChannel(db as never, projectId, channelId)).toBe(true);
-    const setCall = db.builder.set.mock.lastCall?.[0] as { channelIds: unknown } | undefined;
+    const setCall = db.builder.set?.mock.lastCall?.[0] as { channelIds: unknown } | undefined;
     expect(setCall).toHaveProperty("channelIds");
     expect(db.builder.where).toHaveBeenCalled();
 
@@ -328,6 +328,6 @@ describe("alert channel store", () => {
     expect(db.builder.set).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed", error: "boom" }),
     );
-    expect(db.builder.set.mock.lastCall?.[0]).not.toHaveProperty("deliveredAt");
+    expect(db.builder.set?.mock.lastCall?.[0]).not.toHaveProperty("deliveredAt");
   });
 });
