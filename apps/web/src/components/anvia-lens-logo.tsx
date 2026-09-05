@@ -4,12 +4,14 @@ export function AnviaLensLogo({ markClassName }: { markClassName?: string }) {
       <svg
         aria-hidden="true"
         className={`size-6 shrink-0 ${markClassName ?? "text-foreground"}`}
-        viewBox="0 0 24 24"
+        viewBox="0 0 1568 1568"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
-          d="M12 2.5c.58 5.17 4.33 8.92 9.5 9.5-5.17.58-8.92 4.33-9.5 9.5-.58-5.17-4.33-8.92-9.5-9.5 5.17-.58 8.92-4.33 9.5-9.5Z"
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M520 300H1300A90 90 0 0 1 1390 390V1180A90 90 0 0 1 1300 1270H1160A70 70 0 0 1 1090 1200V1085A70 70 0 0 0 1020 1015H590A70 70 0 0 0 520 1085V1200A70 70 0 0 1 450 1270H290A90 90 0 0 1 200 1180V620A90 90 0 0 1 290 530H310A120 120 0 0 0 430 410V390A90 90 0 0 1 520 300ZM590 535H1020A70 70 0 0 1 1090 605V745A70 70 0 0 1 1020 815H590A70 70 0 0 1 520 745V605A70 70 0 0 1 590 535Z"
           fill="currentColor"
         />
       </svg>
