@@ -5,16 +5,6 @@ import {
   alertChannelInputSchema,
   alertChannelTypes,
 } from "@lens/contracts";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@lens/ui/components/alert-dialog";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import {
@@ -36,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Bell, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { Bell, PencilSimple, Trash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
@@ -50,35 +40,28 @@ const typeLabels: Record<AlertChannelType, string> = {
   webhook: "Webhook",
 };
 
-export function AlertChannelsView({ state }: { state: AlertsState }) {
-  const [editing, setEditing] = useState<AlertChannel | "new" | null>(null);
-  const [deleting, setDeleting] = useState<AlertChannel | null>(null);
-  const canManage = state.project.role === "owner" || state.project.role === "admin";
-  const channels = state.channels.data?.items ?? [];
-  const saving = state.createChannel.isPending || state.updateChannel.isPending;
-
+export function AlertChannelsView(props: {
+  state: AlertsState;
+  canManage: boolean;
+  onEdit: (channel: AlertChannel) => void;
+  onDelete: (channel: AlertChannel) => void;
+}) {
+  const channels = props.state.channels.data?.items ?? [];
   return (
     <div className="grid gap-4">
-      {state.channels.error ? <ErrorAlert error={state.channels.error} /> : null}
-      {canManage ? (
-        <div className="flex justify-end">
-          <Button onClick={() => setEditing("new")}>
-            <Plus /> New channel
-          </Button>
-        </div>
-      ) : null}
-      {state.channels.isLoading ? (
+      {props.state.channels.error ? <ErrorAlert error={props.state.channels.error} /> : null}
+      {props.state.channels.isLoading ? (
         <div className="overflow-hidden rounded-lg border">
           <LoadingRows />
         </div>
       ) : channels.length > 0 ? (
         <ChannelTable
           channels={channels}
-          canManage={canManage}
-          testing={state.testChannel}
-          onEdit={setEditing}
-          onDelete={setDeleting}
-          onTest={(id) => state.testChannel.mutate(id)}
+          canManage={props.canManage}
+          testing={props.state.testChannel}
+          onEdit={props.onEdit}
+          onDelete={props.onDelete}
+          onTest={(id) => props.state.testChannel.mutate(id)}
         />
       ) : (
         <EmptyState
@@ -87,47 +70,6 @@ export function AlertChannelsView({ state }: { state: AlertsState }) {
           text="Connect Slack, Discord, Telegram, or a webhook to be notified when incidents open."
         />
       )}
-
-      <ChannelDialog
-        item={editing}
-        saving={saving}
-        error={state.createChannel.error ?? state.updateChannel.error}
-        onClose={() => setEditing(null)}
-        onSave={(input) => {
-          if (editing === "new") {
-            state.createChannel.mutate(input, { onSuccess: () => setEditing(null) });
-          } else if (editing) {
-            state.updateChannel.mutate(
-              { id: editing.id, input },
-              { onSuccess: () => setEditing(null) },
-            );
-          }
-        }}
-      />
-
-      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this alert channel?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Rules that send to this channel stop delivering. Past deliveries are kept.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={state.deleteChannel.isPending}
-              onClick={() =>
-                deleting &&
-                state.deleteChannel.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
-              }
-            >
-              Delete channel
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -204,7 +146,7 @@ type ChannelDraft = {
   secret: string;
 };
 
-function ChannelDialog(props: {
+export function ChannelDialog(props: {
   item: AlertChannel | "new" | null;
   saving: boolean;
   error: Error | null;

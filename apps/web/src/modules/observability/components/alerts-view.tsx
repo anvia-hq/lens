@@ -48,7 +48,7 @@ import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { AlertsState } from "../hooks/use-alerts";
-import { AlertChannelsView } from "./alert-channels-view";
+import { AlertChannelsView, ChannelDialog } from "./alert-channels-view";
 import { LoadingRows } from "./loading-rows";
 
 const kindLabels: Record<AlertRuleKind, string> = {
@@ -62,6 +62,8 @@ const kindLabels: Record<AlertRuleKind, string> = {
 export function AlertsView({ state }: { state: AlertsState }) {
   const [editing, setEditing] = useState<AlertRule | "new" | null>(null);
   const [deleting, setDeleting] = useState<AlertRule | null>(null);
+  const [channelEditing, setChannelEditing] = useState<AlertChannel | "new" | null>(null);
+  const [channelDeleting, setChannelDeleting] = useState<AlertChannel | null>(null);
   const canManage = state.project.role === "owner" || state.project.role === "admin";
 
   return (
@@ -72,6 +74,10 @@ export function AlertsView({ state }: { state: AlertsState }) {
         canManage && state.filters.tab === "rules" ? (
           <Button onClick={() => setEditing("new")}>
             <Plus /> New rule
+          </Button>
+        ) : canManage && state.filters.tab === "channels" ? (
+          <Button onClick={() => setChannelEditing("new")}>
+            <Plus /> New channel
           </Button>
         ) : undefined
       }
@@ -99,7 +105,12 @@ export function AlertsView({ state }: { state: AlertsState }) {
           />
         </TabsContent>
         <TabsContent value="channels">
-          <AlertChannelsView state={state} />
+          <AlertChannelsView
+            state={state}
+            canManage={canManage}
+            onEdit={setChannelEditing}
+            onDelete={setChannelDeleting}
+          />
         </TabsContent>
       </Tabs>
 
@@ -121,6 +132,51 @@ export function AlertsView({ state }: { state: AlertsState }) {
           }
         }}
       />
+      <ChannelDialog
+        item={channelEditing}
+        saving={state.createChannel.isPending || state.updateChannel.isPending}
+        error={state.createChannel.error ?? state.updateChannel.error}
+        onClose={() => setChannelEditing(null)}
+        onSave={(input) => {
+          if (channelEditing === "new") {
+            state.createChannel.mutate(input, { onSuccess: () => setChannelEditing(null) });
+          } else if (channelEditing) {
+            state.updateChannel.mutate(
+              { id: channelEditing.id, input },
+              { onSuccess: () => setChannelEditing(null) },
+            );
+          }
+        }}
+      />
+
+      <AlertDialog
+        open={channelDeleting !== null}
+        onOpenChange={(open) => !open && setChannelDeleting(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this alert channel?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Rules that send to this channel stop delivering. Past deliveries are kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={state.deleteChannel.isPending}
+              onClick={() =>
+                channelDeleting &&
+                state.deleteChannel.mutate(channelDeleting.id, {
+                  onSuccess: () => setChannelDeleting(null),
+                })
+              }
+            >
+              Delete channel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
