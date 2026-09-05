@@ -75,6 +75,7 @@ function incidentRow() {
 // so `await db.select().from().where()` (and any builder tail) resolves rows.
 function mockDb(rows: unknown[] | (() => unknown[])) {
   const builder: Record<string, unknown> = {};
+  // biome-ignore lint/suspicious/noThenProperty: the stub must be thenable like real drizzle builders
   Object.defineProperty(builder, "then", {
     value: (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
       Promise.resolve(typeof rows === "function" ? rows() : rows).then(onFulfilled, onRejected),
