@@ -1,12 +1,17 @@
 import type { AlertRuleKind, EvaluateAlertsJob } from "@lens/contracts";
+import type { LensPostgres } from "@lens/db";
 import {
   autoResolveAlertIncident,
+  createPendingDeliveries,
+  listAlertChannelsByIds,
   listEnabledAlertRules,
   openAlertIncident,
   queryAlertMeasurement,
   updateAlertRuleState,
 } from "@lens/db";
+import type { LensQueues } from "@lens/queue";
 import type { Job } from "bullmq";
+import type { Logger } from "pino";
 import type { ProcessorDependencies } from "./processors.js";
 
 const thresholdKinds: AlertRuleKind[] = [
@@ -56,7 +61,7 @@ export function createAlertProcessor(deps: ProcessorDependencies) {
         consecutiveBreaches >= 2 &&
         (rule.cooldownUntil === null || Date.parse(rule.cooldownUntil) <= now.getTime())
       ) {
-        await openAlertIncident(
+        const opened = await openAlertIncident(
           deps.postgres.db,
           rule,
           {
@@ -68,6 +73,16 @@ export function createAlertProcessor(deps: ProcessorDependencies) {
           },
           now,
         );
+        if (opened.created && opened.incidentId) {
+          await scheduleDispatch(
+            deps.postgres.db,
+            deps.queues,
+            deps.logger,
+            rule.projectId,
+            opened.incidentId,
+            rule.channelIds,
+          );
+        }
       }
     }
   };
@@ -79,4 +94,32 @@ function alertSummary(kind: AlertRuleKind, value: number, threshold: number): st
   }
   const label = kind === "tool_error_rate" ? "Tool error rate" : "Trace error rate";
   return `${label} is ${(value * 100).toFixed(1)}% (threshold ${(threshold * 100).toFixed(1)}%)`;
+}
+
+// Enqueue one delivery per configured channel when an incident is first opened.
+async function scheduleDispatch(
+  db: LensPostgres,
+  queues: LensQueues,
+  logger: Logger,
+  projectId: string,
+  incidentId: string,
+  channelIds: string[],
+): Promise<void> {
+  if (channelIds.length === 0) return;
+  const channels = await listAlertChannelsByIds(db, projectId, channelIds);
+  if (channels.length === 0) return;
+  const deliveries = await createPendingDeliveries(db, projectId, incidentId, channels);
+  await Promise.all(
+    deliveries.map((delivery) =>
+      queues.dispatch
+        .add(
+          "dispatch-alert",
+          { deliveryId: delivery.id },
+          { jobId: `alert-delivery-${delivery.id}` }, // BullMQ dedupes on jobId
+        )
+        .catch((error: unknown) =>
+          logger.warn({ err: error, deliveryId: delivery.id }, "failed to queue alert delivery"),
+        ),
+    ),
+  );
 }

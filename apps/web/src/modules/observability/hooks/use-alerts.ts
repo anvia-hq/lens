@@ -1,4 +1,6 @@
 import type {
+  AlertChannel,
+  AlertChannelInput,
   AlertIncident,
   AlertIncidentDetail,
   AlertRule,
@@ -43,6 +45,9 @@ export function useAlerts() {
     void queryClient.invalidateQueries({ queryKey: ["alerts", project.id] });
     void queryClient.invalidateQueries({ queryKey: ["alert-active-count", project.id] });
   };
+  const refreshChannels = () => {
+    void queryClient.invalidateQueries({ queryKey: ["alert-channels", project.id] });
+  };
   const rules = useQuery({
     queryKey: ["alert-rules", project.id],
     queryFn: () => api<{ items: AlertRule[] }>(`/api/v1/projects/${project.id}/alert-rules`),
@@ -62,6 +67,10 @@ export function useAlerts() {
   const gates = useQuery({
     queryKey: ["quality-gates", project.id],
     queryFn: () => api<{ items: QualityGate[] }>(`/api/v1/projects/${project.id}/quality-gates`),
+  });
+  const channels = useQuery({
+    queryKey: ["alert-channels", project.id],
+    queryFn: () => api<{ items: AlertChannel[] }>(`/api/v1/projects/${project.id}/alert-channels`),
   });
   const createRule = useMutation({
     mutationFn: (input: AlertRuleInput) =>
@@ -107,10 +116,52 @@ export function useAlerts() {
       }),
     onSuccess: refresh,
   });
+  const createChannel = useMutation({
+    mutationFn: (input: AlertChannelInput) =>
+      api<AlertChannel>(`/api/v1/projects/${project.id}/alert-channels`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      refreshChannels();
+      notify("Alert channel created");
+    },
+  });
+  const updateChannel = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AlertChannelInput }) =>
+      api<AlertChannel>(`/api/v1/projects/${project.id}/alert-channels/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      refreshChannels();
+      notify("Alert channel updated");
+    },
+  });
+  const deleteChannel = useMutation({
+    mutationFn: (id: string) =>
+      api<void>(`/api/v1/projects/${project.id}/alert-channels/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      refreshChannels();
+      notify("Alert channel deleted");
+    },
+  });
+  const testChannel = useMutation({
+    mutationFn: (id: string) =>
+      api<{ ok: boolean }>(`/api/v1/projects/${project.id}/alert-channels/${id}/test`, {
+        method: "POST",
+      }),
+    onSuccess: () => notify("Test alert delivered"),
+    onError: (error: unknown) =>
+      notify(error instanceof Error ? error.message : "Test delivery failed"),
+  });
 
   return {
     acknowledge,
+    channels,
+    createChannel,
     createRule,
+    deleteChannel,
     deleteRule,
     filters,
     gates,
@@ -119,6 +170,8 @@ export function useAlerts() {
     resolve,
     rules,
     setFilters,
+    testChannel,
+    updateChannel,
     updateRule,
   };
 }

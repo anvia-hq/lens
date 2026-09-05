@@ -266,7 +266,7 @@ export async function openAlertIncident(
     evidence?: AlertIncidentEvidence;
   },
   now = new Date(),
-): Promise<void> {
+): Promise<{ incidentId: string | null; created: boolean }> {
   const [active] = await db
     .select({ id: alertIncident.id })
     .from(alertIncident)
@@ -290,9 +290,9 @@ export async function openAlertIncident(
         lastTriggeredAt: now,
       })
       .where(eq(alertIncident.id, active.id));
-    return;
+    return { incidentId: active.id, created: false };
   }
-  await db
+  const rows = await db
     .insert(alertIncident)
     .values({
       projectId: rule.projectId,
@@ -309,7 +309,23 @@ export async function openAlertIncident(
       firstTriggeredAt: now,
       lastTriggeredAt: now,
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: alertIncident.id });
+  const [row] = rows;
+  if (row) return { incidentId: row.id, created: true };
+  // Unique-index race on alert_incidents_active_subject_idx: another request opened it.
+  const [winner] = await db
+    .select({ id: alertIncident.id })
+    .from(alertIncident)
+    .where(
+      and(
+        eq(alertIncident.ruleId, rule.id),
+        eq(alertIncident.subjectKey, input.subjectKey),
+        inArray(alertIncident.status, ["open", "acknowledged"]),
+      ),
+    )
+    .limit(1);
+  return { incidentId: winner?.id ?? null, created: false };
 }
 
 export async function autoResolveAlertIncident(
@@ -363,6 +379,7 @@ function ruleValues(input: AlertRuleInput) {
     serviceName: "serviceName" in input ? (input.serviceName ?? null) : null,
     toolName: "toolName" in input ? (input.toolName ?? null) : null,
     qualityGateId: "qualityGateId" in input ? input.qualityGateId : null,
+    channelIds: input.channelIds,
   };
 }
 
@@ -371,6 +388,7 @@ function ruleFromRow(row: typeof alertRule.$inferSelect): AlertRule {
     id: row.id,
     projectId: row.projectId,
     name: row.name,
+    channelIds: row.channelIds,
     enabled: row.enabled,
     lastEvaluatedAt: row.lastEvaluatedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -429,7 +447,7 @@ export function alertRuleSnapshot(rule: StoredAlertRule): AlertRuleInput {
   return input;
 }
 
-function incidentFromRow(
+export function incidentFromRow(
   row: typeof alertIncident.$inferSelect,
   names: Map<string, string>,
 ): AlertIncident {

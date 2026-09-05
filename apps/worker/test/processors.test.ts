@@ -363,6 +363,7 @@ function dependencies() {
     queues: { materialize: { add: materializeAdd } } as unknown as LensQueues,
     logger,
     materializeDelayMs: 1_500,
+    appUrl: "http://localhost:3000",
   };
   return { deps, deleteWhere, logger, materializeAdd, select, update, updates };
 }

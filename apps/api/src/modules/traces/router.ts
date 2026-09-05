@@ -111,8 +111,9 @@ export const createTracesRouter = (deps: ApiDependencies) =>
           reviewer: { id: session.user.id, name: session.user.name },
         });
         await insertEvaluations(deps.clickhouse, [result]);
-        await recordHumanReviewAlert(deps.postgres, trace, result).catch((error: unknown) =>
-          deps.logger.warn({ err: error, projectId, traceId }, "failed to record review alert"),
+        await recordHumanReviewAlert(deps.postgres, deps.queues, deps.logger, trace, result).catch(
+          (error: unknown) =>
+            deps.logger.warn({ err: error, projectId, traceId }, "failed to record review alert"),
         );
         return c.json(result);
       },

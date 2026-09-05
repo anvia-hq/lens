@@ -38,7 +38,7 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
         return apiError(c, checked.error.status, checked.error.code, checked.error.message);
       }
       if (checked.comparison.gate !== null) {
-        await recordQualityGateAlert(deps.postgres, projectId, {
+        await recordQualityGateAlert(deps.postgres, deps.queues, deps.logger, projectId, {
           ...checked.comparison.gate,
           candidateRunId,
           baselineRunId,

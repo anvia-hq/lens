@@ -57,7 +57,6 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
   return (
     <Page
       className="mx-auto max-w-7xl"
-      eyebrow="Anvia Lens"
       title="Cost Settings"
       description="Configure organization-wide USD pricing per million tokens."
       action={

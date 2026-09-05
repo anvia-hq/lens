@@ -132,9 +132,10 @@ describe("queue contracts", () => {
       maintenance: queue,
       costs: queue,
       alerts: queue,
+      dispatch: queue,
     };
     const health = await queryQueueHealth(queues as never);
-    expect(health).toHaveLength(6);
+    expect(health).toHaveLength(7);
     expect(health[0]).toEqual({
       name: "Trace ingestion",
       waiting: 1,

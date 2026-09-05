@@ -12,13 +12,16 @@ import {
   archiveManagedDataset,
   claimJobOutbox,
   completeJobOutbox,
+  createAlertChannel,
   createAlertRule,
   createClickHouse,
   createManagedDataset,
   createManagedDatasetVersion,
   createManagedDatasetWithCases,
+  createPendingDeliveries,
   createPostgres,
   createQualityGate,
+  deleteAlertChannel,
   deleteAlertRule,
   deleteManagedDatasetCase,
   deleteProjectTelemetry,
@@ -41,11 +44,15 @@ import {
   insertSpans,
   jobOutbox,
   jobOutboxValues,
+  listAlertChannelsByIds,
+  listAlertChannels as listAlertChannelsPublic,
   listAlertRules,
   listEvaluationRuns,
+  listIncidentDeliveries,
   listManagedDatasets,
   listQualityGates,
   listTraces,
+  loadDeliveryForDispatch,
   managedDataset,
   materializeTrace,
   openAlertIncident,
@@ -180,6 +187,7 @@ describe.sequential("database integration", () => {
     const rule = await createAlertRule(postgres.db, projectId, "integration-user", {
       name: "Integration errors",
       enabled: true,
+      channelIds: [],
       kind: "trace_error_rate",
       threshold: 0.05,
       windowMinutes: 15,
@@ -215,6 +223,82 @@ describe.sequential("database integration", () => {
         environment: "production",
       }),
     );
+  });
+
+  it("stores channels, creates pending deliveries, and detaches deleted channels", async () => {
+    const channel = await createAlertChannel(postgres.db, projectId, "integration-user", {
+      type: "webhook",
+      name: "Integration hook",
+      url: "https://example.com/hook",
+      secret: "integration-secret-16",
+    });
+    const rule = await createAlertRule(postgres.db, projectId, "integration-user", {
+      name: "Integration dispatch",
+      enabled: true,
+      kind: "trace_error_rate",
+      threshold: 0.05,
+      windowMinutes: 15,
+      minimumSamples: 20,
+      environment: "production",
+      serviceName: undefined,
+      channelIds: [channel.id],
+    });
+    const stored = await getAlertRule(postgres.db, projectId, rule.id);
+    if (!stored) throw new Error("Expected stored alert rule");
+    expect(stored.channelIds).toEqual([channel.id]);
+
+    const channels = await listAlertChannelsByIds(postgres.db, projectId, [channel.id]);
+    expect(channels).toHaveLength(1);
+    expect(channels[0]?.config).toEqual({
+      url: "https://example.com/hook",
+      secret: "integration-secret-16",
+    });
+    // Public listings never expose the stored config.
+    const publicChannels = await listAlertChannelsPublic(postgres.db, projectId);
+    expect(publicChannels).toHaveLength(1);
+    expect(publicChannels[0]).not.toHaveProperty("config");
+
+    const opened = await openAlertIncident(postgres.db, stored, {
+      subjectKey: "threshold",
+      summary: "Trace error rate breached",
+      observedValue: 0.1,
+      sampleCount: 25,
+      evidence: { traceIds: [traceId] },
+    });
+    expect(opened.created).toBe(true);
+    if (opened.incidentId === null) throw new Error("Expected opened incident id");
+
+    const deliveries = await createPendingDeliveries(
+      postgres.db,
+      projectId,
+      opened.incidentId,
+      channels,
+    );
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({
+      incidentId: opened.incidentId,
+      channelId: channel.id,
+      channelName: "Integration hook",
+      channelType: "webhook",
+      status: "pending",
+      attempts: 0,
+      error: null,
+      deliveredAt: null,
+    });
+    expect(await listIncidentDeliveries(postgres.db, projectId, opened.incidentId)).toHaveLength(1);
+
+    const payload = await loadDeliveryForDispatch(postgres.db, deliveries[0]?.id ?? "");
+    expect(payload?.projectName).toBe("Integration");
+    expect(payload?.channel?.id).toBe(channel.id);
+    expect(payload?.incident).toMatchObject({ id: opened.incidentId, status: "open" });
+
+    // Deleting the channel detaches it from rules but keeps delivery history.
+    expect(await deleteAlertChannel(postgres.db, projectId, channel.id)).toBe(true);
+    expect((await getAlertRule(postgres.db, projectId, rule.id))?.channelIds).toEqual([]);
+    const afterDelete = await loadDeliveryForDispatch(postgres.db, deliveries[0]?.id ?? "");
+    expect(afterDelete?.channel).toBeNull();
+    expect(afterDelete?.delivery.channelId).toBeNull();
+    expect(afterDelete?.delivery.channelName).toBe("Integration hook");
   });
 
   it("round-trips project-scoped quality gates", async () => {
@@ -404,6 +488,7 @@ describe.sequential("database integration", () => {
         projectId,
         name: "Slow traces",
         enabled: true,
+        channelIds: [],
         kind: "trace_p95_latency_ms",
         threshold: 500,
         windowMinutes: 15,
@@ -425,6 +510,7 @@ describe.sequential("database integration", () => {
       {
         name: "Slow traces",
         enabled: true,
+        channelIds: [],
         kind: "trace_p95_latency_ms",
         threshold: 500,
         windowMinutes: 15,
@@ -443,6 +529,7 @@ describe.sequential("database integration", () => {
         {
           name: "Slow traces",
           enabled: true,
+          channelIds: [],
           kind: "trace_p95_latency_ms",
           threshold: 500,
           windowMinutes: 15,
@@ -461,6 +548,7 @@ describe.sequential("database integration", () => {
           name: "Tool errors",
           enabled: true,
           kind: "tool_error_rate",
+          channelIds: [],
           threshold: 0.1,
           windowMinutes: 15,
           minimumSamples: 1,
