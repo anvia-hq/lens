@@ -16,7 +16,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const resolvedTheme = theme === "system" ? (media.matches ? "dark" : "light") : theme;
       root.classList.remove("light", "dark");
       root.classList.add(resolvedTheme);
-      document.getElementById("favicon")?.setAttribute("href", `/favicon-${resolvedTheme}.svg`);
+      document.getElementById("favicon")?.setAttribute("href", `/favicon-${resolvedTheme}.svg?v=2`);
     };
     apply();
     window.localStorage.setItem(storageKey, theme);

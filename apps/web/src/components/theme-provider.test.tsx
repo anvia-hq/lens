@@ -52,12 +52,12 @@ describe("ThemeProvider", () => {
 
     await waitFor(() => expect(document.documentElement.classList.contains("light")).toBe(true));
     expect(screen.getByText("system")).toBeDefined();
-    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-light.svg");
+    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-light.svg?v=2");
 
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
     expect(window.localStorage.getItem("lens-ui-theme")).toBe("dark");
-    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-dark.svg");
+    expect(document.getElementById("favicon")?.getAttribute("href")).toBe("/favicon-dark.svg?v=2");
   });
 });
