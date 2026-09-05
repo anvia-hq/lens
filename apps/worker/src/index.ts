@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { loadConfig } from "@lens/config";
 import type {
+  DispatchAlertJob,
   EvaluateAlertsJob,
   IngestEvaluationsJob,
   IngestTraceJob,
@@ -10,6 +11,7 @@ import { createClickHouse, createPostgres } from "@lens/db";
 import { createQueues, createRedisConnection, queueNames, startWorkerHeartbeat } from "@lens/queue";
 import { Worker } from "bullmq";
 import pino from "pino";
+import { createAlertDispatchProcessor } from "./alert-dispatcher.js";
 import { createAlertProcessor } from "./alerts.js";
 import { createJobOutboxDispatcher } from "./outbox-dispatcher.js";
 import {
@@ -40,6 +42,7 @@ const evaluationConnection = createRedisConnection(config.REDIS_URL);
 const maintenanceConnection = createRedisConnection(config.REDIS_URL);
 const costsConnection = createRedisConnection(config.REDIS_URL);
 const alertsConnection = createRedisConnection(config.REDIS_URL);
+const dispatchConnection = createRedisConnection(config.REDIS_URL);
 const heartbeatConnection = createRedisConnection(config.REDIS_URL, {
   commandTimeout: 2_500,
   enableOfflineQueue: false,
@@ -55,6 +58,7 @@ const processorDeps = {
   queues,
   logger,
   materializeDelayMs: config.MATERIALIZE_DELAY_MS,
+  appUrl: config.PUBLIC_APP_URL,
 };
 
 const ingestWorker = new Worker<IngestTraceJob>(
@@ -89,6 +93,12 @@ const alertsWorker = new Worker<EvaluateAlertsJob>(
   createAlertProcessor(processorDeps),
   { connection: alertsConnection, concurrency: 1 },
 );
+// HTTP-bound outbound deliveries; a small fixed pool matches the alerts worker.
+const dispatchWorker = new Worker<DispatchAlertJob>(
+  queueNames.dispatch,
+  createAlertDispatchProcessor(processorDeps),
+  { connection: dispatchConnection, concurrency: 2 },
+);
 const outboxDispatcher = createJobOutboxDispatcher({ postgres, queues, logger });
 
 for (const worker of [
@@ -98,6 +108,7 @@ for (const worker of [
   maintenanceWorker,
   costsWorker,
   alertsWorker,
+  dispatchWorker,
 ]) {
   worker.on("failed", (job, error) => {
     logger.error({ jobId: job?.id, queue: worker.name, error }, "queue job failed");
@@ -125,6 +136,7 @@ async function shutdown(signal: string): Promise<void> {
     maintenanceWorker.close(),
     costsWorker.close(),
     alertsWorker.close(),
+    dispatchWorker.close(),
   ]);
   await workerHeartbeat.close();
   ingestConnection.disconnect();
@@ -133,6 +145,7 @@ async function shutdown(signal: string): Promise<void> {
   maintenanceConnection.disconnect();
   costsConnection.disconnect();
   alertsConnection.disconnect();
+  dispatchConnection.disconnect();
   heartbeatConnection.disconnect();
   await queues.close();
   await clickhouse.close();

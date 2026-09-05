@@ -22,6 +22,7 @@ const optionalScope = z
 const ruleBase = z.object({
   name: z.string().trim().min(1).max(80),
   enabled: z.boolean().default(true),
+  channelIds: z.array(z.uuid()).max(10).default([]),
 });
 const scoped = {
   environment: optionalScope,
@@ -148,7 +149,65 @@ export type AlertIncidentDetail = {
   signal: AlertSignalSeries | null;
   contributorAnalysis: AlertContributorAnalysis | null;
   evidenceTraces: AlertEvidenceTrace[];
+  deliveries: AlertDelivery[];
 };
 
 export const evaluateAlertsJobSchema = z.object({ projectId: z.uuid().optional() });
 export type EvaluateAlertsJob = z.infer<typeof evaluateAlertsJobSchema>;
+
+export const alertChannelTypes = ["slack", "discord", "telegram", "webhook"] as const;
+export type AlertChannelType = (typeof alertChannelTypes)[number];
+
+export type AlertChannelConfig =
+  | { webhookUrl: string } // slack, discord
+  | { botToken: string; chatId: string } // telegram
+  | { url: string; secret?: string }; // webhook
+
+const channelName = z.string().trim().min(1).max(80);
+
+export const alertChannelInputSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("slack"), name: channelName, webhookUrl: z.url() }),
+  z.object({ type: z.literal("discord"), name: channelName, webhookUrl: z.url() }),
+  z.object({
+    type: z.literal("telegram"),
+    name: channelName,
+    botToken: z.string().trim().min(1).max(256),
+    chatId: z.string().trim().min(1).max(128), // numeric id or @channelname
+  }),
+  z.object({
+    type: z.literal("webhook"),
+    name: channelName,
+    url: z.url(),
+    secret: z.string().trim().min(16).max(256).optional(), // enables HMAC signature
+  }),
+]);
+export type AlertChannelInput = z.infer<typeof alertChannelInputSchema>;
+
+export type AlertChannel = {
+  // NEVER includes config
+  id: string;
+  projectId: string;
+  type: AlertChannelType;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const alertDeliveryStatuses = ["pending", "delivered", "failed"] as const;
+export type AlertDeliveryStatus = (typeof alertDeliveryStatuses)[number];
+
+export type AlertDelivery = {
+  id: string;
+  incidentId: string;
+  channelId: string | null; // null after channel deletion (history kept)
+  channelName: string;
+  channelType: AlertChannelType; // snapshots
+  status: AlertDeliveryStatus;
+  attempts: number;
+  error: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+};
+
+export const dispatchAlertJobSchema = z.object({ deliveryId: z.uuid() });
+export type DispatchAlertJob = z.infer<typeof dispatchAlertJobSchema>;

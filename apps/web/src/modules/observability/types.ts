@@ -14,7 +14,7 @@ import type {
 } from "@lens/contracts";
 
 export type AlertsSearch = {
-  tab: "incidents" | "rules";
+  tab: "incidents" | "rules" | "channels";
   status: "active" | "resolved";
   kind?: AlertRuleKind;
   page: number;

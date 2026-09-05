@@ -22,7 +22,7 @@ export function requiredSession(c: Context<AppEnv>): NonNullable<SessionValue> {
 
 export function apiError(
   c: Context,
-  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 500 | 503,
+  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 500 | 502 | 503,
   code: string,
   message: string,
 ) {

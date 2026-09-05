@@ -1,4 +1,5 @@
 import type {
+  AlertChannelConfig,
   AlertIncidentEvidence,
   AlertRuleInput,
   AlertRuleKind,
@@ -222,6 +223,19 @@ export const alertIncidentStatus = pgEnum("alert_incident_status", [
   "resolved",
 ]);
 
+export const alertChannelType = pgEnum("alert_channel_type", [
+  "slack",
+  "discord",
+  "telegram",
+  "webhook",
+]);
+
+export const alertDeliveryStatus = pgEnum("alert_delivery_status", [
+  "pending",
+  "delivered",
+  "failed",
+]);
+
 export const alertRule = pgTable(
   "alert_rules",
   {
@@ -239,6 +253,7 @@ export const alertRule = pgTable(
     serviceName: text("service_name"),
     toolName: text("tool_name"),
     qualityGateId: uuid("quality_gate_id").references(() => qualityGate.id),
+    channelIds: uuid("channel_ids").array().notNull().default(sql`'{}'::uuid[]`),
     consecutiveBreaches: integer("consecutive_breaches").notNull().default(0),
     lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
     cooldownUntil: timestamp("cooldown_until", { withTimezone: true }),
@@ -292,6 +307,53 @@ export const alertIncident = pgTable(
       table.status,
       table.lastTriggeredAt,
     ),
+  ],
+);
+
+export const alertChannel = pgTable(
+  "alert_channels",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    type: alertChannelType("type").notNull(),
+    name: text("name").notNull(),
+    config: jsonb("config").$type<AlertChannelConfig>().notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_channels_project_name_idx").on(table.projectId, sql`lower(${table.name})`),
+    index("alert_channels_project_idx").on(table.projectId),
+  ],
+);
+
+export const alertDelivery = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => alertIncident.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id").references(() => alertChannel.id, { onDelete: "set null" }),
+    channelName: text("channel_name").notNull(),
+    channelType: alertChannelType("channel_type").notNull(),
+    status: alertDeliveryStatus("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("alert_deliveries_incident_idx").on(table.incidentId),
+    index("alert_deliveries_project_created_idx").on(table.projectId, table.createdAt),
   ],
 );
 
@@ -525,6 +587,8 @@ export const projectRelations = relations(project, ({ one, many }) => ({
   qualityGates: many(qualityGate),
   alertRules: many(alertRule),
   alertIncidents: many(alertIncident),
+  alertChannels: many(alertChannel),
+  alertDeliveries: many(alertDelivery),
   managedDatasets: many(managedDataset),
 }));
 
@@ -557,6 +621,23 @@ export const alertIncidentRelations = relations(alertIncident, ({ one }) => ({
     fields: [alertIncident.resolvedBy],
     references: [user.id],
     relationName: "alert_resolver",
+  }),
+}));
+
+export const alertChannelRelations = relations(alertChannel, ({ one }) => ({
+  project: one(project, { fields: [alertChannel.projectId], references: [project.id] }),
+  creator: one(user, { fields: [alertChannel.createdBy], references: [user.id] }),
+}));
+
+export const alertDeliveryRelations = relations(alertDelivery, ({ one }) => ({
+  project: one(project, { fields: [alertDelivery.projectId], references: [project.id] }),
+  incident: one(alertIncident, {
+    fields: [alertDelivery.incidentId],
+    references: [alertIncident.id],
+  }),
+  channel: one(alertChannel, {
+    fields: [alertDelivery.channelId],
+    references: [alertChannel.id],
   }),
 }));
 

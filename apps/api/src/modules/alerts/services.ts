@@ -3,6 +3,7 @@ import {
   alertRuleSnapshot,
   getAlertIncident,
   getAlertRule,
+  listIncidentDeliveries,
   listTracesByIds,
   queryAlertContributorAnalysis,
   queryAlertSignalSeries,
@@ -22,10 +23,11 @@ export async function loadAlertIncidentDetail(
       ? await getAlertRule(deps.postgres.db, projectId, stored.incident.ruleId)
       : undefined;
   const rule = stored.rule ?? (currentRule ? alertRuleSnapshot(currentRule) : null);
-  const [traces, signal, contributorAnalysis] = await Promise.all([
+  const [traces, signal, contributorAnalysis, deliveries] = await Promise.all([
     listTracesByIds(deps.clickhouse, projectId, stored.incident.evidence.traceIds ?? []),
     rule ? queryAlertSignalSeries(deps.clickhouse, projectId, rule, stored.incident) : null,
     rule ? incidentContributorAnalysis(deps, projectId, rule, stored.incident) : null,
+    listIncidentDeliveries(deps.postgres.db, projectId, incidentId),
   ]);
   const tracesById = new Map(traces.map((trace) => [trace.traceId, trace]));
   return {
@@ -37,6 +39,7 @@ export async function loadAlertIncidentDetail(
       traceId,
       trace: tracesById.get(traceId) ?? null,
     })),
+    deliveries,
   };
 }
 

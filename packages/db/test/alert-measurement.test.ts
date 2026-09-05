@@ -53,6 +53,7 @@ describe("alert signal history", () => {
     const rule = {
       name: "Tool failures",
       enabled: true,
+      channelIds: [],
       kind: "tool_error_rate",
       threshold: 0.1,
       windowMinutes: 15,
@@ -110,6 +111,7 @@ describe("alert signal history", () => {
         projectId,
         name: "Tool failures",
         enabled: true,
+        channelIds: [],
         kind: "tool_error_rate",
         threshold: 0.1,
         windowMinutes: 15,
@@ -200,6 +202,7 @@ describe("alert contributor analysis", () => {
       minimumSamples: 20,
       environment: "production",
       serviceName: "api",
+      channelIds: [],
     } satisfies AlertRuleInput;
 
     const analysis = await queryAlertContributorAnalysis(
@@ -271,6 +274,7 @@ describe("alert contributor analysis", () => {
       minimumSamples: 20,
       environment: undefined,
       serviceName: undefined,
+      channelIds: [],
     } satisfies AlertRuleInput;
 
     const analysis = await queryAlertContributorAnalysis(
@@ -345,6 +349,7 @@ describe("alert contributor analysis", () => {
       toolName: "search",
       environment: undefined,
       serviceName: undefined,
+      channelIds: [],
     } satisfies AlertRuleInput;
 
     const analysis = await queryAlertContributorAnalysis(

@@ -65,7 +65,7 @@ import {
 export function validateAlertsSearch(search: Record<string, unknown>): AlertsSearch {
   const kind = optionalSearchValue(search.kind);
   return {
-    tab: search.tab === "rules" ? "rules" : "incidents",
+    tab: search.tab === "rules" ? "rules" : search.tab === "channels" ? "channels" : "incidents",
     status: search.status === "resolved" ? "resolved" : "active",
     kind: alertRuleKinds.includes(kind as AlertRuleKind) ? (kind as AlertRuleKind) : undefined,
     page: positiveInteger(search.page, 1),

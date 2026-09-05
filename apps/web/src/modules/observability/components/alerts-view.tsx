@@ -1,4 +1,5 @@
 import {
+  type AlertChannel,
   type AlertIncident,
   type AlertRule,
   type AlertRuleInput,
@@ -47,6 +48,7 @@ import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { AlertsState } from "../hooks/use-alerts";
+import { AlertChannelsView } from "./alert-channels-view";
 import { LoadingRows } from "./loading-rows";
 
 const kindLabels: Record<AlertRuleKind, string> = {
@@ -77,12 +79,13 @@ export function AlertsView({ state }: { state: AlertsState }) {
       <Tabs
         value={state.filters.tab}
         onValueChange={(value) =>
-          state.setFilters({ tab: value as "incidents" | "rules", page: 1 })
+          state.setFilters({ tab: value as "incidents" | "rules" | "channels", page: 1 })
         }
       >
         <TabsList>
           <TabsTrigger value="incidents">Incidents</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
         </TabsList>
         <TabsContent value="incidents">
           <IncidentList state={state} />
@@ -95,11 +98,15 @@ export function AlertsView({ state }: { state: AlertsState }) {
             onDelete={setDeleting}
           />
         </TabsContent>
+        <TabsContent value="channels">
+          <AlertChannelsView state={state} />
+        </TabsContent>
       </Tabs>
 
       <RuleDialog
         item={editing}
         gates={state.gates.data?.items ?? []}
+        channels={state.channels.data?.items ?? []}
         saving={state.createRule.isPending || state.updateRule.isPending}
         error={state.createRule.error ?? state.updateRule.error}
         onClose={() => setEditing(null)}
@@ -370,11 +377,13 @@ type RuleDraft = {
   serviceName: string;
   toolName: string;
   qualityGateId: string;
+  channelIds: string[];
 };
 
 function RuleDialog(props: {
   item: AlertRule | "new" | null;
   gates: QualityGate[];
+  channels: AlertChannel[];
   saving: boolean;
   error: Error | null;
   onClose: () => void;
@@ -546,6 +555,35 @@ function RuleDialog(props: {
             />
             <FieldLabel htmlFor="alert-enabled">Enabled</FieldLabel>
           </Field>
+          {props.channels.length > 0 ? (
+            <Field>
+              <FieldLabel>Send to</FieldLabel>
+              <div className="grid gap-2">
+                {props.channels.map((channel) => (
+                  <Field key={channel.id} orientation="horizontal">
+                    <Checkbox
+                      id={`alert-channel-${channel.id}`}
+                      checked={draft.channelIds.includes(channel.id)}
+                      onCheckedChange={(checked) =>
+                        setDraft({
+                          ...draft,
+                          channelIds: checked
+                            ? [...draft.channelIds, channel.id]
+                            : draft.channelIds.filter((id) => id !== channel.id),
+                        })
+                      }
+                    />
+                    <FieldLabel htmlFor={`alert-channel-${channel.id}`} className="font-normal">
+                      {channel.name}
+                    </FieldLabel>
+                  </Field>
+                ))}
+              </div>
+              <FieldDescription>
+                One notification is delivered per channel when an incident opens.
+              </FieldDescription>
+            </Field>
+          ) : null}
           {!parsed.success && draft.name ? (
             <p className="text-sm text-destructive">{parsed.error.issues[0]?.message}</p>
           ) : null}
@@ -576,6 +614,7 @@ function emptyDraft(): RuleDraft {
     serviceName: "",
     toolName: "",
     qualityGateId: "",
+    channelIds: [],
   };
 }
 
@@ -585,6 +624,7 @@ function ruleDraft(rule: AlertRule): RuleDraft {
     name: rule.name,
     kind: rule.kind,
     enabled: rule.enabled,
+    channelIds: rule.channelIds,
     threshold:
       "threshold" in rule
         ? String(rule.kind === "trace_p95_latency_ms" ? rule.threshold : rule.threshold * 100)
@@ -600,7 +640,12 @@ function ruleDraft(rule: AlertRule): RuleDraft {
 }
 
 export function ruleInput(draft: RuleDraft): unknown {
-  const base = { name: draft.name, kind: draft.kind, enabled: draft.enabled };
+  const base = {
+    name: draft.name,
+    kind: draft.kind,
+    enabled: draft.enabled,
+    channelIds: draft.channelIds,
+  };
   if (draft.kind === "failed_quality_gate") return { ...base, qualityGateId: draft.qualityGateId };
   const scope = {
     environment: draft.environment || undefined,

@@ -35,6 +35,7 @@ export type ProcessorDependencies = {
   queues: LensQueues;
   logger: Logger;
   materializeDelayMs: number;
+  appUrl: string;
 };
 
 export function createIngestTraceProcessor(deps: ProcessorDependencies) {

@@ -33,12 +33,17 @@ describe("alert processor", () => {
       minimumSamples: 20,
       consecutiveBreaches: 1,
       cooldownUntil: null,
+      channelIds: [],
     };
     dbFunctions.listEnabledAlertRules.mockResolvedValue([rule]);
     dbFunctions.queryAlertMeasurement.mockResolvedValue({
       value: 800,
       sampleCount: 25,
       evidence: { traceIds: ["trace-1"] },
+    });
+    dbFunctions.openAlertIncident.mockResolvedValue({
+      incidentId: "20000000-0000-4000-8000-000000000009",
+      created: true,
     });
     const deps = {
       postgres: { db: {} },

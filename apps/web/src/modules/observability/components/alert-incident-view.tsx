@@ -1,5 +1,7 @@
 import {
   type AlertContributorHint,
+  type AlertDelivery,
+  type AlertDeliveryStatus,
   type AlertIncident,
   type AlertIncidentDetail,
   type AlertRuleInput,
@@ -171,6 +173,7 @@ export function AlertIncidentView({ state }: { state: AlertIncidentState }) {
         </Card>
         <div className="grid content-start gap-4">
           <RuleCard detail={detail} />
+          <DeliveriesCard deliveries={detail.deliveries} />
           <LifecycleCard incident={detail.incident} />
         </div>
       </div>
@@ -575,6 +578,42 @@ function RuleCard({ detail }: { detail: AlertIncidentDetail }) {
   );
 }
 
+function deliveryStatusVariant(status: AlertDeliveryStatus) {
+  return status === "delivered" ? "default" : status === "failed" ? "destructive" : "secondary";
+}
+
+function DeliveriesCard({ deliveries }: { deliveries: AlertDelivery[] }) {
+  if (deliveries.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Deliveries</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 text-sm">
+        {deliveries.map((delivery) => (
+          <div key={delivery.id} className="grid gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{delivery.channelName}</span>
+              <Badge variant="secondary">{delivery.channelType}</Badge>
+              <Badge variant={deliveryStatusVariant(delivery.status)}>{delivery.status}</Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {delivery.status === "delivered" && delivery.deliveredAt
+                ? `Delivered ${formatTime(delivery.deliveredAt)}`
+                : `Created ${formatTime(delivery.createdAt)}`}{" "}
+              · {delivery.attempts} {delivery.attempts === 1 ? "attempt" : "attempts"}
+            </span>
+            {delivery.error ? (
+              <span className="truncate text-xs text-destructive" title={delivery.error}>
+                {delivery.error}
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 function LifecycleCard({ incident }: { incident: AlertIncident }) {
   const events = [
     { label: "Triggered", time: incident.firstTriggeredAt, detail: "Incident opened" },

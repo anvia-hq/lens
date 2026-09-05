@@ -53,6 +53,7 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
   });
 }
 
+export * from "./alert-channel-store.js";
 export * from "./alert-measurement.js";
 export * from "./alert-store.js";
 export * from "./data-deletion-store.js";

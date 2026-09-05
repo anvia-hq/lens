@@ -44,12 +44,14 @@ export const createPublicQualityGatesRouter = (deps: ApiDependencies) =>
         candidateRunId: input.candidateRunId,
         baselineRunId: input.baselineRunId,
       };
-      await recordQualityGateAlert(deps.postgres, key.project.id, response).catch(
-        (error: unknown) =>
-          deps.logger.warn(
-            { err: error, projectId: key.project.id },
-            "failed to record gate alert",
-          ),
+      await recordQualityGateAlert(
+        deps.postgres,
+        deps.queues,
+        deps.logger,
+        key.project.id,
+        response,
+      ).catch((error: unknown) =>
+        deps.logger.warn({ err: error, projectId: key.project.id }, "failed to record gate alert"),
       );
       recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
       return c.json(response);

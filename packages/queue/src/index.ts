@@ -1,6 +1,7 @@
 import type {
   DeleteDataJob,
   DeleteProjectTelemetryJob,
+  DispatchAlertJob,
   EvaluateAlertsJob,
   IngestEvaluationsJob,
   IngestTraceJob,
@@ -19,6 +20,7 @@ export const queueNames = {
   maintenance: "lens-telemetry-maintenance",
   costs: "lens-model-costs",
   alerts: "lens-alerts",
+  dispatch: "lens-alert-dispatch",
 } as const;
 
 export type LensQueues = {
@@ -28,6 +30,7 @@ export type LensQueues = {
   maintenance: Queue<ReconcileRetentionJob | DeleteProjectTelemetryJob | DeleteDataJob>;
   costs: Queue<RecalculateModelCostsJob>;
   alerts: Queue<EvaluateAlertsJob>;
+  dispatch: Queue<DispatchAlertJob>;
   close: () => Promise<void>;
 };
 
@@ -83,6 +86,7 @@ export function createQueues(
   >(queueNames.maintenance, options);
   const costs = createQueue<RecalculateModelCostsJob>(queueNames.costs, options);
   const alerts = createQueue<EvaluateAlertsJob>(queueNames.alerts, options);
+  const dispatch = createQueue<DispatchAlertJob>(queueNames.dispatch, options);
 
   return {
     ingest,
@@ -91,6 +95,7 @@ export function createQueues(
     maintenance,
     costs,
     alerts,
+    dispatch,
     async close() {
       try {
         await Promise.all([
@@ -100,6 +105,7 @@ export function createQueues(
           maintenance.close(),
           costs.close(),
           alerts.close(),
+          dispatch.close(),
         ]);
       } finally {
         connection.disconnect();
@@ -183,6 +189,7 @@ export async function queryQueueHealth(queues: LensQueues): Promise<SystemQueueH
     ["Maintenance", queues.maintenance],
     ["Cost recalculation", queues.costs],
     ["Alerts", queues.alerts],
+    ["Alert dispatch", queues.dispatch],
   ] as const;
   return Promise.all(
     entries.map(async ([name, queue]) => {
@@ -196,3 +203,5 @@ export async function queryQueueHealth(queues: LensQueues): Promise<SystemQueueH
     }),
   );
 }
+
+export * from "./alert-delivery.js";

@@ -25,6 +25,7 @@ describe("queue integration", () => {
         queues.maintenance,
         queues.costs,
         queues.alerts,
+        queues.dispatch,
       ].map((queue) => queue.obliterate({ force: true })),
     );
     await queues.close();
@@ -62,6 +63,9 @@ describe("queue integration", () => {
       queues.alerts.add("evaluate-alert-rules", {
         projectId: "00000000-0000-4000-8000-000000000001",
       }),
+      queues.dispatch.add("dispatch-alert", {
+        deliveryId: "00000000-0000-4000-8000-000000000003",
+      }),
     ]);
 
     expect(jobs.map((job) => job.queueName)).toEqual(Object.values(queueNames));
@@ -87,7 +91,7 @@ describe("queue integration", () => {
 
     try {
       const health = await queryQueueHealth(healthQueues);
-      expect(health).toHaveLength(6);
+      expect(health).toHaveLength(7);
       expect(health.map(({ name }) => name)).toEqual([
         "Trace ingestion",
         "Evaluations",
@@ -95,6 +99,7 @@ describe("queue integration", () => {
         "Maintenance",
         "Cost recalculation",
         "Alerts",
+        "Alert dispatch",
       ]);
     } finally {
       await healthQueues.close();
