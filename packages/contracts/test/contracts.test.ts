@@ -12,6 +12,7 @@ import {
   managedDatasetUpdateSchema,
   metricsRangeSchema,
   projectSettingsSchema,
+  promptContentSchema,
   qualityGateCheckInputSchema,
   qualityGateInputSchema,
   qualityGateRuleSchema,
@@ -59,6 +60,26 @@ describe("contracts", () => {
     });
   });
 
+  it("enforces prompt content shape per prompt type", () => {
+    expect(promptContentSchema.safeParse({ type: "text", template: "Hi {{name}}" }).success).toBe(
+      true,
+    );
+    expect(promptContentSchema.safeParse({ type: "text", template: "   " }).success).toBe(false);
+    expect(promptContentSchema.safeParse({ type: "text" }).success).toBe(false);
+    expect(
+      promptContentSchema.safeParse({
+        type: "chat",
+        messages: [{ role: "user", content: "Hello" }],
+      }).success,
+    ).toBe(true);
+    expect(promptContentSchema.safeParse({ type: "chat", messages: [] }).success).toBe(false);
+    expect(
+      promptContentSchema.safeParse({
+        type: "chat",
+        messages: [{ role: "invalid", content: "Hello" }],
+      }).success,
+    ).toBe(false);
+  });
   it.each([
     "not-json",
     Buffer.from(JSON.stringify([])).toString("base64url"),

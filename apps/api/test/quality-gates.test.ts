@@ -112,6 +112,8 @@ function run(id: string, passRate: number, latency: number, tokens: number): Eva
     release: id,
     datasetName: "support",
     datasetVersion: "v1",
+    promptName: "support/reply",
+    promptVersion: "5",
     metadata: {},
     expiresAt: null,
     ingestedAt: "2026-08-07T00:00:02.000Z",

@@ -235,6 +235,8 @@ function normalizeEvaluationRun(args: {
     release: firstStringAttribute(args.attributes, args.resourceAttributes, ["anvia.release"]),
     datasetName: stringAttribute(args.attributes, "anvia.eval.run.dataset.name"),
     datasetVersion: stringAttribute(args.attributes, "anvia.eval.run.dataset.version"),
+    promptName: stringAttribute(args.attributes, "anvia.eval.run.prompt.name"),
+    promptVersion: stringAttribute(args.attributes, "anvia.eval.run.prompt.version"),
     metadata:
       typeof metadata === "object" && metadata !== null && !Array.isArray(metadata) ? metadata : {},
     expiresAt: args.expiresAt,

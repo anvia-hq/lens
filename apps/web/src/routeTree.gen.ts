@@ -18,6 +18,7 @@ import { Route as SystemRouteImport } from './routes/system'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdAlertsRouteImport } from './routes/$projectId/alerts'
 import { Route as ProjectIdConnectRouteImport } from './routes/$projectId/connect'
+import { Route as ProjectIdPromptsRouteImport } from './routes/$projectId/prompts'
 import { Route as ProjectIdSettingsRouteImport } from './routes/$projectId/settings'
 import { Route as AcceptInvitationInvitationIdRouteImport } from './routes/accept-invitation/$invitationId'
 import { Route as ProjectIdAlertsIncidentIdRouteImport } from './routes/$projectId/alerts_.$incidentId'
@@ -81,6 +82,11 @@ const ProjectIdAlertsRoute = ProjectIdAlertsRouteImport.update({
 const ProjectIdConnectRoute = ProjectIdConnectRouteImport.update({
   id: '/connect',
   path: '/connect',
+  getParentRoute: () => ProjectIdRouteRoute,
+} as any)
+const ProjectIdPromptsRoute = ProjectIdPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
   getParentRoute: () => ProjectIdRouteRoute,
 } as any)
 const ProjectIdSettingsRoute = ProjectIdSettingsRouteImport.update({
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/prompts': typeof ProjectIdPromptsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/prompts': typeof ProjectIdPromptsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId': typeof ProjectIdIndexRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/system': typeof SystemRoute
   '/$projectId/alerts': typeof ProjectIdAlertsRoute
   '/$projectId/connect': typeof ProjectIdConnectRoute
+  '/$projectId/prompts': typeof ProjectIdPromptsRoute
   '/$projectId/settings': typeof ProjectIdSettingsRoute
   '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdRoute
   '/$projectId/': typeof ProjectIdIndexRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
+    | '/$projectId/prompts'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
+    | '/$projectId/prompts'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/$projectId/alerts'
     | '/$projectId/connect'
+    | '/$projectId/prompts'
     | '/$projectId/settings'
     | '/accept-invitation/$invitationId'
     | '/$projectId/'
@@ -446,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/connect'
       fullPath: '/$projectId/connect'
       preLoaderRoute: typeof ProjectIdConnectRouteImport
+      parentRoute: typeof ProjectIdRouteRoute
+    }
+    '/$projectId/prompts': {
+      id: '/$projectId/prompts'
+      path: '/prompts'
+      fullPath: '/$projectId/prompts'
+      preLoaderRoute: typeof ProjectIdPromptsRouteImport
       parentRoute: typeof ProjectIdRouteRoute
     }
     '/$projectId/settings': {
@@ -587,6 +606,7 @@ declare module '@tanstack/react-router' {
 interface ProjectIdRouteRouteChildren {
   ProjectIdAlertsRoute: typeof ProjectIdAlertsRoute
   ProjectIdConnectRoute: typeof ProjectIdConnectRoute
+  ProjectIdPromptsRoute: typeof ProjectIdPromptsRoute
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
   ProjectIdAlertsIncidentIdRoute: typeof ProjectIdAlertsIncidentIdRoute
@@ -611,6 +631,7 @@ interface ProjectIdRouteRouteChildren {
 const ProjectIdRouteRouteChildren: ProjectIdRouteRouteChildren = {
   ProjectIdAlertsRoute: ProjectIdAlertsRoute,
   ProjectIdConnectRoute: ProjectIdConnectRoute,
+  ProjectIdPromptsRoute: ProjectIdPromptsRoute,
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
   ProjectIdAlertsIncidentIdRoute: ProjectIdAlertsIncidentIdRoute,
