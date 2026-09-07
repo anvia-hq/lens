@@ -90,6 +90,8 @@ export type EvaluationRun = {
   release: string | null;
   datasetName: string | null;
   datasetVersion: string | null;
+  promptName: string | null;
+  promptVersion: string | null;
   metadata: Record<string, JsonValue>;
   expiresAt: string | null;
   ingestedAt: string;

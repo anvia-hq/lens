@@ -525,6 +525,11 @@ describe("OTLP ingestion", () => {
                         { key: "anvia.eval.run.passed", value: { intValue: "1" } },
                         { key: "anvia.eval.run.failed", value: { intValue: "0" } },
                         { key: "anvia.eval.run.invalid", value: { intValue: "0" } },
+                        {
+                          key: "anvia.eval.run.prompt.name",
+                          value: { stringValue: "support/reply" },
+                        },
+                        { key: "anvia.eval.run.prompt.version", value: { stringValue: "5" } },
                       ],
                     },
                     { eventName: "application.log", attributes: [] },
@@ -572,8 +577,9 @@ describe("OTLP ingestion", () => {
       caseCount: 1,
       passed: 1,
       environment: "production",
-      release: "2026.08.07",
       stateVersion: 2,
+      promptName: "support/reply",
+      promptVersion: "5",
     });
   });
 

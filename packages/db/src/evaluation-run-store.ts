@@ -37,6 +37,8 @@ type RunRow = {
   release: string | null;
   dataset_name: string | null;
   dataset_version: string | null;
+  prompt_name: string | null;
+  prompt_version: string | null;
   metadata: string;
   expires_at: string;
   ingested_at: string;
@@ -105,6 +107,8 @@ export async function insertEvaluationRuns(
       release: run.release,
       dataset_name: run.datasetName,
       dataset_version: run.datasetVersion,
+      prompt_name: run.promptName,
+      prompt_version: run.promptVersion,
       metadata: JSON.stringify(run.metadata),
       expires_at:
         run.expiresAt === null ? "2299-12-31 23:59:59.999" : clickHouseTime(run.expiresAt),
@@ -311,6 +315,10 @@ export async function compareEvaluationRuns(
   if (candidate.datasetName !== baseline.datasetName) warnings.push("Runs use different datasets");
   if (candidate.datasetVersion !== baseline.datasetVersion) {
     warnings.push("Runs use different dataset versions");
+  }
+  if (candidate.promptName !== baseline.promptName) warnings.push("Runs use different prompts");
+  if (candidate.promptVersion !== baseline.promptVersion) {
+    warnings.push("Runs use different prompt versions");
   }
   if (candidate.traceCoverage < 1 || baseline.traceCoverage < 1) {
     warnings.push("Operational metrics have incomplete trace coverage");
@@ -529,6 +537,8 @@ function runFromRow(row: RunRow): EvaluationRun {
     release: row.release,
     datasetName: row.dataset_name,
     datasetVersion: row.dataset_version,
+    promptName: row.prompt_name,
+    promptVersion: row.prompt_version,
     metadata: parseMetadata(row.metadata),
     expiresAt: isoTime(row.expires_at),
     ingestedAt: isoTime(row.ingested_at),

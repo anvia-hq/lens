@@ -17,6 +17,7 @@ import {
   ArrowsLeftRight,
   Bell,
   ChartBar,
+  ChatText,
   Database,
   Flask,
   Gauge,
@@ -104,6 +105,13 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       path: `${projectRoot}/evaluations/datasets`,
       label: "Datasets",
       icon: Database,
+      badge: 0,
+    },
+    {
+      to: "/$projectId/prompts" as const,
+      path: `${projectRoot}/prompts`,
+      label: "Prompts",
+      icon: ChatText,
       badge: 0,
     },
   ];

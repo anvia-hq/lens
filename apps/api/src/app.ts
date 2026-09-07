@@ -21,6 +21,8 @@ import { createMcpTokensRouter } from "./modules/mcp-tokens/router.js";
 import { createMembersRouter } from "./modules/members/router.js";
 import { createMetricsRouter } from "./modules/metrics/router.js";
 import { createProjectsRouter } from "./modules/projects/router.js";
+import { createPublicPromptsRouter } from "./modules/prompts/public-router.js";
+import { createPromptsRouter } from "./modules/prompts/router.js";
 import { createPublicQualityGatesRouter } from "./modules/quality-gates/public-router.js";
 import { createQualityGatesRouter } from "./modules/quality-gates/router.js";
 import { createSessionsRouter } from "./modules/sessions/router.js";
@@ -77,6 +79,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/public/otel/v1/traces", createIngestionRouter(deps, metrics))
     .route("/api/public/otel/v1/logs", createLogsIngestionRouter(deps, metrics))
     .route("/api/public/datasets", createPublicDatasetsRouter(deps))
+    .route("/api/public/prompts", createPublicPromptsRouter(deps))
     .route("/api/public/quality-gates", createPublicQualityGatesRouter(deps))
     .route("/api/mcp", createMcpRouter(deps, metrics))
     .use("/api/v1/*", createSessionMiddleware(deps))
@@ -96,7 +99,8 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createManagedDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationDatasetsRouter(deps))
     .route("/api/v1/projects", createEvaluationRunsRouter(deps))
-    .route("/api/v1/projects", createQualityGatesRouter(deps));
+    .route("/api/v1/projects", createQualityGatesRouter(deps))
+    .route("/api/v1/projects", createPromptsRouter(deps));
   app.onError((error, c) => {
     deps.logger.error(
       {
