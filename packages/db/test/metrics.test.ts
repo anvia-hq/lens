@@ -97,6 +97,24 @@ describe("overview metrics", () => {
     expect(metrics.tools).toEqual([]);
     expect(metrics.topTokenTraces).toEqual([]);
   });
+
+  it("reports the most recent ingested event for the project", async () => {
+    const metrics = await queryMetrics(
+      metricsClient({ populated: true }),
+      "11111111-1111-4111-8111-111111111111",
+      "24h",
+      now,
+    );
+    expect(metrics.lastEventAt).toBe("2026-08-05T12:00:00.000Z");
+
+    const empty = await queryMetrics(
+      metricsClient({ populated: false }),
+      "11111111-1111-4111-8111-111111111111",
+      "24h",
+      now,
+    );
+    expect(empty.lastEventAt).toBeNull();
+  });
 });
 
 function metricsClient(options: { populated: boolean }): ClickHouseClient {
@@ -194,6 +212,9 @@ function responseForQuery(query: string, populated: boolean): unknown[] {
   }
   if (query.includes("observation_kind = 'tool'")) {
     return [{ tool_name: "search", calls: 10, errors: 2, p95: 420 }];
+  }
+  if (query.includes("max(ingested_at)")) {
+    return [{ last_event_at: "2026-08-05 12:00:00.000" }];
   }
   return [];
 }

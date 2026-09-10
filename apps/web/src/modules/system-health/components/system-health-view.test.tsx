@@ -25,6 +25,9 @@ describe("System Health", () => {
     expect(screen.getByText("PostgreSQL")).toBeTruthy();
     expect(screen.getByText("ClickHouse")).toBeTruthy();
     expect(screen.getByText("Trace ingestion")).toBeTruthy();
+    expect(screen.getByText("Ingestion pipeline")).toBeTruthy();
+    expect(screen.getByText("Spans (last hour)")).toBeTruthy();
+    expect(screen.getByText("No rejected ingestion requests.")).toBeTruthy();
     expect(screen.getByRole("button", { name: /refresh/i })).toBeTruthy();
   });
 
@@ -138,7 +141,34 @@ const health: SystemHealth = {
     },
   },
   queueStatus: { status: "healthy", message: null },
-  queues: [{ name: "Trace ingestion", waiting: 0, active: 1, delayed: 0, failed: 0 }],
+  queues: [
+    {
+      name: "Trace ingestion",
+      waiting: 0,
+      active: 1,
+      delayed: 0,
+      failed: 0,
+      oldestWaitingSeconds: 1,
+    },
+  ],
+  ingestion: {
+    status: "healthy",
+    message: null,
+    lastEventAt: "2026-08-17T00:00:00.000Z",
+    staleSeconds: 30,
+    spansLastHour: 120,
+    spansLast24h: 4_800,
+    activeProjects24h: 2,
+    queue: {
+      waiting: 0,
+      active: 1,
+      delayed: 0,
+      failed: 0,
+      maxWaiting: 500,
+      oldestWaitingSeconds: 1,
+    },
+    rejected: [],
+  },
 };
 
 const singleDiskHealth: SystemHealth = {

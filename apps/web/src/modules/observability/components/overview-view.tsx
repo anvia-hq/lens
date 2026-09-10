@@ -91,6 +91,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
         </Card>
       ) : (
         <>
+          <StaleTelemetryBanner lastEventAt={value.lastEventAt} />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <ComparisonMetricCard
               label="Total tokens"
@@ -377,5 +378,26 @@ function OverviewAreaGradient({ id, color }: { id: string; color: string }) {
       <stop offset="72%" stopColor={color} stopOpacity={0.06} />
       <stop offset="100%" stopColor={color} stopOpacity={0} />
     </linearGradient>
+  );
+}
+
+const STALE_TELEMETRY_WARNING_MS = 3_600_000;
+
+function StaleTelemetryBanner({ lastEventAt }: { lastEventAt: string | null }) {
+  if (lastEventAt === null) return null;
+  const staleMs = Date.now() - new Date(lastEventAt).getTime();
+  if (!Number.isFinite(staleMs) || staleMs < STALE_TELEMETRY_WARNING_MS) return null;
+  const hours = Math.floor(staleMs / 3_600_000);
+  const age = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
+  return (
+    <Card className="border-status-warning">
+      <CardContent className="flex items-center gap-3 p-4 text-sm">
+        <AlertCircle className="size-5 shrink-0 text-status-warning" />
+        <span>
+          No telemetry has arrived for this project in the last {age}. Ingestion may be blocked —
+          check the exporter and the system health page.
+        </span>
+      </CardContent>
+    </Card>
   );
 }

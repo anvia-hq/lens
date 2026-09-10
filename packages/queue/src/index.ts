@@ -193,15 +193,28 @@ export async function queryQueueHealth(queues: LensQueues): Promise<SystemQueueH
   ] as const;
   return Promise.all(
     entries.map(async ([name, queue]) => {
-      const [waiting, active, delayed, failed] = await Promise.all([
+      const [waiting, active, delayed, failed, oldestWaitingSeconds] = await Promise.all([
         queue.getWaitingCount(),
         queue.getActiveCount(),
         queue.getDelayedCount(),
         queue.getFailedCount(),
+        oldestWaitingAgeSeconds(queue),
       ]);
-      return { name, waiting, active, delayed, failed };
+      return { name, waiting, active, delayed, failed, oldestWaitingSeconds };
     }),
   );
+}
+
+async function oldestWaitingAgeSeconds(queue: {
+  getWaiting: (start: number, end: number) => Promise<Array<{ timestamp: number }>>;
+}): Promise<number | null> {
+  try {
+    const [job] = await queue.getWaiting(0, 0);
+    if (job === undefined) return null;
+    return Math.max(0, Math.round((Date.now() - job.timestamp) / 1_000));
+  } catch {
+    return null;
+  }
 }
 
 export * from "./alert-delivery.js";

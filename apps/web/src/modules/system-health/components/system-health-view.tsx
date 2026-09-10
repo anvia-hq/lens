@@ -84,6 +84,7 @@ export function SystemHealthView({ state }: { state: SystemHealthState }) {
             <span>Updated {new Date(value.sampledAt).toLocaleTimeString()}</span>
           </div>
           <MachineSection machine={value.machine} />
+          <IngestionSection ingestion={value.ingestion} />
           <ServicesSection value={value} />
           <QueuesSection value={value} />
         </>
@@ -261,6 +262,126 @@ function ServicesSection({ value }: { value: SystemHealth }) {
   );
 }
 
+function IngestionSection({ ingestion }: { ingestion: SystemHealth["ingestion"] }) {
+  const queue = ingestion.queue;
+  return (
+    <section className="grid gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-medium">Ingestion pipeline</h2>
+          <p className="text-sm text-muted-foreground">
+            Telemetry acceptance, queue depth, and rejected requests
+          </p>
+        </div>
+        <StatusBadge status={ingestion.status} />
+      </div>
+      {ingestion.message ? (
+        <Card>
+          <CardContent className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+            {ingestion.status === "healthy" ? null : <AlertCircle className="size-4 shrink-0" />}
+            {ingestion.message}
+          </CardContent>
+        </Card>
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ResourceCard
+          icon={<Activity />}
+          label="Spans (last hour)"
+          percent={null}
+          value={
+            ingestion.spansLastHour === null
+              ? "Unavailable"
+              : ingestion.spansLastHour.toLocaleString()
+          }
+          detail={`${(ingestion.spansLast24h ?? 0).toLocaleString()} in the last 24h`}
+          status={ingestion.spansLastHour === 0 ? "warning" : "healthy"}
+        />
+        <ResourceCard
+          icon={<Layers3 />}
+          label="Active projects (24h)"
+          percent={null}
+          value={
+            ingestion.activeProjects24h === null
+              ? "Unavailable"
+              : ingestion.activeProjects24h.toLocaleString()
+          }
+          detail="Projects that sent telemetry"
+          status="healthy"
+        />
+        <ResourceCard
+          icon={<Hourglass />}
+          label="Last event received"
+          percent={null}
+          value={
+            ingestion.staleSeconds === null
+              ? "Never"
+              : ingestion.lastEventAt
+                ? new Date(ingestion.lastEventAt).toLocaleTimeString()
+                : "Unknown"
+          }
+          detail={
+            ingestion.staleSeconds === null
+              ? "No telemetry has arrived yet"
+              : `${formatAge(ingestion.staleSeconds)} ago`
+          }
+          status={
+            ingestion.staleSeconds === null
+              ? ingestion.status
+              : ingestion.staleSeconds >= 3_600
+                ? "warning"
+                : "healthy"
+          }
+        />
+        <ResourceCard
+          icon={<Cpu />}
+          label="Ingest queue"
+          percent={null}
+          value={queue ? queue.waiting.toLocaleString() : "Unavailable"}
+          detail={
+            queue
+              ? `Oldest waiting ${queue.oldestWaitingSeconds === null ? "—" : formatAge(queue.oldestWaitingSeconds)} · ${queue.failed} failed`
+              : "Queue metrics are unavailable"
+          }
+          status={
+            queue && (queue.oldestWaitingSeconds ?? 0) >= 60
+              ? queue.oldestWaitingSeconds !== null && queue.oldestWaitingSeconds >= 300
+                ? "critical"
+                : "warning"
+              : "healthy"
+          }
+        />
+      </div>
+      <Card className="py-0">
+        <CardHeader className="pt-4">
+          <CardTitle className="text-sm">Rejected requests (last 24h)</CardTitle>
+          <CardDescription>Per reason, across all ingestion endpoints</CardDescription>
+        </CardHeader>
+        <CardContent className="pb-4">
+          {ingestion.rejected.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No rejected ingestion requests.</p>
+          ) : (
+            <div className="grid gap-2">
+              {ingestion.rejected.map((entry) => (
+                <div key={entry.reason} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-mono text-xs">{entry.reason}</span>
+                  <span className="tabular-nums">{entry.count.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function formatAge(seconds: number): string {
+  if (seconds >= 86_400) return `${Math.floor(seconds / 86_400)}d`;
+  if (seconds >= 3_600) return `${Math.floor(seconds / 3_600)}h`;
+  if (seconds >= 60) return `${Math.floor(seconds / 60)}m`;
+  return `${seconds}s`;
+}
+
 function QueuesSection({ value }: { value: SystemHealth }) {
   return (
     <section className="grid gap-4">
@@ -284,6 +405,7 @@ function QueuesSection({ value }: { value: SystemHealth }) {
               <TableRow>
                 <TableHead>Queue</TableHead>
                 <TableHead className="text-right">Waiting</TableHead>
+                <TableHead className="text-right">Oldest waiting</TableHead>
                 <TableHead className="text-right">Active</TableHead>
                 <TableHead className="text-right">Delayed</TableHead>
                 <TableHead className="text-right">Failed</TableHead>
@@ -294,6 +416,11 @@ function QueuesSection({ value }: { value: SystemHealth }) {
                 <TableRow key={queue.name}>
                   <TableCell className="font-medium">{queue.name}</TableCell>
                   <TableCell className="text-right tabular-nums">{queue.waiting}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {queue.oldestWaitingSeconds === null
+                      ? "—"
+                      : formatAge(queue.oldestWaitingSeconds)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{queue.active}</TableCell>
                   <TableCell className="text-right tabular-nums">{queue.delayed}</TableCell>
                   <TableCell className="text-right tabular-nums">{queue.failed}</TableCell>

@@ -1,5 +1,6 @@
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Metrics, MetricsBucket, MetricsRangePreset, MetricsSummary } from "@lens/contracts";
+import { queryProjectLastEventAt } from "./ingestion-health-store.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
 
@@ -225,6 +226,7 @@ export async function queryMetrics(
     }),
     topTokenTraces: top.map(summaryFromRow),
     recentErrors: errors.map(summaryFromRow),
+    lastEventAt: await queryProjectLastEventAt(client, projectId, now),
   };
 }
 

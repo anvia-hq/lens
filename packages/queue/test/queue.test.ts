@@ -124,6 +124,7 @@ describe("queue contracts", () => {
       getActiveCount: vi.fn().mockResolvedValue(2),
       getDelayedCount: vi.fn().mockResolvedValue(3),
       getFailedCount: vi.fn().mockResolvedValue(4),
+      getWaiting: vi.fn().mockResolvedValue([{ timestamp: Date.now() - 90_000 }]),
     };
     const queues = {
       ingest: queue,
@@ -136,13 +137,36 @@ describe("queue contracts", () => {
     };
     const health = await queryQueueHealth(queues as never);
     expect(health).toHaveLength(7);
+    expect(health[0]?.oldestWaitingSeconds).toBeGreaterThanOrEqual(89);
     expect(health[0]).toEqual({
       name: "Trace ingestion",
       waiting: 1,
       active: 2,
       delayed: 3,
       failed: 4,
+      oldestWaitingSeconds: health[0]?.oldestWaitingSeconds,
     });
+  });
+
+  it("reports a null oldest waiting age for idle queues", async () => {
+    const queue = {
+      getWaitingCount: vi.fn().mockResolvedValue(0),
+      getActiveCount: vi.fn().mockResolvedValue(0),
+      getDelayedCount: vi.fn().mockResolvedValue(0),
+      getFailedCount: vi.fn().mockResolvedValue(0),
+      getWaiting: vi.fn().mockResolvedValue([]),
+    };
+    const queues = {
+      ingest: queue,
+      evaluations: queue,
+      materialize: queue,
+      maintenance: queue,
+      costs: queue,
+      alerts: queue,
+      dispatch: queue,
+    };
+    const health = await queryQueueHealth(queues as never);
+    expect(health[0]?.oldestWaitingSeconds).toBeNull();
   });
 
   it("paginates, filters, and sorts worker heartbeats", async () => {
