@@ -782,7 +782,7 @@ function spans(): NormalizedSpan[] {
     totalCost: null,
     input: null,
     output: null,
-    expiresAt: "2026-09-07T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
     ingestedAt: now.toISOString(),
     ingestVersion: "1786060800000000000",
   };
@@ -842,7 +842,7 @@ function evaluationRun(): EvaluationRun {
     datasetName: "support-cases",
     datasetVersion: "v1",
     metadata: {},
-    expiresAt: "2026-09-07T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
     ingestedAt: now.toISOString(),
     ingestVersion: "1786060800000000001",
     stateVersion: 2,
@@ -875,7 +875,7 @@ function evaluationResult(): EvaluationResult {
     metadata: {},
     source: "telemetry",
     reviewer: null,
-    expiresAt: "2026-09-07T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
     ingestedAt: now.toISOString(),
     ingestVersion: "1786060800000000002",
   };
