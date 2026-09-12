@@ -83,6 +83,7 @@ export type Metrics = {
   tools: ToolMetrics[];
   topTokenTraces: TraceSummary[];
   recentErrors: TraceSummary[];
+  lastEventAt: string | null;
 };
 
 export const metricsRangeSchema = z.enum(metricsRangePresets);

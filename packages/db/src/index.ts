@@ -60,6 +60,7 @@ export * from "./data-deletion-store.js";
 export * from "./evaluation-dataset-store.js";
 export * from "./evaluation-run-store.js";
 export * from "./evaluation-store.js";
+export * from "./ingestion-health-store.js";
 export * from "./job-outbox-store.js";
 export * from "./managed-dataset-store.js";
 export * from "./metrics-store.js";

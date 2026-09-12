@@ -73,6 +73,33 @@ export type SystemQueueHealth = {
   active: number;
   delayed: number;
   failed: number;
+  oldestWaitingSeconds: number | null;
+};
+
+export type SystemIngestionCounter = {
+  reason: string;
+  count: number;
+};
+
+export type SystemIngestionQueueHealth = {
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  maxWaiting: number | null;
+  oldestWaitingSeconds: number | null;
+};
+
+export type SystemIngestionHealth = {
+  status: SystemHealthStatus;
+  message: string | null;
+  lastEventAt: string | null;
+  staleSeconds: number | null;
+  spansLastHour: number | null;
+  spansLast24h: number | null;
+  activeProjects24h: number | null;
+  queue: SystemIngestionQueueHealth | null;
+  rejected: SystemIngestionCounter[];
 };
 
 export type SystemHealth = {
@@ -101,4 +128,5 @@ export type SystemHealth = {
   };
   queueStatus: Pick<SystemServiceStatus, "status" | "message">;
   queues: SystemQueueHealth[];
+  ingestion: SystemIngestionHealth;
 };

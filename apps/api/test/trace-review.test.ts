@@ -13,7 +13,7 @@ describe("trace review", () => {
         environment: "production",
         release: "v2",
       } as TraceSummary,
-      expiresAt: "2026-09-09T00:00:00.000Z",
+      expiresAt: "2099-01-01T00:00:00.000Z",
       input: { outcome: "fail", explanation: "Wrong policy" },
       reviewer: { id: "user-1", name: "Ada" },
       now: new Date("2026-08-09T01:00:00.000Z"),
@@ -27,7 +27,7 @@ describe("trace review", () => {
       explanation: "Wrong policy",
       source: "human",
       reviewer: { id: "user-1", name: "Ada" },
-      expiresAt: "2026-09-09T00:00:00.000Z",
+      expiresAt: "2099-01-01T00:00:00.000Z",
     });
   });
 });

@@ -4,16 +4,22 @@ import type {
   SystemHealthOverallStatus,
   SystemHealthStatus,
   SystemMonitorSnapshot,
+  SystemQueueHealth,
 } from "@lens/contracts";
 import { systemMonitorSnapshotSchema } from "@lens/contracts";
-import { queryClickHouseCapacity, queryPostgresDatabaseBytes } from "@lens/db";
+import {
+  queryClickHouseCapacity,
+  queryIngestionThroughput,
+  queryPostgresDatabaseBytes,
+} from "@lens/db";
 import { listWorkerHeartbeats, queryQueueHealth } from "@lens/queue";
 import type { ApiDependencies } from "../../utils/types.js";
+import { readIngestionRejections } from "../ingestion/counters.js";
 
 const PROBE_TIMEOUT_MS = 2_000;
 
 export async function collectSystemHealth(deps: ApiDependencies): Promise<SystemHealth> {
-  const [monitor, postgres, clickhouse, redis, workers, queues] = await Promise.all([
+  const [monitor, postgres, clickhouse, redis, workers, queues, ingestMetrics] = await Promise.all([
     probeMonitor(deps.config.SYSTEM_MONITOR_URL),
     probe("PostgreSQL is unavailable", (signal) =>
       queryPostgresDatabaseBytes(deps.postgres.sql, signal),
@@ -32,6 +38,12 @@ export async function collectSystemHealth(deps: ApiDependencies): Promise<System
     }),
     probe("Worker heartbeat is unavailable", () => listWorkerHeartbeats(deps.systemHealthRedis)),
     probe("Queue metrics are unavailable", () => queryQueueHealth(deps.systemHealthQueues)),
+    probe("Ingestion metrics are unavailable", () =>
+      Promise.all([
+        queryIngestionThroughput(deps.clickhouse),
+        readIngestionRejections(deps.systemHealthRedis),
+      ]),
+    ),
   ]);
 
   const machine = machineHealth(monitor, deps.config.SYSTEM_MONITOR_URL !== undefined);
@@ -60,6 +72,16 @@ export async function collectSystemHealth(deps: ApiDependencies): Promise<System
     : "critical";
   const workerStatus = workers.ok && workers.value.length > 0 ? "healthy" : "critical";
   const queueStatus = queues.ok ? "healthy" : "unavailable";
+  const ingestionQueue = queues.ok
+    ? (queues.value.find((queue) => queue.name === "Trace ingestion") ?? null)
+    : null;
+  const ingestion = ingestionHealth(
+    ingestMetrics.ok ? ingestMetrics.value[0] : null,
+    ingestMetrics.ok ? ingestMetrics.value[1] : null,
+    ingestionQueue,
+    deps.config.INGESTION_QUEUE_MAX_WAITING,
+    ingestMetrics.ok ? null : ingestMetrics.message,
+  );
   const overall = overallStatus([
     machine.status,
     postgresStatus,
@@ -67,6 +89,7 @@ export async function collectSystemHealth(deps: ApiDependencies): Promise<System
     redisStatus,
     workerStatus,
     queueStatus,
+    ingestion.status,
   ]);
 
   return {
@@ -113,7 +136,131 @@ export async function collectSystemHealth(deps: ApiDependencies): Promise<System
       message: queues.ok ? null : queues.message,
     },
     queues: queues.ok ? queues.value : [],
+    ingestion,
   };
+}
+
+type IngestionThroughputProbe = Awaited<ReturnType<typeof queryIngestionThroughput>>;
+type IngestionQueueHealth = NonNullable<SystemHealth["ingestion"]["queue"]>;
+
+function ingestionHealth(
+  throughput: IngestionThroughputProbe | null,
+  rejected: Array<{ reason: string; count: number }> | null,
+  queue: SystemQueueHealth | null,
+  maxWaiting: number,
+  unavailableMessage: string | null,
+): SystemHealth["ingestion"] {
+  if (throughput === null || rejected === null) {
+    return {
+      status: "unavailable",
+      message: unavailableMessage ?? "Ingestion metrics are unavailable",
+      lastEventAt: null,
+      staleSeconds: null,
+      spansLastHour: null,
+      spansLast24h: null,
+      activeProjects24h: null,
+      queue: null,
+      rejected: [],
+    };
+  }
+  const now = Date.now();
+  const staleSeconds =
+    throughput.lastEventAt === null
+      ? null
+      : Math.max(0, Math.round((now - Date.parse(throughput.lastEventAt)) / 1_000));
+  const ingestionQueue: IngestionQueueHealth | null = queue
+    ? {
+        waiting: queue.waiting,
+        active: queue.active,
+        delayed: queue.delayed,
+        failed: queue.failed,
+        maxWaiting: maxWaiting > 0 ? maxWaiting : null,
+        oldestWaitingSeconds: queue.oldestWaitingSeconds,
+      }
+    : null;
+  const rejectedTotal = rejected.reduce((sum, entry) => sum + entry.count, 0);
+  const status = ingestionStatus(ingestionQueue, staleSeconds, throughput.spansLast24h);
+  const message = ingestionMessage(
+    status,
+    ingestionQueue,
+    staleSeconds,
+    throughput.lastEventAt,
+    rejectedTotal,
+  );
+  return {
+    status,
+    message,
+    lastEventAt: throughput.lastEventAt,
+    staleSeconds,
+    spansLastHour: throughput.spansLastHour,
+    spansLast24h: throughput.spansLast24h,
+    activeProjects24h: throughput.activeProjects24h,
+    queue: ingestionQueue,
+    rejected,
+  };
+}
+
+const OLDEST_WAITING_WARNING_SECONDS = 60;
+const OLDEST_WAITING_CRITICAL_SECONDS = 300;
+const STALE_WARNING_SECONDS = 3_600;
+const INGEST_FAILED_CRITICAL_COUNT = 100;
+
+function ingestionStatus(
+  queue: IngestionQueueHealth | null,
+  staleSeconds: number | null,
+  spansLast24h: number,
+): SystemHealth["ingestion"]["status"] {
+  if (queue !== null) {
+    if (
+      queue.oldestWaitingSeconds !== null &&
+      queue.oldestWaitingSeconds >= OLDEST_WAITING_CRITICAL_SECONDS
+    ) {
+      return "critical";
+    }
+    if (queue.failed >= INGEST_FAILED_CRITICAL_COUNT) return "critical";
+    if (
+      queue.oldestWaitingSeconds !== null &&
+      queue.oldestWaitingSeconds >= OLDEST_WAITING_WARNING_SECONDS
+    ) {
+      return "warning";
+    }
+  }
+  if (staleSeconds !== null && staleSeconds >= STALE_WARNING_SECONDS && spansLast24h > 0) {
+    return "warning";
+  }
+  return "healthy";
+}
+
+function ingestionMessage(
+  status: SystemHealth["ingestion"]["status"],
+  queue: IngestionQueueHealth | null,
+  staleSeconds: number | null,
+  lastEventAt: string | null,
+  rejectedTotal: number,
+): string | null {
+  if (queue !== null && queue.failed >= INGEST_FAILED_CRITICAL_COUNT) {
+    return `${queue.failed} ingestion jobs have failed`;
+  }
+  if (
+    queue !== null &&
+    queue.oldestWaitingSeconds !== null &&
+    queue.oldestWaitingSeconds >= OLDEST_WAITING_CRITICAL_SECONDS
+  ) {
+    return "Ingestion queue is backing up";
+  }
+  if (status === "warning" && staleSeconds !== null && staleSeconds >= STALE_WARNING_SECONDS) {
+    return `No telemetry received in the last ${formatDuration(staleSeconds)}`;
+  }
+  if (lastEventAt === null) return "No telemetry received yet";
+  if (rejectedTotal > 0) return `${rejectedTotal} ingestion requests rejected in the last 24h`;
+  return null;
+}
+
+export function formatDuration(seconds: number): string {
+  if (seconds >= 86_400) return `${Math.floor(seconds / 86_400)}d`;
+  if (seconds >= 3_600) return `${Math.floor(seconds / 3_600)}h`;
+  if (seconds >= 60) return `${Math.floor(seconds / 60)}m`;
+  return `${seconds}s`;
 }
 
 type Probe<T> =

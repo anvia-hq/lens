@@ -1,7 +1,12 @@
 import type { SystemMonitorSnapshot } from "@lens/contracts";
-import { queryClickHouseCapacity, queryPostgresDatabaseBytes } from "@lens/db";
+import {
+  queryClickHouseCapacity,
+  queryIngestionThroughput,
+  queryPostgresDatabaseBytes,
+} from "@lens/db";
 import { listWorkerHeartbeats, queryQueueHealth } from "@lens/queue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readIngestionRejections } from "../src/modules/ingestion/counters.js";
 import {
   collectSystemHealth,
   cpuStatus,
@@ -13,11 +18,16 @@ import type { ApiDependencies } from "../src/utils/types.js";
 vi.mock("@lens/db", () => ({
   queryClickHouseCapacity: vi.fn(),
   queryPostgresDatabaseBytes: vi.fn(),
+  queryIngestionThroughput: vi.fn(),
 }));
 
 vi.mock("@lens/queue", () => ({
   listWorkerHeartbeats: vi.fn(),
   queryQueueHealth: vi.fn(),
+}));
+
+vi.mock("../src/modules/ingestion/counters.js", () => ({
+  readIngestionRejections: vi.fn(),
 }));
 
 const monitorSnapshot: SystemMonitorSnapshot = {
@@ -37,9 +47,23 @@ beforeEach(() => {
     databaseBytes: 200,
     disks: [{ name: "default", path: "/clickhouse", totalBytes: 1000, availableBytes: 400 }],
   });
+  vi.mocked(queryIngestionThroughput).mockResolvedValue({
+    lastEventAt: new Date().toISOString(),
+    spansLastHour: 120,
+    spansLast24h: 4_800,
+    activeProjects24h: 2,
+  });
+  vi.mocked(readIngestionRejections).mockResolvedValue([]);
   vi.mocked(listWorkerHeartbeats).mockResolvedValue(["2026-08-17T00:00:00.000Z"]);
   vi.mocked(queryQueueHealth).mockResolvedValue([
-    { name: "Trace ingestion", waiting: 1, active: 1, delayed: 0, failed: 0 },
+    {
+      name: "Trace ingestion",
+      waiting: 1,
+      active: 1,
+      delayed: 0,
+      failed: 0,
+      oldestWaitingSeconds: 2,
+    },
   ]);
   vi.stubGlobal(
     "fetch",
@@ -69,6 +93,42 @@ describe("system health aggregation", () => {
     expect(health.services.redis.usedMemoryBytes).toBe(500);
     expect(health.services.worker.activeInstances).toBe(1);
     expect(health.queues[0]?.waiting).toBe(1);
+    expect(health.ingestion).toMatchObject({
+      status: "healthy",
+      spansLastHour: 120,
+      spansLast24h: 4800,
+      activeProjects24h: 2,
+    });
+  });
+
+  it("warns when telemetry ingestion goes stale", async () => {
+    vi.mocked(queryIngestionThroughput).mockResolvedValueOnce({
+      lastEventAt: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+      spansLastHour: 0,
+      spansLast24h: 50,
+      activeProjects24h: 1,
+    });
+    const health = await collectSystemHealth(dependencies());
+    expect(health.ingestion.status).toBe("warning");
+    expect(health.ingestion.message).toContain("No telemetry received");
+    expect(health.overall).toBe("warning");
+  });
+
+  it("goes critical when the ingest queue is backing up", async () => {
+    vi.mocked(queryQueueHealth).mockResolvedValueOnce([
+      {
+        name: "Trace ingestion",
+        waiting: 500,
+        active: 2,
+        delayed: 0,
+        failed: 0,
+        oldestWaitingSeconds: 600,
+      },
+    ]);
+    const health = await collectSystemHealth(dependencies());
+    expect(health.ingestion.status).toBe("critical");
+    expect(health.ingestion.queue?.oldestWaitingSeconds).toBe(600);
+    expect(health.overall).toBe("critical");
   });
 
   it("keeps partial results and marks required failures critical", async () => {
@@ -150,6 +210,7 @@ function dependencies(options: { monitorUrl?: string } = { monitorUrl: "http://m
     config: {
       SYSTEM_MONITOR_URL: options.monitorUrl,
       CLICKHOUSE_DATABASE: "lens",
+      INGESTION_QUEUE_MAX_WAITING: 500,
     },
     postgres: { sql: vi.fn() },
     clickhouse: {},

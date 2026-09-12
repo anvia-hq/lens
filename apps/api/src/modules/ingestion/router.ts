@@ -14,6 +14,7 @@ import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
 import { queueHasCapacity } from "./capacity.js";
+import { recordIngestionRejection } from "./counters.js";
 import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
 export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
@@ -22,6 +23,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
     const contentType = parseOtlpContentType(c.req.header("content-type"));
     if (contentType === undefined) {
       metrics.rejected.inc({ reason: "content_type" });
+      void recordIngestionRejection(deps.redis, "content_type");
       return apiError(
         c,
         415,
@@ -42,6 +44,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
     );
     if (key === undefined || key.project.state !== "active") {
       metrics.rejected.inc({ reason: "auth" });
+      void recordIngestionRejection(deps.redis, "auth");
       return apiError(c, 401, "unauthorized", "Invalid or revoked ingestion key");
     }
     if (
@@ -53,17 +56,20 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
       ))
     ) {
       metrics.rejected.inc({ reason: "rate_limit" });
+      void recordIngestionRejection(deps.redis, "rate_limit");
       c.header("Retry-After", "60");
       return apiError(c, 429, "rate_limited", "Project ingestion rate limit exceeded");
     }
     try {
       if (!(await queueHasCapacity(deps.queues.ingest, deps.config.INGESTION_QUEUE_MAX_WAITING))) {
         metrics.rejected.inc({ reason: "queue_capacity" });
+        void recordIngestionRejection(deps.redis, "queue_capacity");
         c.header("Retry-After", "5");
         return apiError(c, 503, "ingestion_busy", "Telemetry ingestion is temporarily busy");
       }
     } catch (error) {
       metrics.rejected.inc({ reason: "queue_unavailable" });
+      void recordIngestionRejection(deps.redis, "queue_unavailable");
       deps.logger.warn({ err: error, projectId: key.project.id }, "ingestion queue unavailable");
       c.header("Retry-After", "5");
       return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
@@ -75,6 +81,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
     } catch (error) {
       if (!(error instanceof IngestionBodyError)) throw error;
       metrics.rejected.inc({ reason: error.reason });
+      void recordIngestionRejection(deps.redis, error.reason);
       const status =
         error.code === "payload_too_large" ? 413 : error.code === "invalid_gzip" ? 400 : 415;
       return apiError(c, status, error.code, error.message);
@@ -88,6 +95,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
       });
     } catch (error) {
       metrics.rejected.inc({ reason: "decode" });
+      void recordIngestionRejection(deps.redis, "decode");
       return apiError(
         c,
         400,
@@ -111,6 +119,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
         metrics.accepted.inc(normalized.spans.length);
       } catch (error) {
         metrics.rejected.inc({ reason: "queue_unavailable" });
+        void recordIngestionRejection(deps.redis, "queue_unavailable");
         deps.logger.warn({ err: error, projectId: key.project.id }, "failed to enqueue telemetry");
         c.header("Retry-After", "5");
         return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
@@ -118,6 +127,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
     }
     if (normalized.rejectedSpans > 0) {
       metrics.rejected.inc({ reason: "invalid_span" }, normalized.rejectedSpans);
+      void recordIngestionRejection(deps.redis, "invalid_span", normalized.rejectedSpans);
     }
     recordProjectKeyUsage(deps, key.apiKeyId, key.project.id);
     metrics.duration.observe((performance.now() - startedAt) / 1_000);
