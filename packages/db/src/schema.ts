@@ -3,6 +3,7 @@ import type {
   AlertIncidentEvidence,
   AlertRuleInput,
   AlertRuleKind,
+  ChatMessage,
   DataDeletionEntityType,
   DataDeletionStatus,
   JobOutboxEvent,
@@ -433,6 +434,94 @@ export const managedDatasetCase = pgTable(
     ),
     index("managed_dataset_cases_version_position_idx").on(table.versionId, table.position),
   ],
+);
+
+export const promptType = pgEnum("prompt_type", ["text", "chat"]);
+
+export const prompt = pgTable(
+  "prompts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("prompts_project_name_idx").on(table.projectId, sql`lower(${table.name})`),
+    index("prompts_project_updated_idx").on(table.projectId, table.updatedAt),
+  ],
+);
+
+export const promptVersion = pgTable(
+  "prompt_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promptId: uuid("prompt_id")
+      .notNull()
+      .references(() => prompt.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    type: promptType("type").notNull(),
+    template: text("template"),
+    messages: jsonb("messages").$type<ChatMessage[]>(),
+    config: jsonb("config").$type<Record<string, JsonValue>>().notNull().default({}),
+    changeMessage: text("change_message"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("prompt_versions_prompt_version_idx").on(table.promptId, table.version),
+    index("prompt_versions_prompt_created_idx").on(table.promptId, table.createdAt),
+  ],
+);
+
+export const promptLabel = pgTable(
+  "prompt_labels",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promptId: uuid("prompt_id")
+      .notNull()
+      .references(() => prompt.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => promptVersion.id, { onDelete: "cascade" }),
+    updatedBy: text("updated_by")
+      .notNull()
+      .references(() => user.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("prompt_labels_prompt_label_idx").on(table.promptId, sql`lower(${table.label})`),
+    index("prompt_labels_version_idx").on(table.versionId),
+  ],
+);
+
+export const promptLabelEvent = pgTable(
+  "prompt_label_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promptId: uuid("prompt_id")
+      .notNull()
+      .references(() => prompt.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    fromVersion: integer("from_version"),
+    toVersion: integer("to_version").notNull(),
+    changedBy: text("changed_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("prompt_label_events_prompt_created_idx").on(table.promptId, table.createdAt)],
 );
 
 export const llmModelPrice = pgTable(

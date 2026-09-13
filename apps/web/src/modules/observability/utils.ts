@@ -42,6 +42,7 @@ import {
   type ManagedDatasetDetailSearch,
   type ObservedDatasetDetailSearch,
   type OverviewSearch,
+  type PromptsSearch,
   type RefreshInterval,
   type ResolvedEvaluationResultsSearch,
   type ResolvedEvaluationRunsSearch,
@@ -99,6 +100,13 @@ export function validateManagedDatasetDetailSearch(
   search: Record<string, unknown>,
 ): ManagedDatasetDetailSearch {
   return { version: optionalSearchValue(search.version) };
+}
+
+export function validatePromptsSearch(search: Record<string, unknown>): PromptsSearch {
+  return {
+    prompt: optionalSearchValue(search.prompt),
+    archived: search.archived === true || search.archived === "true",
+  };
 }
 
 export function validateEvaluationsSearch(

@@ -189,6 +189,11 @@ export type ManagedDatasetDetailSearch = {
   version?: string;
 };
 
+export type PromptsSearch = {
+  prompt?: string;
+  archived: boolean;
+};
+
 export type TraceDetailSearch = {
   view?: TraceSpanView;
   span?: string;

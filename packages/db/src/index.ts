@@ -65,6 +65,7 @@ export * from "./job-outbox-store.js";
 export * from "./managed-dataset-store.js";
 export * from "./metrics-store.js";
 export * from "./model-costs.js";
+export * from "./prompt-store.js";
 export * from "./quality-gate-store.js";
 export * from "./schema.js";
 export * from "./system-health-store.js";

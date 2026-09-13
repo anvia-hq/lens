@@ -12,9 +12,13 @@ import {
   managedDatasetUpdateSchema,
   metricsRangeSchema,
   projectSettingsSchema,
+  promptContentSchema,
+  promptDeploymentQuerySchema,
+  promptUpdateSchema,
   qualityGateCheckInputSchema,
   qualityGateInputSchema,
   qualityGateRuleSchema,
+  resolvedPromptSchema,
   systemMonitorSnapshotSchema,
   traceReviewInputSchema,
 } from "../src/index";
@@ -57,6 +61,76 @@ describe("contracts", () => {
       startedAt: "2026-08-05T00:00:00.000Z",
       traceId: "a".repeat(32),
     });
+  });
+
+  it("enforces prompt content shape per prompt type", () => {
+    expect(promptContentSchema.safeParse({ type: "text", template: "Hi {{name}}" }).success).toBe(
+      true,
+    );
+    expect(promptContentSchema.safeParse({ type: "text", template: "   " }).success).toBe(false);
+    expect(promptContentSchema.safeParse({ type: "text" }).success).toBe(false);
+    expect(
+      promptContentSchema.safeParse({
+        type: "chat",
+        messages: [{ role: "user", content: "Hello" }],
+      }).success,
+    ).toBe(true);
+    expect(promptContentSchema.safeParse({ type: "chat", messages: [] }).success).toBe(false);
+    expect(
+      promptContentSchema.safeParse({
+        type: "chat",
+        messages: [{ role: "invalid", content: "Hello" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects prompt content mixing text and chat fields", () => {
+    expect(
+      promptContentSchema.safeParse({
+        type: "text",
+        template: "Hi {{name}}",
+        messages: [{ role: "user", content: "Hello" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      promptContentSchema.safeParse({
+        type: "chat",
+        template: "Hi {{name}}",
+        messages: [{ role: "user", content: "Hello" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires at least one field when updating a prompt", () => {
+    expect(promptUpdateSchema.safeParse({}).success).toBe(false);
+    expect(promptUpdateSchema.safeParse({ description: "Support replies" }).success).toBe(true);
+  });
+
+  it("validates prompt deployment selectors and coerces version queries", () => {
+    expect(promptDeploymentQuerySchema.parse({ version: "5" })).toEqual({ version: 5 });
+    expect(promptDeploymentQuerySchema.parse({ label: " production " })).toEqual({
+      label: "production",
+    });
+    expect(
+      promptDeploymentQuerySchema.safeParse({ label: "production", version: "5" }).success,
+    ).toBe(false);
+    expect(promptDeploymentQuerySchema.safeParse({ version: "0" }).success).toBe(false);
+    expect(promptDeploymentQuerySchema.safeParse({ label: "   " }).success).toBe(false);
+  });
+
+  it("requires resolved text prompts to carry a nonblank template", () => {
+    const resolved = {
+      name: "support/reply",
+      version: 5,
+      config: {},
+      labels: [],
+      selector: { version: 5 },
+      type: "text",
+      template: "Hello",
+      messages: null,
+    };
+    expect(resolvedPromptSchema.parse(resolved)).toEqual(resolved);
+    expect(resolvedPromptSchema.safeParse({ ...resolved, template: "   " }).success).toBe(false);
   });
 
   it.each([

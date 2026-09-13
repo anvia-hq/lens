@@ -10,7 +10,9 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   archiveManagedDataset,
+  archivePrompt,
   claimJobOutbox,
+  compareEvaluationRuns,
   completeJobOutbox,
   createAlertChannel,
   createAlertRule,
@@ -20,6 +22,8 @@ import {
   createManagedDatasetWithCases,
   createPendingDeliveries,
   createPostgres,
+  createPrompt,
+  createPromptVersion,
   createQualityGate,
   deleteAlertChannel,
   deleteAlertRule,
@@ -33,6 +37,8 @@ import {
   getEvaluationRunDetail,
   getManagedDataset,
   getManagedDatasetVersion,
+  getPrompt,
+  getPromptDeployment,
   getPublishedManagedDataset,
   getQualityGate,
   getSpan,
@@ -50,6 +56,8 @@ import {
   listEvaluationRuns,
   listIncidentDeliveries,
   listManagedDatasets,
+  listPromptLabelEvents,
+  listPrompts,
   listQualityGates,
   listTraces,
   loadDeliveryForDispatch,
@@ -65,7 +73,9 @@ import {
   queryMetrics,
   reconcileProjectRetention,
   retryJobOutbox,
+  setPromptLabel,
   updateManagedDataset,
+  updatePrompt,
   updateQualityGate,
   upsertManagedDatasetCase,
   user,
@@ -76,7 +86,9 @@ const projectId = "10000000-0000-4000-8000-000000000001";
 const traceId = "1".repeat(32);
 const rootSpanId = "1".repeat(16);
 const generationSpanId = "2".repeat(16);
-const now = new Date("2026-08-07T00:00:00.000Z");
+const now = new Date(Math.floor(Date.now() / 60_000) * 60_000 - 60_000);
+const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1_000).toISOString();
+const unixNano = (offsetMs = 0) => (BigInt(now.getTime() + offsetMs) * 1_000_000n).toString();
 
 describe.sequential("database integration", () => {
   const config = integrationConfig();
@@ -116,11 +128,11 @@ describe.sequential("database integration", () => {
       query: "SELECT countDistinct(filename) AS count FROM schema_migrations",
       format: "JSONEachRow",
     });
-    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 9 }]);
+    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 10 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'mcp_tokens', 'projects', 'quality_gates')
+        AND table_name IN ('alert_incidents', 'alert_rules', 'data_deletion_requests', 'job_outbox', 'managed_dataset_cases', 'managed_dataset_versions', 'managed_datasets', 'mcp_tokens', 'prompt_label_events', 'prompt_labels', 'prompt_versions', 'prompts', 'projects', 'quality_gates')
       ORDER BY table_name
     `;
     expect(tables.map((row) => row.table_name)).toEqual([
@@ -133,8 +145,199 @@ describe.sequential("database integration", () => {
       "managed_datasets",
       "mcp_tokens",
       "projects",
+      "prompt_label_events",
+      "prompt_labels",
+      "prompt_versions",
+      "prompts",
       "quality_gates",
     ]);
+  });
+
+  it("isolates prompt versions, serializes commits and deployments, and preserves rollback history", async () => {
+    const otherProjectId = "10000000-0000-4000-8000-000000000099";
+    await postgres.db
+      .insert(project)
+      .values({
+        id: otherProjectId,
+        organizationId: "integration-org",
+        name: "Other prompts",
+        slug: "other-prompts",
+      })
+      .onConflictDoNothing();
+    const name = `integration/support-${crypto.randomUUID()}`;
+    const created = await createPrompt(postgres.db, projectId, "integration-user", {
+      name,
+      content: { type: "text", template: "Initial {{question}}", config: { temperature: 0 } },
+      labels: ["production"],
+    });
+    const other = await createPrompt(postgres.db, otherProjectId, "integration-user", {
+      name,
+      content: { type: "text", template: "Other tenant" },
+      labels: ["production"],
+    });
+    try {
+      expect(created.versions).toHaveLength(1);
+      expect(await getPromptDeployment(postgres.db, projectId, name)).toMatchObject({
+        name,
+        version: 1,
+        selector: { label: "production" },
+        type: "text",
+        template: "Initial {{question}}",
+        messages: null,
+        config: { temperature: 0 },
+      });
+      expect(await getPrompt(postgres.db, otherProjectId, created.id)).toBeUndefined();
+      expect(await getPromptDeployment(postgres.db, otherProjectId, name)).toMatchObject({
+        template: "Other tenant",
+      });
+      expect(
+        await createPromptVersion(postgres.db, otherProjectId, created.id, "integration-user", {
+          type: "text",
+          template: "Forbidden",
+        }),
+      ).toBeUndefined();
+      expect(
+        await setPromptLabel(postgres.db, otherProjectId, created.id, "integration-user", {
+          label: "production",
+          version: 1,
+        }),
+      ).toBeUndefined();
+      expect(await archivePrompt(postgres.db, otherProjectId, created.id)).toBe(false);
+
+      await Promise.all(
+        ["A", "B", "C"].map((content) =>
+          createPromptVersion(postgres.db, projectId, created.id, "integration-user", {
+            type: "chat",
+            messages: [{ role: "user", content }],
+            changeMessage: content,
+          }),
+        ),
+      );
+      const committed = await getPrompt(postgres.db, projectId, created.id);
+      expect(committed?.versions.map((version) => version.version)).toEqual([4, 3, 2, 1]);
+      expect(
+        committed?.versions
+          .filter((version) => version.type === "chat")
+          .map((version) => version.changeMessage)
+          .sort(),
+      ).toEqual(["A", "B", "C"]);
+      expect(await getPromptDeployment(postgres.db, projectId, name)).toMatchObject({ version: 1 });
+      expect(await getPromptDeployment(postgres.db, projectId, name, { version: 4 })).toMatchObject(
+        {
+          type: "chat",
+          template: null,
+          version: 4,
+          selector: { version: 4 },
+          labels: [],
+        },
+      );
+      expect(
+        await getPromptDeployment(postgres.db, projectId, name, {
+          version: Number.MAX_SAFE_INTEGER,
+        }),
+      ).toBe("unknown_version");
+      expect(await getPromptDeployment(postgres.db, projectId, name, { label: "missing" })).toBe(
+        "no_deployment",
+      );
+      expect(
+        await setPromptLabel(postgres.db, projectId, created.id, "integration-user", {
+          label: "production",
+          version: 99,
+        }),
+      ).toBe("unknown_version");
+
+      await Promise.all(
+        [2, 3, 4].map((version) =>
+          setPromptLabel(postgres.db, projectId, created.id, "integration-user", {
+            label: "production",
+            version,
+          }),
+        ),
+      );
+      const deployed = await getPromptDeployment(postgres.db, projectId, name);
+      if (typeof deployed !== "object") throw new Error("Expected deployed prompt");
+      expect([2, 3, 4]).toContain(deployed.version);
+      const concurrentEvents = await listPromptLabelEvents(postgres.db, projectId, created.id);
+      expect(concurrentEvents).toHaveLength(4);
+      // Follow transitions rather than timestamps: transaction start timestamps can overlap.
+      let previous = 1;
+      const remaining = concurrentEvents.filter((event) => event.fromVersion !== null);
+      while (remaining.length > 0) {
+        const index = remaining.findIndex((event) => event.fromVersion === previous);
+        expect(index).toBeGreaterThanOrEqual(0);
+        const [event] = remaining.splice(index, 1);
+        if (event === undefined) throw new Error("Missing deployment transition");
+        previous = event.toVersion;
+      }
+      expect(previous).toBe(deployed.version);
+
+      await setPromptLabel(postgres.db, projectId, created.id, "integration-user", {
+        label: "production",
+        version: 1,
+      });
+      expect(await getPromptDeployment(postgres.db, projectId, name)).toMatchObject({
+        version: 1,
+        template: "Initial {{question}}",
+      });
+      expect(await listPromptLabelEvents(postgres.db, projectId, created.id)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ fromVersion: deployed.version, toVersion: 1 }),
+        ]),
+      );
+      expect(await archivePrompt(postgres.db, projectId, created.id)).toBe(true);
+      expect(await getPromptDeployment(postgres.db, projectId, name)).toBeUndefined();
+      expect(
+        await getPromptDeployment(postgres.db, projectId, name, { version: 1 }),
+      ).toBeUndefined();
+      expect(await listPrompts(postgres.db, projectId)).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: created.id })]),
+      );
+      expect(await listPrompts(postgres.db, projectId, { includeArchived: true })).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: created.id })]),
+      );
+      expect(
+        await createPromptVersion(postgres.db, projectId, created.id, "integration-user", {
+          type: "text",
+          template: "Too late",
+        }),
+      ).toBeUndefined();
+      expect(
+        await setPromptLabel(postgres.db, projectId, created.id, "integration-user", {
+          label: "production",
+          version: 2,
+        }),
+      ).toBeUndefined();
+      expect(await getPrompt(postgres.db, projectId, created.id)).toMatchObject({
+        versionCount: 4,
+      });
+      expect(await getPromptDeployment(postgres.db, otherProjectId, name)).toMatchObject({
+        version: 1,
+        template: "Other tenant",
+      });
+    } finally {
+      await postgres.sql`DELETE FROM prompts WHERE id IN (${created.id}, ${other.id})`;
+    }
+  });
+
+  it("updates prompt metadata and rejects unknown prompts", async () => {
+    const created = await createPrompt(postgres.db, projectId, "integration-user", {
+      name: `integration/update-${crypto.randomUUID()}`,
+      description: "Before",
+      content: { type: "text", template: "Hello {{name}}" },
+    });
+    try {
+      expect(
+        await updatePrompt(postgres.db, projectId, created.id, { description: "After" }),
+      ).toMatchObject({ description: "After", versionCount: 1 });
+      expect(await getPrompt(postgres.db, projectId, created.id)).toMatchObject({
+        description: "After",
+      });
+      expect(
+        await updatePrompt(postgres.db, projectId, crypto.randomUUID(), { description: "Missing" }),
+      ).toBeUndefined();
+    } finally {
+      await postgres.sql`DELETE FROM prompts WHERE id = ${created.id}`;
+    }
   });
 
   it("leases, retries, and completes transactional outbox events", async () => {
@@ -584,6 +787,42 @@ describe.sequential("database integration", () => {
     });
   });
 
+  it("warns only when compared runs differ in dataset or prompt identity", async () => {
+    await insertEvaluationRuns(clickhouse, [
+      evaluationRun(),
+      {
+        ...evaluationRun(),
+        id: "run-other-prompt",
+        promptName: "support/triage",
+        promptVersion: "4",
+        ingestVersion: (BigInt(unixNano()) + 3n).toString(),
+      },
+      {
+        ...evaluationRun(),
+        id: "run-same-prompt",
+        ingestVersion: (BigInt(unixNano()) + 4n).toString(),
+      },
+    ]);
+
+    const differing = await compareEvaluationRuns(
+      clickhouse,
+      projectId,
+      "run-1",
+      "run-other-prompt",
+    );
+    expect(differing?.warnings).toEqual(
+      expect.arrayContaining(["Runs use different prompts", "Runs use different prompt versions"]),
+    );
+
+    const matching = await compareEvaluationRuns(clickhouse, projectId, "run-1", "run-same-prompt");
+    expect(matching?.warnings).not.toContain("Runs use different prompts");
+    expect(matching?.warnings).not.toContain("Runs use different prompt versions");
+
+    expect(
+      await compareEvaluationRuns(clickhouse, projectId, "run-1", crypto.randomUUID()),
+    ).toBeUndefined();
+  });
+
   it("deletes sessions, traces, and runs with their safe cascades", async () => {
     await insertSpans(clickhouse, spans());
     await materializeTrace(clickhouse, projectId, traceId);
@@ -655,8 +894,8 @@ describe.sequential("database integration", () => {
         traceId: fallbackTraceId,
         spanId: childSpanId,
         parentSpanId: firstRootSpanId,
-        startTimeUnixNano: "1786060800000000000",
-        endTimeUnixNano: "1786060800100000000",
+        startTimeUnixNano: unixNano(),
+        endTimeUnixNano: unixNano(100),
         userId: "child-user",
         sessionId: "child-session",
         tags: ["child", "shared"],
@@ -672,8 +911,8 @@ describe.sequential("database integration", () => {
         name: "first-root",
         traceName: "",
         status: "error",
-        startTimeUnixNano: "1786060800200000000",
-        endTimeUnixNano: "1786060800300000000",
+        startTimeUnixNano: unixNano(200),
+        endTimeUnixNano: unixNano(300),
         userId: null,
         sessionId: "",
         tags: ["first-root", "shared"],
@@ -688,8 +927,8 @@ describe.sequential("database integration", () => {
         spanId: laterRootSpanId,
         name: "later-root",
         traceName: "Later root",
-        startTimeUnixNano: "1786060800400000000",
-        endTimeUnixNano: "1786060800500000000",
+        startTimeUnixNano: unixNano(400),
+        endTimeUnixNano: unixNano(500),
         userId: "later-root-user",
         sessionId: "later-root-session",
         tags: ["later-root"],
@@ -782,9 +1021,9 @@ function spans(): NormalizedSpan[] {
     totalCost: null,
     input: null,
     output: null,
-    expiresAt: "2099-01-01T00:00:00.000Z",
+    expiresAt,
     ingestedAt: now.toISOString(),
-    ingestVersion: "1786060800000000000",
+    ingestVersion: unixNano(),
   };
   return [
     {
@@ -793,8 +1032,8 @@ function spans(): NormalizedSpan[] {
       parentSpanId: null,
       name: "support-agent",
       observationKind: "agent",
-      startTimeUnixNano: "1786060800000000000",
-      endTimeUnixNano: "1786060801000000000",
+      startTimeUnixNano: unixNano(),
+      endTimeUnixNano: unixNano(1_000),
       durationNano: "1000000000",
       traceName: "Support request",
       model: null,
@@ -802,7 +1041,7 @@ function spans(): NormalizedSpan[] {
       outputTokens: 0,
       totalTokens: 0,
       ingestedAt: new Date(now.getTime() + 1_000).toISOString(),
-      ingestVersion: "1786060801000000000",
+      ingestVersion: unixNano(1_000),
     },
     {
       ...common,
@@ -810,8 +1049,8 @@ function spans(): NormalizedSpan[] {
       parentSpanId: rootSpanId,
       name: "generation",
       observationKind: "generation",
-      startTimeUnixNano: "1786060800100000000",
-      endTimeUnixNano: "1786060800600000000",
+      startTimeUnixNano: unixNano(100),
+      endTimeUnixNano: unixNano(600),
       durationNano: "500000000",
       traceName: null,
       model: "gpt-test",
@@ -841,10 +1080,12 @@ function evaluationRun(): EvaluationRun {
     release: "release-1",
     datasetName: "support-cases",
     datasetVersion: "v1",
+    promptName: "support/reply",
+    promptVersion: "5",
     metadata: {},
-    expiresAt: "2099-01-01T00:00:00.000Z",
+    expiresAt,
     ingestedAt: now.toISOString(),
-    ingestVersion: "1786060800000000001",
+    ingestVersion: (BigInt(unixNano()) + 1n).toString(),
     stateVersion: 2,
   };
 }
@@ -875,8 +1116,8 @@ function evaluationResult(): EvaluationResult {
     metadata: {},
     source: "telemetry",
     reviewer: null,
-    expiresAt: "2099-01-01T00:00:00.000Z",
+    expiresAt,
     ingestedAt: now.toISOString(),
-    ingestVersion: "1786060800000000002",
+    ingestVersion: (BigInt(unixNano()) + 2n).toString(),
   };
 }
