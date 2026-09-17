@@ -1,9 +1,5 @@
-import {
-  decodeCursor,
-  type SessionFilters,
-  type SessionSortField,
-  sessionSortFields,
-} from "@lens/contracts";
+import { type SessionFilters, type SessionSortField, sessionSortFields } from "@lens/contracts";
+import { decodeCursor } from "@lens/db";
 import { z } from "zod";
 import {
   clippedText,

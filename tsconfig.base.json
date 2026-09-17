@@ -16,6 +16,7 @@
       "@lens/contracts": ["packages/contracts/src/index.ts"],
       "@lens/db": ["packages/db/src/index.ts"],
       "@lens/db/schema": ["packages/db/src/schema.ts"],
+      "@lens/notifications": ["packages/notifications/src/index.ts"],
       "@lens/queue": ["packages/queue/src/index.ts"],
       "@lens/telemetry": ["packages/telemetry/src/index.ts"],
       "@lens/ui/*": ["packages/ui/src/*"],

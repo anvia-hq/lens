@@ -8,6 +8,7 @@ import type {
   MaterializeTraceJob,
 } from "@lens/contracts";
 import { createClickHouse, createPostgres } from "@lens/db";
+import { alertDeliveryBackoffStrategy } from "@lens/notifications";
 import { createQueues, createRedisConnection, queueNames, startWorkerHeartbeat } from "@lens/queue";
 import { Worker } from "bullmq";
 import pino from "pino";
@@ -97,7 +98,11 @@ const alertsWorker = new Worker<EvaluateAlertsJob>(
 const dispatchWorker = new Worker<DispatchAlertJob>(
   queueNames.dispatch,
   createAlertDispatchProcessor(processorDeps),
-  { connection: dispatchConnection, concurrency: 2 },
+  {
+    connection: dispatchConnection,
+    concurrency: 2,
+    settings: { backoffStrategy: alertDeliveryBackoffStrategy },
+  },
 );
 const outboxDispatcher = createJobOutboxDispatcher({ postgres, queues, logger });
 
@@ -121,7 +126,7 @@ void queues.alerts
   .upsertJobScheduler(
     "evaluate-alert-rules-every-minute",
     { every: 60_000 },
-    { name: "evaluate-alert-rules", data: {} },
+    { name: "evaluate-alert-rules", data: { schemaVersion: 1 } },
   )
   .catch((error: unknown) => logger.error({ err: error }, "alert scheduler setup failed"));
 logger.info("Anvia Lens worker started");

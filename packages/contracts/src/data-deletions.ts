@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobSchemaVersion } from "./job-schema.js";
 
 export const dataDeletionEntityTypes = ["trace", "session", "evaluation_run"] as const;
 export const dataDeletionEntityTypeSchema = z.enum(dataDeletionEntityTypes);
@@ -48,8 +49,11 @@ export const dataDeletionInputSchema = z
   });
 export type DataDeletionInput = z.infer<typeof dataDeletionInputSchema>;
 
-export const deleteDataJobSchema = z.object({ requestId: z.uuid() });
-export type DeleteDataJob = z.infer<typeof deleteDataJobSchema>;
+export const deleteDataJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  requestId: z.uuid(),
+});
+export type DeleteDataJob = z.input<typeof deleteDataJobSchema>;
 
 export type DataDeletionRequest = {
   id: string;

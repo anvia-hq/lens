@@ -1,6 +1,6 @@
 import { type DispatchAlertJob, dispatchAlertJobSchema } from "@lens/contracts";
 import { loadDeliveryForDispatch, markDeliveryAttempt, markDeliveryFinished } from "@lens/db";
-import { AlertDeliveryError, deliverAlert, renderAlertMessage } from "@lens/queue";
+import { AlertDeliveryError, deliverAlert, renderAlertMessage } from "@lens/notifications";
 import type { Job } from "bullmq";
 import type { ProcessorDependencies } from "./processors.js";
 
@@ -31,7 +31,8 @@ export function createAlertDispatchProcessor(deps: ProcessorDependencies) {
       incidentUrl: new URL(`/${incident.projectId}/alerts/${incident.id}`, deps.appUrl).toString(),
     });
     try {
-      await deliverAlert({ type: channel.type, config: channel.config }, message, {
+      await deliverAlert(channel, message, {
+        event: "alert.opened",
         projectId: incident.projectId,
         incident,
       });

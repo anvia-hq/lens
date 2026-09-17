@@ -15,6 +15,7 @@
     "@lens/config": "workspace:*",
     "@lens/contracts": "workspace:*",
     "@lens/db": "workspace:*",
+    "@lens/notifications": "workspace:*",
     "@lens/queue": "workspace:*",
     "bullmq": "^5.58.0",
     "drizzle-orm": "^0.45.2",

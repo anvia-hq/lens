@@ -3,14 +3,16 @@ import type {
   AlertChannelConfig,
   AlertChannelInput,
   AlertDelivery,
+  AlertDeliveryTarget,
   AlertIncident,
 } from "@lens/contracts";
+import { alertDeliveryTargetSchema } from "@lens/contracts";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { incidentFromRow } from "./alert-store.js";
 import type { LensPostgres } from "./index.js";
 import { alertChannel, alertDelivery, alertIncident, alertRule, project } from "./schema.js";
 
-export type StoredAlertChannel = AlertChannel & { config: AlertChannelConfig };
+export type StoredAlertChannel = Omit<AlertChannel, "type"> & AlertDeliveryTarget;
 
 const publicColumns = {
   id: alertChannel.id,
@@ -36,7 +38,9 @@ function channelFromRow(row: Omit<AlertChannelRow, "config" | "createdBy">): Ale
 }
 
 function storedChannelFromRow(row: AlertChannelRow): StoredAlertChannel {
-  return { ...channelFromRow(row), config: row.config };
+  const channel = channelFromRow(row);
+  const target = alertDeliveryTargetSchema.parse({ type: row.type, config: row.config });
+  return { ...channel, ...target };
 }
 
 function deliveryFromRow(row: AlertDeliveryRow): AlertDelivery {

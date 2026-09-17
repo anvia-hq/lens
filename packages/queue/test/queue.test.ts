@@ -30,7 +30,7 @@ describe("queue contracts", () => {
       set: vi.fn().mockResolvedValue("OK"),
       del: vi.fn().mockResolvedValue(1),
     } as unknown as IORedis;
-    const heartbeat = startWorkerHeartbeat(redis, "worker-1", { intervalMs: 60_000 });
+    const heartbeat = startWorkerHeartbeat(redis, "worker-1", { intervalMs: 10_000 });
 
     expect(redis.set).toHaveBeenCalledWith(
       "lens:worker:heartbeat:worker-1",
@@ -93,9 +93,34 @@ describe("queue contracts", () => {
     const heartbeat = startWorkerHeartbeat(redis, "worker-hanging");
 
     const closing = heartbeat.close();
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(2_000);
 
     await expect(closing).resolves.toBeUndefined();
+  });
+
+  it("validates heartbeat timing and does not overlap renewals", async () => {
+    vi.useFakeTimers();
+    let resolveSet: ((value: "OK") => void) | undefined;
+    const redis = {
+      status: "ready",
+      set: vi.fn().mockReturnValue(
+        new Promise<"OK">((resolve) => {
+          resolveSet = resolve;
+        }),
+      ),
+      del: vi.fn().mockResolvedValue(1),
+    } as unknown as IORedis;
+
+    expect(() => startWorkerHeartbeat(redis, "worker", { intervalMs: 10, ttlMs: 10 })).toThrow(
+      "Heartbeat TTL",
+    );
+    const heartbeat = startWorkerHeartbeat(redis, "worker", { intervalMs: 10, ttlMs: 30 });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(redis.set).toHaveBeenCalledOnce();
+    resolveSet?.("OK");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(redis.set).toHaveBeenCalledTimes(2);
+    await heartbeat.close();
   });
 
   it("skips heartbeat cleanup when Redis is disconnected", async () => {
@@ -167,6 +192,26 @@ describe("queue contracts", () => {
     };
     const health = await queryQueueHealth(queues as never);
     expect(health[0]?.oldestWaitingSeconds).toBeNull();
+  });
+
+  it("does not hide failures while reading the oldest waiting job", async () => {
+    const queue = {
+      getWaitingCount: vi.fn().mockResolvedValue(1),
+      getActiveCount: vi.fn().mockResolvedValue(0),
+      getDelayedCount: vi.fn().mockResolvedValue(0),
+      getFailedCount: vi.fn().mockResolvedValue(0),
+      getWaiting: vi.fn().mockRejectedValue(new Error("redis unavailable")),
+    };
+    const queues = {
+      ingest: queue,
+      evaluations: queue,
+      materialize: queue,
+      maintenance: queue,
+      costs: queue,
+      alerts: queue,
+      dispatch: queue,
+    };
+    await expect(queryQueueHealth(queues as never)).rejects.toThrow("redis unavailable");
   });
 
   it("paginates, filters, and sorts worker heartbeats", async () => {

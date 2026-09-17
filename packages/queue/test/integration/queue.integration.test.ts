@@ -1,3 +1,4 @@
+import type { NormalizedSpan } from "@lens/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createQueues,
@@ -37,9 +38,9 @@ describe("queue integration", () => {
         projectId: "00000000-0000-4000-8000-000000000001",
         ingestId: "ingest-1",
         receivedAt: "2026-08-07T00:00:00.000Z",
-        spans: [],
+        spans: [normalizedSpan()],
       }),
-      queues.evaluations.add("evaluations", {
+      queues.evaluations.add("ingest", {
         projectId: "00000000-0000-4000-8000-000000000001",
         ingestId: "evaluation-1",
         receivedAt: "2026-08-07T00:00:00.000Z",
@@ -70,6 +71,7 @@ describe("queue integration", () => {
 
     expect(jobs.map((job) => job.queueName)).toEqual(Object.values(queueNames));
     for (const job of jobs) {
+      expect(job.data).toMatchObject({ schemaVersion: 1 });
       expect(job.opts).toMatchObject({
         attempts: 5,
         backoff: { type: "exponential", delay: 1_000 },
@@ -106,3 +108,49 @@ describe("queue integration", () => {
     }
   });
 });
+
+function normalizedSpan(): NormalizedSpan {
+  return {
+    projectId: "00000000-0000-4000-8000-000000000001",
+    traceId: "a".repeat(32),
+    spanId: "b".repeat(16),
+    parentSpanId: null,
+    traceState: "",
+    name: "integration span",
+    kind: 1,
+    observationKind: "span",
+    status: "ok",
+    statusMessage: "",
+    startTimeUnixNano: "1",
+    endTimeUnixNano: "2",
+    durationNano: "1",
+    serviceName: "test",
+    scopeName: "test",
+    scopeVersion: "1",
+    resourceAttributes: {},
+    spanAttributes: {},
+    events: [],
+    links: [],
+    traceName: null,
+    userId: null,
+    sessionId: null,
+    tags: [],
+    version: null,
+    environment: "test",
+    release: null,
+    serviceVersion: null,
+    model: null,
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    inputCost: null,
+    outputCost: null,
+    totalCost: null,
+    input: null,
+    output: null,
+    expiresAt: null,
+    ingestedAt: "2026-08-07T00:00:00.000Z",
+    ingestVersion: "1",
+  };
+}

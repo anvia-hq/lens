@@ -1,18 +1,18 @@
 import type { ClickHouseClient } from "@clickhouse/client";
-import {
-  encodeCursor,
-  type JsonValue,
-  type ObservationKind,
-  type Page,
-  type SessionDetail,
-  type SessionFacets,
-  type SessionFilters,
-  type SessionSortField,
-  type SessionStatus,
-  type SessionSummary,
-  type SessionTurnPayload,
-  type TraceSummary,
+import type {
+  JsonValue,
+  ObservationKind,
+  Page,
+  SessionDetail,
+  SessionFacets,
+  SessionFilters,
+  SessionSortField,
+  SessionStatus,
+  SessionSummary,
+  SessionTurnPayload,
+  TraceSummary,
 } from "@lens/contracts";
+import { encodeCursor } from "./cursor.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
 

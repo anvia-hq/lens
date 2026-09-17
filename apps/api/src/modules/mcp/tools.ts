@@ -1,5 +1,5 @@
-import { decodeCursor } from "@lens/contracts";
 import {
+  decodeCursor,
   getSession,
   getSpan,
   getTrace,

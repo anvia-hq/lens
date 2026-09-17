@@ -19,6 +19,7 @@
     "@lens/config": "workspace:*",
     "@lens/contracts": "workspace:*",
     "@lens/db": "workspace:*",
+    "@lens/notifications": "workspace:*",
     "@lens/queue": "workspace:*",
     "@lens/telemetry": "workspace:*",
     "@modelcontextprotocol/server": "2.0.0",

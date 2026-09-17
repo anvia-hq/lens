@@ -3,9 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const redisInstances: Array<{ disconnect: ReturnType<typeof vi.fn> }> = [];
   const queueInstances: Array<{
+    add: ReturnType<typeof vi.fn>;
+    addBulk: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
     name: string;
     options: Record<string, unknown>;
+    rawAdd: ReturnType<typeof vi.fn>;
+    rawAddBulk: ReturnType<typeof vi.fn>;
+    rawUpsertJobScheduler: ReturnType<typeof vi.fn>;
+    upsertJobScheduler: ReturnType<typeof vi.fn>;
   }> = [];
 
   class Redis {
@@ -20,7 +26,13 @@ const mocks = vi.hoisted(() => {
   }
 
   class Queue {
+    rawAdd = vi.fn().mockResolvedValue({ id: "job" });
+    add = this.rawAdd;
+    rawAddBulk = vi.fn().mockResolvedValue([]);
+    addBulk = this.rawAddBulk;
     close = vi.fn().mockResolvedValue(undefined);
+    rawUpsertJobScheduler = vi.fn().mockResolvedValue({ id: "scheduled-job" });
+    upsertJobScheduler = this.rawUpsertJobScheduler;
 
     constructor(
       public readonly name: string,
@@ -101,7 +113,61 @@ describe("queue lifecycle", () => {
     const queues = createQueues("redis://cache:6379");
     mocks.queueInstances[0]?.close.mockRejectedValueOnce(new Error("queue close failed"));
 
-    await expect(queues.close()).rejects.toThrow("queue close failed");
+    await expect(queues.close()).rejects.toThrow("One or more queues failed to close");
+    for (const queue of mocks.queueInstances) expect(queue.close).toHaveBeenCalledOnce();
     expect(mocks.redisInstances[0]?.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("closes idempotently and validates retention options", async () => {
+    const queues = createQueues("redis://cache:6379");
+    await Promise.all([queues.close(), queues.close()]);
+    for (const queue of mocks.queueInstances) expect(queue.close).toHaveBeenCalledOnce();
+    expect(mocks.redisInstances[0]?.disconnect).toHaveBeenCalledOnce();
+
+    expect(() => createQueues("redis://cache:6379", {}, { completedCount: -1 })).toThrow(
+      "completedCount must be a non-negative safe integer",
+    );
+  });
+
+  it("validates and versions jobs before they reach Redis", async () => {
+    const queues = createQueues("redis://cache:6379");
+    const projectId = "00000000-0000-4000-8000-000000000001";
+
+    await queues.materialize.add("materialize", { projectId, traceId: "a".repeat(32) });
+    expect(mocks.queueInstances[2]?.rawAdd).toHaveBeenCalledWith(
+      "materialize",
+      { schemaVersion: 1, projectId, traceId: "a".repeat(32) },
+      undefined,
+    );
+
+    await expect(
+      queues.materialize.add("materialize", { projectId, traceId: "short" }),
+    ).rejects.toThrow();
+    expect(mocks.queueInstances[2]?.rawAdd).toHaveBeenCalledOnce();
+
+    await queues.maintenance.addBulk([
+      { name: "reconcile-retention", data: { projectId } },
+      { name: "delete-project", data: { projectId } },
+    ]);
+    expect(mocks.queueInstances[3]?.rawAddBulk).toHaveBeenCalledWith([
+      { name: "reconcile-retention", data: { schemaVersion: 1, projectId } },
+      { name: "delete-project", data: { schemaVersion: 1, projectId } },
+    ]);
+
+    await queues.alerts.upsertJobScheduler(
+      "alerts-every-minute",
+      { every: 60_000 },
+      { name: "evaluate-alert-rules", data: {} },
+    );
+    expect(mocks.queueInstances[5]?.rawUpsertJobScheduler).toHaveBeenCalledWith(
+      "alerts-every-minute",
+      { every: 60_000 },
+      { name: "evaluate-alert-rules", data: { schemaVersion: 1 } },
+    );
+
+    await expect(queues.alerts.add("unknown" as "evaluate-alert-rules", {})).rejects.toThrow(
+      'Unknown job name "unknown" for queue "alerts"',
+    );
+    expect(mocks.queueInstances[5]?.rawAdd).not.toHaveBeenCalled();
   });
 });

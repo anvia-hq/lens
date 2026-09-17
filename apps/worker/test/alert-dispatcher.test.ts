@@ -17,12 +17,12 @@ vi.mock("@lens/db", async (importOriginal) => ({
   ...dbFunctions,
 }));
 
-vi.mock("@lens/queue", async (importOriginal) => ({
+vi.mock("@lens/notifications", async (importOriginal) => ({
   ...(await importOriginal()),
   deliverAlert: queueFunctions.deliverAlert,
 }));
 
-import { AlertDeliveryError } from "@lens/queue";
+import { AlertDeliveryError } from "@lens/notifications";
 import { createAlertDispatchProcessor } from "../src/alert-dispatcher.js";
 import type { ProcessorDependencies } from "../src/processors.js";
 
@@ -143,10 +143,10 @@ describe("alert dispatch processor", () => {
     dbFunctions.loadDeliveryForDispatch.mockResolvedValue(payload());
     await createAlertDispatchProcessor(deps())(job());
     const [target, message, body] = queueFunctions.deliverAlert.mock.calls[0] ?? [];
-    expect(target).toEqual({ type: "webhook", config: channel.config });
+    expect(target).toMatchObject({ type: "webhook", config: channel.config });
     expect(message).toContain("[Anvia Lens] Production errors");
     expect(message).toContain("Observed: 50.0% / threshold 10.0%");
-    expect(body).toEqual({ projectId, incident });
+    expect(body).toEqual({ event: "alert.opened", projectId, incident });
     expect(dbFunctions.markDeliveryFinished).toHaveBeenCalledWith(
       {},
       deliveryId,

@@ -266,8 +266,8 @@ export function ChannelDialog(props: {
                   onChange={(event) => setDraft({ ...draft, secret: event.target.value })}
                 />
                 <FieldDescription>
-                  When set, requests are signed with an HMAC-SHA256 <code>x-lens-signature</code>{" "}
-                  header.
+                  When set, requests include <code>x-lens-timestamp</code> and a replay-resistant
+                  HMAC-SHA256 <code>x-lens-signature</code> header.
                 </FieldDescription>
               </Field>
             </>
