@@ -52,26 +52,24 @@ export const evaluationQuerySchema = z
     order: orderField(),
   })
   .superRefine(fromBeforeTo)
-  .transform(
-    (value): EvaluationRequest => ({
-      filters: stripUndefined({
-        from: value.from,
-        to: value.to,
-        suites: value.suite,
-        metrics: value.metric,
-        outcomes: value.outcome,
-        environments: value.environment,
-        releases: value.release,
-        sources: value.source,
-        traceId: value.traceId,
-        search: value.search,
-      }),
-      page: value.page,
-      pageSize: value.pageSize,
-      sort: value.sort,
-      order: value.order,
+  .transform((value): EvaluationRequest => ({
+    filters: stripUndefined({
+      from: value.from,
+      to: value.to,
+      suites: value.suite,
+      metrics: value.metric,
+      outcomes: value.outcome,
+      environments: value.environment,
+      releases: value.release,
+      sources: value.source,
+      traceId: value.traceId,
+      search: value.search,
     }),
-  );
+    page: value.page,
+    pageSize: value.pageSize,
+    sort: value.sort,
+    order: value.order,
+  }));
 
 export const evaluationOverviewQuerySchema = z
   .object({

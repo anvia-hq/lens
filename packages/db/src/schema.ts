@@ -254,7 +254,10 @@ export const alertRule = pgTable(
     serviceName: text("service_name"),
     toolName: text("tool_name"),
     qualityGateId: uuid("quality_gate_id").references(() => qualityGate.id),
-    channelIds: uuid("channel_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    channelIds: uuid("channel_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     consecutiveBreaches: integer("consecutive_breaches").notNull().default(0),
     lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
     cooldownUntil: timestamp("cooldown_until", { withTimezone: true }),

@@ -6,7 +6,7 @@
 FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@11.0.4 --activate
 WORKDIR /workspace
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.package.json biome.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.package.json .oxlintrc.json .oxfmtrc.json ./
 COPY apps ./apps
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile

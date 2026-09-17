@@ -75,7 +75,7 @@ function incidentRow() {
 // so `await db.select().from().where()` (and any builder tail) resolves rows.
 function mockDb(rows: unknown[] | (() => unknown[])) {
   const builder = {} as Record<string, ReturnType<typeof vi.fn>>;
-  // biome-ignore lint/suspicious/noThenProperty: the stub must be thenable like real drizzle builders
+  // oxlint-disable-next-line no-thenable -- the stub must be thenable like real drizzle builders
   Object.defineProperty(builder, "then", {
     value: (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
       Promise.resolve(typeof rows === "function" ? rows() : rows).then(onFulfilled, onRejected),

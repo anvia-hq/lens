@@ -368,7 +368,7 @@ function promptApp(route: Route) {
       private readonly table: unknown,
     ) {}
 
-    // biome-ignore lint/suspicious/noThenProperty: the stub must be thenable like real drizzle builders
+    // oxlint-disable-next-line no-thenable -- the stub must be thenable like real drizzle builders
     then(resolve: (rows: unknown[]) => unknown) {
       return Promise.resolve(this.routeFn(this.table)).then(resolve);
     }
