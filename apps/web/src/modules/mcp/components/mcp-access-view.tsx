@@ -22,7 +22,7 @@ import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
 import { Spinner } from "@lens/ui/components/spinner";
-import { Plus, Trash } from "@phosphor-icons/react";
+import { Plus, Trash } from "@mynaui/icons-react";
 import { useState } from "react";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";

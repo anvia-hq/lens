@@ -17,7 +17,7 @@ import {
 } from "@lens/ui/components/dropdown-menu";
 
 import { cn } from "@lens/ui/lib/utils";
-import { Check as CheckIcon } from "@phosphor-icons/react";
+import { Check as CheckIcon } from "@mynaui/icons-react";
 import type * as React from "react";
 
 function Menubar({ className, ...props }: MenubarPrimitive.Props) {

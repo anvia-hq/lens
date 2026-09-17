@@ -1,6 +1,6 @@
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowDown as ArrowDownIcon } from "@phosphor-icons/react";
+import { ArrowDown as ArrowDownIcon } from "@mynaui/icons-react";
 import {
   MessageScroller as MessageScrollerPrimitive,
   useMessageScroller,

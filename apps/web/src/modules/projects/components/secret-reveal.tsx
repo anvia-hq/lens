@@ -1,6 +1,6 @@
 import type { CreatedProjectApiKey } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
-import { Check, Copy, Key as KeyRound, X } from "@phosphor-icons/react";
+import { Check, Copy, Key as KeyRound, X } from "@mynaui/icons-react";
 import { useState } from "react";
 
 export function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose: () => void }) {

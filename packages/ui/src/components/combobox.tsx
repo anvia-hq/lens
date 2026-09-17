@@ -11,9 +11,9 @@ import {
 import { cn } from "@lens/ui/lib/utils";
 import {
   Check as CheckIcon,
-  CaretDown as ChevronDownIcon,
+  ChevronDown as ChevronDownIcon,
   X as XIcon,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import * as React from "react";
 
 const Combobox = ComboboxPrimitive.Root;

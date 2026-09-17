@@ -20,7 +20,11 @@ import {
 } from "@lens/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/tabs";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowSquareOut, Flask, WarningCircle } from "@phosphor-icons/react";
+import {
+  ExternalLink as ArrowSquareOut,
+  FlaskConical as Flask,
+  Danger as WarningCircle,
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { EmptyState } from "../../../components/empty-state";

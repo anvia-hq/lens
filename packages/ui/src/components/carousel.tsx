@@ -1,9 +1,9 @@
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CaretLeft as ChevronLeftIcon,
-  CaretRight as ChevronRightIcon,
-} from "@phosphor-icons/react";
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+} from "@mynaui/icons-react";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 import * as React from "react";
 

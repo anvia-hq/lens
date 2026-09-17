@@ -4,9 +4,9 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@lens/ui/lib/utils";
 import {
   Check as CheckIcon,
-  CaretDown as ChevronDownIcon,
-  CaretUp as ChevronUpIcon,
-} from "@phosphor-icons/react";
+  ChevronDown as ChevronDownIcon,
+  ChevronUp as ChevronUpIcon,
+} from "@mynaui/icons-react";
 import type * as React from "react";
 
 const Select = SelectPrimitive.Root;

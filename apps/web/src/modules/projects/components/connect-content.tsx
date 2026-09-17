@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@lens/ui/components/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/tabs";
-import { ArrowRight, Key as KeyRound } from "@phosphor-icons/react";
+import { ArrowRight, Key as KeyRound } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { Page } from "../../../components/page";
 import type { ConnectState } from "../hooks/use-connect";

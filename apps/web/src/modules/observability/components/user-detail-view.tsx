@@ -10,7 +10,7 @@ import {
 } from "@lens/ui/components/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/tabs";
 import { cn } from "@lens/ui/lib/utils";
-import { Pulse as Activity, Chats as MessagesSquare } from "@phosphor-icons/react";
+import { Activity, ChatMessages as MessagesSquare } from "@mynaui/icons-react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { UserDetailState } from "../hooks/use-user-detail";

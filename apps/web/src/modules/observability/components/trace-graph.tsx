@@ -2,12 +2,12 @@ import type { TraceSpanSummary } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  ArrowsOutSimple as FitView,
-  FlowArrow,
-  WarningCircle,
-  MagnifyingGlassPlus as ZoomIn,
-  MagnifyingGlassMinus as ZoomOut,
-} from "@phosphor-icons/react";
+  Maximize as FitView,
+  GitMerge as FlowArrow,
+  Danger as WarningCircle,
+  PlusCircle as ZoomIn,
+  MinusCircle as ZoomOut,
+} from "@mynaui/icons-react";
 import { type Selection, select } from "d3-selection";
 import { zoom as createZoom, type ZoomBehavior, type ZoomTransform, zoomIdentity } from "d3-zoom";
 import {

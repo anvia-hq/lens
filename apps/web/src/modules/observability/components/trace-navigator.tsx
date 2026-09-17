@@ -1,11 +1,7 @@
 import type { TraceDetail } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
 import { Input } from "@lens/ui/components/input";
-import {
-  TreeStructure as ListTree,
-  MagnifyingGlass as Search,
-  ArrowsOutLineVertical as UnfoldVertical,
-} from "@phosphor-icons/react";
+import { GitBranch as ListTree, Search, ChevronsDown as UnfoldVertical } from "@mynaui/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { lazy, Suspense, useMemo, useRef } from "react";
 import type { SpanTreeNode, TraceSpanView } from "../types";

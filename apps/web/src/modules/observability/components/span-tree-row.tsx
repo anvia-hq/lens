@@ -1,6 +1,6 @@
 import { Badge } from "@lens/ui/components/badge";
 import { cn } from "@lens/ui/lib/utils";
-import { CaretRight as ChevronRight } from "@phosphor-icons/react";
+import { ChevronRight } from "@mynaui/icons-react";
 import type { FlatSpanNode } from "../types";
 import { formatCost, formatDuration, formatNumber, spanDurationMs } from "../utils/trace-detail";
 import { TreeIndent } from "./tree-indent";

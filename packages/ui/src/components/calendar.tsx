@@ -3,10 +3,10 @@
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CaretDown as ChevronDownIcon,
-  CaretLeft as ChevronLeftIcon,
-  CaretRight as ChevronRightIcon,
-} from "@phosphor-icons/react";
+  ChevronDown as ChevronDownIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+} from "@mynaui/icons-react";
 import * as React from "react";
 import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from "react-day-picker";
 

@@ -14,7 +14,7 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { type ChartConfig, ChartTooltip, ChartTooltipContent } from "@lens/ui/components/chart";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowsDownUp as ArrowUpDown } from "@phosphor-icons/react";
+import { ArrowUpDown } from "@mynaui/icons-react";
 import {
   createColumnHelper,
   createSortedRowModel,

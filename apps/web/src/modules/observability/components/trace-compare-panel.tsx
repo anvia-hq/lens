@@ -2,7 +2,7 @@ import type { SpanDetail, TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowLeft, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
+import { ArrowLeft, ExternalLink } from "@mynaui/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";

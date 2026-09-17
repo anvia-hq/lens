@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
 import { Button } from "@lens/ui/components/button";
 import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { WarningCircle as AlertCircle, Check, Key } from "@phosphor-icons/react";
+import { Danger as AlertCircle, Check, Key } from "@mynaui/icons-react";
 import { CenteredCard } from "../../../components/centered-card";
 import { ErrorAlert } from "../../../components/error-alert";
 import type { InvitationState } from "../hooks/use-invitation";

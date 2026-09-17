@@ -22,12 +22,12 @@ import {
 } from "@lens/ui/components/pagination";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CaretDown as ChevronDown,
-  Chats as MessagesSquare,
-  MagnifyingGlass as Search,
-  SlidersHorizontal,
+  ChevronDown,
+  ChatMessages as MessagesSquare,
+  Search,
+  Filter as SlidersHorizontal,
   Trash,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

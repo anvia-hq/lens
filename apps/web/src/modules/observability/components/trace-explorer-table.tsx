@@ -22,13 +22,13 @@ import {
 } from "@lens/ui/components/pagination";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  Pulse as Activity,
-  ArrowsLeftRight,
-  CaretDown as ChevronDown,
-  MagnifyingGlass as Search,
-  SlidersHorizontal,
+  Activity,
+  ArrowLeftRight as ArrowsLeftRight,
+  ChevronDown,
+  Search,
+  Filter as SlidersHorizontal,
   Trash,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import type { ReactNode } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

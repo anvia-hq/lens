@@ -3,11 +3,7 @@ import { Button } from "@lens/ui/components/button";
 import { Card, CardContent } from "@lens/ui/components/card";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import {
-  WarningCircle as AlertCircle,
-  CaretRight as ChevronRight,
-  Key as KeyRound,
-} from "@phosphor-icons/react";
+import { Danger as AlertCircle, ChevronRight, Key as KeyRound } from "@mynaui/icons-react";
 import { AnviaLensLogo } from "../../../components/anvia-lens-logo";
 import { CenteredCard } from "../../../components/centered-card";
 import { ModeToggle } from "../../../components/mode-toggle";

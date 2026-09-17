@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Copy, Stack as Layers3, UserPlus as MailPlus, Plus, X } from "@phosphor-icons/react";
+import { Copy, LayersThree as Layers3, UserPlus as MailPlus, Plus, X } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

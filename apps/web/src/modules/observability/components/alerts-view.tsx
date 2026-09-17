@@ -41,7 +41,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@lens/ui/components/tabs";
-import { Bell, Check, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { Bell, Check, Pencil as PencilSimple, Plus, Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";

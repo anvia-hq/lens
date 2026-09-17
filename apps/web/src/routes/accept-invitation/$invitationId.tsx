@@ -1,4 +1,4 @@
-import { WarningCircle as AlertCircle, UserPlus as MailPlus } from "@phosphor-icons/react";
+import { Danger as AlertCircle, UserPlus as MailPlus } from "@mynaui/icons-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FullPageMessage } from "../../components/full-page-message";
 import { InvitationCard } from "../../modules/auth/components/invitation-card";

@@ -1,5 +1,5 @@
 import { Button } from "@lens/ui/components/button";
-import { Check, Copy } from "@phosphor-icons/react";
+import { Check, Copy } from "@mynaui/icons-react";
 
 export function CodeBlock(props: {
   title: string;

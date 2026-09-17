@@ -20,7 +20,7 @@ import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
 import { Spinner } from "@lens/ui/components/spinner";
-import { ArrowRight, Check, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowRight, Check, Plus, Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ErrorAlert } from "../../../components/error-alert";

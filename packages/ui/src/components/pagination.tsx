@@ -2,10 +2,10 @@ import { Button } from "@lens/ui/components/button";
 
 import { cn } from "@lens/ui/lib/utils";
 import {
-  CaretLeft as ChevronLeftIcon,
-  CaretRight as ChevronRightIcon,
-  DotsThree as MoreHorizontalIcon,
-} from "@phosphor-icons/react";
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Dots as MoreHorizontalIcon,
+} from "@mynaui/icons-react";
 import type * as React from "react";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {

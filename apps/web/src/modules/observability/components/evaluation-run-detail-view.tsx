@@ -27,12 +27,12 @@ import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { cn } from "@lens/ui/lib/utils";
 import {
   ArrowLeft,
-  ArrowsLeftRight,
-  CaretLeft,
-  Flask,
-  MagnifyingGlass as Search,
+  ArrowLeftRight as ArrowsLeftRight,
+  ChevronLeft as CaretLeft,
+  FlaskConical as Flask,
+  Search,
   Trash,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { FullPageMessage } from "../../../components/full-page-message";

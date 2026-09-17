@@ -36,12 +36,12 @@ import { Textarea } from "@lens/ui/components/textarea";
 import {
   Archive,
   ArrowLeft,
-  ChatText,
-  PencilSimple,
+  MessageDots as ChatText,
+  Pencil as PencilSimple,
   Plus,
-  MagnifyingGlass as Search,
+  Search,
   Trash,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";

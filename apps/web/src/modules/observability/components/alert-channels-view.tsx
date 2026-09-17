@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Bell, PencilSimple, Trash } from "@phosphor-icons/react";
+import { Bell, Pencil as PencilSimple, Trash } from "@mynaui/icons-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

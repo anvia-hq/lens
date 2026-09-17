@@ -30,12 +30,12 @@ import {
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  ArrowsDownUp as ArrowUpDown,
-  CaretDown as ChevronDown,
-  Flask,
-  MagnifyingGlass as Search,
-  SlidersHorizontal,
-} from "@phosphor-icons/react";
+  ArrowUpDown,
+  ChevronDown,
+  FlaskConical as Flask,
+  Search,
+  Filter as SlidersHorizontal,
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";

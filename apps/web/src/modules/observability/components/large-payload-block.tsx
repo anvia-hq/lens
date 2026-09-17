@@ -1,5 +1,5 @@
 import { Button } from "@lens/ui/components/button";
-import { Check, Copy, DownloadSimple as Download } from "@phosphor-icons/react";
+import { Check, Copy, Download } from "@mynaui/icons-react";
 import { useState } from "react";
 
 export const LARGE_PAYLOAD_PREVIEW_CHARACTERS = 100_000;

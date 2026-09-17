@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@lens/ui/components/alert-dialog";
 import { Spinner } from "@lens/ui/components/spinner";
-import { Trash } from "@phosphor-icons/react";
+import { Trash } from "@mynaui/icons-react";
 
 const labels: Record<DataDeletionEntityType, { singular: string; plural: string; detail: string }> =
   {

@@ -38,7 +38,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { Textarea } from "@lens/ui/components/textarea";
-import { Pulse as Activity, ArrowLeft, Bell, Check, Database } from "@phosphor-icons/react";
+import { Activity, ArrowLeft, Bell, Check, Database } from "@mynaui/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";

@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowLeft, Database, Flask, MagnifyingGlass as Search } from "@phosphor-icons/react";
+import { ArrowLeft, Database, FlaskConical as Flask, Search } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ErrorAlert } from "../../../components/error-alert";

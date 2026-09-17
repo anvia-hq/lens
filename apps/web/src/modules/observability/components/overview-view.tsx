@@ -8,16 +8,16 @@ import {
   ChartTooltipContent,
 } from "@lens/ui/components/chart";
 import {
-  Pulse as Activity,
-  WarningCircle as AlertCircle,
-  Clock as Clock3,
+  Activity,
+  Danger as AlertCircle,
+  Clock12 as Clock3,
   Database,
-  CurrencyDollar as DollarSign,
-  Stack as Layers3,
-  Chats as MessagesSquare,
-  Sparkle as Sparkles,
-  Lightning as Zap,
-} from "@phosphor-icons/react";
+  Dollar as DollarSign,
+  LayersThree as Layers3,
+  ChatMessages as MessagesSquare,
+  Sparkles,
+  Zap,
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../../../components/empty-state";

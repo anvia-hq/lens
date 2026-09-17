@@ -6,7 +6,7 @@ import {
   ResizablePanelGroup,
 } from "@lens/ui/components/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
-import { SlidersHorizontal } from "@phosphor-icons/react";
+import { Filter as SlidersHorizontal } from "@mynaui/icons-react";
 import { useState } from "react";
 import type { SessionsState } from "../hooks/use-sessions";
 import { DataDeletionDialog } from "./data-deletion-dialog";

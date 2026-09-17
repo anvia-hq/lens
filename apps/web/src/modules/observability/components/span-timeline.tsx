@@ -1,7 +1,7 @@
 import type { TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { cn } from "@lens/ui/lib/utils";
-import { CaretRight as ChevronRight } from "@phosphor-icons/react";
+import { ChevronRight } from "@mynaui/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
 import type { FlatSpanNode } from "../types";
