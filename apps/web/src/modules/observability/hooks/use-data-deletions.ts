@@ -8,6 +8,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { api } from "../../../lib/api";
 import { notify } from "../../projects/utils";
 
+const NO_REQUESTS: DataDeletionRequestsResponse["items"] = [];
+
 export function useDataDeletions(projectId: string, entityType: DataDeletionEntityType) {
   const queryClient = useQueryClient();
   const observed = useRef<Map<string, DataDeletionRequest["status"]> | null>(null);
@@ -20,7 +22,7 @@ export function useDataDeletions(projectId: string, entityType: DataDeletionEnti
         ? 2_000
         : 30_000,
   });
-  const items = requests.data?.items ?? [];
+  const items = requests.data?.items ?? NO_REQUESTS;
   const pendingIds = useMemo(
     () =>
       new Set(

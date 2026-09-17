@@ -50,15 +50,14 @@ export async function queryClickHouseCapacity(
     }),
   ]);
   const sizes = await sizeResult.json<Array<{ database_bytes: number | string }>[number]>();
-  const disks =
-    await disksResult.json<
-      Array<{
-        name: string;
-        path: string;
-        total_space: number | string;
-        free_space: number | string;
-      }>[number]
-    >();
+  const disks = await disksResult.json<
+    Array<{
+      name: string;
+      path: string;
+      total_space: number | string;
+      free_space: number | string;
+    }>[number]
+  >();
   return {
     databaseBytes: numeric(sizes[0]?.database_bytes),
     disks: disks.map((disk) => ({

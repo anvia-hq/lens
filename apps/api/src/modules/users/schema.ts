@@ -25,9 +25,8 @@ export const userFiltersSchema = z
     search: clippedText("search"),
   })
   .superRefine(fromBeforeTo)
-  .transform(
-    (value): UserFilters =>
-      stripUndefined({ from: value.from, to: value.to, search: value.search }),
+  .transform((value): UserFilters =>
+    stripUndefined({ from: value.from, to: value.to, search: value.search }),
   );
 
 export const userQuerySchema = z
@@ -41,12 +40,10 @@ export const userQuerySchema = z
     order: orderField(),
   })
   .superRefine(fromBeforeTo)
-  .transform(
-    (value): UserRequest => ({
-      ...stripUndefined({ from: value.from, to: value.to, search: value.search }),
-      page: value.page,
-      pageSize: value.pageSize,
-      sort: value.sort,
-      order: value.order,
-    }),
-  );
+  .transform((value): UserRequest => ({
+    ...stripUndefined({ from: value.from, to: value.to, search: value.search }),
+    page: value.page,
+    pageSize: value.pageSize,
+    sort: value.sort,
+    order: value.order,
+  }));

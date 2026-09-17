@@ -76,7 +76,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      // biome-ignore lint/suspicious/noDocumentCookie: Cookie Store is not consistently available; this stores only a non-sensitive UI preference.
+      // Cookie Store is not consistently available; this stores only a non-sensitive UI preference.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],

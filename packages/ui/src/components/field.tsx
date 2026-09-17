@@ -72,7 +72,7 @@ function Field({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: Field can group non-form content; fieldset would impose form semantics.
+    // Field can group non-form content; fieldset would impose form semantics.
     <div
       role="group"
       data-slot="field"

@@ -60,31 +60,29 @@ export const sessionQuerySchema = z
       ["minTotalCost", "maxTotalCost"],
     ]),
   )
-  .transform(
-    (value): SessionRequest => ({
-      ...stripUndefined({
-        from: value.from,
-        to: value.to,
-        statuses: value.status,
-        users: value.user,
-        services: value.service,
-        models: value.model,
-        environments: value.environment,
-        tags: value.tag,
-        search: value.search,
-        minDurationMs: value.minDurationMs,
-        maxDurationMs: value.maxDurationMs,
-        minTotalTokens: value.minTotalTokens,
-        maxTotalTokens: value.maxTotalTokens,
-        minTotalCost: value.minTotalCost,
-        maxTotalCost: value.maxTotalCost,
-      }),
-      page: value.page,
-      pageSize: value.pageSize,
-      sort: value.sort,
-      order: value.order,
+  .transform((value): SessionRequest => ({
+    ...stripUndefined({
+      from: value.from,
+      to: value.to,
+      statuses: value.status,
+      users: value.user,
+      services: value.service,
+      models: value.model,
+      environments: value.environment,
+      tags: value.tag,
+      search: value.search,
+      minDurationMs: value.minDurationMs,
+      maxDurationMs: value.maxDurationMs,
+      minTotalTokens: value.minTotalTokens,
+      maxTotalTokens: value.maxTotalTokens,
+      minTotalCost: value.minTotalCost,
+      maxTotalCost: value.maxTotalCost,
     }),
-  );
+    page: value.page,
+    pageSize: value.pageSize,
+    sort: value.sort,
+    order: value.order,
+  }));
 
 export const sessionDetailQuerySchema = z
   .object({
@@ -110,7 +108,6 @@ export const sessionDetailQuerySchema = z
         .optional(),
     ),
   })
-  .transform(
-    (value): SessionDetailRequest =>
-      stripUndefined({ pageSize: value.pageSize, cursor: value.cursor }),
+  .transform((value): SessionDetailRequest =>
+    stripUndefined({ pageSize: value.pageSize, cursor: value.cursor }),
   );

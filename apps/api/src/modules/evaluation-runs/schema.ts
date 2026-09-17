@@ -51,20 +51,18 @@ export const runQuerySchema = z
     sort: sortField(evaluationRunSortFields, "startedAt", "Unsupported evaluation run sort field"),
     order: orderField(),
   })
-  .transform(
-    (value): RunRequest => ({
-      ...stripUndefined({
-        from: value.from,
-        to: value.to,
-        suites: value.suite,
-        statuses: value.status,
-        environments: value.environment,
-        releases: value.release,
-        search: value.search,
-      }),
-      page: value.page,
-      pageSize: value.pageSize,
-      sort: value.sort,
-      order: value.order,
+  .transform((value): RunRequest => ({
+    ...stripUndefined({
+      from: value.from,
+      to: value.to,
+      suites: value.suite,
+      statuses: value.status,
+      environments: value.environment,
+      releases: value.release,
+      search: value.search,
     }),
-  );
+    page: value.page,
+    pageSize: value.pageSize,
+    sort: value.sort,
+    order: value.order,
+  }));

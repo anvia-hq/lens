@@ -22,6 +22,7 @@ afterEach(() => {
 
 describe("UI foundations", () => {
   it("merges conditional Tailwind classes without conflicting utilities", () => {
+    // oxlint-disable-next-line no-constant-binary-expression -- false is the conditional fixture being tested
     expect(cn("px-2 text-sm", false && "hidden", "px-4")).toBe("text-sm px-4");
   });
 

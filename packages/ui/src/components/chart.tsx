@@ -85,7 +85,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: CSS is generated from developer-owned chart configuration, never request data.
+      // CSS is generated from developer-owned chart configuration, never request data.
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(

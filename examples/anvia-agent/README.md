@@ -27,15 +27,15 @@ default safe capture mode for applications that may contain sensitive data.
 
 ## Learning path
 
-| Command | Lens surface | What it demonstrates |
-| --- | --- | --- |
-| `pnpm example:anvia` | Traces | First named agent and live generation |
-| `pnpm example:anvia:context` | Traces, Sessions, Users | Trace identity, metadata, tags, user, and session |
-| `pnpm example:anvia:tools` | Traces | Agent, generation, and tool observations |
-| `pnpm example:anvia:eval` | Runs, Results | Multi-case evaluation with deterministic metrics |
-| `pnpm example:anvia:judge` | Runs, Results | Live agent output evaluated by an LLM judge |
+| Command                      | Lens surface            | What it demonstrates                                    |
+| ---------------------------- | ----------------------- | ------------------------------------------------------- |
+| `pnpm example:anvia`         | Traces                  | First named agent and live generation                   |
+| `pnpm example:anvia:context` | Traces, Sessions, Users | Trace identity, metadata, tags, user, and session       |
+| `pnpm example:anvia:tools`   | Traces                  | Agent, generation, and tool observations                |
+| `pnpm example:anvia:eval`    | Runs, Results           | Multi-case evaluation with deterministic metrics        |
+| `pnpm example:anvia:judge`   | Runs, Results           | Live agent output evaluated by an LLM judge             |
 | `pnpm example:anvia:dataset` | Datasets, Runs, Results | Published managed dataset fetched through `@anvia/lens` |
-| `pnpm example:anvia:release` | Compare, Gates | Baseline and candidate runs for a release decision |
+| `pnpm example:anvia:release` | Compare, Gates          | Baseline and candidate runs for a release decision      |
 
 Commands may also be run from this directory with `pnpm basics:01`, `pnpm tools:01`,
 `pnpm evaluations:01`, `pnpm evaluations:02`, `pnpm evaluations:03`, and `pnpm release:01`.

@@ -63,23 +63,21 @@ export async function listOrganizationRecalculations(
     .where(eq(costRecalculation.organizationId, organizationId))
     .orderBy(desc(costRecalculation.createdAt))
     .limit(10);
-  const recalculations = rows.map(
-    ({ recalculation, requester }): CostRecalculation => ({
-      id: recalculation.id,
-      status: recalculation.status,
-      from: recalculation.from?.toISOString() ?? null,
-      to: recalculation.to?.toISOString() ?? null,
-      requestedBy: { id: requester.id, name: requester.name, email: requester.email },
-      affectedSpans:
-        recalculation.affectedSpans === null ? null : Number(recalculation.affectedSpans),
-      affectedTraces:
-        recalculation.affectedTraces === null ? null : Number(recalculation.affectedTraces),
-      error: recalculation.error,
-      createdAt: recalculation.createdAt.toISOString(),
-      startedAt: recalculation.startedAt?.toISOString() ?? null,
-      completedAt: recalculation.completedAt?.toISOString() ?? null,
-    }),
-  );
+  const recalculations = rows.map(({ recalculation, requester }): CostRecalculation => ({
+    id: recalculation.id,
+    status: recalculation.status,
+    from: recalculation.from?.toISOString() ?? null,
+    to: recalculation.to?.toISOString() ?? null,
+    requestedBy: { id: requester.id, name: requester.name, email: requester.email },
+    affectedSpans:
+      recalculation.affectedSpans === null ? null : Number(recalculation.affectedSpans),
+    affectedTraces:
+      recalculation.affectedTraces === null ? null : Number(recalculation.affectedTraces),
+    error: recalculation.error,
+    createdAt: recalculation.createdAt.toISOString(),
+    startedAt: recalculation.startedAt?.toISOString() ?? null,
+    completedAt: recalculation.completedAt?.toISOString() ?? null,
+  }));
   return {
     recalculations,
     hasActiveRecalculation: recalculations.some(
