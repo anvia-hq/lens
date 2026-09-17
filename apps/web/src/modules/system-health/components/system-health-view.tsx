@@ -18,15 +18,15 @@ import {
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  Pulse as Activity,
-  WarningCircle as AlertCircle,
-  Cpu,
-  HardDrives as HardDrive,
-  Hourglass,
-  Stack as Layers3,
-  Memory,
-  ArrowClockwise as RefreshCw,
-} from "@phosphor-icons/react";
+  Activity,
+  Danger as AlertCircle,
+  HardDrive,
+  Clock12 as Hourglass,
+  LayersThree as Layers3,
+  GridOne as Memory,
+  Microchip as Cpu,
+  Refresh as RefreshCw,
+} from "@mynaui/icons-react";
 import type { ReactNode } from "react";
 import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";

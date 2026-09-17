@@ -1,4 +1,4 @@
-import { DotOutline as CircleDot } from "@phosphor-icons/react";
+import { Record as CircleDot } from "@mynaui/icons-react";
 
 export function EmptyInspector() {
   return (

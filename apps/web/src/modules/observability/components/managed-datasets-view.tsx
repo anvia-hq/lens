@@ -31,12 +31,12 @@ import {
   Archive,
   ArrowLeft,
   Database,
-  Flask,
+  FlaskConical as Flask,
   Plus,
-  MagnifyingGlass as Search,
+  Search,
   Trash,
-  UploadSimple,
-} from "@phosphor-icons/react";
+  Upload as UploadSimple,
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";

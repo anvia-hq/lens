@@ -1,12 +1,12 @@
 import type { ObservationKind } from "@lens/contracts";
 import {
-  Pulse as Activity,
-  Robot as Bot,
-  DotOutline as CircleDot,
-  ShieldCheckered as ShieldCheck,
-  Sparkle as Sparkles,
+  Activity,
+  Microchip as Bot,
+  Record as CircleDot,
+  ShieldCheck,
+  Sparkles,
   Wrench,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 
 export function observationIcon(kind: ObservationKind) {
   if (kind === "generation" || kind === "embedding") return Sparkles;

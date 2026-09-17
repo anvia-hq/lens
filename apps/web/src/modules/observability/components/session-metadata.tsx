@@ -1,5 +1,5 @@
 import type { SessionDetail } from "@lens/contracts";
-import { Chats as MessagesSquare } from "@phosphor-icons/react";
+import { ChatMessages as MessagesSquare } from "@mynaui/icons-react";
 import { formatCost, formatDuration, formatNumber, formatTimestamp } from "../utils/session";
 import { MetadataRow } from "./metadata-row";
 import { MetadataSection } from "./metadata-section";

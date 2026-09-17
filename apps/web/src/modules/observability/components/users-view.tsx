@@ -28,12 +28,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
-import {
-  ArrowsDownUp as ArrowUpDown,
-  CaretDown as ChevronDown,
-  MagnifyingGlass as Search,
-  UsersThree as Users,
-} from "@phosphor-icons/react";
+import { ArrowUpDown, ChevronDown, Search, Users } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

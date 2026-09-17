@@ -25,6 +25,7 @@ COPY apps/monitor/package.json ./apps/monitor/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
 COPY packages/config/package.json ./packages/config/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/notifications/package.json ./packages/notifications/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/queue/package.json ./packages/queue/package.json
 COPY packages/telemetry/package.json ./packages/telemetry/package.json
@@ -47,6 +48,7 @@ COPY --chown=node:node --from=builder /workspace/apps/monitor/dist ./apps/monito
 COPY --chown=node:node --from=builder /workspace/apps/worker/dist ./apps/worker/dist
 COPY --chown=node:node --from=builder /workspace/packages/config/dist ./packages/config/dist
 COPY --chown=node:node --from=builder /workspace/packages/contracts/dist ./packages/contracts/dist
+COPY --chown=node:node --from=builder /workspace/packages/notifications/dist ./packages/notifications/dist
 COPY --chown=node:node --from=builder /workspace/packages/db/dist ./packages/db/dist
 COPY --chown=node:node --from=builder /workspace/packages/db/migrations ./packages/db/migrations
 COPY --chown=node:node --from=builder /workspace/packages/queue/dist ./packages/queue/dist

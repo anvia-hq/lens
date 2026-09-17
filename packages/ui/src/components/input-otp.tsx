@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { Minus as MinusIcon } from "@phosphor-icons/react";
+import { Minus as MinusIcon } from "@mynaui/icons-react";
 import { OTPInput, OTPInputContext } from "input-otp";
 import * as React from "react";
 

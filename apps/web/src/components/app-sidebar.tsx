@@ -13,22 +13,22 @@ import {
   SidebarMenuItem,
 } from "@lens/ui/components/sidebar";
 import {
-  Pulse as Activity,
-  ArrowsLeftRight,
+  Activity,
+  ArrowLeftRight as ArrowsLeftRight,
   Bell,
-  ChartBar,
-  ChatText,
+  ChartColumn as ChartBar,
+  MessageDots as ChatText,
   Database,
-  Flask,
-  Gauge,
-  GithubLogo,
-  House,
-  SignOut as LogOut,
-  Chats as MessagesSquare,
-  Gear as Settings,
-  TerminalWindow as TerminalSquare,
-  UsersThree as Users,
-} from "@phosphor-icons/react";
+  FlaskConical as Flask,
+  Target as Gauge,
+  Github as GithubLogo,
+  Home as House,
+  Logout as LogOut,
+  ChatMessages as MessagesSquare,
+  Cog as Settings,
+  Terminal as TerminalSquare,
+  Users,
+} from "@mynaui/icons-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import { useActiveAlertCount } from "../modules/observability/hooks/use-alerts";

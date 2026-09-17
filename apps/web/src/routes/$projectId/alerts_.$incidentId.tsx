@@ -1,4 +1,4 @@
-import { Bell } from "@phosphor-icons/react";
+import { Bell } from "@mynaui/icons-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FullPageMessage } from "../../components/full-page-message";
 import { AlertIncidentView } from "../../modules/observability/components/alert-incident-view";

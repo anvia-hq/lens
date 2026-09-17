@@ -1,10 +1,7 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cn } from "@lens/ui/lib/utils";
-import {
-  CaretRight as ChevronRightIcon,
-  DotsThree as MoreHorizontalIcon,
-} from "@phosphor-icons/react";
+import { ChevronRight as ChevronRightIcon, Dots as MoreHorizontalIcon } from "@mynaui/icons-react";
 import type * as React from "react";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {

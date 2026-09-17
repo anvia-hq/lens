@@ -1,13 +1,13 @@
 import type { SpanDetail } from "@lens/contracts";
 import {
-  Pulse as Activity,
+  Activity,
   Check,
-  Stack as Layers3,
-  MagnifyingGlass as Search,
-  Sparkle as Sparkles,
-  UsersThree as Users,
-  Lightning as Zap,
-} from "@phosphor-icons/react";
+  LayersThree as Layers3,
+  Search,
+  Sparkles,
+  Users,
+  Zap,
+} from "@mynaui/icons-react";
 
 export function ObservationIcon({ kind }: { kind: SpanDetail["observationKind"] }) {
   const Icon =

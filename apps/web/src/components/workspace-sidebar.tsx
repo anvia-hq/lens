@@ -11,14 +11,14 @@ import {
   SidebarMenuItem,
 } from "@lens/ui/components/sidebar";
 import {
-  Pulse as Activity,
+  Activity,
   Database,
-  GithubLogo,
-  Stack as Layers3,
-  SignOut as LogOut,
-  Robot,
-  UsersThree as Users,
-} from "@phosphor-icons/react";
+  Github as GithubLogo,
+  LayersThree as Layers3,
+  Logout as LogOut,
+  Microchip as Robot,
+  Users,
+} from "@mynaui/icons-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { authClient } from "../lib/auth";
 import { useProject } from "../modules/projects/hooks/use-project";

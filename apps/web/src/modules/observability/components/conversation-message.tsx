@@ -1,5 +1,5 @@
 import type { SessionTurnPayload } from "@lens/contracts";
-import { ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
+import { ExternalLink } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 

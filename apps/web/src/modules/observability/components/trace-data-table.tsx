@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Trash } from "@phosphor-icons/react";
+import { Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useTable } from "@tanstack/react-table";
 import { useMemo } from "react";

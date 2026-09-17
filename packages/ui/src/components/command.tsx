@@ -8,7 +8,7 @@ import {
 import { InputGroup, InputGroupAddon } from "@lens/ui/components/input-group";
 
 import { cn } from "@lens/ui/lib/utils";
-import { Check as CheckIcon, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
+import { Check as CheckIcon, Search as SearchIcon } from "@mynaui/icons-react";
 import { Command as CommandPrimitive } from "cmdk";
 import type * as React from "react";
 

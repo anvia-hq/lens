@@ -2,15 +2,15 @@ import type { SessionDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import {
-  Pulse as Activity,
-  Robot as Bot,
-  Clock as Clock3,
-  Coins,
-  ArrowSquareOut as ExternalLink,
-  ChatCircle as MessageCircle,
+  Activity,
+  Microchip as Bot,
+  Clock12 as Clock3,
+  Dollar as Coins,
+  ExternalLink,
+  Message as MessageCircle,
   Trash,
   User,
-} from "@phosphor-icons/react";
+} from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {

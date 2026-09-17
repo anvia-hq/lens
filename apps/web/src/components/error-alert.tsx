@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@lens/ui/components/alert";
-import { WarningCircle as AlertCircle } from "@phosphor-icons/react";
+import { Danger as AlertCircle } from "@mynaui/icons-react";
 
 export function ErrorAlert({ error }: { error: unknown }) {
   return (

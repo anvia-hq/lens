@@ -1,5 +1,5 @@
 import { cn } from "@lens/ui/lib/utils";
-import { CaretDown as ChevronDownIcon } from "@phosphor-icons/react";
+import { ChevronDown as ChevronDownIcon } from "@mynaui/icons-react";
 import type * as React from "react";
 
 type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {

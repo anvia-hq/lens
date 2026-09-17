@@ -1,5 +1,5 @@
 import { SidebarInset, SidebarProvider } from "@lens/ui/components/sidebar";
-import { Pulse as Activity, WarningCircle as AlertCircle } from "@phosphor-icons/react";
+import { Activity, Danger as AlertCircle } from "@mynaui/icons-react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { ProjectSetup } from "../modules/projects/components/project-setup";
 import { ProjectContext } from "../modules/projects/hooks/use-project";

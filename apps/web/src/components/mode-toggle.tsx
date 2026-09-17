@@ -1,6 +1,6 @@
 import { Button } from "@lens/ui/components/button";
 import { SidebarMenuButton } from "@lens/ui/components/sidebar";
-import { Laptop, Moon, Sun } from "@phosphor-icons/react";
+import { Monitor as Laptop, Moon, Sun } from "@mynaui/icons-react";
 import { useTheme } from "../hooks/use-theme";
 
 export function ModeToggle({ standalone = false }: { standalone?: boolean }) {

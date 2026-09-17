@@ -1,6 +1,6 @@
 import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu";
 import { cn } from "@lens/ui/lib/utils";
-import { CaretDown as ChevronDownIcon } from "@phosphor-icons/react";
+import { ChevronDown as ChevronDownIcon } from "@mynaui/icons-react";
 import { cva } from "class-variance-authority";
 
 function NavigationMenu({

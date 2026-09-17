@@ -1,6 +1,6 @@
 import type { CreatedMcpToken } from "@lens/contracts";
 import { Button } from "@lens/ui/components/button";
-import { Check, Copy, Robot, X } from "@phosphor-icons/react";
+import { Check, Copy, Microchip as Robot, X } from "@mynaui/icons-react";
 import { useState } from "react";
 
 export function McpSecretReveal(props: { credentials: CreatedMcpToken; onClose: () => void }) {

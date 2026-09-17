@@ -1,7 +1,7 @@
 import type { TraceDetail } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
-import { ArrowSquareOut as ExternalLink, Trash } from "@phosphor-icons/react";
+import { ExternalLink, Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import {
   formatCost,

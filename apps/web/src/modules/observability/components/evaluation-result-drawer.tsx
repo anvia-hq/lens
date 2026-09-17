@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@lens/ui/components/sheet";
-import { ArrowSquareOut } from "@phosphor-icons/react";
+import { ExternalLink as ArrowSquareOut } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";

@@ -1,6 +1,6 @@
 import { buttonVariants } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
-import { Pulse as Activity, ArrowLeft, ArrowsLeftRight } from "@phosphor-icons/react";
+import { Activity, ArrowLeft, ArrowLeftRight as ArrowsLeftRight } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

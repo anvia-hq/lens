@@ -1,4 +1,4 @@
-import { Pulse as Activity, WarningCircle as AlertCircle } from "@phosphor-icons/react";
+import { Activity, Danger as AlertCircle } from "@mynaui/icons-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FullPageMessage } from "../../../components/full-page-message";
 import { TraceDetailExplorer } from "../../../modules/observability/components/trace-detail-explorer";

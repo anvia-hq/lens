@@ -1,9 +1,9 @@
 import { cn } from "@lens/ui/lib/utils";
 import {
-  FlowArrow,
-  ChartBarHorizontal as GanttChartSquare,
-  TreeStructure as ListTree,
-} from "@phosphor-icons/react";
+  GitMerge as FlowArrow,
+  ChartBar as GanttChartSquare,
+  GitBranch as ListTree,
+} from "@mynaui/icons-react";
 import type { TraceSpanView } from "../types";
 import { labelText } from "../utils/trace-detail";
 

@@ -1,7 +1,7 @@
 import type { JsonValue } from "@lens/contracts";
 import { Input } from "@lens/ui/components/input";
 import { cn } from "@lens/ui/lib/utils";
-import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { ChevronRight as CaretRight, Search as MagnifyingGlass } from "@mynaui/icons-react";
 import { useId, useMemo, useState } from "react";
 import {
   analyzeSpanPayload,

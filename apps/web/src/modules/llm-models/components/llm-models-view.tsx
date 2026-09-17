@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@lens/ui/components/table";
-import { Calculator, Pencil, Plus, Trash as Trash2 } from "@phosphor-icons/react";
+import { Math as Calculator, Pencil, Plus, TrashTwo as Trash2 } from "@mynaui/icons-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";

@@ -1,11 +1,11 @@
 import type { SpanDetail } from "@lens/contracts";
 import {
-  Pulse as Activity,
-  BracketsCurly as Braces,
-  Clock as Clock3,
+  Activity,
+  Code as Braces,
+  Clock12 as Clock3,
   Database,
-  Sparkle as Sparkles,
-} from "@phosphor-icons/react";
+  Sparkles,
+} from "@mynaui/icons-react";
 import { useMemo } from "react";
 import {
   formatCost,
