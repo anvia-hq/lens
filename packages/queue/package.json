@@ -18,8 +18,7 @@
   "dependencies": {
     "@lens/contracts": "workspace:*",
     "bullmq": "^5.58.0",
-    "ioredis": "^5.7.0",
-    "zod": "catalog:"
+    "ioredis": "^5.7.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

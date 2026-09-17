@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobSchemaVersion } from "./job-schema.js";
 import type { TraceListItem } from "./telemetry.js";
 
 export const alertRuleKinds = [
@@ -152,22 +153,67 @@ export type AlertIncidentDetail = {
   deliveries: AlertDelivery[];
 };
 
-export const evaluateAlertsJobSchema = z.object({ projectId: z.uuid().optional() });
-export type EvaluateAlertsJob = z.infer<typeof evaluateAlertsJobSchema>;
+export const evaluateAlertsJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  projectId: z.uuid().optional(),
+});
+export type EvaluateAlertsJob = z.input<typeof evaluateAlertsJobSchema>;
 
 export const alertChannelTypes = ["slack", "discord", "telegram", "webhook"] as const;
 export type AlertChannelType = (typeof alertChannelTypes)[number];
 
-export type AlertChannelConfig =
-  | { webhookUrl: string } // slack, discord
-  | { botToken: string; chatId: string } // telegram
-  | { url: string; secret?: string }; // webhook
+export type AlertDeliveryTarget =
+  | { type: "slack"; config: { webhookUrl: string } }
+  | { type: "discord"; config: { webhookUrl: string } }
+  | { type: "telegram"; config: { botToken: string; chatId: string } }
+  | { type: "webhook"; config: { url: string; secret?: string | undefined } };
+export type AlertChannelConfig = AlertDeliveryTarget["config"];
 
 const channelName = z.string().trim().min(1).max(80);
+const httpUrl = z.url().refine((value) => {
+  const url = parseUrl(value);
+  return url?.protocol === "http:" || url?.protocol === "https:";
+}, "Webhook URLs must use HTTP or HTTPS");
+const providerWebhookUrl = (hosts: ReadonlySet<string>, provider: string) =>
+  z.url().refine((value) => {
+    const url = parseUrl(value);
+    return url?.protocol === "https:" && hosts.has(url.hostname.toLowerCase());
+  }, `${provider} webhook URL must use the official HTTPS host`);
+function parseUrl(value: string): URL | undefined {
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+const slackWebhookUrl = providerWebhookUrl(
+  new Set(["hooks.slack.com", "hooks.slack-gov.com"]),
+  "Slack",
+);
+const discordWebhookUrl = providerWebhookUrl(new Set(["discord.com", "discordapp.com"]), "Discord");
+
+export const alertDeliveryTargetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("slack"), config: z.object({ webhookUrl: slackWebhookUrl }) }),
+  z.object({ type: z.literal("discord"), config: z.object({ webhookUrl: discordWebhookUrl }) }),
+  z.object({
+    type: z.literal("telegram"),
+    config: z.object({
+      botToken: z.string().trim().min(1).max(256),
+      chatId: z.string().trim().min(1).max(128),
+    }),
+  }),
+  z.object({
+    type: z.literal("webhook"),
+    config: z.object({
+      url: httpUrl,
+      secret: z.string().trim().min(16).max(256).optional(),
+    }),
+  }),
+]);
 
 export const alertChannelInputSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("slack"), name: channelName, webhookUrl: z.url() }),
-  z.object({ type: z.literal("discord"), name: channelName, webhookUrl: z.url() }),
+  z.object({ type: z.literal("slack"), name: channelName, webhookUrl: slackWebhookUrl }),
+  z.object({ type: z.literal("discord"), name: channelName, webhookUrl: discordWebhookUrl }),
   z.object({
     type: z.literal("telegram"),
     name: channelName,
@@ -177,7 +223,7 @@ export const alertChannelInputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("webhook"),
     name: channelName,
-    url: z.url(),
+    url: httpUrl,
     secret: z.string().trim().min(16).max(256).optional(), // enables HMAC signature
   }),
 ]);
@@ -209,5 +255,8 @@ export type AlertDelivery = {
   deliveredAt: string | null;
 };
 
-export const dispatchAlertJobSchema = z.object({ deliveryId: z.uuid() });
-export type DispatchAlertJob = z.infer<typeof dispatchAlertJobSchema>;
+export const dispatchAlertJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  deliveryId: z.uuid(),
+});
+export type DispatchAlertJob = z.input<typeof dispatchAlertJobSchema>;

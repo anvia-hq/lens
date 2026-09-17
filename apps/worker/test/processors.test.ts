@@ -1,4 +1,10 @@
-import type { IngestEvaluationsJob, IngestTraceJob, MaterializeTraceJob } from "@lens/contracts";
+import type {
+  EvaluationResult,
+  IngestEvaluationsJob,
+  IngestTraceJob,
+  MaterializeTraceJob,
+  NormalizedSpan,
+} from "@lens/contracts";
 import type { LensQueues } from "@lens/queue";
 import type { Job } from "bullmq";
 import type { Logger } from "pino";
@@ -35,6 +41,85 @@ const organizationId = "20000000-0000-4000-8000-000000000001";
 const recalculationId = "30000000-0000-4000-8000-000000000001";
 const deletionRequestId = "40000000-0000-4000-8000-000000000001";
 
+function normalizedSpan(overrides: Partial<NormalizedSpan> = {}): NormalizedSpan {
+  return {
+    projectId,
+    traceId: "a".repeat(32),
+    spanId: "b".repeat(16),
+    parentSpanId: null,
+    traceState: "",
+    name: "test span",
+    kind: 1,
+    observationKind: "span",
+    status: "ok",
+    statusMessage: "",
+    startTimeUnixNano: "1",
+    endTimeUnixNano: "2",
+    durationNano: "1",
+    serviceName: "test",
+    scopeName: "test",
+    scopeVersion: "1",
+    resourceAttributes: {},
+    spanAttributes: {},
+    events: [],
+    links: [],
+    traceName: null,
+    userId: null,
+    sessionId: null,
+    tags: [],
+    version: null,
+    environment: "test",
+    release: null,
+    serviceVersion: null,
+    model: null,
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    inputCost: null,
+    outputCost: null,
+    totalCost: null,
+    input: null,
+    output: null,
+    expiresAt: null,
+    ingestedAt: "2026-09-17T00:00:00.000Z",
+    ingestVersion: "1",
+    ...overrides,
+  };
+}
+
+function evaluationResult(): EvaluationResult {
+  return {
+    projectId,
+    id: "evaluation-1",
+    runId: null,
+    timestamp: "2026-09-17T00:00:00.000Z",
+    traceId: null,
+    observationId: null,
+    responseId: null,
+    suiteName: "test",
+    caseId: null,
+    metricName: "quality",
+    outcome: "pass",
+    dataType: null,
+    numericValue: null,
+    categoricalValue: null,
+    explanation: null,
+    payload: null,
+    payloadStatus: "not_requested",
+    configId: null,
+    serviceName: "test",
+    environment: "test",
+    release: null,
+    metadata: {},
+    source: "telemetry",
+    reviewer: null,
+    expiresAt: null,
+    ingestedAt: "2026-09-17T00:00:00.000Z",
+    ingestVersion: "1",
+  };
+}
+
 describe("worker processors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,13 +139,23 @@ describe("worker processors", () => {
       ]),
     );
     const spans = [
-      { traceId: "a".repeat(32), model: "gpt-test", observationKind: "generation" },
-      { traceId: "a".repeat(32), model: "gpt-test", observationKind: "generation" },
-      { traceId: "b".repeat(32), model: null, observationKind: "span" },
+      normalizedSpan({ model: "gpt-test", observationKind: "generation" }),
+      normalizedSpan({ spanId: "c".repeat(16), model: "gpt-test", observationKind: "generation" }),
+      normalizedSpan({ traceId: "b".repeat(32) }),
     ];
     const process = createIngestTraceProcessor(deps);
 
-    await process(job({ projectId, spans } as unknown as IngestTraceJob, { id: "ingest-1" }));
+    await process(
+      job(
+        {
+          projectId,
+          ingestId: "ingest-1",
+          receivedAt: "2026-09-17T00:00:00.000Z",
+          spans,
+        },
+        { id: "ingest-1" },
+      ),
+    );
 
     expect(dbFunctions.applyModelPrices).toHaveBeenCalledWith(spans, [
       {
@@ -95,7 +190,9 @@ describe("worker processors", () => {
     await createIngestTraceProcessor(deps)(
       job({
         projectId,
-        spans: [{ traceId: "a".repeat(32), model: "gpt-test", observationKind: "embedding" }],
+        ingestId: "ingest-1",
+        receivedAt: "2026-09-17T00:00:00.000Z",
+        spans: [normalizedSpan({ model: "gpt-test", observationKind: "embedding" })],
       } as unknown as IngestTraceJob),
     );
 
@@ -108,10 +205,18 @@ describe("worker processors", () => {
     await createMaterializeTraceProcessor(deps)(
       job({ projectId, traceId: "a".repeat(32) } as MaterializeTraceJob),
     );
+    const evaluation = evaluationResult();
     await createEvaluationProcessor(deps)(
-      job({ projectId, evaluations: [{}], runs: undefined } as unknown as IngestEvaluationsJob, {
-        id: "evaluation-1",
-      }),
+      job(
+        {
+          projectId,
+          ingestId: "evaluation-ingest-1",
+          receivedAt: "2026-09-17T00:00:00.000Z",
+          evaluations: [evaluation],
+          runs: undefined,
+        } as IngestEvaluationsJob,
+        { id: "evaluation-1" },
+      ),
     );
 
     expect(dbFunctions.materializeTrace).toHaveBeenCalledWith(
@@ -119,7 +224,7 @@ describe("worker processors", () => {
       projectId,
       "a".repeat(32),
     );
-    expect(dbFunctions.insertEvaluations).toHaveBeenCalledWith(deps.clickhouse, [{}]);
+    expect(dbFunctions.insertEvaluations).toHaveBeenCalledWith(deps.clickhouse, [evaluation]);
     expect(dbFunctions.insertEvaluationRuns).toHaveBeenCalledWith(deps.clickhouse, []);
     expect(logger.info).toHaveBeenCalledWith(
       { jobId: "evaluation-1", evaluations: 1, runs: 0 },

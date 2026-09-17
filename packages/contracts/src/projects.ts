@@ -1,14 +1,24 @@
 import { z } from "zod";
 import { deleteDataJobSchema } from "./data-deletions.js";
+import { jobSchemaVersion } from "./job-schema.js";
 
-export const reconcileRetentionJobSchema = z.object({ projectId: z.uuid() });
-export type ReconcileRetentionJob = z.infer<typeof reconcileRetentionJobSchema>;
+export const reconcileRetentionJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  projectId: z.uuid(),
+});
+export type ReconcileRetentionJob = z.input<typeof reconcileRetentionJobSchema>;
 
-export const deleteProjectTelemetryJobSchema = z.object({ projectId: z.uuid() });
-export type DeleteProjectTelemetryJob = z.infer<typeof deleteProjectTelemetryJobSchema>;
+export const deleteProjectTelemetryJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  projectId: z.uuid(),
+});
+export type DeleteProjectTelemetryJob = z.input<typeof deleteProjectTelemetryJobSchema>;
 
-export const recalculateModelCostsJobSchema = z.object({ recalculationId: z.uuid() });
-export type RecalculateModelCostsJob = z.infer<typeof recalculateModelCostsJobSchema>;
+export const recalculateModelCostsJobSchema = z.object({
+  schemaVersion: jobSchemaVersion,
+  recalculationId: z.uuid(),
+});
+export type RecalculateModelCostsJob = z.input<typeof recalculateModelCostsJobSchema>;
 
 export const jobOutboxEventSchema = z.discriminatedUnion("name", [
   z.object({
@@ -32,7 +42,7 @@ export const jobOutboxEventSchema = z.discriminatedUnion("name", [
     payload: recalculateModelCostsJobSchema,
   }),
 ]);
-export type JobOutboxEvent = z.infer<typeof jobOutboxEventSchema>;
+export type JobOutboxEvent = z.input<typeof jobOutboxEventSchema>;
 
 export type LlmModelPriceSnapshot = {
   model: string;

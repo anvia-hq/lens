@@ -17,7 +17,7 @@ import {
   updateAlertChannel,
   updateAlertRule,
 } from "@lens/db";
-import { deliverAlert, renderAlertMessage } from "@lens/queue";
+import { deliverAlert, renderAlertMessage } from "@lens/notifications";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
 import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
@@ -178,7 +178,7 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
         incidentUrl: new URL(`/${access.project.id}/alerts`, deps.config.PUBLIC_APP_URL).toString(),
       });
       try {
-        await deliverAlert({ type: channel.type, config: channel.config }, message, undefined);
+        await deliverAlert(channel, message, { event: "alert.test", projectId: access.project.id });
         return c.json({ ok: true });
       } catch (error) {
         return apiError(

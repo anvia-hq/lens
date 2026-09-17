@@ -32,12 +32,12 @@ vi.mock("@lens/db", async (importOriginal) => ({
   ...dbFunctions,
 }));
 
-vi.mock("@lens/queue", async (importOriginal) => ({
+vi.mock("@lens/notifications", async (importOriginal) => ({
   ...(await importOriginal()),
   deliverAlert: queueFunctions.deliverAlert,
 }));
 
-import { AlertDeliveryError } from "@lens/queue";
+import { AlertDeliveryError } from "@lens/notifications";
 import { createAlertsRouter } from "../src/modules/alerts/router.js";
 import type { ApiDependencies, AppEnv } from "../src/utils/types.js";
 
@@ -147,13 +147,14 @@ describe("alert channels API", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    const [target, message] = queueFunctions.deliverAlert.mock.calls[0] ?? [];
-    expect(target).toEqual({
+    const [target, message, payload] = queueFunctions.deliverAlert.mock.calls[0] ?? [];
+    expect(target).toMatchObject({
       type: "webhook",
       config: { url: webhookInput.url, secret: webhookInput.secret },
     });
     expect(message).toContain("[Anvia Lens] Test alert");
     expect(message).toContain("Project: Integration");
+    expect(payload).toEqual({ event: "alert.test", projectId });
   });
 
   it("reports a failed test delivery with the transport error", async () => {

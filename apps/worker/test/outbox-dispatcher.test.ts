@@ -50,7 +50,7 @@ describe("job outbox dispatcher", () => {
     expect(logger.warn).not.toHaveBeenCalled();
     expect(maintenanceAdd).toHaveBeenCalledWith(
       "reconcile-retention",
-      { projectId: "10000000-0000-4000-8000-000000000001" },
+      { schemaVersion: 1, projectId: "10000000-0000-4000-8000-000000000001" },
       { jobId: "outbox-20000000-0000-4000-8000-000000000001" },
     );
     expect(dbMocks.completeJobOutbox).toHaveBeenCalledWith(
@@ -89,9 +89,13 @@ describe("job outbox dispatcher", () => {
 
     expect(await dispatchJobOutboxBatch(deps)).toBe(1);
 
-    expect(add).toHaveBeenCalledWith(name, payload, {
-      jobId: "outbox-20000000-0000-4000-8000-000000000001",
-    });
+    expect(add).toHaveBeenCalledWith(
+      name,
+      { schemaVersion: 1, ...payload },
+      {
+        jobId: "outbox-20000000-0000-4000-8000-000000000001",
+      },
+    );
   });
 
   it("starts immediately, contains polling failures, and closes cleanly", async () => {

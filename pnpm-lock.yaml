@@ -13,6 +13,7 @@ catalogs:
 overrides:
   '@esbuild-kit/core-utils>esbuild': 0.25.0
   '@modelcontextprotocol/sdk>@hono/node-server': 2.1.0
+  fast-uri: '>=3.1.6'
   nanoid: 3.3.18
 
 importers:
@@ -39,7 +40,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.0
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
 
   apps/api:
     dependencies:
@@ -64,6 +65,9 @@ importers:
       '@lens/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@lens/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@lens/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -118,7 +122,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.0
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
 
   apps/monitor:
     dependencies:
@@ -238,6 +242,9 @@ importers:
       '@lens/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@lens/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@lens/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -373,6 +380,25 @@ importers:
         specifier: ^4.0.0
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
 
+  packages/notifications:
+    dependencies:
+      '@lens/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.5)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.0
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+
   packages/queue:
     dependencies:
       '@lens/contracts':
@@ -384,9 +410,6 @@ importers:
       ioredis:
         specifier: ^5.7.0
         version: 5.11.1
-      zod:
-        specifier: 'catalog:'
-        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -7198,7 +7221,7 @@ snapshots:
       drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(kysely@0.29.4)(postgres@3.4.9)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'

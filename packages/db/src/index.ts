@@ -56,6 +56,7 @@ export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseC
 export * from "./alert-channel-store.js";
 export * from "./alert-measurement.js";
 export * from "./alert-store.js";
+export * from "./cursor.js";
 export * from "./data-deletion-store.js";
 export * from "./evaluation-dataset-store.js";
 export * from "./evaluation-run-store.js";

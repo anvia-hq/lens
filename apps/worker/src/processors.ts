@@ -3,7 +3,10 @@ import {
   deleteProjectTelemetryJobSchema,
   type IngestEvaluationsJob,
   type IngestTraceJob,
+  ingestEvaluationsJobSchema,
+  ingestTraceJobSchema,
   type MaterializeTraceJob,
+  materializeTraceJobSchema,
   recalculateModelCostsJobSchema,
   reconcileRetentionJobSchema,
 } from "@lens/contracts";
@@ -40,9 +43,10 @@ export type ProcessorDependencies = {
 
 export function createIngestTraceProcessor(deps: ProcessorDependencies) {
   return async (job: Job<IngestTraceJob>) => {
+    const data = ingestTraceJobSchema.parse(job.data);
     const modelNames = Array.from(
       new Set(
-        job.data.spans.flatMap((span) =>
+        data.spans.flatMap((span) =>
           span.model === null ||
           (span.observationKind !== "generation" && span.observationKind !== "embedding")
             ? []
@@ -53,7 +57,7 @@ export function createIngestTraceProcessor(deps: ProcessorDependencies) {
     const [projectRow] = await deps.postgres.db
       .select({ organizationId: project.organizationId })
       .from(project)
-      .where(eq(project.id, job.data.projectId))
+      .where(eq(project.id, data.projectId))
       .limit(1);
     const priceRows =
       projectRow === undefined || modelNames.length === 0
@@ -68,7 +72,7 @@ export function createIngestTraceProcessor(deps: ProcessorDependencies) {
               ),
             );
     const spans = applyModelPrices(
-      job.data.spans,
+      data.spans,
       priceRows.map((row) => ({
         model: row.model,
         inputPricePerMillion: Number(row.inputPricePerMillion),
@@ -78,36 +82,37 @@ export function createIngestTraceProcessor(deps: ProcessorDependencies) {
       })),
     );
     await insertSpans(deps.clickhouse, spans);
-    for (const traceId of new Set(job.data.spans.map((span) => span.traceId))) {
+    for (const traceId of new Set(data.spans.map((span) => span.traceId))) {
       await deps.queues.materialize.add(
         "materialize",
-        { projectId: job.data.projectId, traceId },
+        { projectId: data.projectId, traceId },
         {
           delay: deps.materializeDelayMs,
-          jobId: materializeJobId(job.data.projectId, traceId),
+          jobId: materializeJobId(data.projectId, traceId),
           removeOnComplete: true,
         },
       );
     }
-    deps.logger.info({ jobId: job.id, spans: job.data.spans.length }, "ingested trace batch");
+    deps.logger.info({ jobId: job.id, spans: data.spans.length }, "ingested trace batch");
   };
 }
 
 export function createMaterializeTraceProcessor(deps: ProcessorDependencies) {
   return async (job: Job<MaterializeTraceJob>) => {
-    await materializeTrace(deps.clickhouse, job.data.projectId, job.data.traceId);
+    const data = materializeTraceJobSchema.parse(job.data);
+    await materializeTrace(deps.clickhouse, data.projectId, data.traceId);
   };
 }
 
 export function createEvaluationProcessor(deps: ProcessorDependencies) {
   return async (job: Job<IngestEvaluationsJob>) => {
-    const runs = job.data.runs ?? [];
+    const data = ingestEvaluationsJobSchema.parse(job.data);
     await Promise.all([
-      insertEvaluations(deps.clickhouse, job.data.evaluations),
-      insertEvaluationRuns(deps.clickhouse, runs),
+      insertEvaluations(deps.clickhouse, data.evaluations),
+      insertEvaluationRuns(deps.clickhouse, data.runs),
     ]);
     deps.logger.info(
-      { jobId: job.id, evaluations: job.data.evaluations.length, runs: runs.length },
+      { jobId: job.id, evaluations: data.evaluations.length, runs: data.runs.length },
       "ingested evaluation batch",
     );
   };

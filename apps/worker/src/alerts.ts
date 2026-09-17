@@ -1,4 +1,8 @@
-import type { AlertRuleKind, EvaluateAlertsJob } from "@lens/contracts";
+import {
+  type AlertRuleKind,
+  type EvaluateAlertsJob,
+  evaluateAlertsJobSchema,
+} from "@lens/contracts";
 import type { LensPostgres } from "@lens/db";
 import {
   autoResolveAlertIncident,
@@ -9,6 +13,7 @@ import {
   queryAlertMeasurement,
   updateAlertRuleState,
 } from "@lens/db";
+import { alertDeliveryBackoffType } from "@lens/notifications";
 import type { LensQueues } from "@lens/queue";
 import type { Job } from "bullmq";
 import type { Logger } from "pino";
@@ -22,9 +27,10 @@ const thresholdKinds: AlertRuleKind[] = [
 
 export function createAlertProcessor(deps: ProcessorDependencies) {
   return async (job: Job<EvaluateAlertsJob>) => {
+    const data = evaluateAlertsJobSchema.parse(job.data);
     const now = new Date();
-    const rules = (await listEnabledAlertRules(deps.postgres.db, job.data.projectId)).filter(
-      (rule) => thresholdKinds.includes(rule.kind),
+    const rules = (await listEnabledAlertRules(deps.postgres.db, data.projectId)).filter((rule) =>
+      thresholdKinds.includes(rule.kind),
     );
     // ponytail: one global scan is enough for self-hosted scale; shard by project if this nears 60s.
     for (const rule of rules) {
@@ -115,7 +121,10 @@ async function scheduleDispatch(
         .add(
           "dispatch-alert",
           { deliveryId: delivery.id },
-          { jobId: `alert-delivery-${delivery.id}` }, // BullMQ dedupes on jobId
+          {
+            jobId: `alert-delivery-${delivery.id}`,
+            backoff: { type: alertDeliveryBackoffType, delay: 1_000 },
+          }, // BullMQ dedupes on jobId
         )
         .catch((error: unknown) =>
           logger.warn({ err: error, deliveryId: delivery.id }, "failed to queue alert delivery"),
