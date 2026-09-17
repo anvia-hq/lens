@@ -1,11 +1,8 @@
 import { decodeJsonLogsRequest, decodeJsonRequest } from "./json.js";
 
-import {
-  decodeProtobufLogsRequest,
-  decodeProtobufRequest,
-  encodeProtobufLogsResponse,
-  encodeProtobufResponse,
-} from "./protobuf.js";
+import { decodeProtobufLogsRequest } from "./protobuf-logs.js";
+import { encodeProtobufPartialSuccess } from "./protobuf-response.js";
+import { decodeProtobufRequest } from "./protobuf-traces.js";
 
 import type { OtlpExportRequest, OtlpLogsExportRequest } from "./types.js";
 
@@ -43,7 +40,7 @@ export function encodeOtlpResponse(
   errorMessage = "",
 ): Uint8Array {
   if (contentType === "application/x-protobuf") {
-    return encodeProtobufResponse(rejectedSpans, errorMessage);
+    return encodeProtobufPartialSuccess(rejectedSpans, errorMessage);
   }
   const response =
     rejectedSpans === 0 && errorMessage.length === 0
@@ -58,7 +55,7 @@ export function encodeOtlpLogsResponse(
   errorMessage = "",
 ): Uint8Array {
   if (contentType === "application/x-protobuf") {
-    return encodeProtobufLogsResponse(rejectedLogRecords, errorMessage);
+    return encodeProtobufPartialSuccess(rejectedLogRecords, errorMessage);
   }
   const response =
     rejectedLogRecords === 0 && errorMessage.length === 0
