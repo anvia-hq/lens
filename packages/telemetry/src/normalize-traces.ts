@@ -1,25 +1,26 @@
-import type { JsonValue, NormalizedSpan } from "@lens/contracts";
+import type { NormalizedSpan } from "@lens/contracts";
 
 import {
   attributesRecord,
-  classifySpan,
-  defaultRedactionPatterns,
-  extractedInput,
-  extractedOutput,
   firstStringArrayAttribute,
-  firstStringAttribute,
   jsonRecordAttribute,
-  langfuseObservationKind,
-  type NormalizeOptions,
-  type NormalizeResult,
   optionalNumberAttribute,
-  redact,
-  reportedCosts,
-  spanStatus,
   stringAttribute,
   usageNumber,
-  validateSpan,
-} from "./normalization.js";
+} from "./attributes.js";
+import { createIngestionContext } from "./ingestion-context.js";
+import type { NormalizeOptions, NormalizeResult } from "./normalization-types.js";
+import { validateSpan } from "./otlp-validation.js";
+import { environment, release, serviceName, serviceVersion } from "./resource-fields.js";
+import {
+  classifySpan,
+  extractedInput,
+  extractedOutput,
+  generationModel,
+  langfuseObservationKind,
+  reportedCosts,
+  spanStatus,
+} from "./trace-fields.js";
 
 import type { OtlpExportRequest } from "./types.js";
 
@@ -29,20 +30,11 @@ export function normalizeOtlpRequest(
 ): NormalizeResult {
   const spans: NormalizedSpan[] = [];
   const errors: string[] = [];
-  const now = options.now ?? new Date();
-  const expiresAt =
-    options.retentionDays === null
-      ? null
-      : new Date(now.getTime() + options.retentionDays * 86_400_000).toISOString();
-  const patterns = defaultRedactionPatterns;
+  const context = createIngestionContext(options);
   let rejectedSpans = 0;
-  let sequence = 0n;
 
   for (const resourceSpans of request.resourceSpans) {
-    const resourceAttributes = redact(
-      attributesRecord(resourceSpans.resource.attributes),
-      patterns,
-    );
+    const resourceAttributes = context.redact(attributesRecord(resourceSpans.resource.attributes));
     for (const scopeSpans of resourceSpans.scopeSpans) {
       for (const span of scopeSpans.spans) {
         const validationError = validateSpan(span);
@@ -51,16 +43,9 @@ export function normalizeOtlpRequest(
           errors.push(validationError);
           continue;
         }
-        const spanAttributes = redact(attributesRecord(span.attributes), patterns);
+        const spanAttributes = context.redact(attributesRecord(span.attributes));
         const start = BigInt(span.startTimeUnixNano);
         const end = BigInt(span.endTimeUnixNano);
-        const ingestedAt = now.toISOString();
-        const ingestVersion = (BigInt(now.getTime()) * 1_000_000n + sequence).toString();
-        sequence += 1n;
-        const serviceName =
-          stringAttribute(resourceAttributes, "service.name") ??
-          stringAttribute(spanAttributes, "service.name") ??
-          "unknown-service";
         const langfuseKind = langfuseObservationKind(spanAttributes);
         const observationKind = classifySpan(span, spanAttributes, langfuseKind);
         const input = extractedInput(observationKind, spanAttributes);
@@ -112,7 +97,7 @@ export function normalizeOtlpRequest(
           startTimeUnixNano: start.toString(),
           endTimeUnixNano: end.toString(),
           durationNano: (end - start).toString(),
-          serviceName,
+          serviceName: serviceName(spanAttributes, resourceAttributes),
           scopeName: scopeSpans.scope.name,
           scopeVersion: scopeSpans.scope.version,
           resourceAttributes,
@@ -120,14 +105,14 @@ export function normalizeOtlpRequest(
           events: span.events.map((event) => ({
             timeUnixNano: event.timeUnixNano,
             name: event.name,
-            attributes: redact(attributesRecord(event.attributes), patterns),
+            attributes: context.redact(attributesRecord(event.attributes)),
             droppedAttributesCount: event.droppedAttributesCount,
           })),
           links: span.links.map((link) => ({
             traceId: link.traceId,
             spanId: link.spanId,
             traceState: link.traceState,
-            attributes: redact(attributesRecord(link.attributes), patterns),
+            attributes: context.redact(attributesRecord(link.attributes)),
             droppedAttributesCount: link.droppedAttributesCount,
             flags: link.flags,
           })),
@@ -149,19 +134,9 @@ export function normalizeOtlpRequest(
           version:
             stringAttribute(spanAttributes, "langfuse.version") ??
             stringAttribute(spanAttributes, "anvia.trace.version"),
-          environment:
-            firstStringAttribute(spanAttributes, resourceAttributes, [
-              "langfuse.environment",
-              "deployment.environment.name",
-              "deployment.environment",
-            ]) ?? "default",
-          release: firstStringAttribute(spanAttributes, resourceAttributes, [
-            "anvia.release",
-            "langfuse.release",
-          ]),
-          serviceVersion: firstStringAttribute(resourceAttributes, spanAttributes, [
-            "service.version",
-          ]),
+          environment: environment(spanAttributes, resourceAttributes),
+          release: release(spanAttributes, resourceAttributes),
+          serviceVersion: serviceVersion(spanAttributes, resourceAttributes),
           model: generationModel(spanAttributes),
           inputTokens,
           cachedInputTokens,
@@ -169,32 +144,17 @@ export function normalizeOtlpRequest(
           totalTokens:
             optionalNumberAttribute(spanAttributes, ["anvia.usage.total_tokens"]) ??
             usageNumber(usageDetails, ["total", "total_tokens"]),
-          inputCost: costs.input,
-          outputCost: costs.output,
-          totalCost: costs.total,
+          inputCost: costs.inputCost,
+          outputCost: costs.outputCost,
+          totalCost: costs.totalCost,
           input,
           output,
-          expiresAt,
-          ingestedAt,
-          ingestVersion,
+          expiresAt: context.expiresAt,
+          ingestedAt: context.ingestedAt,
+          ingestVersion: context.nextIngestVersion(),
         });
       }
     }
   }
   return { spans, rejectedSpans, errors };
-}
-
-function generationModel(attributes: Record<string, JsonValue>): string | null {
-  const legacyModel = stringAttribute(attributes, "anvia.generation.model");
-  const explicitLegacyModel = legacyModel?.trim().toLowerCase() === "default" ? null : legacyModel;
-
-  return (
-    stringAttribute(attributes, "langfuse.observation.model.name") ??
-    stringAttribute(attributes, "anvia.generation.model_id") ??
-    explicitLegacyModel ??
-    stringAttribute(attributes, "gen_ai.request.model") ??
-    stringAttribute(attributes, "gen_ai.response.model") ??
-    stringAttribute(attributes, "anvia.generation.default_model") ??
-    legacyModel
-  );
 }
