@@ -40,11 +40,13 @@ export function AppHeader() {
           ? "Users"
           : section === "alerts"
             ? "Alerts"
-            : section === "connect"
-              ? "Connect"
-              : section === "settings"
-                ? "Project settings"
-                : "Overview";
+            : section === "prompts"
+              ? "Prompt Management"
+              : section === "connect"
+                ? "Connect"
+                : section === "settings"
+                  ? "Project settings"
+                  : "Overview";
   const detailId = relativePath[isEvaluations ? 2 : 1];
   const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (

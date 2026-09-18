@@ -74,3 +74,12 @@ describe("AppHeader evaluation breadcrumbs", () => {
     expect(screen.getByText("run-12…6789")).toBeTruthy();
   });
 });
+
+describe("AppHeader prompt management breadcrumbs", () => {
+  it("identifies prompts as a top-level product capability", () => {
+    renderHeader("/project-alpha/prompts");
+
+    expect(screen.getByText("Prompt Management")).toBeTruthy();
+    expect(screen.queryByText("Evaluations")).toBeNull();
+  });
+});
