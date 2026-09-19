@@ -107,6 +107,8 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       icon: Database,
       badge: 0,
     },
+  ];
+  const promptManagementLinks = [
     {
       to: "/$projectId/prompts" as const,
       path: `${projectRoot}/prompts`,
@@ -132,7 +134,11 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
     },
   ];
   const renderLinks = (
-    links: typeof observabilityLinks | typeof evaluationLinks | typeof managementLinks,
+    links:
+      | typeof observabilityLinks
+      | typeof evaluationLinks
+      | typeof promptManagementLinks
+      | typeof managementLinks,
   ) => (
     <SidebarMenu className="gap-1">
       {links.map(({ to, path, label, icon: Icon, badge }) => {
@@ -163,6 +169,10 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         <SidebarGroup className="py-1">
           <SidebarGroupLabel>Evaluations</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(evaluationLinks)}</SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel>Prompt Management</SidebarGroupLabel>
+          <SidebarGroupContent>{renderLinks(promptManagementLinks)}</SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup className="py-1">
           <SidebarGroupLabel>Management</SidebarGroupLabel>
