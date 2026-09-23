@@ -11,12 +11,10 @@ import {
 import { ExternalLink as ArrowSquareOut } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { formatTimestamp } from "../utils/trace-detail";
 import { formatEvaluationSource } from "./evaluation-source";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { PayloadSection } from "./payload-section";
-import { PayloadViewSwitch } from "./payload-view-switch";
 import { RawJsonBlock } from "./raw-json-block";
 
 export function EvaluationResultDrawer(props: {
@@ -25,7 +23,6 @@ export function EvaluationResultDrawer(props: {
   onOpenChange: (open: boolean) => void;
 }) {
   const result = props.result;
-  const [payloadView, setPayloadView] = useState<"formatted" | "json">("formatted");
 
   return (
     <Sheet open={result !== null} onOpenChange={props.onOpenChange}>
@@ -111,41 +108,19 @@ export function EvaluationResultDrawer(props: {
                 <section className="grid gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-heading text-base font-medium">Payload</h2>
-                    {result.payload ? (
-                      <div className="ml-auto">
-                        <PayloadViewSwitch value={payloadView} onChange={setPayloadView} />
-                      </div>
-                    ) : null}
                   </div>
                   {result.payload ? (
                     <div className="grid gap-4">
-                      <PayloadSection
-                        title="Input"
-                        value={result.payload.input}
-                        view={payloadView}
-                      />
-                      <PayloadSection
-                        title="Expected"
-                        value={result.payload.expected ?? null}
-                        view={payloadView}
-                      />
-                      <PayloadSection
-                        title="Output"
-                        value={result.payload.output ?? null}
-                        view={payloadView}
-                      />
+                      <PayloadSection title="Input" value={result.payload.input} />
+                      <PayloadSection title="Expected" value={result.payload.expected ?? null} />
+                      <PayloadSection title="Output" value={result.payload.output ?? null} />
                       {result.payload.context !== undefined ? (
-                        <PayloadSection
-                          title="Context"
-                          value={result.payload.context}
-                          view={payloadView}
-                        />
+                        <PayloadSection title="Context" value={result.payload.context} />
                       ) : null}
                       {result.payload.retrievalContext !== undefined ? (
                         <PayloadSection
                           title="Retrieval context"
                           value={result.payload.retrievalContext}
-                          view={payloadView}
                         />
                       ) : null}
                     </div>

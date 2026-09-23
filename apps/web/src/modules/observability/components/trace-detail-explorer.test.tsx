@@ -189,6 +189,16 @@ describe("trace detail model", () => {
       value: { orderId: "A-1" },
     });
     expect(completion.additional).toEqual({ usage: { total_tokens: 42 } });
+    const response = analyzeSpanPayload({
+      output: [
+        { type: "reasoning", summary: [{ type: "summary_text", text: "Check the evidence." }] },
+        { type: "message", role: "assistant", content: [{ type: "output_text", text: "42" }] },
+      ],
+    });
+    expect(response.messages.map(({ role, content }) => ({ role, content }))).toEqual([
+      { role: "reasoning", content: "Check the evidence." },
+      { role: "assistant", content: "42" },
+    ]);
     expect(flattenStructuredEntries({ trace: { id: "trace-1" }, sampled: true })).toEqual([
       { path: "trace.id", label: "Id", value: "trace-1" },
       { path: "sampled", label: "Sampled", value: true },

@@ -4,6 +4,7 @@ export type SpanPayloadMessage = {
   key: string;
   role: string;
   content: string;
+  reasoning?: string;
   toolCalls: SpanPayloadTool[];
 };
 
@@ -69,6 +70,8 @@ export function analyzeSpanPayload(value: unknown): SpanPayloadAnalysis {
       "result",
       "output",
       "value",
+      "reasoning",
+      "summary",
       "tool_calls",
       "toolCalls",
     ]);
@@ -186,25 +189,51 @@ function parseMessage(value: unknown, key: string): SpanPayloadMessage | undefin
       "message" in value ||
       "output" in value ||
       "value" in value ||
+      "reasoning" in value ||
+      "summary" in value ||
       "tool_calls" in value ||
       "toolCalls" in value ||
       value.type === "tool_call" ||
       value.type === "tool_result");
   if (!hasMessageShape || role === undefined) return undefined;
 
+  const source =
+    value.content ?? value.text ?? value.message ?? value.result ?? value.output ?? value.value;
   const content = messageContent(
-    value.content ?? value.text ?? value.message ?? value.result ?? value.output ?? value.value,
+    role === "reasoning"
+      ? (source ?? value.summary ?? value.reasoning)
+      : Array.isArray(source)
+        ? source.filter((item) => !isRecord(item) || item.type !== "reasoning")
+        : source,
   );
+  const reasoningParts =
+    role === "reasoning"
+      ? []
+      : [
+          value.reasoning,
+          ...(Array.isArray(source)
+            ? source.filter((item) => isRecord(item) && item.type === "reasoning")
+            : []),
+        ];
+  const reasoning = reasoningParts
+    .map((part) =>
+      messageContent(isRecord(part) ? (part.summary ?? part.content ?? part.text ?? part) : part),
+    )
+    .filter(Boolean)
+    .join("\n");
   const toolCalls = [
     ...toolCallsFrom(value.tool_calls, `${key}:tool-call`),
     ...toolCallsFrom(value.toolCalls, `${key}:tool-call`),
     ...toolCallsFromContent(value.content, `${key}:content-tool-call`),
   ];
-  return { key, role, content, toolCalls };
+  return { key, role, content, reasoning: reasoning || undefined, toolCalls };
 }
 
 function messageRole(value: Record<string, unknown>): string | undefined {
   if (typeof value.role === "string") return value.role.toLowerCase();
+  if ("reasoning" in value && ("content" in value || "text" in value || "output" in value)) {
+    return "assistant";
+  }
   if (typeof value.type !== "string") return undefined;
   if (
     ["reasoning", "tool_call", "server_tool_call", "tool_result", "server_tool_result"].includes(

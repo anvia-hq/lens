@@ -37,14 +37,12 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { FullPageMessage } from "../../../components/full-page-message";
 import type { EvaluationRunDetailState } from "../hooks/use-evaluation-runs";
-import type { TracePayloadView } from "../types";
 import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
 import { DataDeletionDialog } from "./data-deletion-dialog";
 import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { HeaderMetric } from "./header-metric";
 import { PayloadSection } from "./payload-section";
-import { PayloadViewSwitch } from "./payload-view-switch";
 
 const unspecifiedCaseSearchValue = "__unspecified_case__";
 
@@ -454,7 +452,6 @@ function CaseInspector(props: {
   projectId: string;
   onBack?: () => void;
 }) {
-  const [view, setView] = useState<TracePayloadView>("formatted");
   const item = props.item;
   const definition = item.datasetItem;
   const input = item.payload?.input ?? definition?.input;
@@ -541,9 +538,6 @@ function CaseInspector(props: {
           <section className="grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-semibold">Payload</h3>
-              <div className="ml-auto">
-                <PayloadViewSwitch value={view} onChange={setView} />
-              </div>
             </div>
             {input === undefined ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -556,20 +550,18 @@ function CaseInspector(props: {
                     Managed dataset definition
                   </Badge>
                 ) : null}
-                <PayloadSection title="Input" value={input} view={view} />
-                <PayloadSection title="Expected" value={expected ?? null} view={view} />
+                <PayloadSection title="Input" value={input} />
+                <PayloadSection title="Expected" value={expected ?? null} />
                 {item.payload === null ? (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                     Target output was not captured for this run.
                   </div>
                 ) : (
-                  <PayloadSection title="Output" value={item.payload.output ?? null} view={view} />
+                  <PayloadSection title="Output" value={item.payload.output ?? null} />
                 )}
-                {context !== undefined ? (
-                  <PayloadSection title="Context" value={context} view={view} />
-                ) : null}
+                {context !== undefined ? <PayloadSection title="Context" value={context} /> : null}
                 {retrievalContext !== undefined ? (
-                  <PayloadSection title="Retrieval context" value={retrievalContext} view={view} />
+                  <PayloadSection title="Retrieval context" value={retrievalContext} />
                 ) : null}
               </>
             )}

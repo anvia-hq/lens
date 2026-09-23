@@ -29,12 +29,10 @@ import {
   type ObservedDatasetDetailState,
   UNVERSIONED_DATASET,
 } from "../hooks/use-evaluation-datasets";
-import type { TracePayloadView } from "../types";
 import { formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
 import { DatasetTabs } from "./dataset-tabs";
 import { ManagedDatasetsView } from "./managed-datasets-view";
 import { PayloadSection } from "./payload-section";
-import { PayloadViewSwitch } from "./payload-view-switch";
 
 export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsState }) {
   const [searchDraft, setSearchDraft] = useState(state.search.search ?? "");
@@ -146,7 +144,6 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
 
 export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDetailState }) {
   const [selectedCase, setSelectedCase] = useState<EvaluationDatasetCase>();
-  const [payloadView, setPayloadView] = useState<TracePayloadView>("formatted");
   useEffect(() => setSelectedCase(state.detail.data?.cases[0]), [state.detail.data]);
   if (state.detail.isLoading)
     return <FullPageMessage icon={<Database />} text="Loading dataset" contained />;
@@ -257,18 +254,9 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
               <div className="grid gap-5">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="font-semibold">{selectedCase.caseId}</h2>
-                  <PayloadViewSwitch value={payloadView} onChange={setPayloadView} />
                 </div>
-                <PayloadSection
-                  title="Input"
-                  value={selectedCase.payload.input}
-                  view={payloadView}
-                />
-                <PayloadSection
-                  title="Expected"
-                  value={selectedCase.payload.expected ?? null}
-                  view={payloadView}
-                />
+                <PayloadSection title="Input" value={selectedCase.payload.input} />
+                <PayloadSection title="Expected" value={selectedCase.payload.expected ?? null} />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">

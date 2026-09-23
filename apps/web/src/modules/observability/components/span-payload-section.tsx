@@ -161,11 +161,21 @@ function ReadableMessages(props: {
               <RoleBadge role={message.role} />
             </div>
             <div className="grid min-w-0 gap-3">
+              {message.reasoning ? (
+                <div className="grid gap-1 border-l-2 border-muted-foreground/40 pl-3">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Reasoning
+                  </span>
+                  <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">
+                    {message.reasoning}
+                  </p>
+                </div>
+              ) : null}
               {message.content ? (
                 <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">
                   {message.content}
                 </p>
-              ) : message.toolCalls.length === 0 ? (
+              ) : !message.reasoning && message.toolCalls.length === 0 ? (
                 <span className="text-sm italic text-muted-foreground">No text content</span>
               ) : null}
               {message.toolCalls.map((tool) => (
