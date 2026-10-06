@@ -84,7 +84,7 @@ jobs:
         with:
           node-version: 24
 
-      - name: Verify release-runner cancellation
+      - name: Verify integration and release runner cancellation
         run: node --test scripts/verify-release.test.mjs
 
       - name: Validate Compose files

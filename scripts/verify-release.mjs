@@ -45,7 +45,8 @@ function run(args, { capture = false, input, command = "docker", duringCleanup =
       cwd: root,
       env,
       detached: process.platform !== "win32",
-      stdio: [input ? "pipe" : "ignore", capture ? "pipe" : "inherit", "inherit"],
+      // Own the pipes so 'close' waits for descendants after the Compose wrapper exits.
+      stdio: [input ? "pipe" : "ignore", "pipe", "pipe"],
     });
     runningCommands.set(
       child,
@@ -58,8 +59,10 @@ function run(args, { capture = false, input, command = "docker", duringCleanup =
     );
     let output = "";
     child.stdout?.on("data", (chunk) => {
-      output += chunk;
+      if (capture) output += chunk;
+      else process.stdout.write(chunk);
     });
+    child.stderr.on("data", (chunk) => process.stderr.write(chunk));
     if (input) child.stdin.end(input);
     child.on("error", reject);
     child.on("close", (code, signal) =>
