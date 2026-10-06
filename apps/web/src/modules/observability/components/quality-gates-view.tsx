@@ -1,4 +1,9 @@
-import type { QualityGate, QualityGateInput, QualityGateRule } from "@lens/contracts";
+import {
+  qualityGateInputSchema,
+  type QualityGate,
+  type QualityGateInput,
+  type QualityGateRule,
+} from "@lens/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -429,6 +434,7 @@ function EvaluationRuleFields(props: {
   onChange: (rule: QualityGateRule) => void;
 }) {
   const rule = props.rule;
+  const evidence = rule.evidence;
   const percentage = rule.measure === "pass_rate";
   const numericValue = rule.type === "evaluation_threshold" ? rule.value : rule.maxAbsoluteChange;
   const displayedValue = percentage ? toPercent(numericValue) : numericValue;
@@ -458,10 +464,93 @@ function EvaluationRuleFields(props: {
             }
           >
             <NativeSelectOption value="pass_rate">Pass rate</NativeSelectOption>
-            <NativeSelectOption value="average_score">Average score</NativeSelectOption>
+            <NativeSelectOption value="average_score">
+              {evidence === undefined ? "Average score" : "Average score (valid judgments)"}
+            </NativeSelectOption>
           </NativeSelect>
         </Field>
       </div>
+
+      <Field>
+        <FieldLabel htmlFor={`${props.prefix}-evidence`}>Evidence policy</FieldLabel>
+        <NativeSelect
+          id={`${props.prefix}-evidence`}
+          value={evidence === undefined ? "legacy" : "required"}
+          onChange={(event) => {
+            const { evidence: _evidence, ...legacy } = rule;
+            props.onChange(
+              event.target.value === "required" ? { ...rule, evidence: defaultEvidence() } : legacy,
+            );
+          }}
+        >
+          <NativeSelectOption value="required">Require valid evidence</NativeSelectOption>
+          <NativeSelectOption value="legacy">Legacy: no evidence limits</NativeSelectOption>
+        </NativeSelect>
+      </Field>
+      {evidence === undefined ? (
+        <p className="text-sm text-muted-foreground">
+          This rule has no per-metric evidence limits. Choose “Require valid evidence” to upgrade
+          it.
+        </p>
+      ) : (
+        <div className="grid gap-4">
+          <p className="text-sm text-muted-foreground">
+            Count distinct cases with usable judgments for this metric. Pass and fail both count;
+            average score also requires a numeric score. Regression rules check both runs. Exceeding
+            either judgment budget returns insufficient data.
+            {rule.measure === "average_score"
+              ? " The gate averages finite scores from pass/fail judgments only; this can differ from the all-judgment average shown in metric summaries."
+              : ""}
+          </p>
+          <Field>
+            <FieldLabel htmlFor={`${props.prefix}-valid-cases`}>
+              Minimum valid cases for this metric
+            </FieldLabel>
+            <Input
+              id={`${props.prefix}-valid-cases`}
+              type="number"
+              min={1}
+              max={1_000_000}
+              value={evidence.minimumValidCases}
+              onChange={(event) =>
+                props.onChange({
+                  ...rule,
+                  evidence: {
+                    ...evidence,
+                    minimumValidCases: Number(event.target.value),
+                  },
+                })
+              }
+            />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <RuleValueField
+              id={`${props.prefix}-invalid`}
+              label="Maximum invalid judgments (%)"
+              percentage
+              value={toPercent(evidence.maxInvalidRate)}
+              onChange={(next) =>
+                props.onChange({
+                  ...rule,
+                  evidence: { ...evidence, maxInvalidRate: fromPercent(next) },
+                })
+              }
+            />
+            <RuleValueField
+              id={`${props.prefix}-unknown`}
+              label="Maximum unknown judgments (%)"
+              percentage
+              value={toPercent(evidence.maxUnknownRate)}
+              onChange={(next) =>
+                props.onChange({
+                  ...rule,
+                  evidence: { ...evidence, maxUnknownRate: fromPercent(next) },
+                })
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {rule.type === "evaluation_threshold" ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -547,6 +636,10 @@ function RuleValueField(props: {
   );
 }
 
+function defaultEvidence() {
+  return { minimumValidCases: 1, maxInvalidRate: 0, maxUnknownRate: 0 };
+}
+
 function defaultRule(): QualityGateRule {
   return {
     type: "evaluation_threshold",
@@ -554,6 +647,7 @@ function defaultRule(): QualityGateRule {
     measure: "pass_rate",
     operator: "gte",
     value: 0.9,
+    evidence: defaultEvidence(),
   };
 }
 
@@ -576,6 +670,7 @@ function ruleForType(type: QualityGateRule["type"]): QualityGateRule {
       measure: "pass_rate",
       direction: "decrease",
       maxAbsoluteChange: 0.05,
+      evidence: defaultEvidence(),
     };
   }
   if (type === "operational_regression") {
@@ -615,26 +710,7 @@ function qualityGateInput(gate: QualityGateDraft): QualityGateInput {
 }
 
 function isValidGate(gate: QualityGateInput): boolean {
-  return (
-    gate.name.trim().length > 0 &&
-    gate.suiteName.trim().length > 0 &&
-    gate.environment.trim().length > 0 &&
-    Number.isInteger(gate.minimumCaseCount) &&
-    gate.minimumCaseCount >= 1 &&
-    gate.rules.length > 0 &&
-    gate.rules.every((rule) => {
-      if (rule.type === "operational_regression") {
-        return Number.isFinite(rule.maxIncreasePercent) && rule.maxIncreasePercent >= 0;
-      }
-      const value = rule.type === "evaluation_threshold" ? rule.value : rule.maxAbsoluteChange;
-      return (
-        rule.metricName.trim().length > 0 &&
-        Number.isFinite(value) &&
-        value >= 0 &&
-        (rule.measure !== "pass_rate" || value <= 1)
-      );
-    })
-  );
+  return qualityGateInputSchema.safeParse(gate).success;
 }
 
 function summarizeRules(rules: QualityGateRule[]): string {

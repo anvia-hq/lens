@@ -520,6 +520,7 @@ describe.sequential("database integration", () => {
           measure: "pass_rate",
           operator: "gte",
           value: 0.9,
+          evidence: { minimumValidCases: 10, maxInvalidRate: 0, maxUnknownRate: 0.05 },
         },
       ],
     };
@@ -788,6 +789,60 @@ describe.sequential("database integration", () => {
       selectedVersion: { version: "v1", status: "complete" },
       cases: [{ caseId: "case-1", conflict: false }],
     });
+  });
+
+  it("aggregates distinct usable metric cases and excludes unusable scores without loading cases", async () => {
+    const isolatedProject = crypto.randomUUID();
+    await insertEvaluationRuns(
+      clickhouse,
+      ["evidence-candidate", "evidence-baseline"].map((id) => ({
+        ...evaluationRun(),
+        id,
+        projectId: isolatedProject,
+      })),
+    );
+    const judgments: Array<Partial<EvaluationResult>> = [
+      { caseId: "duplicate", outcome: "pass", numericValue: 1 },
+      { caseId: "duplicate", outcome: "pass", numericValue: 1 },
+      { caseId: "negative-control", outcome: "fail", numericValue: 0 },
+      { caseId: "categorical", outcome: "pass", numericValue: null },
+      { caseId: "invalid", outcome: "invalid", numericValue: 100 },
+      { caseId: "unknown", outcome: "unknown", numericValue: 200 },
+      { caseId: null, outcome: "pass", numericValue: 0 },
+      { caseId: "other", metricName: "other-metric", outcome: "pass", numericValue: 1 },
+    ];
+    await insertEvaluations(
+      clickhouse,
+      judgments.map((judgment, index) => ({
+        ...evaluationResult(),
+        ...judgment,
+        id: `evidence-${index}`,
+        projectId: isolatedProject,
+        runId: "evidence-candidate",
+      })),
+    );
+    const comparison = await compareEvaluationRunAggregates(
+      clickhouse,
+      isolatedProject,
+      "evidence-candidate",
+      "evidence-baseline",
+    );
+    expect(
+      comparison?.metrics.find((metric) => metric.metricName === "quality")?.candidate,
+    ).toMatchObject({
+      results: 7,
+      passed: 4,
+      failed: 1,
+      invalid: 1,
+      unknown: 1,
+      validCaseCount: 3,
+      validScoreCaseCount: 2,
+      averageValidScore: 0.5,
+    });
+    expect(
+      comparison?.metrics.find((metric) => metric.metricName === "other-metric")?.candidate
+        ?.validCaseCount,
+    ).toBe(1);
   });
 
   it("compares exact case changes without payload reads and pages run inspection", async () => {

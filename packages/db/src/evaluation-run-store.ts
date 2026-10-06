@@ -441,7 +441,13 @@ async function queryRunMetrics(
                    countIf(outcome = 'fail') AS failed,
                    countIf(outcome = 'invalid') AS invalid,
                    countIf(outcome = 'unknown') AS unknown,
-                   avgOrNull(numeric_value) AS average_numeric_value
+                   avgOrNull(numeric_value) AS average_numeric_value,
+                   uniqExactIf(ifNull(case_id, ''), case_id IS NOT NULL AND case_id != ''
+                     AND outcome IN ('pass', 'fail')) AS valid_case_count,
+                   uniqExactIf(ifNull(case_id, ''), case_id IS NOT NULL AND case_id != ''
+                     AND outcome IN ('pass', 'fail') AND isFinite(numeric_value)) AS valid_score_case_count,
+                   avgOrNullIf(numeric_value, outcome IN ('pass', 'fail')
+                     AND isFinite(numeric_value)) AS average_valid_score
             FROM evaluation_results FINAL
             WHERE project_id = {projectId:UUID} AND run_id = {runId:String}
             GROUP BY metric_name ORDER BY metric_name ASC`,
@@ -461,6 +467,9 @@ async function queryRunMetrics(
       unknown: numeric(row.unknown),
       passRate: passed + failed === 0 ? 0 : passed / (passed + failed),
       averageNumericValue: nullableNumber(row.average_numeric_value),
+      validCaseCount: numeric(row.valid_case_count),
+      validScoreCaseCount: numeric(row.valid_score_case_count),
+      averageValidScore: nullableNumber(row.average_valid_score),
     };
   });
 }

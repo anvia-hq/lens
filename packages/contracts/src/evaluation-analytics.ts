@@ -97,6 +97,12 @@ export type EvaluationFacets = {
 };
 
 export type EvaluationMetricBreakdown = {
+  /** Run aggregates only. Distinct named cases with a pass/fail judgment. */
+  validCaseCount?: number;
+  /** Distinct named cases with a pass/fail judgment and a finite numeric score. */
+  validScoreCaseCount?: number;
+  /** Mean of finite numeric scores on pass/fail judgments, including unnamed cases. */
+  averageValidScore?: number | null;
   metricName: string;
   results: number;
   passed: number;

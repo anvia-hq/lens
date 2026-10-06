@@ -1,5 +1,6 @@
 import type {
   EvaluationMetricComparison,
+  EvaluationMetricBreakdown,
   EvaluationRunAggregateComparison,
   QualityGate,
   QualityGateEvaluation,
@@ -77,12 +78,25 @@ function evaluateRule(
       null,
     );
   }
-  const values = metricValues(metric, rule.measure);
+  if (rule.evidence !== undefined) {
+    const candidateIssue = evidenceIssue(metric.candidate, rule, "Candidate");
+    const baselineIssue =
+      rule.type === "evaluation_regression"
+        ? evidenceIssue(metric.baseline, rule, "Baseline")
+        : null;
+    const issue = candidateIssue ?? baselineIssue;
+    if (issue !== null) return result(rule, "insufficient_data", issue, null, null);
+  }
+  const measureLabel =
+    rule.evidence !== undefined && rule.measure === "average_score"
+      ? "valid average score"
+      : label(rule.measure);
+  const values = metricValues(metric, rule.measure, rule.evidence !== undefined);
   if (values.candidate === null) {
     return result(
       rule,
       "insufficient_data",
-      `Candidate ${label(rule.measure)} is unavailable`,
+      `Candidate ${measureLabel} is unavailable`,
       null,
       values.baseline,
     );
@@ -93,7 +107,7 @@ function evaluateRule(
     return result(
       rule,
       passed ? "pass" : "fail",
-      `${rule.metricName} ${label(rule.measure)} is ${format(values.candidate)}; must be ${rule.operator} ${format(rule.value)}`,
+      `${rule.metricName} ${measureLabel} is ${format(values.candidate)}; must be ${rule.operator} ${format(rule.value)}`,
       values.candidate,
       values.baseline,
     );
@@ -102,7 +116,7 @@ function evaluateRule(
     return result(
       rule,
       "insufficient_data",
-      `Baseline ${label(rule.measure)} is unavailable`,
+      `Baseline ${measureLabel} is unavailable`,
       values.candidate,
       null,
     );
@@ -113,15 +127,39 @@ function evaluateRule(
   return result(
     rule,
     passed ? "pass" : "fail",
-    `${rule.metricName} ${label(rule.measure)} changed by ${format(change)}; maximum ${rule.direction} is ${format(rule.maxAbsoluteChange)}`,
+    `${rule.metricName} ${measureLabel} changed by ${format(change)}; maximum ${rule.direction} is ${format(rule.maxAbsoluteChange)}`,
     values.candidate,
     values.baseline,
   );
 }
 
+function evidenceIssue(
+  metric: EvaluationMetricBreakdown | null,
+  rule: Exclude<QualityGateRule, { type: "operational_regression" }>,
+  side: string,
+): string | null {
+  const evidence = rule.evidence;
+  if (evidence === undefined) return null;
+  const count = rule.measure === "pass_rate" ? metric?.validCaseCount : metric?.validScoreCaseCount;
+  if (count === undefined || count < evidence.minimumValidCases) {
+    return `${side} ${rule.metricName} has ${count ?? 0} valid cases for ${label(rule.measure)}; ${evidence.minimumValidCases} required`;
+  }
+  if (metric === null || metric.results <= 0) return `${side} ${rule.metricName} has no judgments`;
+  for (const [outcome, maximum] of [
+    ["invalid", evidence.maxInvalidRate],
+    ["unknown", evidence.maxUnknownRate],
+  ] as const) {
+    const rate = metric[outcome] / metric.results;
+    if (rate > maximum)
+      return `${side} ${rule.metricName} ${outcome} rate is ${format(rate * 100)}%; maximum ${format(maximum * 100)}%`;
+  }
+  return null;
+}
+
 function metricValues(
   metric: EvaluationMetricComparison,
   measure: "pass_rate" | "average_score",
+  requireEvidence: boolean,
 ): { candidate: number | null; baseline: number | null } {
   if (measure === "pass_rate") {
     return {
@@ -136,8 +174,14 @@ function metricValues(
     };
   }
   return {
-    candidate: metric.candidate?.averageNumericValue ?? null,
-    baseline: metric.baseline?.averageNumericValue ?? null,
+    candidate:
+      (requireEvidence
+        ? metric.candidate?.averageValidScore
+        : metric.candidate?.averageNumericValue) ?? null,
+    baseline:
+      (requireEvidence
+        ? metric.baseline?.averageValidScore
+        : metric.baseline?.averageNumericValue) ?? null,
   };
 }
 

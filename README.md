@@ -17,7 +17,7 @@ Langfuse OTLP instrumentation.
 - Run evaluations and review every case and result.
 - Build and publish managed datasets for repeatable tests.
 - Compare releases and apply quality gates before shipping.
-- Enforce quality gates from CI with the project key pair.
+- Enforce quality gates from CI with the project key pair. See [evidence policies](docs/quality-gate-evidence.md) for per-metric validity requirements.
 - Connect native Anvia applications or Langfuse-compatible instrumentation.
 - Keep all application and telemetry data in your own infrastructure.
 
