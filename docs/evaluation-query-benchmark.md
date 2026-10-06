@@ -1,6 +1,8 @@
 # Evaluation query benchmark
 
-Measured locally on 2026-10-06 with Node 26.9.0 and ClickHouse 26.4 in Docker
+Measured locally on 2026-10-06 at revision `d6b08f829ab2d11a7f944d0ed03aec8861516aad`,
+including the final quality-gate validity and distinct-case aggregates. Runtime:
+Node 26.9.0 and ClickHouse 26.4 in Docker
 (10 virtual CPUs, 8 GiB RAM). Synthetic runs contain one quality metric per case,
 1 KiB payloads, and a 50% candidate regression rate. Each size has a candidate and
 baseline run; no traces are inserted, so operational coverage is intentionally zero.
@@ -14,22 +16,23 @@ profiles, not different container CPU/RAM limits.
 
 | Results/run | Profile     | Operation  | ClickHouse queries | Peak in-flight queries | Time (ms) | Node peak RSS (MiB) | RSS growth (MiB) | Peak individual ClickHouse query memory (MiB) |
 | ----------- | ----------- | ---------- | ------------------ | ---------------------- | --------- | ------------------- | ---------------- | --------------------------------------------- |
-| 10,000      | standard    | detail     | 5                  | 2                      | 64        | 91.9                | 1.0              | 57.4                                          |
-| 10,000      | standard    | comparison | 9                  | 4                      | 71        | 94.6                | 0.6              | 57.4                                          |
-| 10,000      | standard    | gate       | 8                  | 4                      | 35        | 95.7                | 0.8              | 57.4                                          |
-| 10,000      | constrained | detail     | 5                  | 2                      | 34        | 99.2                | 2.6              | 7.8                                           |
-| 10,000      | constrained | comparison | 9                  | 4                      | 68        | 100.6               | 0.1              | 16.6                                          |
-| 10,000      | constrained | gate       | 8                  | 4                      | 31        | 100.9               | 0.2              | 7.5                                           |
-| 100,000     | standard    | detail     | 5                  | 2                      | 156       | 103.2               | 0.7              | 57.4                                          |
-| 100,000     | standard    | comparison | 9                  | 4                      | 307       | 105.3               | 0.2              | 184.2                                         |
-| 100,000     | standard    | gate       | 8                  | 4                      | 78        | 105.4               | 0.0              | 57.4                                          |
-| 100,000     | constrained | detail     | 5                  | 2                      | 114       | 105.5               | 0.0              | 12.7                                          |
-| 100,000     | constrained | comparison | 9                  | 4                      | 339       | 105.5               | 0.0              | 181.7                                         |
-| 100,000     | constrained | gate       | 8                  | 4                      | 72        | 105.6               | 0.0              | 12.7                                          |
+| 10,000      | standard    | detail     | 5                  | 2                      | 65        | 83.6                | 2.1              | 57.4                                          |
+| 10,000      | standard    | comparison | 9                  | 4                      | 111       | 86.8                | 0.1              | 57.4                                          |
+| 10,000      | standard    | gate       | 8                  | 4                      | 67        | 86.9                | 0.0              | 57.6                                          |
+| 10,000      | constrained | detail     | 5                  | 2                      | 56        | 90.8                | 3.6              | 8.1                                           |
+| 10,000      | constrained | comparison | 9                  | 4                      | 73        | 91.3                | 0.0              | 16.6                                          |
+| 10,000      | constrained | gate       | 8                  | 4                      | 45        | 89.8                | 0.0              | 7.5                                           |
+| 100,000     | standard    | detail     | 5                  | 2                      | 126       | 86.1                | 1.4              | 57.4                                          |
+| 100,000     | standard    | comparison | 9                  | 4                      | 390       | 88.5                | 2.0              | 191.4                                         |
+| 100,000     | standard    | gate       | 8                  | 4                      | 106       | 87.1                | 0.2              | 57.4                                          |
+| 100,000     | constrained | detail     | 5                  | 2                      | 112       | 89.7                | 1.2              | 20.4                                          |
+| 100,000     | constrained | comparison | 9                  | 4                      | 432       | 92.5                | 2.3              | 181.0                                         |
+| 100,000     | constrained | gate       | 8                  | 4                      | 104       | 85.9                | 0.0              | 20.4                                          |
 
 The benchmark asserts exact 5,000/50,000 regression counts, 100 returned comparison
 rows, explicit truncation, and 100 returned inspection results with full run totals.
-Gate checks use aggregates only. The query counts above measure the ClickHouse reader only.
+Gate checks use aggregates only. The table measures ClickHouse reader functions; the `gate`
+operation reads gate inputs and excludes authentication, alert recording, and rule evaluation.
 For a run linked to a managed dataset, the API adds one PostgreSQL query scoped to
 project, dataset name, and published version, selecting payloads for at most the
 100 distinct case IDs on the current result page. Empty pages and pages containing
