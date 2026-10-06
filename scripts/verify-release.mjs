@@ -37,21 +37,32 @@ const env = {
   OIDC_ENABLED: "false",
 };
 const projects = new Set();
+const runningCommands = new Map();
 function run(args, { capture = false, input, command = "docker", duringCleanup = false } = {}) {
   if (interrupted && !duringCleanup) return Promise.reject(new Error("Release test interrupted"));
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
       env,
+      detached: process.platform !== "win32",
       stdio: [input ? "pipe" : "ignore", capture ? "pipe" : "inherit", "inherit"],
     });
+    runningCommands.set(
+      child,
+      new Promise((settled) => {
+        child.once("close", () => {
+          runningCommands.delete(child);
+          settled();
+        });
+      }),
+    );
     let output = "";
     child.stdout?.on("data", (chunk) => {
       output += chunk;
     });
     if (input) child.stdin.end(input);
     child.on("error", reject);
-    child.on("exit", (code, signal) =>
+    child.on("close", (code, signal) =>
       code === 0
         ? resolve(output.trim())
         : reject(new Error(`${command} ${args[0]} exited ${code ?? signal}`)),
@@ -205,6 +216,36 @@ async function negativeControls(project, fixture) {
   );
   console.log("PASS: targeted failed-job replay restores readable summary");
 }
+async function settleCommands(timeout) {
+  let timer;
+  try {
+    await Promise.race([
+      Promise.all(runningCommands.values()),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, timeout);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function stopCommands() {
+  // Let in-flight Compose requests finish before tearing down their resources.
+  await settleCommands(5_000);
+  for (const signal of ["SIGTERM", "SIGKILL"]) {
+    for (const child of runningCommands.keys()) {
+      try {
+        if (process.platform === "win32") child.kill(signal);
+        else process.kill(-child.pid, signal);
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+    }
+    if (signal === "SIGTERM") await settleCommands(2_000);
+  }
+  // 'close', rather than 'exit', also waits for descendants holding stdio open.
+  await Promise.all(runningCommands.values());
+}
 async function cleanup() {
   const failures = [];
   for (const project of projects) {
@@ -221,8 +262,12 @@ let interrupted = false;
 let interruption;
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, () => {
+    if (interrupted) return;
     interrupted = true;
-    interruption = cleanup().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
+    interruption = (async () => {
+      await stopCommands();
+      await cleanup();
+    })().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
   });
 try {
   image(candidate);
