@@ -48,7 +48,13 @@ pnpm test:coverage
 pnpm audit:prod
 ```
 
-Coverage-gated integration tests use Docker for PostgreSQL, ClickHouse, and Redis.
+`pnpm test:coverage` is the required CI test path. It runs the unit suites and coverage-gated
+integration tests, including API OIDC account linking, using temporary Docker PostgreSQL,
+ClickHouse, and Redis services. API unit and integration tests contribute to one coverage report;
+the API suite runs after database integration tests because its fixtures truncate shared tables.
+The runner uses a unique Compose project with dynamically assigned ports and removes its services
+and volumes on success, failure, or SIGINT/SIGTERM. Do not point these integration tests at a shared
+or development database.
 
 ## Open a pull request
 

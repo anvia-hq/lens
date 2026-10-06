@@ -84,6 +84,9 @@ try {
     await run("pnpm", ["--filter", "@lens/db", "--filter", "@lens/queue", "test:coverage"], {
       env,
     });
+    // Run the full API suite once so unit and integration tests contribute to the same report.
+    // Keep it sequential: OIDC fixtures truncate tables also used by the DB integration suite.
+    await run("pnpm", ["--filter", "@lens/api", "test:coverage", "--reporter=verbose"], { env });
   } else {
     await run("pnpm", ["--filter", "@lens/db", "exec", "vitest", "run", "test/integration"], {
       env,

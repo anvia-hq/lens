@@ -330,15 +330,21 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Common checks:
+Required verification (the same checks run in CI):
 
 ```sh
 pnpm check
 pnpm typecheck
 pnpm build
-pnpm test
-pnpm test:integration
+pnpm check:bundle
+pnpm test:coverage
+pnpm audit:prod
 ```
+
+`pnpm test:coverage` includes API OIDC account-linking integration tests and starts isolated
+PostgreSQL, ClickHouse, and Redis containers with Docker. It removes those containers after the
+run. Use `pnpm test` for a faster unit-only check or `pnpm test:integration` for integration-only
+iteration; neither replaces the required coverage command.
 
 ## Contributing
 
