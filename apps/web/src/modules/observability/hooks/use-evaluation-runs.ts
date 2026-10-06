@@ -174,8 +174,17 @@ export function useEvaluationRunDetail(runId: string) {
   const search = useSearch({ from: "/$projectId/evaluations/runs/$runId" });
   const navigate = useNavigate();
   const deletions = useDataDeletions(project.id, "evaluation_run");
-  const [resultPage, setResultPage] = useState(1);
-  useEffect(() => setResultPage(1), [runId]);
+  const resultPage = search.page ?? 1;
+  const setResultPage = useCallback(
+    (page: number) => {
+      void navigate({
+        to: "/$projectId/evaluations/runs/$runId",
+        params: { projectId: project.id, runId },
+        search: { page, case: undefined },
+      });
+    },
+    [navigate, project.id, runId],
+  );
   const detail = useQuery({
     queryKey: ["evaluation-run", project.id, runId, resultPage],
     queryFn: ({ signal }) =>
@@ -190,10 +199,10 @@ export function useEvaluationRunDetail(runId: string) {
       void navigate({
         to: "/$projectId/evaluations/runs/$runId",
         params: { projectId: project.id, runId },
-        search: { case: caseId ?? undefined },
+        search: { ...search, case: caseId ?? undefined },
       });
     },
-    [navigate, project.id, runId],
+    [navigate, project.id, runId, search],
   );
   const deleteRun = () =>
     deletions.create.mutate([runId], {

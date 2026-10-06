@@ -256,7 +256,10 @@ tracing through tools, evaluations, managed datasets, comparisons, and gates.
 Evaluation run inspection loads 100 results per page, with Previous/Next controls. Run and metric
 summaries always cover the full run; case summaries, search, and outcome filters cover the current
 result page, so a case with multiple metrics can span pages. The run detail API accepts `?page=N`
-and returns `resultsPage` metadata. Comparisons calculate exact counts for all changed case/metric
+and returns `resultsPage` metadata. The browser preserves `page` alongside `case` in shared links
+and browser history. Older case-only links default to page 1; if that case is absent, inspection
+shows an explicit missing-case message instead of selecting a different case. Automatic lookup
+of the page containing an older case-only link is not yet supported. Comparisons calculate exact counts for all changed case/metric
 pairs and return at most 100 inspection rows, with `caseChangesTruncated` indicating additional
 changes. CI gate checks read only aggregate summaries and metrics, without loading case payloads.
 

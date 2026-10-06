@@ -12,9 +12,22 @@ import {
   includeFallbackCandidate,
   sortMetricComparisons,
 } from "./evaluation-compare-view";
-import { filterEvaluationCases, sortEvaluationCases } from "./evaluation-run-detail-view";
+import {
+  filterEvaluationCases,
+  sortEvaluationCases,
+  selectEvaluationCase,
+} from "./evaluation-run-detail-view";
 
 describe("evaluation run detail diagnosis helpers", () => {
+  it("never substitutes another case when a deep-linked case is absent from the page", () => {
+    const cases = [evaluationCase("page-one", "pass")];
+    expect(selectEvaluationCase(cases, "page-two", false)).toBeUndefined();
+    expect(selectEvaluationCase(cases, "page-two", true)).toBeUndefined();
+    expect(selectEvaluationCase(cases, "page-one", false)).toBe(cases[0]);
+    expect(selectEvaluationCase(cases, undefined, false)).toBe(cases[0]);
+    expect(selectEvaluationCase(cases, undefined, true)).toBeUndefined();
+  });
+
   it("prioritizes failed and unresolved cases while preserving order within an outcome", () => {
     const cases = [
       evaluationCase("pass-1", "pass"),

@@ -76,7 +76,8 @@ export function validateAlertsSearch(search: Record<string, unknown>): AlertsSea
 export function validateEvaluationRunDetailSearch(
   search: Record<string, unknown>,
 ): EvaluationRunDetailSearch {
-  return { case: optionalSearchValue(search.case) };
+  const page = positiveInteger(search.page, 1);
+  return { case: optionalSearchValue(search.case), page: page <= 1_000_000 ? page : 1 };
 }
 
 export function validateEvaluationDatasetsSearch(
