@@ -26,6 +26,7 @@ import {
   project,
   recalculateModelCosts,
   reconcileProjectRetention,
+  withActiveProjectWrite,
 } from "@lens/db";
 import { type LensQueues, materializeJobId } from "@lens/queue";
 import type { Job } from "bullmq";
@@ -44,77 +45,76 @@ export type ProcessorDependencies = {
 export function createIngestTraceProcessor(deps: ProcessorDependencies) {
   return async (job: Job<IngestTraceJob>) => {
     const data = ingestTraceJobSchema.parse(job.data);
-    const modelNames = Array.from(
-      new Set(
-        data.spans.flatMap((span) =>
-          span.model === null ||
-          (span.observationKind !== "generation" && span.observationKind !== "embedding")
-            ? []
-            : [span.model],
+    await withActiveProjectWrite(deps.postgres.db, data.projectId, async (projectRow, tx) => {
+      const modelNames = Array.from(
+        new Set(
+          data.spans.flatMap((span) =>
+            span.model === null ||
+            (span.observationKind !== "generation" && span.observationKind !== "embedding")
+              ? []
+              : [span.model],
+          ),
         ),
-      ),
-    );
-    const [projectRow] = await deps.postgres.db
-      .select({ organizationId: project.organizationId })
-      .from(project)
-      .where(eq(project.id, data.projectId))
-      .limit(1);
-    const priceRows =
-      projectRow === undefined || modelNames.length === 0
-        ? []
-        : await deps.postgres.db
-            .select()
-            .from(llmModelPrice)
-            .where(
-              and(
-                eq(llmModelPrice.organizationId, projectRow.organizationId),
-                inArray(llmModelPrice.model, modelNames),
-              ),
-            );
-    const spans = applyModelPrices(
-      data.spans,
-      priceRows.map((row) => ({
-        model: row.model,
-        inputPricePerMillion: Number(row.inputPricePerMillion),
-        cachedInputPricePerMillion:
-          row.cachedInputPricePerMillion === null ? null : Number(row.cachedInputPricePerMillion),
-        outputPricePerMillion: Number(row.outputPricePerMillion),
-      })),
-    );
-    await insertSpans(deps.clickhouse, spans);
-    for (const traceId of new Set(data.spans.map((span) => span.traceId))) {
-      await deps.queues.materialize.add(
-        "materialize",
-        { projectId: data.projectId, traceId },
-        {
-          delay: deps.materializeDelayMs,
-          jobId: materializeJobId(data.projectId, traceId),
-          removeOnComplete: true,
-        },
       );
-    }
-    deps.logger.info({ jobId: job.id, spans: data.spans.length }, "ingested trace batch");
+      const priceRows =
+        modelNames.length === 0
+          ? []
+          : await tx
+              .select()
+              .from(llmModelPrice)
+              .where(
+                and(
+                  eq(llmModelPrice.organizationId, projectRow.organizationId),
+                  inArray(llmModelPrice.model, modelNames),
+                ),
+              );
+      const spans = applyModelPrices(
+        data.spans,
+        priceRows.map((row) => ({
+          model: row.model,
+          inputPricePerMillion: Number(row.inputPricePerMillion),
+          cachedInputPricePerMillion:
+            row.cachedInputPricePerMillion === null ? null : Number(row.cachedInputPricePerMillion),
+          outputPricePerMillion: Number(row.outputPricePerMillion),
+        })),
+      );
+      await insertSpans(deps.clickhouse, spans);
+      for (const traceId of new Set(data.spans.map((span) => span.traceId))) {
+        await deps.queues.materialize.add(
+          "materialize",
+          { projectId: data.projectId, traceId },
+          {
+            delay: deps.materializeDelayMs,
+            jobId: materializeJobId(data.projectId, traceId),
+            removeOnComplete: true,
+          },
+        );
+      }
+      deps.logger.info({ jobId: job.id, spans: data.spans.length }, "ingested trace batch");
+    });
   };
 }
 
 export function createMaterializeTraceProcessor(deps: ProcessorDependencies) {
   return async (job: Job<MaterializeTraceJob>) => {
     const data = materializeTraceJobSchema.parse(job.data);
-    await materializeTrace(deps.clickhouse, data.projectId, data.traceId);
+    await withActiveProjectWrite(deps.postgres.db, data.projectId, () =>
+      materializeTrace(deps.clickhouse, data.projectId, data.traceId),
+    );
   };
 }
 
 export function createEvaluationProcessor(deps: ProcessorDependencies) {
   return async (job: Job<IngestEvaluationsJob>) => {
     const data = ingestEvaluationsJobSchema.parse(job.data);
-    await Promise.all([
-      insertEvaluations(deps.clickhouse, data.evaluations),
-      insertEvaluationRuns(deps.clickhouse, data.runs),
-    ]);
-    deps.logger.info(
-      { jobId: job.id, evaluations: data.evaluations.length, runs: data.runs.length },
-      "ingested evaluation batch",
-    );
+    await withActiveProjectWrite(deps.postgres.db, data.projectId, async () => {
+      await insertEvaluations(deps.clickhouse, data.evaluations);
+      await insertEvaluationRuns(deps.clickhouse, data.runs);
+      deps.logger.info(
+        { jobId: job.id, evaluations: data.evaluations.length, runs: data.runs.length },
+        "ingested evaluation batch",
+      );
+    });
   };
 }
 
@@ -134,8 +134,16 @@ export function createMaintenanceProcessor(deps: ProcessorDependencies) {
     }
     if (job.name === "delete-project") {
       const data = deleteProjectTelemetryJobSchema.parse(job.data);
-      await deleteProjectTelemetry(deps.clickhouse, data.projectId);
-      await deps.postgres.db.delete(project).where(eq(project.id, data.projectId));
+      await deps.postgres.db.transaction(async (tx) => {
+        const [row] = await tx
+          .select()
+          .from(project)
+          .where(and(eq(project.id, data.projectId), eq(project.state, "deleting")))
+          .for("update");
+        if (row === undefined) return;
+        await deleteProjectTelemetry(deps.clickhouse, data.projectId);
+        await tx.delete(project).where(eq(project.id, data.projectId));
+      });
       return;
     }
     if (job.name === "delete-data") {
@@ -200,12 +208,21 @@ export function createCostsProcessor(deps: ProcessorDependencies) {
         .select({ id: project.id })
         .from(project)
         .where(eq(project.organizationId, run.organizationId));
-      const result = await recalculateModelCosts(deps.clickhouse, {
-        projectIds: projectRows.map((row) => row.id),
-        prices: run.priceSnapshot,
-        from: run.from?.toISOString() ?? null,
-        to: run.to?.toISOString() ?? null,
-      });
+      const result = { affectedSpans: 0, affectedTraces: 0 };
+      for (const row of projectRows) {
+        const counts = await withActiveProjectWrite(deps.postgres.db, row.id, () =>
+          recalculateModelCosts(deps.clickhouse, {
+            projectIds: [row.id],
+            prices: run.priceSnapshot,
+            from: run.from?.toISOString() ?? null,
+            to: run.to?.toISOString() ?? null,
+          }),
+        );
+        if (counts !== undefined) {
+          result.affectedSpans += counts.affectedSpans;
+          result.affectedTraces += counts.affectedTraces;
+        }
+      }
       await deps.postgres.db
         .update(costRecalculation)
         .set({

@@ -599,19 +599,23 @@ export async function deleteProjectTelemetry(
   projectId: string,
 ): Promise<void> {
   await client.command({
-    query: "ALTER TABLE spans DELETE WHERE project_id = {projectId:UUID}",
+    query:
+      "ALTER TABLE spans DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2",
     query_params: { projectId },
   });
   await client.command({
-    query: "ALTER TABLE trace_summaries DELETE WHERE project_id = {projectId:UUID}",
+    query:
+      "ALTER TABLE trace_summaries DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2",
     query_params: { projectId },
   });
   await client.command({
-    query: "ALTER TABLE evaluation_results DELETE WHERE project_id = {projectId:UUID}",
+    query:
+      "ALTER TABLE evaluation_results DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2",
     query_params: { projectId },
   });
   await client.command({
-    query: "ALTER TABLE evaluation_runs DELETE WHERE project_id = {projectId:UUID}",
+    query:
+      "ALTER TABLE evaluation_runs DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2",
     query_params: { projectId },
   });
 }

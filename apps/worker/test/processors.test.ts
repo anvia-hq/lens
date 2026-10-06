@@ -1,16 +1,11 @@
-import type {
-  EvaluationResult,
-  IngestEvaluationsJob,
-  IngestTraceJob,
-  MaterializeTraceJob,
-  NormalizedSpan,
-} from "@lens/contracts";
+import type { IngestEvaluationsJob, IngestTraceJob, MaterializeTraceJob } from "@lens/contracts";
 import type { LensQueues } from "@lens/queue";
 import type { Job } from "bullmq";
 import type { Logger } from "pino";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbFunctions = vi.hoisted(() => ({
+  withActiveProjectWrite: vi.fn(),
   applyModelPrices: vi.fn((spans) => spans),
   deleteProjectTelemetry: vi.fn(),
   deleteTelemetryEntities: vi.fn(),
@@ -36,99 +31,26 @@ import {
   type ProcessorDependencies,
 } from "../src/processors.js";
 
+import { evaluationResult, normalizedSpan } from "./helpers/telemetry.js";
+
 const projectId = "10000000-0000-4000-8000-000000000001";
 const organizationId = "20000000-0000-4000-8000-000000000001";
 const recalculationId = "30000000-0000-4000-8000-000000000001";
 const deletionRequestId = "40000000-0000-4000-8000-000000000001";
 
-function normalizedSpan(overrides: Partial<NormalizedSpan> = {}): NormalizedSpan {
-  return {
-    projectId,
-    traceId: "a".repeat(32),
-    spanId: "b".repeat(16),
-    parentSpanId: null,
-    traceState: "",
-    name: "test span",
-    kind: 1,
-    observationKind: "span",
-    status: "ok",
-    statusMessage: "",
-    startTimeUnixNano: "1",
-    endTimeUnixNano: "2",
-    durationNano: "1",
-    serviceName: "test",
-    scopeName: "test",
-    scopeVersion: "1",
-    resourceAttributes: {},
-    spanAttributes: {},
-    events: [],
-    links: [],
-    traceName: null,
-    userId: null,
-    sessionId: null,
-    tags: [],
-    version: null,
-    environment: "test",
-    release: null,
-    serviceVersion: null,
-    model: null,
-    inputTokens: 0,
-    cachedInputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-    inputCost: null,
-    outputCost: null,
-    totalCost: null,
-    input: null,
-    output: null,
-    expiresAt: null,
-    ingestedAt: "2026-09-17T00:00:00.000Z",
-    ingestVersion: "1",
-    ...overrides,
-  };
-}
-
-function evaluationResult(): EvaluationResult {
-  return {
-    projectId,
-    id: "evaluation-1",
-    runId: null,
-    timestamp: "2026-09-17T00:00:00.000Z",
-    traceId: null,
-    observationId: null,
-    responseId: null,
-    suiteName: "test",
-    caseId: null,
-    metricName: "quality",
-    outcome: "pass",
-    dataType: null,
-    numericValue: null,
-    categoricalValue: null,
-    explanation: null,
-    payload: null,
-    payloadStatus: "not_requested",
-    configId: null,
-    serviceName: "test",
-    environment: "test",
-    release: null,
-    metadata: {},
-    source: "telemetry",
-    reviewer: null,
-    expiresAt: null,
-    ingestedAt: "2026-09-17T00:00:00.000Z",
-    ingestVersion: "1",
-  };
-}
-
 describe("worker processors", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    dbFunctions.applyModelPrices.mockImplementation((spans) => spans);
+    dbFunctions.withActiveProjectWrite.mockImplementation((db, _id, write) =>
+      write({ organizationId }, db),
+    );
   });
 
   it("prices, inserts, and schedules each distinct trace in an ingest batch", async () => {
     const { deps, select, materializeAdd, logger } = dependencies();
     deps.materializeDelayMs = 3_000;
-    select.mockReturnValueOnce(selectQuery([{ organizationId }], true)).mockReturnValueOnce(
+    select.mockReturnValueOnce(
       selectQuery([
         {
           model: "gpt-test",
@@ -183,9 +105,9 @@ describe("worker processors", () => {
     );
   });
 
-  it("skips price lookup when the project no longer exists", async () => {
+  it("skips all writes and materialization scheduling when the project is inactive", async () => {
     const { deps, select } = dependencies();
-    select.mockReturnValueOnce(selectQuery([], true));
+    dbFunctions.withActiveProjectWrite.mockResolvedValueOnce(undefined);
 
     await createIngestTraceProcessor(deps)(
       job({
@@ -196,8 +118,9 @@ describe("worker processors", () => {
       } as unknown as IngestTraceJob),
     );
 
-    expect(select).toHaveBeenCalledTimes(1);
-    expect(dbFunctions.applyModelPrices).toHaveBeenCalledWith(expect.any(Array), []);
+    expect(select).not.toHaveBeenCalled();
+    expect(dbFunctions.insertSpans).not.toHaveBeenCalled();
+    expect(deps.queues.materialize.add).not.toHaveBeenCalled();
   });
 
   it("materializes traces and ingests evaluation batches", async () => {
@@ -258,12 +181,66 @@ describe("worker processors", () => {
   });
 
   it("deletes project telemetry before its tombstoned database row", async () => {
-    const { deps, deleteWhere } = dependencies();
+    const { deps, deleteWhere, select } = dependencies();
+    select.mockReturnValueOnce(selectQuery([{ state: "deleting" }], true));
 
     await createMaintenanceProcessor(deps)(job({ projectId }, { name: "delete-project" }));
 
     expect(dbFunctions.deleteProjectTelemetry).toHaveBeenCalledWith(deps.clickhouse, projectId);
     expect(deleteWhere).toHaveBeenCalledOnce();
+  });
+
+  it("does not delete an active or missing project for a stale maintenance job", async () => {
+    const { deps, select, deleteWhere } = dependencies();
+    select.mockReturnValueOnce(selectQuery([], true));
+    await createMaintenanceProcessor(deps)(job({ projectId }, { name: "delete-project" }));
+    expect(dbFunctions.deleteProjectTelemetry).not.toHaveBeenCalled();
+    expect(deleteWhere).not.toHaveBeenCalled();
+  });
+
+  it("preserves the project tombstone if telemetry cleanup fails", async () => {
+    const { deps, select, deleteWhere } = dependencies();
+    select.mockReturnValueOnce(selectQuery([{ state: "deleting" }], true));
+    dbFunctions.deleteProjectTelemetry.mockRejectedValueOnce(new Error("mutation failed"));
+    await expect(
+      createMaintenanceProcessor(deps)(job({ projectId }, { name: "delete-project" })),
+    ).rejects.toThrow("mutation failed");
+    expect(deleteWhere).not.toHaveBeenCalled();
+  });
+
+  it("skips evaluation and materialization writes for inactive projects", async () => {
+    const { deps } = dependencies();
+    dbFunctions.withActiveProjectWrite.mockResolvedValue(undefined);
+    await createMaterializeTraceProcessor(deps)(job({ projectId, traceId: "a".repeat(32) }));
+    await createEvaluationProcessor(deps)(
+      job({
+        projectId,
+        ingestId: "old",
+        receivedAt: "2026-09-17T00:00:00.000Z",
+        evaluations: [evaluationResult()],
+        runs: [],
+      }),
+    );
+    expect(dbFunctions.materializeTrace).not.toHaveBeenCalled();
+    expect(dbFunctions.insertEvaluations).not.toHaveBeenCalled();
+    expect(dbFunctions.insertEvaluationRuns).not.toHaveBeenCalled();
+  });
+
+  it("does not launch another evaluation write after an insert fails", async () => {
+    const { deps } = dependencies();
+    dbFunctions.insertEvaluations.mockRejectedValueOnce(new Error("insert failed"));
+    await expect(
+      createEvaluationProcessor(deps)(
+        job({
+          projectId,
+          ingestId: "old",
+          receivedAt: "2026-09-17T00:00:00.000Z",
+          evaluations: [evaluationResult()],
+          runs: [],
+        }),
+      ),
+    ).rejects.toThrow("insert failed");
+    expect(dbFunctions.insertEvaluationRuns).not.toHaveBeenCalled();
   });
 
   it("tracks a data deletion request through completion", async () => {
@@ -419,6 +396,21 @@ describe("worker processors", () => {
     );
   });
 
+  it("skips deleting projects during cost recalculation", async () => {
+    const { deps, select, updates } = dependencies();
+    select
+      .mockReturnValueOnce(selectQuery([recalculationRun()], true))
+      .mockReturnValueOnce(selectQuery([{ id: projectId }]));
+    dbFunctions.withActiveProjectWrite.mockResolvedValueOnce(undefined);
+    await createCostsProcessor(deps)(job({ recalculationId }, { name: "recalculate-model-costs" }));
+    expect(dbFunctions.recalculateModelCosts).not.toHaveBeenCalled();
+    expect(updates.at(-1)).toMatchObject({
+      status: "completed",
+      affectedSpans: "0",
+      affectedTraces: "0",
+    });
+  });
+
   it.each([
     [1, 3, "queued"],
     [2, 3, "failed"],
@@ -470,11 +462,14 @@ function dependencies() {
     materializeDelayMs: 1_500,
     appUrl: "http://localhost:3000",
   };
+  deps.postgres.db.transaction = vi.fn(async (callback) => callback(deps.postgres.db as never));
   return { deps, deleteWhere, logger, materializeAdd, select, update, updates };
 }
 
 function selectQuery(rows: unknown[], withLimit = false) {
-  const result = withLimit ? { limit: vi.fn().mockResolvedValue(rows) } : Promise.resolve(rows);
+  const result = withLimit
+    ? { limit: vi.fn().mockResolvedValue(rows), for: vi.fn().mockResolvedValue(rows) }
+    : Promise.resolve(rows);
   return { from: vi.fn(() => ({ where: vi.fn(() => result) })) };
 }
 

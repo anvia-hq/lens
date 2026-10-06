@@ -95,6 +95,9 @@ try {
       env,
     });
   }
+  await run("pnpm", ["--filter", "@lens/worker", "exec", "vitest", "run", "test/integration"], {
+    env,
+  });
 } finally {
   await down();
 }

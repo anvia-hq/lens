@@ -281,6 +281,28 @@ docker compose up -d
 The migration container completes before the API and worker start. Do not use
 `docker compose down -v` during an upgrade: `-v` permanently deletes the Lens data volumes.
 
+## Deletion and retention boundaries
+
+Project deletion first waits for admitted telemetry writes, marks the project deleting, revokes
+its keys, and queues cleanup through the durable outbox. Workers reject accepted or retried jobs
+for deleting or missing projects. Cleanup waits for all four ClickHouse table mutations to finish
+before removing the project row. If cleanup fails, the deleting row remains, ingestion stays
+blocked, and the maintenance job retries; exhausted jobs remain visible in System Health.
+Deletion can take longer while a write or ClickHouse mutation is running.
+
+Trace, session, and evaluation-run deletion is a point-in-time cleanup, not a permanent identifier
+blocklist. Producers and previously accepted jobs can send those identifiers again. Pause producers
+and drain ingestion before deleting individual entities when they must stay absent. Retention
+changes update data already stored; pending jobs retain the expiration calculated when accepted,
+and ClickHouse TTL cleanup is asynchronous. Drain ingestion before changing retention when all
+previously accepted data must receive the new policy, then run the retention update.
+
+The project fence uses PostgreSQL transaction row locks across acknowledged ClickHouse requests;
+all API and worker instances must run the fenced implementation. It is not a distributed transaction.
+If a PostgreSQL connection disappears while ClickHouse is still executing an unacknowledged write,
+stop writers, wait for outstanding ClickHouse queries to finish, and repeat project telemetry cleanup
+before treating deletion as verified. Roll out all writers before relying on the fence.
+
 ## Local development
 
 The development stack builds the current checkout, exposes infrastructure ports, and includes
