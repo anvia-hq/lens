@@ -295,6 +295,9 @@ docker compose up -d
 The migration container completes before the API and worker start. Do not use
 `docker compose down -v` during an upgrade: `-v` permanently deletes the Lens data volumes.
 
+Release maintainers should run the [functional checks and upgrade/restore rehearsal](docs/release-verification.md)
+before promotion, including worker-failure controls and preservation of queued telemetry.
+
 ## Trace summary convergence
 
 Workers coalesce materialization by project and trace using BullMQ's `keepLastIfActive`

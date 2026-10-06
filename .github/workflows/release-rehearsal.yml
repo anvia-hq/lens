@@ -1,0 +1,33 @@
+name: Release upgrade and recovery rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Pinned candidate image tag (not latest)
+        required: true
+        type: string
+      previous:
+        description: Pinned previous supported image tag
+        required: true
+        default: "0.14.0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify fresh images, failure controls, upgrade and coordinated restore
+        env:
+          LENS_TEST_VERSION: ${{ inputs.candidate }}
+          LENS_TEST_PREVIOUS_VERSION: ${{ inputs.previous }}
+          LENS_TEST_PULL_POLICY: always
+        run: node scripts/verify-release.mjs --negative-controls --recovery

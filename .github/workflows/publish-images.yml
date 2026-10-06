@@ -122,56 +122,22 @@ jobs:
       - prepare
       - publish
     runs-on: ubuntu-latest
-    env:
-      BETTER_AUTH_SECRET: release-smoke-better-auth-secret-000000000000
-      CLICKHOUSE_PASSWORD: release-smoke-clickhouse
-      COMPOSE_PROJECT_NAME: lens-release-smoke-${{ github.run_id }}
-      INGESTION_KEY_PEPPER: release-smoke-ingestion-key-pepper-000000000
-      LENS_PULL_POLICY: always
-      LENS_VERSION: ${{ needs.prepare.outputs.version }}
-      POSTGRES_PASSWORD: release-smoke-postgres
-      PUBLIC_APP_URL: http://127.0.0.1:18080
-      REDIS_PASSWORD: release-smoke-redis
-      SMTP_HOST: ""
-      WEB_ORIGIN: http://127.0.0.1:18080
-      WEB_PORT: "18080"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate pinned images
-        run: |
-          docker compose config --images | sort -u
-          docker compose config --images | grep -Fx "ghcr.io/${GITHUB_REPOSITORY_OWNER}/lens:${LENS_VERSION}"
-          docker compose config --images | grep -Fx "ghcr.io/${GITHUB_REPOSITORY_OWNER}/lens-web:${LENS_VERSION}"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
-      - name: Start published stack
-        run: docker compose up -d --remove-orphans
-
-      - name: Wait for Lens
-        run: |
-          for _ in {1..90}; do
-            if curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null \
-              && curl --fail --silent http://127.0.0.1:18080/health/ready >/dev/null \
-              && curl --fail --silent --head http://127.0.0.1:18080/ >/dev/null; then
-              docker compose ps --all
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Lens did not become healthy within 180 seconds" >&2
-          exit 1
-
-      - name: Show stack logs on failure
-        if: failure()
-        run: |
-          docker compose ps --all
-          docker compose logs --no-color --tail=200
-
-      - name: Remove smoke-test stack
-        if: always()
-        run: docker compose down --volumes --remove-orphans
+      - name: Verify published images and failure controls
+        env:
+          LENS_TEST_VERSION: ${{ needs.prepare.outputs.version }}
+          LENS_TEST_PULL_POLICY: always
+          LENS_TEST_BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/lens
+          LENS_TEST_WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/lens-web
+        run: node scripts/verify-release.mjs --negative-controls
 
   promote:
     name: Promote ${{ matrix.name }}
