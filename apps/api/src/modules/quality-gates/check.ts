@@ -1,6 +1,11 @@
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { QualityGateCheckInput } from "@lens/contracts";
-import { compareEvaluationRuns, getQualityGate, type LensPostgres } from "@lens/db";
+import {
+  compareEvaluationRuns,
+  compareEvaluationRunAggregates,
+  getQualityGate,
+  type LensPostgres,
+} from "@lens/db";
 import { evaluateQualityGate } from "./evaluate.js";
 
 type CheckError = {
@@ -15,12 +20,16 @@ export async function checkEvaluationRuns(
   projectId: string,
   input: QualityGateCheckInput,
   gateId?: string,
+  options: { includeCases?: boolean; signal?: AbortSignal } = {},
 ) {
-  const comparison = await compareEvaluationRuns(
+  const compare =
+    options.includeCases === false ? compareEvaluationRunAggregates : compareEvaluationRuns;
+  const comparison = await compare(
     clickhouse,
     projectId,
     input.candidateRunId,
     input.baselineRunId,
+    options,
   );
   if (comparison === undefined)
     return failure(404, "not_found", "Candidate or baseline run was not found");

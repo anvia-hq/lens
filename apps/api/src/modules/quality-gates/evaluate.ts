@@ -1,6 +1,6 @@
 import type {
   EvaluationMetricComparison,
-  EvaluationRunComparison,
+  EvaluationRunAggregateComparison,
   QualityGate,
   QualityGateEvaluation,
   QualityGateRule,
@@ -9,7 +9,7 @@ import type {
 
 export function evaluateQualityGate(
   gate: QualityGate,
-  comparison: Omit<EvaluationRunComparison, "gate">,
+  comparison: Omit<EvaluationRunAggregateComparison, "gate">,
 ): QualityGateEvaluation {
   const rules: QualityGateRuleResult[] = [
     comparison.candidate.evaluatedCases < gate.minimumCaseCount
@@ -39,7 +39,7 @@ export function evaluateQualityGate(
 
 function evaluateRule(
   rule: QualityGateRule,
-  comparison: Omit<EvaluationRunComparison, "gate">,
+  comparison: Omit<EvaluationRunAggregateComparison, "gate">,
 ): QualityGateRuleResult {
   if (rule.type === "operational_regression") {
     if (comparison.candidate.traceCoverage < 1 || comparison.baseline.traceCoverage < 1) {

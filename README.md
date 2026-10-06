@@ -253,6 +253,17 @@ to correlate evaluation lifecycle events with the traces produced by each case.
 See the [native Anvia examples](examples/anvia-agent/README.md) for a live-model path from basic
 tracing through tools, evaluations, managed datasets, comparisons, and gates.
 
+Evaluation run inspection loads 100 results per page, with Previous/Next controls. Run and metric
+summaries always cover the full run; case summaries, search, and outcome filters cover the current
+result page, so a case with multiple metrics can span pages. The run detail API accepts `?page=N`
+and returns `resultsPage` metadata. Comparisons calculate exact counts for all changed case/metric
+pairs and return at most 100 inspection rows, with `caseChangesTruncated` indicating additional
+changes. CI gate checks read only aggregate summaries and metrics, without loading case payloads.
+
+The [evaluation benchmark](packages/db/scripts/benchmark-evaluations.ts) exercises synthetic
+10k/100k-result runs, standard and constrained ClickHouse settings, and request cancellation. See
+[benchmark results and reproduction](docs/evaluation-query-benchmark.md).
+
 ## Connect Langfuse instrumentation
 
 Existing `@langfuse/otel` v5 applications can send traces to Lens without changing their

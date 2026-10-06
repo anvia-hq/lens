@@ -15,6 +15,8 @@ export type EvaluationRunDetail = {
   metrics: EvaluationMetricBreakdown[];
   results: EvaluationResult[];
   cases: EvaluationRunCaseDetail[];
+  /** Results and case summaries cover this page only; run and metric totals cover the full run. */
+  resultsPage?: { page: number; pageSize: number; total: number; pageCount: number };
 };
 
 export type EvaluationRunCaseDetail = {
@@ -55,16 +57,21 @@ export type EvaluationCaseChange = {
   baselineTraceId: string | null;
 };
 
-export type EvaluationRunComparison = {
+export type EvaluationRunAggregateComparison = {
   candidate: EvaluationRunSummary;
   baseline: EvaluationRunSummary;
   passRate: ComparisonValue;
   p95LatencyMs: ComparisonValue;
   averageTotalTokens: ComparisonValue;
   metrics: EvaluationMetricComparison[];
+  warnings: string[];
+};
+
+export type EvaluationRunComparison = EvaluationRunAggregateComparison & {
   caseChanges: EvaluationCaseChange[];
   caseChangeCounts: Record<EvaluationCaseChange["classification"], number>;
-  warnings: string[];
+  /** True when more changes exist than the returned inspection rows. */
+  caseChangesTruncated?: boolean;
   gate: QualityGateEvaluation | null;
 };
 

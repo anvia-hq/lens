@@ -7,12 +7,14 @@ import type {
   QualityGateInput,
 } from "@lens/contracts";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   archiveManagedDataset,
   archivePrompt,
   claimJobOutbox,
   compareEvaluationRuns,
+  compareEvaluationRunAggregates,
+  listRunResults,
   completeJobOutbox,
   createAlertChannel,
   createAlertRule,
@@ -80,6 +82,7 @@ import {
   upsertManagedDatasetCase,
   user,
 } from "../../src/index.js";
+import { compareCases } from "../../src/evaluation-comparison.js";
 import { runMigrations } from "../../src/migration-runner.js";
 
 const projectId = "10000000-0000-4000-8000-000000000001";
@@ -785,6 +788,154 @@ describe.sequential("database integration", () => {
       selectedVersion: { version: "v1", status: "complete" },
       cases: [{ caseId: "case-1", conflict: false }],
     });
+  });
+
+  it("compares exact case changes without payload reads and pages run inspection", async () => {
+    const isolatedProject = crypto.randomUUID();
+    const candidateRunId = "bounded-candidate";
+    const baselineRunId = "bounded-baseline";
+    await insertEvaluationRuns(
+      clickhouse,
+      [candidateRunId, baselineRunId].map((id) => ({
+        ...evaluationRun(),
+        projectId: isolatedProject,
+        id,
+      })),
+    );
+    const fixtures: EvaluationResult[] = [];
+    const outcomes = ["pass", "fail", "invalid", "unknown"] as const;
+    for (const candidateOutcome of outcomes) {
+      for (const baselineOutcome of outcomes) {
+        for (const [runId, outcome] of [
+          [candidateRunId, candidateOutcome],
+          [baselineRunId, baselineOutcome],
+        ] as const) {
+          const caseId = `${candidateOutcome}-${baselineOutcome}`;
+          fixtures.push({
+            ...evaluationResult(),
+            projectId: isolatedProject,
+            id: `${runId}-${caseId}`,
+            runId,
+            caseId,
+            outcome,
+          });
+        }
+      }
+    }
+    fixtures.push(
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "new-failure",
+        runId: candidateRunId,
+        caseId: "new",
+        outcome: "invalid",
+        numericValue: null,
+        categoricalValue: "bad",
+        traceId: null,
+      },
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "removed",
+        runId: baselineRunId,
+        caseId: "removed",
+        outcome: "unknown",
+      },
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "null-case",
+        runId: candidateRunId,
+        caseId: null,
+        outcome: "fail",
+      },
+      // Duplicate key: preserve the old reader's oldest timestamp, greatest ID tie-break.
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "zz-duplicate",
+        runId: candidateRunId,
+        caseId: "pass-pass",
+        outcome: "fail",
+      },
+    );
+    await insertEvaluations(clickhouse, fixtures);
+    const expected = compareCases(
+      await listRunResults(clickhouse, isolatedProject, candidateRunId),
+      await listRunResults(clickhouse, isolatedProject, baselineRunId),
+    );
+    const first = await compareEvaluationRuns(
+      clickhouse,
+      isolatedProject,
+      candidateRunId,
+      baselineRunId,
+    );
+    expect(first?.caseChanges).toEqual(expected);
+    expect(first?.caseChangesTruncated).toBe(false);
+    const query = vi.spyOn(clickhouse, "query");
+    try {
+      const aggregate = await compareEvaluationRunAggregates(
+        clickhouse,
+        isolatedProject,
+        candidateRunId,
+        baselineRunId,
+      );
+      expect(aggregate).not.toHaveProperty("caseChanges");
+      expect(aggregate?.metrics).toEqual(first?.metrics);
+      expect(query).toHaveBeenCalledTimes(8);
+      expect(
+        query.mock.calls.every(
+          ([args]) => !args.query.includes("payload") && !args.query.includes("per_run AS"),
+        ),
+      ).toBe(true);
+      query.mockClear();
+      const detail = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId);
+      expect(query).toHaveBeenCalledTimes(5);
+      expect(
+        query.mock.calls.filter(([args]) => args.query.includes("count() AS total")),
+      ).toHaveLength(0);
+      expect(detail?.resultsPage?.pageCount).toBe(1);
+    } finally {
+      query.mockRestore();
+    }
+    await insertEvaluations(
+      clickhouse,
+      Array.from({ length: 250 }, (_, index) => ({
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: `extra-${index}`,
+        runId: candidateRunId,
+        caseId: `extra-${index}`,
+        outcome: "fail" as const,
+      })),
+    );
+    const comparison = await compareEvaluationRuns(
+      clickhouse,
+      isolatedProject,
+      candidateRunId,
+      baselineRunId,
+    );
+    expect(comparison?.caseChangeCounts.new_failure).toBe(252);
+    expect(comparison?.caseChanges).toHaveLength(100);
+    expect(comparison?.caseChangesTruncated).toBe(true);
+    const page1 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId);
+    const page2 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId, {
+      page: 2,
+    });
+    const page3 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId, {
+      page: 3,
+    });
+    expect(page1?.run.results).toBe(269);
+    expect(page1?.resultsPage).toEqual({ page: 1, pageSize: 100, total: 269, pageCount: 3 });
+    expect(page1?.results).toHaveLength(100);
+    expect(page2?.results).toHaveLength(100);
+    expect(page3?.results).toHaveLength(69);
+    expect(
+      new Set([...page1!.results, ...page2!.results, ...page3!.results].map((item) => item.id))
+        .size,
+    ).toBe(269);
+    await deleteProjectTelemetry(clickhouse, isolatedProject);
   });
 
   it("warns only when compared runs differ in dataset or prompt identity", async () => {

@@ -157,6 +157,38 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           />
         </dl>
       </header>
+      {detail.resultsPage && (detail.resultsPage.pageCount > 1 || detail.resultsPage.page > 1) ? (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 text-sm">
+          <p className="text-muted-foreground">
+            Results page {detail.resultsPage.page} of {detail.resultsPage.pageCount}. Case
+            summaries, search, and filters apply to this page only; a case can span pages.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={state.resultPage <= 1}
+              onClick={() => {
+                state.selectCase(null);
+                state.setResultPage(state.resultPage - 1);
+              }}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={state.resultPage >= detail.resultsPage.pageCount}
+              onClick={() => {
+                state.selectCase(null);
+                state.setResultPage(state.resultPage + 1);
+              }}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         {isMobile ? (
           selected ? (

@@ -66,3 +66,5 @@ export const runQuerySchema = z
     sort: value.sort,
     order: value.order,
   }));
+
+export const runDetailQuerySchema = z.object({ page: pageField("page must be positive") });

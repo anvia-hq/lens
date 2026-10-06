@@ -174,11 +174,14 @@ export function useEvaluationRunDetail(runId: string) {
   const search = useSearch({ from: "/$projectId/evaluations/runs/$runId" });
   const navigate = useNavigate();
   const deletions = useDataDeletions(project.id, "evaluation_run");
+  const [resultPage, setResultPage] = useState(1);
+  useEffect(() => setResultPage(1), [runId]);
   const detail = useQuery({
-    queryKey: ["evaluation-run", project.id, runId],
-    queryFn: () =>
+    queryKey: ["evaluation-run", project.id, runId, resultPage],
+    queryFn: ({ signal }) =>
       api<EvaluationRunDetail>(
-        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(runId)}`,
+        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(runId)}?page=${resultPage}`,
+        { signal },
       ),
     refetchInterval: 5_000,
   });
@@ -202,6 +205,8 @@ export function useEvaluationRunDetail(runId: string) {
         }),
     });
   return {
+    resultPage,
+    setResultPage,
     deleteRun,
     deletionPending: deletions.create.isPending,
     detail,
