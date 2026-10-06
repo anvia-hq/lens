@@ -1,37 +1,41 @@
-import { AgentBuilder } from "@anvia/core/agent";
+import { Agent } from "@anvia/core/agent";
 import { agentEvalTarget, contains, runEvalSuite } from "@anvia/core/evals";
-import type { PromptResponse } from "@anvia/core/request";
-import { createLensDatasetClient, createLensEvalReporter, lens } from "@anvia/lens";
+import type { AgentResponse } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
 import { createLiveModel } from "../_shared/model";
 
 const model = createLiveModel();
-const tracing = lens.create({ captureMode: "full" });
-const datasetClient = createLensDatasetClient(tracing);
-const reporter = createLensEvalReporter<string, PromptResponse, string>(tracing, {
+const tracing = new LensClient();
+const datasetClient = tracing.datasetClient();
+const reporter = tracing.evalReporter<string, AgentResponse, string>({
   includeMetadata: true,
+  includePayloads: true,
   onMissingTrace: "throw",
 });
-const agent = new AgentBuilder("managed-dataset-agent", model)
-  .name("Managed Dataset Agent")
-  .instructions(
-    [
-      "Answer with only the relevant policy fact.",
-      "Refunds are available for 30 days.",
-      "Workspace owners can change billing settings.",
-      "Exported reports are retained for 7 days.",
-    ].join("\n"),
-  )
-  .observe(tracing)
-  .build();
+const agent = new Agent({
+  id: "managed-dataset-agent",
+  model,
+  name: "Managed Dataset Agent",
+  instructions: [
+    "Answer with only the relevant policy fact.",
+    "Refunds are available for 30 days.",
+    "Workspace owners can change billing settings.",
+    "Exported reports are retained for 7 days.",
+  ].join("\n"),
+  observability: {
+    observers: { lens: tracing.observer({ captureMode: "full" }) },
+    primaryTrace: "lens",
+  },
+});
 
 const datasetName = process.env.ANVIA_LENS_DATASET_NAME?.trim() || "support-policy-cases";
 const requestedVersion = process.env.ANVIA_LENS_DATASET_VERSION?.trim() || undefined;
 
 try {
-  const dataset = await datasetClient.getDataset<string, string>(
-    datasetName,
-    requestedVersion === undefined ? {} : { version: requestedVersion },
-  );
+  const dataset = await datasetClient.getDataset<string, string>({
+    name: datasetName,
+    ...(requestedVersion === undefined ? {} : { version: requestedVersion }),
+  });
   const suite = await runEvalSuite({
     name: "managed-support-policy-regression",
     run: {
@@ -39,16 +43,21 @@ try {
       datasetVersion: dataset.version,
       metadata: { example: "managed-dataset", source: "lens" },
     },
-    cases: dataset.items,
-    target: agentEvalTarget<string>(agent),
+    cases: dataset.items.map(({ id, input, expected }) => {
+      if (typeof input !== "string" || typeof expected !== "string") {
+        throw new Error(`Dataset case ${id} requires string input and expected output`);
+      }
+      return { id, input, expected };
+    }),
+    target: agentEvalTarget<string>({ agent, request: ({ input }) => ({ prompt: input }) }),
     metrics: [
-      contains<string, PromptResponse, string>({
+      contains<string, AgentResponse, string>({
         name: "policy-fact-present",
         actual: ({ output }) => output.output,
       }),
     ],
     reporters: [reporter],
-    failOnReporterError: true,
+    reporterErrorPolicy: "throw",
   });
   await tracing.flush();
 
@@ -62,5 +71,5 @@ try {
   );
   console.log("run:", suite.run.id);
 } finally {
-  await tracing.shutdown();
+  await tracing.close();
 }

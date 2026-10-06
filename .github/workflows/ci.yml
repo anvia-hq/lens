@@ -48,6 +48,9 @@ jobs:
       - name: Enforce web bundle budgets
         run: pnpm check:bundle
 
+      - name: Verify native SDK tracing and evaluations offline
+        run: pnpm --filter @lens/example-anvia-agent test
+
       - name: Run coverage-gated tests
         run: pnpm test:coverage
 

@@ -77,11 +77,16 @@ curl -fsSLO https://raw.githubusercontent.com/anvia-hq/lens/main/docker-compose.
 curl -fsSL https://raw.githubusercontent.com/anvia-hq/lens/main/.env.example -o .env
 ```
 
+Choose a published version from [Lens releases](https://github.com/anvia-hq/lens/releases) and
+confirm its backend and web image publication completed. Pin that numeric version in `.env`;
+the repository package version alone does not establish that images have been published. The
+release workflow publishes both images with the same version tag (without the `v` prefix).
+
 Open `.env` and configure the public URL and required secrets:
 
 ```dotenv
-# Pin a release for repeatable deployments.
-LENS_VERSION=0.4.0
+# Replace with the numeric version of a published release (without the v prefix).
+LENS_VERSION=<published-version>
 
 # Use your HTTPS URL when deploying behind a reverse proxy.
 PUBLIC_APP_URL=http://localhost
@@ -240,15 +245,45 @@ ANVIA_LENS_SERVICE_NAME=support-agent
 ANVIA_LENS_ENVIRONMENT=production
 ```
 
-```ts
-import { createLensEvalReporter, lens } from "@anvia/lens";
+The verified SDK baseline is `@anvia/core 1.6.1`, `@anvia/lens 1.2.1`, and
+`@anvia/openai 1.1.8` (published npm versions checked on 2026-10-06). Install the matching set:
 
-export const tracing = lens.create();
-export const evalReporter = createLensEvalReporter(tracing);
+```sh
+pnpm add --save-prefix= @anvia/core@1.6.1 @anvia/lens@1.2.1 @anvia/openai@1.1.8 zod@4.6.5
 ```
 
-Attach `tracing` to an Anvia agent with `.observe(tracing)`. Pass `evalReporter` to `runEvalSuite`
-to correlate evaluation lifecycle events with the traces produced by each case.
+Set `OPENAI_API_KEY` and `OPENAI_MODEL`, then use constructor configuration and `generate`:
+
+```ts
+import { Agent } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
+import { OpenAIClient } from "@anvia/openai";
+
+const tracing = new LensClient();
+const openai = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY! });
+const agent = new Agent({
+  id: "support-agent",
+  model: openai.completionModel({ modelId: process.env.OPENAI_MODEL!, api: "chat" }),
+  observability: {
+    observers: { lens: tracing.observer() },
+    primaryTrace: "lens",
+  },
+});
+
+try {
+  const result = await agent.generate({ prompt: "How do refunds work?" });
+  if (result.type !== "response") {
+    throw new Error(`Agent did not produce a response: ${result.type}`);
+  }
+  console.log(result.output, result.trace?.traceId);
+} finally {
+  await tracing.close();
+}
+```
+
+`close()` flushes and shuts down the client's telemetry providers. Keep the client alive for all
+agent and evaluation work. Pass `tracing.evalReporter()` to `runEvalSuite` before closing the client
+to correlate evaluation lifecycle events with each case's trace. Safe capture is the default.
 
 See the [native Anvia examples](examples/anvia-agent/README.md) for a live-model path from basic
 tracing through tools, evaluations, managed datasets, comparisons, and gates.

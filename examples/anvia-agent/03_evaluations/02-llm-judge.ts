@@ -1,23 +1,28 @@
-import { AgentBuilder } from "@anvia/core/agent";
+import { Agent } from "@anvia/core/agent";
 import { agentEvalTarget, llmJudge, runEvalSuite } from "@anvia/core/evals";
-import type { PromptResponse } from "@anvia/core/request";
-import { createLensEvalReporter, lens } from "@anvia/lens";
+import type { AgentResponse } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
 import { z } from "zod";
 import { createLiveModel } from "../_shared/model";
 
 const model = createLiveModel();
-const tracing = lens.create({ captureMode: "full" });
-const reporter = createLensEvalReporter<string, PromptResponse, string>(tracing, {
+const tracing = new LensClient();
+const reporter = tracing.evalReporter<string, AgentResponse, string>({
   includeMetadata: true,
+  includePayloads: true,
   onMissingTrace: "throw",
 });
-const agent = new AgentBuilder("support-quality-agent", model)
-  .name("Support Quality Agent")
-  .instructions(
+const agent = new Agent({
+  id: "support-quality-agent",
+  model,
+  name: "Support Quality Agent",
+  instructions:
     "Answer support questions directly and do not invent policy details. Refunds last 30 days.",
-  )
-  .observe(tracing)
-  .build();
+  observability: {
+    observers: { lens: tracing.observer({ captureMode: "full" }) },
+    primaryTrace: "lens",
+  },
+});
 
 try {
   const suite = await runEvalSuite({
@@ -39,9 +44,9 @@ try {
         expected: "The answer must not invent an unlimited refund policy.",
       },
     ],
-    target: agentEvalTarget<string>(agent),
+    target: agentEvalTarget<string>({ agent, request: ({ input }) => ({ prompt: input }) }),
     metrics: [
-      llmJudge<string, PromptResponse, { passed: boolean; reason: string }, string>({
+      llmJudge<string, AgentResponse, { passed: boolean; reason: string }, string>({
         name: "policy-quality-judge",
         model,
         schema: z.object({
@@ -60,7 +65,7 @@ try {
       }),
     ],
     reporters: [reporter],
-    failOnReporterError: true,
+    reporterErrorPolicy: "throw",
   });
   await tracing.flush();
 
@@ -74,5 +79,5 @@ try {
   );
   console.log("run:", suite.run.id);
 } finally {
-  await tracing.shutdown();
+  await tracing.close();
 }
