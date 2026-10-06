@@ -21,6 +21,10 @@ Langfuse OTLP instrumentation.
 - Connect native Anvia applications or Langfuse-compatible instrumentation.
 - Keep all application and telemetry data in your own infrastructure.
 
+Relative time ranges (24 hours, 7 days, and 30 days) roll forward whenever lists and their
+filter options refresh. Automatic refresh preserves the selected filters and page. Choose **Off**
+to stop scheduled polling; the users view also supports an unbounded **All time** range.
+
 ## Connect an AI assistant with MCP
 
 Owners and admins can create a workspace-wide MCP token from the **MCP Access** page. One token

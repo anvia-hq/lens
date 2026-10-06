@@ -281,11 +281,13 @@ export function validateTracesSearch(search: Record<string, unknown>): TracesSea
   };
 }
 
+// Resolve relative presets when a request starts, never when building a query key.
 export function timeRangeForPreset(range: MetricsRangePreset) {
+  const now = Date.now();
   const hours = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
   return {
-    from: new Date(Date.now() - hours * 3_600_000).toISOString(),
-    to: new Date().toISOString(),
+    from: new Date(now - hours * 3_600_000).toISOString(),
+    to: new Date(now).toISOString(),
   };
 }
 

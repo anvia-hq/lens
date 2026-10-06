@@ -1,7 +1,7 @@
 import type { Page as PaginatedPage, SessionFacets, SessionSummary } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, ResolvedSessionsSearch, SessionsSearch } from "../types";
 import { refreshMilliseconds, sessionActiveFilterCount, timeRangeForPreset } from "../utils";
@@ -18,7 +18,6 @@ export function useSessions() {
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const deletions = useDataDeletions(project.id, "session");
-  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<SessionsSearch>, resetPage = true) => {
       void navigate({
@@ -40,7 +39,6 @@ export function useSessions() {
     return () => window.clearTimeout(timeout);
   }, [filters.search, searchDraft, setFilters]);
   const requestFilters = {
-    ...range,
     status: filters.statuses,
     user: filters.users,
     service: filters.services,
@@ -61,6 +59,7 @@ export function useSessions() {
       api<PaginatedPage<SessionSummary>>(
         `/api/v1/projects/${project.id}/sessions?${queryString({
           ...requestFilters,
+          ...timeRangeForPreset(filters.range),
           page: filters.page,
           pageSize: filters.pageSize,
           sort: filters.sort,
@@ -70,10 +69,13 @@ export function useSessions() {
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
-    queryKey: ["session-facets", project.id, requestFilters],
+    queryKey: ["session-facets", project.id, filters.range, requestFilters],
     queryFn: () =>
       api<SessionFacets>(
-        `/api/v1/projects/${project.id}/sessions/facets?${queryString(requestFilters)}`,
+        `/api/v1/projects/${project.id}/sessions/facets?${queryString({
+          ...requestFilters,
+          ...timeRangeForPreset(filters.range),
+        })}`,
       ),
     placeholderData: (previous) => previous,
     refetchInterval: refreshMilliseconds(refreshInterval),

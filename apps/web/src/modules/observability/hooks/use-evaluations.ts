@@ -1,7 +1,7 @@
 import type { EvaluationFacets, EvaluationResult, Page } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type {
   EvaluationResultsSearch,
@@ -23,7 +23,6 @@ export function useEvaluations() {
   const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
-  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<EvaluationResultsSearch>, resetPage = true) => {
       void navigate({
@@ -46,7 +45,6 @@ export function useEvaluations() {
   }, [filters.search, searchDraft, setFilters]);
 
   const requestFilters = {
-    ...range,
     suite: filters.suites,
     metric: filters.metrics,
     outcome: filters.outcomes,
@@ -61,6 +59,7 @@ export function useEvaluations() {
       api<Page<EvaluationResult>>(
         `/api/v1/projects/${project.id}/evaluations?${queryString({
           ...requestFilters,
+          ...timeRangeForPreset(filters.range),
           page: filters.page,
           pageSize: filters.pageSize,
           sort: filters.sort,
@@ -70,10 +69,13 @@ export function useEvaluations() {
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
-    queryKey: ["evaluation-facets", project.id, requestFilters],
+    queryKey: ["evaluation-facets", project.id, filters.range, requestFilters],
     queryFn: () =>
       api<EvaluationFacets>(
-        `/api/v1/projects/${project.id}/evaluations/facets?${queryString(requestFilters)}`,
+        `/api/v1/projects/${project.id}/evaluations/facets?${queryString({
+          ...requestFilters,
+          ...timeRangeForPreset(filters.range),
+        })}`,
       ),
     placeholderData: (previous) => previous,
     refetchInterval: refreshMilliseconds(refreshInterval),
