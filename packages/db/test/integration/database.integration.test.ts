@@ -42,6 +42,7 @@ import {
   getPrompt,
   getPromptDeployment,
   getPublishedManagedDataset,
+  getPublishedManagedDatasetCases,
   getQualityGate,
   getSpan,
   getTrace,
@@ -64,6 +65,8 @@ import {
   listTraces,
   loadDeliveryForDispatch,
   managedDataset,
+  managedDatasetCase,
+  managedDatasetVersion,
   materializeTrace,
   openAlertIncident,
   organization,
@@ -614,6 +617,127 @@ describe.sequential("database integration", () => {
     );
     expect(seeded).toMatchObject({ draft: { caseCount: 1 } });
     await postgres.db.delete(managedDataset).where(eq(managedDataset.id, seeded.id));
+  });
+
+  it("hydrates only requested published dataset cases with project, name, and version isolation", async () => {
+    const otherProject = crypto.randomUUID();
+    const name = `bounded-hydration-${crypto.randomUUID()}`;
+    const datasetIds: string[] = [];
+    await postgres.db.insert(project).values({
+      id: otherProject,
+      organizationId: "integration-org",
+      name: "Other hydration",
+      slug: otherProject,
+    });
+    try {
+      for (const [owner, datasetName, versions] of [
+        [
+          projectId,
+          name,
+          [
+            ["V1", "published", 150],
+            ["V2", "published", 1],
+            ["draft", "draft", 1],
+          ],
+        ],
+        [otherProject, name, [["V1", "published", 1]]],
+        [projectId, `${name}-other`, [["V1", "published", 1]]],
+      ] as const) {
+        const datasetId = crypto.randomUUID();
+        datasetIds.push(datasetId);
+        await postgres.db.insert(managedDataset).values({
+          id: datasetId,
+          projectId: owner,
+          name: datasetName,
+          createdBy: "integration-user",
+        });
+        for (const [version, status, count] of versions) {
+          const versionId = crypto.randomUUID();
+          await postgres.db.insert(managedDatasetVersion).values({
+            id: versionId,
+            datasetId,
+            version,
+            status,
+            createdBy: "integration-user",
+            publishedAt: status === "published" ? new Date() : null,
+          });
+          await postgres.db.insert(managedDatasetCase).values(
+            Array.from({ length: count }, (_, index) => ({
+              versionId,
+              caseId: `case-${index}`,
+              position: index,
+              item: {
+                id: `case-${index}`,
+                input: `${owner}/${datasetName}/${version}/${index}`,
+                expected: "x".repeat(2048),
+              },
+            })),
+          );
+        }
+      }
+      const items = await getPublishedManagedDatasetCases(
+        postgres.db,
+        projectId,
+        name.toUpperCase(),
+        "v1",
+        ["case-149", "case-0", "case-0", "absent"],
+      );
+      expect(items.map((item) => item.id).sort()).toEqual(["case-0", "case-149"]);
+      expect(items.every((item) => String(item.input).startsWith(`${projectId}/${name}/V1/`))).toBe(
+        true,
+      );
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "V2", [
+          "case-0",
+          "case-149",
+        ]),
+      ).toMatchObject([{ id: "case-0", input: `${projectId}/${name}/V2/0` }]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "draft", ["case-0"]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, crypto.randomUUID(), name, "v1", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, "missing-dataset", "v1", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "missing-version", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      const ids = Array.from({ length: 100 }, (_, index) => `case-${index}`);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", [...ids, ...ids]),
+      ).toHaveLength(100);
+      await expect(
+        getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", [...ids, "case-100"]),
+      ).rejects.toThrow("limited to 100");
+      const select = vi.spyOn(postgres.db, "select");
+      try {
+        expect(
+          await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", []),
+        ).toEqual([]);
+        expect(select).not.toHaveBeenCalled();
+      } finally {
+        select.mockRestore();
+      }
+      expect(
+        (await getPublishedManagedDataset(postgres.db, projectId, name, "v1"))?.items,
+      ).toHaveLength(150);
+      await archiveManagedDataset(postgres.db, projectId, datasetIds[0]!);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", ["case-0"]),
+      ).toEqual([]);
+    } finally {
+      for (const datasetId of datasetIds)
+        await postgres.db.delete(managedDataset).where(eq(managedDataset.id, datasetId));
+      await postgres.db.delete(project).where(eq(project.id, otherProject));
+    }
   });
 
   it("inserts, materializes, queries, and deletes telemetry", async () => {

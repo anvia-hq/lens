@@ -1,6 +1,6 @@
 import {
   getEvaluationRunDetail,
-  getPublishedManagedDataset,
+  getPublishedManagedDatasetCases,
   listEvaluationRunFacets,
   listEvaluationRuns,
 } from "@lens/db";
@@ -92,14 +92,18 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       if (detail.run.datasetName === null || detail.run.datasetVersion === null) {
         return c.json(detail);
       }
-      const dataset = await getPublishedManagedDataset(
+      const caseIds = [
+        ...new Set(detail.cases.flatMap((item) => (item.caseId === null ? [] : [item.caseId]))),
+      ];
+      if (caseIds.length === 0) return c.json(detail);
+      const datasetItems = await getPublishedManagedDatasetCases(
         deps.postgres.db,
         projectId,
         detail.run.datasetName,
         detail.run.datasetVersion,
+        caseIds,
       );
-      if (dataset === undefined) return c.json(detail);
-      const items = new Map(dataset.items.map((item) => [item.id, item]));
+      const items = new Map(datasetItems.map((item) => [item.id, item]));
       return c.json({
         ...detail,
         cases: detail.cases.map((item) => ({

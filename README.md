@@ -297,6 +297,8 @@ shows an explicit missing-case message instead of selecting a different case. Au
 of the page containing an older case-only link is not yet supported. Comparisons calculate exact counts for all changed case/metric
 pairs and return at most 100 inspection rows, with `caseChangesTruncated` indicating additional
 changes. CI gate checks read only aggregate summaries and metrics, without loading case payloads.
+For runs linked to a managed dataset, inspection fetches only the published dataset cases
+referenced by the current result page (at most 100 distinct case IDs).
 
 The [evaluation benchmark](packages/db/scripts/benchmark-evaluations.ts) exercises synthetic
 10k/100k-result runs, standard and constrained ClickHouse settings, and request cancellation. See
