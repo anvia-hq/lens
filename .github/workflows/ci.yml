@@ -48,6 +48,9 @@ jobs:
       - name: Enforce web bundle budgets
         run: pnpm check:bundle
 
+      - name: Verify native SDK tracing and evaluations offline
+        run: pnpm --filter @lens/example-anvia-agent test
+
       - name: Run coverage-gated tests
         run: pnpm test:coverage
 
@@ -76,9 +79,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify integration and release runner cancellation
+        run: node --test scripts/verify-release.test.mjs
+
       - name: Validate Compose files
         run: |
           docker compose --env-file .env.example config >/dev/null
+          docker compose --env-file .env.example -f docker-compose.release-test.yml config >/dev/null
           docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.small.yml config >/dev/null
           docker compose --env-file .env.dev.example -f docker-compose.dev.yml config >/dev/null
 
@@ -91,6 +103,7 @@ jobs:
           context: .
           target: backend
           push: false
+          load: true
           tags: lens-backend:ci
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
@@ -101,6 +114,15 @@ jobs:
           context: .
           target: web
           push: false
+          load: true
           tags: lens-web:ci
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+
+      - name: Verify fresh images and worker failure controls
+        timeout-minutes: 10
+        env:
+          LENS_TEST_VERSION: ci
+          LENS_TEST_BACKEND_IMAGE: lens-backend
+          LENS_TEST_WEB_IMAGE: lens-web
+        run: node scripts/verify-release.mjs --negative-controls

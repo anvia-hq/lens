@@ -1,6 +1,6 @@
 import {
   getEvaluationRunDetail,
-  getPublishedManagedDataset,
+  getPublishedManagedDatasetCases,
   listEvaluationRunFacets,
   listEvaluationRuns,
 } from "@lens/db";
@@ -10,7 +10,7 @@ import { apiError, queryInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { recordQualityGateAlert } from "../alerts/events.js";
 import { checkEvaluationRuns } from "../quality-gates/check.js";
-import { runQuerySchema } from "./schema.js";
+import { runQuerySchema, runDetailQuerySchema } from "./schema.js";
 
 export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
   new Hono<AppEnv>()
@@ -33,6 +33,7 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
         projectId,
         { candidateRunId, baselineRunId },
         c.req.query("gateId")?.trim() || undefined,
+        { signal: c.req.raw.signal },
       );
       if (!checked.ok) {
         return apiError(c, checked.error.status, checked.error.code, checked.error.message);
@@ -70,7 +71,7 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
       const parsed = c.req.valid("query");
       return c.json(await listEvaluationRunFacets(deps.clickhouse, projectId, parsed));
     })
-    .get("/:projectId/evaluation-runs/:runId", async (c) => {
+    .get("/:projectId/evaluation-runs/:runId", queryInput(runDetailQuerySchema), async (c) => {
       const projectId = c.req.param("projectId");
       const access = await requireProjectAccess(
         deps.postgres.db,
@@ -78,19 +79,31 @@ export const createEvaluationRunsRouter = (deps: ApiDependencies) =>
         requiredSession(c).user.id,
       );
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const detail = await getEvaluationRunDetail(deps.clickhouse, projectId, c.req.param("runId"));
+      const detail = await getEvaluationRunDetail(
+        deps.clickhouse,
+        projectId,
+        c.req.param("runId"),
+        {
+          page: c.req.valid("query").page,
+          signal: c.req.raw.signal,
+        },
+      );
       if (detail === undefined) return apiError(c, 404, "not_found", "Evaluation run not found");
       if (detail.run.datasetName === null || detail.run.datasetVersion === null) {
         return c.json(detail);
       }
-      const dataset = await getPublishedManagedDataset(
+      const caseIds = [
+        ...new Set(detail.cases.flatMap((item) => (item.caseId === null ? [] : [item.caseId]))),
+      ];
+      if (caseIds.length === 0) return c.json(detail);
+      const datasetItems = await getPublishedManagedDatasetCases(
         deps.postgres.db,
         projectId,
         detail.run.datasetName,
         detail.run.datasetVersion,
+        caseIds,
       );
-      if (dataset === undefined) return c.json(detail);
-      const items = new Map(dataset.items.map((item) => [item.id, item]));
+      const items = new Map(datasetItems.map((item) => [item.id, item]));
       return c.json({
         ...detail,
         cases: detail.cases.map((item) => ({

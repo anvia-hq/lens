@@ -173,6 +173,7 @@ export type EvaluationCompareSearch = {
 
 export type EvaluationRunDetailSearch = {
   case?: string;
+  page?: number;
 };
 
 export type EvaluationDatasetsSearch = {

@@ -1,7 +1,7 @@
 import type { Page as PaginatedPage, UserSummary } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, UsersSearch } from "../types";
 import { refreshMilliseconds, timeRangeForUserRange } from "../utils";
@@ -13,7 +13,6 @@ export function useUsers() {
   const filters = useSearch({ strict: false }) as UsersSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("30s");
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
-  const range = useMemo(() => timeRangeForUserRange(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<UsersSearch>, resetPage = true) => {
       void navigate({
@@ -41,7 +40,7 @@ export function useUsers() {
     queryFn: () =>
       api<PaginatedPage<UserSummary>>(
         `/api/v1/projects/${project.id}/users?${queryString({
-          ...range,
+          ...timeRangeForUserRange(filters.range),
           search: filters.search,
           page: filters.page,
           pageSize: filters.pageSize,

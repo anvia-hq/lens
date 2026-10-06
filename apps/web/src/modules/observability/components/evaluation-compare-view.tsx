@@ -174,6 +174,12 @@ function ComparisonResults(props: {
       {comparison.gate ? <GateVerdict evaluation={comparison.gate} /> : null}
 
       <MetricComparisonTable metrics={comparison.metrics} />
+      {comparison.caseChangesTruncated ? (
+        <p className="text-sm text-muted-foreground">
+          Showing the first {comparison.caseChanges.length} changed case/metric pairs. Counts
+          include all changes.
+        </p>
+      ) : null}
       <CaseChanges
         changes={comparison.caseChanges}
         counts={comparison.caseChangeCounts}

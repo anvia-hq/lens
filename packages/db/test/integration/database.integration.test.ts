@@ -7,12 +7,14 @@ import type {
   QualityGateInput,
 } from "@lens/contracts";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   archiveManagedDataset,
   archivePrompt,
   claimJobOutbox,
   compareEvaluationRuns,
+  compareEvaluationRunAggregates,
+  listRunResults,
   completeJobOutbox,
   createAlertChannel,
   createAlertRule,
@@ -40,6 +42,7 @@ import {
   getPrompt,
   getPromptDeployment,
   getPublishedManagedDataset,
+  getPublishedManagedDatasetCases,
   getQualityGate,
   getSpan,
   getTrace,
@@ -62,6 +65,8 @@ import {
   listTraces,
   loadDeliveryForDispatch,
   managedDataset,
+  managedDatasetCase,
+  managedDatasetVersion,
   materializeTrace,
   openAlertIncident,
   organization,
@@ -80,6 +85,7 @@ import {
   upsertManagedDatasetCase,
   user,
 } from "../../src/index.js";
+import { compareCases } from "../../src/evaluation-comparison.js";
 import { runMigrations } from "../../src/migration-runner.js";
 
 const projectId = "10000000-0000-4000-8000-000000000001";
@@ -517,6 +523,7 @@ describe.sequential("database integration", () => {
           measure: "pass_rate",
           operator: "gte",
           value: 0.9,
+          evidence: { minimumValidCases: 10, maxInvalidRate: 0, maxUnknownRate: 0.05 },
         },
       ],
     };
@@ -610,6 +617,127 @@ describe.sequential("database integration", () => {
     );
     expect(seeded).toMatchObject({ draft: { caseCount: 1 } });
     await postgres.db.delete(managedDataset).where(eq(managedDataset.id, seeded.id));
+  });
+
+  it("hydrates only requested published dataset cases with project, name, and version isolation", async () => {
+    const otherProject = crypto.randomUUID();
+    const name = `bounded-hydration-${crypto.randomUUID()}`;
+    const datasetIds: string[] = [];
+    await postgres.db.insert(project).values({
+      id: otherProject,
+      organizationId: "integration-org",
+      name: "Other hydration",
+      slug: otherProject,
+    });
+    try {
+      for (const [owner, datasetName, versions] of [
+        [
+          projectId,
+          name,
+          [
+            ["V1", "published", 150],
+            ["V2", "published", 1],
+            ["draft", "draft", 1],
+          ],
+        ],
+        [otherProject, name, [["V1", "published", 1]]],
+        [projectId, `${name}-other`, [["V1", "published", 1]]],
+      ] as const) {
+        const datasetId = crypto.randomUUID();
+        datasetIds.push(datasetId);
+        await postgres.db.insert(managedDataset).values({
+          id: datasetId,
+          projectId: owner,
+          name: datasetName,
+          createdBy: "integration-user",
+        });
+        for (const [version, status, count] of versions) {
+          const versionId = crypto.randomUUID();
+          await postgres.db.insert(managedDatasetVersion).values({
+            id: versionId,
+            datasetId,
+            version,
+            status,
+            createdBy: "integration-user",
+            publishedAt: status === "published" ? new Date() : null,
+          });
+          await postgres.db.insert(managedDatasetCase).values(
+            Array.from({ length: count }, (_, index) => ({
+              versionId,
+              caseId: `case-${index}`,
+              position: index,
+              item: {
+                id: `case-${index}`,
+                input: `${owner}/${datasetName}/${version}/${index}`,
+                expected: "x".repeat(2048),
+              },
+            })),
+          );
+        }
+      }
+      const items = await getPublishedManagedDatasetCases(
+        postgres.db,
+        projectId,
+        name.toUpperCase(),
+        "v1",
+        ["case-149", "case-0", "case-0", "absent"],
+      );
+      expect(items.map((item) => item.id).sort()).toEqual(["case-0", "case-149"]);
+      expect(items.every((item) => String(item.input).startsWith(`${projectId}/${name}/V1/`))).toBe(
+        true,
+      );
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "V2", [
+          "case-0",
+          "case-149",
+        ]),
+      ).toMatchObject([{ id: "case-0", input: `${projectId}/${name}/V2/0` }]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "draft", ["case-0"]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, crypto.randomUUID(), name, "v1", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, "missing-dataset", "v1", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "missing-version", [
+          "case-0",
+        ]),
+      ).toEqual([]);
+      const ids = Array.from({ length: 100 }, (_, index) => `case-${index}`);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", [...ids, ...ids]),
+      ).toHaveLength(100);
+      await expect(
+        getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", [...ids, "case-100"]),
+      ).rejects.toThrow("limited to 100");
+      const select = vi.spyOn(postgres.db, "select");
+      try {
+        expect(
+          await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", []),
+        ).toEqual([]);
+        expect(select).not.toHaveBeenCalled();
+      } finally {
+        select.mockRestore();
+      }
+      expect(
+        (await getPublishedManagedDataset(postgres.db, projectId, name, "v1"))?.items,
+      ).toHaveLength(150);
+      await archiveManagedDataset(postgres.db, projectId, datasetIds[0]!);
+      expect(
+        await getPublishedManagedDatasetCases(postgres.db, projectId, name, "v1", ["case-0"]),
+      ).toEqual([]);
+    } finally {
+      for (const datasetId of datasetIds)
+        await postgres.db.delete(managedDataset).where(eq(managedDataset.id, datasetId));
+      await postgres.db.delete(project).where(eq(project.id, otherProject));
+    }
   });
 
   it("inserts, materializes, queries, and deletes telemetry", async () => {
@@ -785,6 +913,208 @@ describe.sequential("database integration", () => {
       selectedVersion: { version: "v1", status: "complete" },
       cases: [{ caseId: "case-1", conflict: false }],
     });
+  });
+
+  it("aggregates distinct usable metric cases and excludes unusable scores without loading cases", async () => {
+    const isolatedProject = crypto.randomUUID();
+    await insertEvaluationRuns(
+      clickhouse,
+      ["evidence-candidate", "evidence-baseline"].map((id) => ({
+        ...evaluationRun(),
+        id,
+        projectId: isolatedProject,
+      })),
+    );
+    const judgments: Array<Partial<EvaluationResult>> = [
+      { caseId: "duplicate", outcome: "pass", numericValue: 1 },
+      { caseId: "duplicate", outcome: "pass", numericValue: 1 },
+      { caseId: "negative-control", outcome: "fail", numericValue: 0 },
+      { caseId: "categorical", outcome: "pass", numericValue: null },
+      { caseId: "invalid", outcome: "invalid", numericValue: 100 },
+      { caseId: "unknown", outcome: "unknown", numericValue: 200 },
+      { caseId: null, outcome: "pass", numericValue: 0 },
+      { caseId: "other", metricName: "other-metric", outcome: "pass", numericValue: 1 },
+    ];
+    await insertEvaluations(
+      clickhouse,
+      judgments.map((judgment, index) => ({
+        ...evaluationResult(),
+        ...judgment,
+        id: `evidence-${index}`,
+        projectId: isolatedProject,
+        runId: "evidence-candidate",
+      })),
+    );
+    const comparison = await compareEvaluationRunAggregates(
+      clickhouse,
+      isolatedProject,
+      "evidence-candidate",
+      "evidence-baseline",
+    );
+    expect(
+      comparison?.metrics.find((metric) => metric.metricName === "quality")?.candidate,
+    ).toMatchObject({
+      results: 7,
+      passed: 4,
+      failed: 1,
+      invalid: 1,
+      unknown: 1,
+      validCaseCount: 3,
+      validScoreCaseCount: 2,
+      averageValidScore: 0.5,
+    });
+    expect(
+      comparison?.metrics.find((metric) => metric.metricName === "other-metric")?.candidate
+        ?.validCaseCount,
+    ).toBe(1);
+  });
+
+  it("compares exact case changes without payload reads and pages run inspection", async () => {
+    const isolatedProject = crypto.randomUUID();
+    const candidateRunId = "bounded-candidate";
+    const baselineRunId = "bounded-baseline";
+    await insertEvaluationRuns(
+      clickhouse,
+      [candidateRunId, baselineRunId].map((id) => ({
+        ...evaluationRun(),
+        projectId: isolatedProject,
+        id,
+      })),
+    );
+    const fixtures: EvaluationResult[] = [];
+    const outcomes = ["pass", "fail", "invalid", "unknown"] as const;
+    for (const candidateOutcome of outcomes) {
+      for (const baselineOutcome of outcomes) {
+        for (const [runId, outcome] of [
+          [candidateRunId, candidateOutcome],
+          [baselineRunId, baselineOutcome],
+        ] as const) {
+          const caseId = `${candidateOutcome}-${baselineOutcome}`;
+          fixtures.push({
+            ...evaluationResult(),
+            projectId: isolatedProject,
+            id: `${runId}-${caseId}`,
+            runId,
+            caseId,
+            outcome,
+          });
+        }
+      }
+    }
+    fixtures.push(
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "new-failure",
+        runId: candidateRunId,
+        caseId: "new",
+        outcome: "invalid",
+        numericValue: null,
+        categoricalValue: "bad",
+        traceId: null,
+      },
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "removed",
+        runId: baselineRunId,
+        caseId: "removed",
+        outcome: "unknown",
+      },
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "null-case",
+        runId: candidateRunId,
+        caseId: null,
+        outcome: "fail",
+      },
+      // Duplicate key: preserve the old reader's oldest timestamp, greatest ID tie-break.
+      {
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: "zz-duplicate",
+        runId: candidateRunId,
+        caseId: "pass-pass",
+        outcome: "fail",
+      },
+    );
+    await insertEvaluations(clickhouse, fixtures);
+    const expected = compareCases(
+      await listRunResults(clickhouse, isolatedProject, candidateRunId),
+      await listRunResults(clickhouse, isolatedProject, baselineRunId),
+    );
+    const first = await compareEvaluationRuns(
+      clickhouse,
+      isolatedProject,
+      candidateRunId,
+      baselineRunId,
+    );
+    expect(first?.caseChanges).toEqual(expected);
+    expect(first?.caseChangesTruncated).toBe(false);
+    const query = vi.spyOn(clickhouse, "query");
+    try {
+      const aggregate = await compareEvaluationRunAggregates(
+        clickhouse,
+        isolatedProject,
+        candidateRunId,
+        baselineRunId,
+      );
+      expect(aggregate).not.toHaveProperty("caseChanges");
+      expect(aggregate?.metrics).toEqual(first?.metrics);
+      expect(query).toHaveBeenCalledTimes(8);
+      expect(
+        query.mock.calls.every(
+          ([args]) => !args.query.includes("payload") && !args.query.includes("per_run AS"),
+        ),
+      ).toBe(true);
+      query.mockClear();
+      const detail = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId);
+      expect(query).toHaveBeenCalledTimes(5);
+      expect(
+        query.mock.calls.filter(([args]) => args.query.includes("count() AS total")),
+      ).toHaveLength(0);
+      expect(detail?.resultsPage?.pageCount).toBe(1);
+    } finally {
+      query.mockRestore();
+    }
+    await insertEvaluations(
+      clickhouse,
+      Array.from({ length: 250 }, (_, index) => ({
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: `extra-${index}`,
+        runId: candidateRunId,
+        caseId: `extra-${index}`,
+        outcome: "fail" as const,
+      })),
+    );
+    const comparison = await compareEvaluationRuns(
+      clickhouse,
+      isolatedProject,
+      candidateRunId,
+      baselineRunId,
+    );
+    expect(comparison?.caseChangeCounts.new_failure).toBe(252);
+    expect(comparison?.caseChanges).toHaveLength(100);
+    expect(comparison?.caseChangesTruncated).toBe(true);
+    const page1 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId);
+    const page2 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId, {
+      page: 2,
+    });
+    const page3 = await getEvaluationRunDetail(clickhouse, isolatedProject, candidateRunId, {
+      page: 3,
+    });
+    expect(page1?.run.results).toBe(269);
+    expect(page1?.resultsPage).toEqual({ page: 1, pageSize: 100, total: 269, pageCount: 3 });
+    expect(page1?.results).toHaveLength(100);
+    expect(page2?.results).toHaveLength(100);
+    expect(page3?.results).toHaveLength(69);
+    expect(
+      new Set([...page1!.results, ...page2!.results, ...page3!.results].map((item) => item.id))
+        .size,
+    ).toBe(269);
+    await deleteProjectTelemetry(clickhouse, isolatedProject);
   });
 
   it("warns only when compared runs differ in dataset or prompt identity", async () => {

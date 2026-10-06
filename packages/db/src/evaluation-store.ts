@@ -1,3 +1,4 @@
+import { readCancellation } from "./read-cancellation.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type {
   EvaluationFacets,
@@ -92,6 +93,9 @@ export async function listEvaluations(
     sort?: EvaluationSortField;
     order?: "asc" | "desc";
     includePayloads?: boolean;
+    signal?: AbortSignal;
+    /** Reuse the run summary count when reading run detail. */
+    total?: number;
   },
 ): Promise<Page<EvaluationResult>> {
   const page = Math.max(1, Math.trunc(options.page ?? 1));
@@ -107,6 +111,7 @@ export async function listEvaluations(
       : "payload, payload_status, metadata";
   const [rowsResult, countResult] = await Promise.all([
     client.query({
+      ...readCancellation(options.signal),
       query: `SELECT project_id, id, run_id, timestamp, trace_id, observation_id, response_id,
                      suite_name, case_id, metric_name, outcome, data_type, numeric_value,
                      categorical_value, explanation, ${payloadColumns}, config_id, service_name,
@@ -119,16 +124,19 @@ export async function listEvaluations(
       query_params: { ...where.params, pageSize, offset },
       format: "JSONEachRow",
     }),
-    client.query({
-      query: `SELECT count() AS total FROM evaluation_results FINAL
+    options.total === undefined
+      ? client.query({
+          ...readCancellation(options.signal),
+          query: `SELECT count() AS total FROM evaluation_results FINAL
               WHERE ${where.filters.join(" AND ")}`,
-      query_params: where.params,
-      format: "JSONEachRow",
-    }),
+          query_params: where.params,
+          format: "JSONEachRow",
+        })
+      : Promise.resolve(undefined),
   ]);
   const rows = await rowsResult.json<EvaluationRow>();
-  const counts = await countResult.json<{ total: number | string }>();
-  const total = numberValue(counts[0]?.total);
+  const counts = await countResult?.json<{ total: number | string }>();
+  const total = options.total ?? numberValue(counts?.[0]?.total);
   return {
     items: rows.map(evaluationFromRow),
     total,

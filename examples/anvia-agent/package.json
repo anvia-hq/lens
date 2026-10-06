@@ -17,14 +17,15 @@
     "release:01": "tsx -r dotenv/config 04_release/01-compare-and-gate.ts dotenv_config_path=.env",
     "build": "tsup 01_basics/*.ts 02_tools/*.ts 03_evaluations/*.ts 04_release/*.ts --format esm --clean",
     "start": "pnpm basics:01",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@anvia/core": "^0.24.0",
-    "@anvia/lens": "^0.4.0",
-    "@anvia/openai": "^0.5.0",
+    "@anvia/core": "1.6.1",
+    "@anvia/lens": "1.2.1",
+    "@anvia/openai": "1.1.8",
     "dotenv": "^17.4.2",
-    "zod": "catalog:"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

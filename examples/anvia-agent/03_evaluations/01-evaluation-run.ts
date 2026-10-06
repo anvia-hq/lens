@@ -1,7 +1,7 @@
-import { AgentBuilder } from "@anvia/core/agent";
+import { Agent } from "@anvia/core/agent";
 import { agentEvalTarget, contains, runEvalSuite } from "@anvia/core/evals";
-import type { PromptResponse } from "@anvia/core/request";
-import { createLensEvalReporter, lens } from "@anvia/lens";
+import type { AgentResponse } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
 import { createLiveModel } from "../_shared/model";
 
 const cases = [
@@ -23,23 +23,27 @@ const cases = [
 ];
 
 const model = createLiveModel();
-const tracing = lens.create({ captureMode: "full" });
-const reporter = createLensEvalReporter<string, PromptResponse, string>(tracing, {
+const tracing = new LensClient();
+const reporter = tracing.evalReporter<string, AgentResponse, string>({
   includeMetadata: true,
+  includePayloads: true,
   onMissingTrace: "throw",
 });
-const agent = new AgentBuilder("support-policy-agent", model)
-  .name("Support Policy Agent")
-  .instructions(
-    [
-      "Answer with only the relevant policy fact.",
-      "Refunds are available for 30 days.",
-      "Workspace owners can change billing settings.",
-      "Exported reports are retained for 7 days.",
-    ].join("\n"),
-  )
-  .observe(tracing)
-  .build();
+const agent = new Agent({
+  id: "support-policy-agent",
+  model,
+  name: "Support Policy Agent",
+  instructions: [
+    "Answer with only the relevant policy fact.",
+    "Refunds are available for 30 days.",
+    "Workspace owners can change billing settings.",
+    "Exported reports are retained for 7 days.",
+  ].join("\n"),
+  observability: {
+    observers: { lens: tracing.observer({ captureMode: "full" }) },
+    primaryTrace: "lens",
+  },
+});
 
 try {
   const suite = await runEvalSuite({
@@ -50,15 +54,15 @@ try {
       metadata: { example: "evaluation-run", synthetic: true },
     },
     cases,
-    target: agentEvalTarget<string>(agent),
+    target: agentEvalTarget<string>({ agent, request: ({ input }) => ({ prompt: input }) }),
     metrics: [
-      contains<string, PromptResponse, string>({
+      contains<string, AgentResponse, string>({
         name: "policy-fact-present",
         actual: ({ output }) => output.output,
       }),
     ],
     reporters: [reporter],
-    failOnReporterError: true,
+    reporterErrorPolicy: "throw",
   });
   await tracing.flush();
 
@@ -70,7 +74,11 @@ try {
     })),
   );
   console.log("run:", suite.run.id);
-  console.log({ passed: suite.passed, failed: suite.failed, invalid: suite.invalid });
+  console.log({
+    passed: suite.cases.passed,
+    failed: suite.cases.failed,
+    invalid: suite.cases.invalid,
+  });
 } finally {
-  await tracing.shutdown();
+  await tracing.close();
 }

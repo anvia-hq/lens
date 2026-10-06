@@ -33,6 +33,7 @@ export const createPublicQualityGatesRouter = (deps: ApiDependencies) =>
         key.project.id,
         input,
         c.req.param("gateId"),
+        { includeCases: false, signal: c.req.raw.signal },
       );
       if (!checked.ok) {
         return apiError(c, checked.error.status, checked.error.code, checked.error.message);

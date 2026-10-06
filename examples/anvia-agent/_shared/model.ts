@@ -10,11 +10,13 @@ export function createLiveModel(): CompletionModel {
   const baseUrl = optionalEnvironment("OPENAI_BASEURL") ?? optionalEnvironment("OPENAI_BASE_URL");
   const client = new OpenAIClient({
     apiKey: requiredEnvironment("OPENAI_API_KEY"),
-    completionApi,
     ...(baseUrl === undefined ? {} : { baseUrl }),
   });
 
-  return client.completionModel(requiredEnvironment("OPENAI_MODEL"));
+  return client.completionModel({
+    modelId: requiredEnvironment("OPENAI_MODEL"),
+    api: completionApi,
+  });
 }
 
 function requiredEnvironment(name: string): string {

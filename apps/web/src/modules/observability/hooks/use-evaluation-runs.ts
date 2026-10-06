@@ -7,7 +7,7 @@ import type {
 } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { EvaluationRunsSearch, RefreshInterval, ResolvedEvaluationRunsSearch } from "../types";
 import { evaluationRunActiveFilterCount, refreshMilliseconds, timeRangeForPreset } from "../utils";
@@ -25,7 +25,6 @@ export function useEvaluationRuns() {
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedRuns, setSelectedRuns] = useState<EvaluationRunSummary[]>([]);
   const deletions = useDataDeletions(project.id, "evaluation_run");
-  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<EvaluationRunsSearch>, resetPage = true) => {
       void navigate({
@@ -48,7 +47,6 @@ export function useEvaluationRuns() {
   }, [filters.search, searchDraft, setFilters]);
 
   const requestFilters = {
-    ...range,
     suite: filters.suites,
     status: filters.statuses,
     environment: filters.environments,
@@ -61,6 +59,7 @@ export function useEvaluationRuns() {
       api<Page<EvaluationRunSummary>>(
         `/api/v1/projects/${project.id}/evaluation-runs?${queryString({
           ...requestFilters,
+          ...timeRangeForPreset(filters.range),
           page: filters.page,
           pageSize: filters.pageSize,
           sort: filters.sort,
@@ -70,10 +69,13 @@ export function useEvaluationRuns() {
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
-    queryKey: ["evaluation-run-facets", project.id, requestFilters],
+    queryKey: ["evaluation-run-facets", project.id, filters.range, requestFilters],
     queryFn: () =>
       api<EvaluationRunFacets>(
-        `/api/v1/projects/${project.id}/evaluation-runs/facets?${queryString(requestFilters)}`,
+        `/api/v1/projects/${project.id}/evaluation-runs/facets?${queryString({
+          ...requestFilters,
+          ...timeRangeForPreset(filters.range),
+        })}`,
       ),
     placeholderData: (previous) => previous,
     refetchInterval: refreshMilliseconds(refreshInterval),
@@ -172,11 +174,23 @@ export function useEvaluationRunDetail(runId: string) {
   const search = useSearch({ from: "/$projectId/evaluations/runs/$runId" });
   const navigate = useNavigate();
   const deletions = useDataDeletions(project.id, "evaluation_run");
+  const resultPage = search.page ?? 1;
+  const setResultPage = useCallback(
+    (page: number) => {
+      void navigate({
+        to: "/$projectId/evaluations/runs/$runId",
+        params: { projectId: project.id, runId },
+        search: { page, case: undefined },
+      });
+    },
+    [navigate, project.id, runId],
+  );
   const detail = useQuery({
-    queryKey: ["evaluation-run", project.id, runId],
-    queryFn: () =>
+    queryKey: ["evaluation-run", project.id, runId, resultPage],
+    queryFn: ({ signal }) =>
       api<EvaluationRunDetail>(
-        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(runId)}`,
+        `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(runId)}?page=${resultPage}`,
+        { signal },
       ),
     refetchInterval: 5_000,
   });
@@ -185,10 +199,10 @@ export function useEvaluationRunDetail(runId: string) {
       void navigate({
         to: "/$projectId/evaluations/runs/$runId",
         params: { projectId: project.id, runId },
-        search: { case: caseId ?? undefined },
+        search: { ...search, case: caseId ?? undefined },
       });
     },
-    [navigate, project.id, runId],
+    [navigate, project.id, runId, search],
   );
   const deleteRun = () =>
     deletions.create.mutate([runId], {
@@ -200,6 +214,8 @@ export function useEvaluationRunDetail(runId: string) {
         }),
     });
   return {
+    resultPage,
+    setResultPage,
     deleteRun,
     deletionPending: deletions.create.isPending,
     detail,

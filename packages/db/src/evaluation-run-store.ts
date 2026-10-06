@@ -1,9 +1,11 @@
+import { readCancellation } from "./read-cancellation.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type {
   EvaluationMetricBreakdown,
   EvaluationResult,
   EvaluationRun,
   EvaluationRunComparison,
+  EvaluationRunAggregateComparison,
   EvaluationRunDetail,
   EvaluationRunFacets,
   EvaluationRunFilters,
@@ -11,12 +13,8 @@ import type {
   EvaluationRunSummary,
   Page,
 } from "@lens/contracts";
-import {
-  compareCases,
-  compareMetrics,
-  comparisonValue,
-  groupRunCases,
-} from "./evaluation-comparison.js";
+import { compareMetrics, comparisonValue, groupRunCases } from "./evaluation-comparison.js";
+import { queryCaseChanges } from "./evaluation-case-query.js";
 import { listEvaluations } from "./evaluation-store.js";
 
 type RunRow = {
@@ -238,8 +236,10 @@ export async function getEvaluationRun(
   client: ClickHouseClient,
   projectId: string,
   runId: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<EvaluationRunSummary | undefined> {
   const result = await client.query({
+    ...readCancellation(options.signal),
     query: `SELECT * FROM evaluation_runs FINAL
             WHERE project_id = {projectId:UUID} AND id = {runId:String} LIMIT 1`,
     query_params: { projectId, runId },
@@ -248,7 +248,7 @@ export async function getEvaluationRun(
   const rows = await result.json<RunRow>();
   const run = rows[0];
   if (run === undefined) return undefined;
-  return (await hydrateRunSummaries(client, projectId, [runFromRow(run)]))[0];
+  return (await hydrateRunSummaries(client, projectId, [runFromRow(run)], options))[0];
 }
 
 export async function listEvaluationRunsForDataset(
@@ -282,14 +282,16 @@ export async function getEvaluationRunDetail(
   client: ClickHouseClient,
   projectId: string,
   runId: string,
+  options: { page?: number; signal?: AbortSignal } = {},
 ): Promise<EvaluationRunDetail | undefined> {
-  const run = await getEvaluationRun(client, projectId, runId);
+  const run = await getEvaluationRun(client, projectId, runId, options);
   if (run === undefined) return undefined;
   const [metrics, results] = await Promise.all([
-    queryRunMetrics(client, projectId, runId),
-    listRunResults(client, projectId, runId),
+    queryRunMetrics(client, projectId, runId, options),
+    listRunResultPage(client, projectId, runId, { ...options, total: run.results }),
   ]);
-  return { run, metrics, results, cases: groupRunCases(results) };
+  const { items, ...resultsPage } = results;
+  return { run, metrics, results: items, cases: groupRunCases(items), resultsPage };
 }
 
 export async function compareEvaluationRuns(
@@ -297,20 +299,40 @@ export async function compareEvaluationRuns(
   projectId: string,
   candidateRunId: string,
   baselineRunId: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<Omit<EvaluationRunComparison, "gate"> | undefined> {
+  const aggregate = await compareEvaluationRunAggregates(
+    client,
+    projectId,
+    candidateRunId,
+    baselineRunId,
+    options,
+  );
+  if (aggregate === undefined) return undefined;
+  return {
+    ...aggregate,
+    ...(await queryCaseChanges(client, projectId, candidateRunId, baselineRunId, options)),
+  };
+}
+
+/** Quality gates require summaries and metrics, never individual case rows or payloads. */
+export async function compareEvaluationRunAggregates(
+  client: ClickHouseClient,
+  projectId: string,
+  candidateRunId: string,
+  baselineRunId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<EvaluationRunAggregateComparison | undefined> {
   const [candidate, baseline] = await Promise.all([
-    getEvaluationRun(client, projectId, candidateRunId),
-    getEvaluationRun(client, projectId, baselineRunId),
+    getEvaluationRun(client, projectId, candidateRunId, options),
+    getEvaluationRun(client, projectId, baselineRunId, options),
   ]);
   if (candidate === undefined || baseline === undefined) return undefined;
-  const [candidateMetrics, baselineMetrics, candidateResults, baselineResults] = await Promise.all([
-    queryRunMetrics(client, projectId, candidateRunId),
-    queryRunMetrics(client, projectId, baselineRunId),
-    listRunResults(client, projectId, candidateRunId),
-    listRunResults(client, projectId, baselineRunId),
+  const [candidateMetrics, baselineMetrics] = await Promise.all([
+    queryRunMetrics(client, projectId, candidateRunId, options),
+    queryRunMetrics(client, projectId, baselineRunId, options),
   ]);
   const metrics = compareMetrics(candidateMetrics, baselineMetrics);
-  const caseChanges = compareCases(candidateResults, baselineResults);
   const warnings: string[] = [];
   if (candidate.datasetName !== baseline.datasetName) warnings.push("Runs use different datasets");
   if (candidate.datasetVersion !== baseline.datasetVersion) {
@@ -330,13 +352,6 @@ export async function compareEvaluationRuns(
     p95LatencyMs: comparisonValue(candidate.p95LatencyMs, baseline.p95LatencyMs),
     averageTotalTokens: comparisonValue(candidate.averageTotalTokens, baseline.averageTotalTokens),
     metrics,
-    caseChanges: caseChanges.slice(0, 100),
-    caseChangeCounts: {
-      regressed: caseChanges.filter((item) => item.classification === "regressed").length,
-      improved: caseChanges.filter((item) => item.classification === "improved").length,
-      new_failure: caseChanges.filter((item) => item.classification === "new_failure").length,
-      removed: caseChanges.filter((item) => item.classification === "removed").length,
-    },
     warnings,
   };
 }
@@ -345,11 +360,13 @@ async function hydrateRunSummaries(
   client: ClickHouseClient,
   projectId: string,
   runs: EvaluationRun[],
+  options: { signal?: AbortSignal } = {},
 ): Promise<EvaluationRunSummary[]> {
   if (runs.length === 0) return [];
   const runIds = runs.map((run) => run.id);
   const [aggregateResult, operationalResult] = await Promise.all([
     client.query({
+      ...readCancellation(options.signal),
       query: `SELECT run_id, count() AS results,
                      countIf(outcome = 'pass') AS passed,
                      countIf(outcome = 'fail') AS failed,
@@ -364,6 +381,7 @@ async function hydrateRunSummaries(
       format: "JSONEachRow",
     }),
     client.query({
+      ...readCancellation(options.signal),
       query: `SELECT traces.run_id,
                      count() AS expected_traces,
                      countIf(summaries.trace_id IS NOT NULL) AS found_traces,
@@ -414,14 +432,22 @@ async function queryRunMetrics(
   client: ClickHouseClient,
   projectId: string,
   runId: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<EvaluationMetricBreakdown[]> {
   const result = await client.query({
+    ...readCancellation(options.signal),
     query: `SELECT metric_name, count() AS results,
                    countIf(outcome = 'pass') AS passed,
                    countIf(outcome = 'fail') AS failed,
                    countIf(outcome = 'invalid') AS invalid,
                    countIf(outcome = 'unknown') AS unknown,
-                   avgOrNull(numeric_value) AS average_numeric_value
+                   avgOrNull(numeric_value) AS average_numeric_value,
+                   uniqExactIf(ifNull(case_id, ''), case_id IS NOT NULL AND case_id != ''
+                     AND outcome IN ('pass', 'fail')) AS valid_case_count,
+                   uniqExactIf(ifNull(case_id, ''), case_id IS NOT NULL AND case_id != ''
+                     AND outcome IN ('pass', 'fail') AND isFinite(numeric_value)) AS valid_score_case_count,
+                   avgOrNullIf(numeric_value, outcome IN ('pass', 'fail')
+                     AND isFinite(numeric_value)) AS average_valid_score
             FROM evaluation_results FINAL
             WHERE project_id = {projectId:UUID} AND run_id = {runId:String}
             GROUP BY metric_name ORDER BY metric_name ASC`,
@@ -441,23 +467,36 @@ async function queryRunMetrics(
       unknown: numeric(row.unknown),
       passRate: passed + failed === 0 ? 0 : passed / (passed + failed),
       averageNumericValue: nullableNumber(row.average_numeric_value),
+      validCaseCount: numeric(row.valid_case_count),
+      validScoreCaseCount: numeric(row.valid_score_case_count),
+      averageValidScore: nullableNumber(row.average_valid_score),
     };
   });
 }
 
+/** Read one bounded inspection page; callers must explicitly request subsequent pages. */
+export async function listRunResultPage(
+  client: ClickHouseClient,
+  projectId: string,
+  runId: string,
+  options: { page?: number; total?: number; signal?: AbortSignal } = {},
+): Promise<Page<EvaluationResult>> {
+  return listEvaluations(client, projectId, { runIds: [runId], pageSize: 100, ...options });
+}
+
+/** Dataset snapshot analysis still needs all results; serialize pages and count only once. */
 export async function listRunResults(
   client: ClickHouseClient,
   projectId: string,
   runId: string,
 ): Promise<EvaluationResult[]> {
-  const page = await listEvaluations(client, projectId, { runIds: [runId], pageSize: 100 });
-  if (page.total <= page.items.length) return page.items;
-  const pages = await Promise.all(
-    Array.from({ length: Math.ceil(page.total / 100) - 1 }, (_, index) =>
-      listEvaluations(client, projectId, { runIds: [runId], page: index + 2, pageSize: 100 }),
-    ),
-  );
-  return [...page.items, ...pages.flatMap((item) => item.items)];
+  const first = await listRunResultPage(client, projectId, runId);
+  const results = [...first.items];
+  for (let page = 2; page <= first.pageCount; page += 1) {
+    const next = await listRunResultPage(client, projectId, runId, { page, total: first.total });
+    results.push(...next.items);
+  }
+  return results;
 }
 
 function runWhere(

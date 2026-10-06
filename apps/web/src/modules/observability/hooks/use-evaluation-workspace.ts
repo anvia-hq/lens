@@ -64,9 +64,10 @@ export function useEvaluationCompare() {
       filters.baselineRunId,
       filters.gateId,
     ],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<EvaluationRunComparison>(
         `/api/v1/projects/${project.id}/evaluation-runs/compare?${queryString(filters)}`,
+        { signal },
       ),
     enabled: Boolean(filters.candidateRunId && filters.baselineRunId),
   });

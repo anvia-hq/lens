@@ -5,19 +5,40 @@ const composeFile = "docker-compose.test.yml";
 const project = `lens-package-tests-${process.pid}`;
 const compose = ["compose", "-f", composeFile, "-p", project];
 const coverage = process.argv.includes("--coverage");
+const runningCommands = new Map();
+let interrupted = false;
+let interruption;
 
 function run(command, args, options = {}) {
+  if (interrupted && !options.duringCleanup) {
+    return Promise.reject(new Error("Integration tests interrupted"));
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       env: options.env ?? process.env,
-      stdio: options.capture ? ["ignore", "pipe", "inherit"] : "inherit",
+      detached: process.platform !== "win32",
+      // Own the output pipes so 'close' waits for pnpm's descendants as well as its parent.
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    if (!options.duringCleanup) {
+      runningCommands.set(
+        child,
+        new Promise((settled) => {
+          child.once("close", () => {
+            runningCommands.delete(child);
+            settled();
+          });
+        }),
+      );
+    }
     let stdout = "";
     child.stdout?.on("data", (chunk) => {
-      stdout += chunk;
+      if (options.capture) stdout += chunk;
+      else process.stdout.write(chunk);
     });
+    child.stderr.on("data", (chunk) => process.stderr.write(chunk));
     child.once("error", reject);
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       if (code === 0) resolve(stdout.trim());
       else reject(new Error(`${command} exited with ${code ?? signal}`));
     });
@@ -30,6 +51,7 @@ async function retry(operation, attempts = 5) {
     try {
       return await operation();
     } catch (error) {
+      if (interrupted) throw error;
       lastError = error;
       if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1_000));
     }
@@ -46,19 +68,60 @@ async function publishedPort(service, containerPort) {
   return match[1];
 }
 
-let stopping = false;
-async function down() {
-  if (stopping) return;
-  stopping = true;
-  await run("docker", [...compose, "down", "--volumes", "--remove-orphans"]).catch(() => {});
+async function settleCommands(timeout) {
+  let timer;
+  try {
+    await Promise.race([
+      Promise.all(runningCommands.values()),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, timeout);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function stopCommands() {
+  // Finish in-flight Compose requests before removing resources they could still create.
+  await settleCommands(5_000);
+  for (const signal of ["SIGTERM", "SIGKILL"]) {
+    for (const child of runningCommands.keys()) {
+      try {
+        if (process.platform === "win32") child.kill(signal);
+        else process.kill(-child.pid, signal);
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+    }
+    if (signal === "SIGTERM") await settleCommands(2_000);
+  }
+  // Descendants may hold stdio open after the pnpm/Compose parent exits.
+  await Promise.all(runningCommands.values());
+}
+
+let cleanup;
+function down() {
+  cleanup ??= run("docker", [...compose, "down", "--volumes", "--remove-orphans"], {
+    duringCleanup: true,
+  });
+  return cleanup;
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.once(signal, () => {
-    void down().finally(() => process.exit(128 + (signal === "SIGINT" ? 2 : 15)));
+  process.on(signal, () => {
+    if (interrupted) return;
+    interrupted = true;
+    interruption = (async () => {
+      await stopCommands();
+      await down();
+    })()
+      .catch((error) => console.error("Integration test cleanup failed:", error))
+      .finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
   });
 }
 
+let failure;
 try {
   await run("docker", [...compose, "up", "--detach", "--wait"]);
   const [postgresPort, clickhousePort, redisPort] = await Promise.all([
@@ -84,6 +147,9 @@ try {
     await run("pnpm", ["--filter", "@lens/db", "--filter", "@lens/queue", "test:coverage"], {
       env,
     });
+    // Run the full API suite once so unit and integration tests contribute to the same report.
+    // Keep it sequential: OIDC fixtures truncate tables also used by the DB integration suite.
+    await run("pnpm", ["--filter", "@lens/api", "test:coverage", "--reporter=verbose"], { env });
   } else {
     await run("pnpm", ["--filter", "@lens/db", "exec", "vitest", "run", "test/integration"], {
       env,
@@ -95,6 +161,20 @@ try {
       env,
     });
   }
+  await run("pnpm", ["--filter", "@lens/worker", "exec", "vitest", "run", "test/integration"], {
+    env,
+  });
+} catch (error) {
+  failure = error;
 } finally {
-  await down();
+  if (interruption) await interruption;
+  try {
+    await stopCommands();
+    await down();
+  } catch (error) {
+    // Preserve the test failure while still making teardown errors visible.
+    if (failure) console.error("Integration test cleanup failed:", error);
+    else failure = error;
+  }
 }
+if (failure) throw failure;

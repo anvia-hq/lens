@@ -7,7 +7,7 @@ import type {
   ManagedDatasetVersion,
   ManagedDatasetVersionDetail,
 } from "@lens/contracts";
-import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { LensPostgres } from "./index.js";
 import { managedDataset, managedDatasetCase, managedDatasetVersion } from "./schema.js";
 
@@ -253,6 +253,36 @@ export async function getPublishedManagedDataset(
     dataset: datasetBaseFromRow(row.dataset),
     items,
   };
+}
+
+/** Hydrate one run-inspection page without loading the published dataset's other payloads. */
+export async function getPublishedManagedDatasetCases(
+  db: LensPostgres,
+  projectId: string,
+  name: string,
+  version: string,
+  caseIds: string[],
+): Promise<ManagedDatasetCaseInput[]> {
+  const ids = [...new Set(caseIds)];
+  if (ids.length === 0) return [];
+  if (ids.length > 100) throw new RangeError("Dataset case inspection is limited to 100 case IDs");
+  const rows = await db
+    .select({ item: managedDatasetCase.item })
+    .from(managedDatasetCase)
+    .innerJoin(managedDatasetVersion, eq(managedDatasetCase.versionId, managedDatasetVersion.id))
+    .innerJoin(managedDataset, eq(managedDatasetVersion.datasetId, managedDataset.id))
+    .where(
+      and(
+        eq(managedDataset.projectId, projectId),
+        isNull(managedDataset.archivedAt),
+        eq(sql`lower(${managedDataset.name})`, name.toLocaleLowerCase()),
+        eq(sql`lower(${managedDatasetVersion.version})`, version.toLocaleLowerCase()),
+        eq(managedDatasetVersion.status, "published"),
+        inArray(managedDatasetCase.caseId, ids),
+      ),
+    )
+    .limit(100);
+  return rows.map((row) => row.item);
 }
 
 export async function upsertManagedDatasetCase(

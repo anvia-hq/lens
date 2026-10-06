@@ -1,8 +1,8 @@
-import { AgentBuilder } from "@anvia/core/agent";
+import { Agent } from "@anvia/core/agent";
 import type { CompletionModel } from "@anvia/core/completion";
 import { agentEvalTarget, contains, runEvalSuite } from "@anvia/core/evals";
-import type { PromptResponse } from "@anvia/core/request";
-import { createLensEvalReporter, lens } from "@anvia/lens";
+import type { AgentResponse } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
 import { createLiveModel } from "../_shared/model";
 
 const cases = [
@@ -46,16 +46,22 @@ async function runVariant(options: {
   instructions: string;
   model: CompletionModel;
 }): Promise<{ variant: string; release: string; runId: string; passed: number; failed: number }> {
-  const tracing = lens.create({ captureMode: "full", release: options.release });
-  const reporter = createLensEvalReporter<string, PromptResponse, string>(tracing, {
+  const tracing = new LensClient({ release: options.release });
+  const reporter = tracing.evalReporter<string, AgentResponse, string>({
     includeMetadata: true,
+    includePayloads: true,
     onMissingTrace: "throw",
   });
-  const agent = new AgentBuilder(`support-${options.variant}`, options.model)
-    .name(`Support ${capitalize(options.variant)}`)
-    .instructions(`Answer with only the relevant policy fact. ${options.instructions}`)
-    .observe(tracing)
-    .build();
+  const agent = new Agent({
+    id: `support-${options.variant}`,
+    model: options.model,
+    name: `Support ${capitalize(options.variant)}`,
+    instructions: `Answer with only the relevant policy fact. ${options.instructions}`,
+    observability: {
+      observers: { lens: tracing.observer({ captureMode: "full" }) },
+      primaryTrace: "lens",
+    },
+  });
 
   try {
     const suite = await runEvalSuite({
@@ -70,15 +76,15 @@ async function runVariant(options: {
         },
       },
       cases,
-      target: agentEvalTarget<string>(agent),
+      target: agentEvalTarget<string>({ agent, request: ({ input }) => ({ prompt: input }) }),
       metrics: [
-        contains<string, PromptResponse, string>({
+        contains<string, AgentResponse, string>({
           name: "policy-fact-present",
           actual: ({ output }) => output.output,
         }),
       ],
       reporters: [reporter],
-      failOnReporterError: true,
+      reporterErrorPolicy: "throw",
     });
     await tracing.flush();
 
@@ -86,11 +92,11 @@ async function runVariant(options: {
       variant: options.variant,
       release: options.release,
       runId: suite.run.id,
-      passed: suite.passed,
-      failed: suite.failed,
+      passed: suite.cases.passed,
+      failed: suite.cases.failed,
     };
   } finally {
-    await tracing.shutdown();
+    await tracing.close();
   }
 }
 

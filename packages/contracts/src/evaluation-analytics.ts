@@ -15,6 +15,8 @@ export type EvaluationRunDetail = {
   metrics: EvaluationMetricBreakdown[];
   results: EvaluationResult[];
   cases: EvaluationRunCaseDetail[];
+  /** Results and case summaries cover this page only; run and metric totals cover the full run. */
+  resultsPage?: { page: number; pageSize: number; total: number; pageCount: number };
 };
 
 export type EvaluationRunCaseDetail = {
@@ -55,16 +57,21 @@ export type EvaluationCaseChange = {
   baselineTraceId: string | null;
 };
 
-export type EvaluationRunComparison = {
+export type EvaluationRunAggregateComparison = {
   candidate: EvaluationRunSummary;
   baseline: EvaluationRunSummary;
   passRate: ComparisonValue;
   p95LatencyMs: ComparisonValue;
   averageTotalTokens: ComparisonValue;
   metrics: EvaluationMetricComparison[];
+  warnings: string[];
+};
+
+export type EvaluationRunComparison = EvaluationRunAggregateComparison & {
   caseChanges: EvaluationCaseChange[];
   caseChangeCounts: Record<EvaluationCaseChange["classification"], number>;
-  warnings: string[];
+  /** True when more changes exist than the returned inspection rows. */
+  caseChangesTruncated?: boolean;
   gate: QualityGateEvaluation | null;
 };
 
@@ -90,6 +97,12 @@ export type EvaluationFacets = {
 };
 
 export type EvaluationMetricBreakdown = {
+  /** Run aggregates only. Distinct named cases with a pass/fail judgment. */
+  validCaseCount?: number;
+  /** Distinct named cases with a pass/fail judgment and a finite numeric score. */
+  validScoreCaseCount?: number;
+  /** Mean of finite numeric scores on pass/fail judgments, including unnamed cases. */
+  averageValidScore?: number | null;
   metricName: string;
   results: number;
   passed: number;

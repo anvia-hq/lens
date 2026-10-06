@@ -56,10 +56,8 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
   const detail = state.detail.data;
   const run = detail.run;
   const orderedCases = sortEvaluationCases(detail.cases);
-  const selectedFromSearch = orderedCases.find(
-    (item) => caseSearchValue(item) === state.search.case,
-  );
-  const selected = isMobile ? selectedFromSearch : (selectedFromSearch ?? orderedCases[0]);
+  const selected = selectEvaluationCase(orderedCases, state.search.case, isMobile);
+  const selectedCaseMissing = state.search.case !== undefined && selected === undefined;
   return (
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       <header className="shrink-0 border-b bg-background px-4 py-3">
@@ -157,6 +155,42 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
           />
         </dl>
       </header>
+      {selectedCaseMissing ? (
+        <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">
+          Selected case {state.search.case} is not on this result page. It may be on another page or
+          no longer available. Choose a page or case to continue.
+        </p>
+      ) : null}
+      {detail.resultsPage && (detail.resultsPage.pageCount > 1 || detail.resultsPage.page > 1) ? (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 text-sm">
+          <p className="text-muted-foreground">
+            Results page {detail.resultsPage.page} of {detail.resultsPage.pageCount}. Case
+            summaries, search, and filters apply to this page only; a case can span pages.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={state.resultPage <= 1}
+              onClick={() => {
+                state.setResultPage(state.resultPage - 1);
+              }}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={state.resultPage >= detail.resultsPage.pageCount}
+              onClick={() => {
+                state.setResultPage(state.resultPage + 1);
+              }}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         {isMobile ? (
           selected ? (
@@ -197,7 +231,9 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
                 <CaseInspector item={selected} projectId={state.project.id} />
               ) : (
                 <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                  This run has no evaluation cases.
+                  {selectedCaseMissing
+                    ? "Select a case from this page to inspect it."
+                    : "This result page has no evaluation cases."}
                 </div>
               )}
             </ResizablePanel>
@@ -213,6 +249,17 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
       />
     </main>
   );
+}
+
+export function selectEvaluationCase(
+  cases: EvaluationRunCaseDetail[],
+  selectedCase: string | undefined,
+  isMobile: boolean,
+): EvaluationRunCaseDetail | undefined {
+  if (selectedCase !== undefined) {
+    return cases.find((item) => caseSearchValue(item) === selectedCase);
+  }
+  return isMobile ? undefined : cases[0];
 }
 
 function RunNavigation(props: {

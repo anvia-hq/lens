@@ -33,6 +33,121 @@ describe("quality gate evaluation", () => {
       }),
     );
   });
+
+  it("preserves legacy semantics but rejects one pass and 99 invalid judgments with evidence enabled", () => {
+    const input = comparison();
+    input.candidate.evaluatedCases = 100;
+    input.metrics[0]!.candidate = {
+      ...metric(1, 1),
+      results: 100,
+      passed: 1,
+      failed: 0,
+      invalid: 99,
+      validCaseCount: 1,
+    };
+    const policy = evidenceGate();
+    policy.minimumCaseCount = 100;
+    const legacy = {
+      ...policy,
+      rules: policy.rules.map(({ evidence: _evidence, ...rule }) => rule),
+    };
+    expect(evaluateQualityGate(legacy, input).verdict).toBe("pass");
+    expect(evaluateQualityGate(policy, input).verdict).toBe("insufficient_data");
+  });
+
+  it.each([
+    { invalid: 2, unknown: 2, maximum: 0.1, verdict: "pass" },
+    { invalid: 3, unknown: 0, maximum: 0.1, verdict: "insufficient_data" },
+    { invalid: 0, unknown: 3, maximum: 0.1, verdict: "insufficient_data" },
+    { invalid: 20, unknown: 0, maximum: 1, verdict: "insufficient_data" },
+    { invalid: 0, unknown: 20, maximum: 1, verdict: "insufficient_data" },
+  ])("enforces separate invalid/unknown budgets: %j", ({ invalid, unknown, maximum, verdict }) => {
+    const input = comparison();
+    const usable = 20 - invalid - unknown;
+    input.metrics[0]!.candidate = {
+      ...metric(1, 1),
+      invalid,
+      unknown,
+      passed: usable,
+      failed: 0,
+      validCaseCount: usable,
+    };
+    const policy = evidenceGate();
+    policy.rules[0]!.evidence = {
+      minimumValidCases: 1,
+      maxInvalidRate: maximum,
+      maxUnknownRate: maximum,
+    };
+    expect(evaluateQualityGate(policy, input).verdict).toBe(verdict);
+  });
+
+  it("does not let unrelated metric coverage or repeated judgments satisfy distinct-case evidence", () => {
+    const input = comparison();
+    input.candidate.evaluatedCases = 100;
+    input.metrics[0]!.candidate = {
+      ...metric(1, 1),
+      results: 100,
+      passed: 100,
+      failed: 0,
+      validCaseCount: 1,
+    };
+    expect(evaluateQualityGate(evidenceGate(), input).verdict).toBe("insufficient_data");
+  });
+
+  it("accepts valid negative controls for an at-most pass-rate rule", () => {
+    const input = comparison();
+    input.metrics[0]!.candidate = { ...metric(0, 0), validCaseCount: 20 };
+    const policy = evidenceGate();
+    policy.rules[0]!.operator = "lte";
+    policy.rules[0]!.value = 0.05;
+    expect(evaluateQualityGate(policy, input).verdict).toBe("pass");
+  });
+
+  it("requires score-bearing cases and uses only usable numeric scores", () => {
+    const input = comparison();
+    input.metrics[0]!.candidate = {
+      ...metric(1, 100),
+      validCaseCount: 20,
+      validScoreCaseCount: 1,
+      averageValidScore: 0.1,
+    };
+    const policy = evidenceGate();
+    policy.rules[0]!.measure = "average_score";
+    expect(evaluateQualityGate(policy, input).verdict).toBe("insufficient_data");
+    input.metrics[0]!.candidate!.validScoreCaseCount = 20;
+    expect(evaluateQualityGate(policy, input).rules[1]?.message).toContain("valid average score");
+    expect(evaluateQualityGate(policy, input).verdict).toBe("fail");
+    policy.rules[0]!.operator = "lte";
+    expect(evaluateQualityGate(policy, input).verdict).toBe("pass");
+  });
+
+  it("requires usable evidence on the baseline as well for regression rules", () => {
+    const input = comparison();
+    input.metrics[0]!.candidate = { ...metric(1, 1), validCaseCount: 20 };
+    input.metrics[0]!.baseline = { ...metric(1, 1), validCaseCount: 1 };
+    const policy: QualityGate = {
+      ...gate(),
+      rules: [
+        {
+          type: "evaluation_regression",
+          metricName: "correctness",
+          measure: "pass_rate",
+          direction: "decrease",
+          maxAbsoluteChange: 0.1,
+          evidence: { minimumValidCases: 10, maxInvalidRate: 0, maxUnknownRate: 0 },
+        },
+      ],
+    };
+    expect(evaluateQualityGate(policy, input).rules[1]?.message).toContain(
+      "Baseline correctness has 1 valid cases",
+    );
+    input.metrics[0]!.baseline!.validCaseCount = 20;
+    expect(evaluateQualityGate(policy, input).verdict).toBe("pass");
+  });
+
+  it("fails closed if evidence aggregates are absent", () => {
+    expect(evaluateQualityGate(evidenceGate(), comparison()).verdict).toBe("insufficient_data");
+  });
 });
 
 function gate(): QualityGate {
@@ -143,5 +258,21 @@ function metric(passRate: number, averageNumericValue: number): EvaluationMetric
     unknown: 0,
     passRate,
     averageNumericValue,
+  };
+}
+
+function evidenceGate() {
+  return {
+    ...gate(),
+    rules: [
+      {
+        type: "evaluation_threshold" as const,
+        metricName: "correctness",
+        measure: "pass_rate" as "pass_rate" | "average_score",
+        operator: "gte" as "gte" | "lte",
+        value: 0.95,
+        evidence: { minimumValidCases: 10, maxInvalidRate: 0, maxUnknownRate: 0 },
+      },
+    ],
   };
 }

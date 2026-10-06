@@ -1,7 +1,7 @@
 import type { Page as PaginatedPage, TraceFacets, TraceListItem } from "@lens/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, ResolvedTracesSearch, TracesSearch } from "../types";
 import { refreshMilliseconds, timeRangeForPreset, traceActiveFilterCount } from "../utils";
@@ -18,7 +18,6 @@ export function useTraces() {
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedTraceIds, setSelectedTraceIds] = useState<string[]>([]);
   const deletions = useDataDeletions(project.id, "trace");
-  const range = useMemo(() => timeRangeForPreset(filters.range), [filters.range]);
   const setFilters = useCallback(
     (changes: Partial<TracesSearch>, resetPage = true) => {
       void navigate({
@@ -40,7 +39,6 @@ export function useTraces() {
     return () => window.clearTimeout(timeout);
   }, [searchDraft, filters.search, setFilters]);
   const requestFilters = {
-    ...range,
     review: filters.review,
     status: filters.statuses,
     service: filters.services,
@@ -68,6 +66,7 @@ export function useTraces() {
       api<PaginatedPage<TraceListItem>>(
         `/api/v1/projects/${project.id}/traces?${queryString({
           ...requestFilters,
+          ...timeRangeForPreset(filters.range),
           page: filters.page,
           pageSize: filters.pageSize,
           sort: filters.sort,
@@ -77,10 +76,13 @@ export function useTraces() {
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
-    queryKey: ["trace-facets", project.id, requestFilters],
+    queryKey: ["trace-facets", project.id, filters.range, requestFilters],
     queryFn: () =>
       api<TraceFacets>(
-        `/api/v1/projects/${project.id}/traces/facets?${queryString(requestFilters)}`,
+        `/api/v1/projects/${project.id}/traces/facets?${queryString({
+          ...requestFilters,
+          ...timeRangeForPreset(filters.range),
+        })}`,
       ),
     placeholderData: (previous) => previous,
     refetchInterval: refreshMilliseconds(refreshInterval),

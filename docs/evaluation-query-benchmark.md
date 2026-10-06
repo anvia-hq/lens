@@ -1,0 +1,83 @@
+# Evaluation query benchmark
+
+Measured locally on 2026-10-06 at revision `d6b08f829ab2d11a7f944d0ed03aec8861516aad`,
+including the final quality-gate validity and distinct-case aggregates. Runtime:
+Node 26.9.0 and ClickHouse 26.4 in Docker
+(10 virtual CPUs, 8 GiB RAM). Synthetic runs contain one quality metric per case,
+1 KiB payloads, and a 50% candidate regression rate. Each size has a candidate and
+baseline run; no traces are inserted, so operational coverage is intentionally zero.
+These are single-run measurements with other local development work active, not a
+production capacity or tail-latency guarantee.
+
+Standard uses ClickHouse defaults. Constrained uses the query settings from
+`docker-compose.small.yml`: 2 threads, 384 MiB query memory, and 192 MiB external
+aggregation/sort thresholds. Both use the same container; this compares query
+profiles, not different container CPU/RAM limits.
+
+| Results/run | Profile     | Operation  | ClickHouse queries | Peak in-flight queries | Time (ms) | Node peak RSS (MiB) | RSS growth (MiB) | Peak individual ClickHouse query memory (MiB) |
+| ----------- | ----------- | ---------- | ------------------ | ---------------------- | --------- | ------------------- | ---------------- | --------------------------------------------- |
+| 10,000      | standard    | detail     | 5                  | 2                      | 65        | 83.6                | 2.1              | 57.4                                          |
+| 10,000      | standard    | comparison | 9                  | 4                      | 111       | 86.8                | 0.1              | 57.4                                          |
+| 10,000      | standard    | gate       | 8                  | 4                      | 67        | 86.9                | 0.0              | 57.6                                          |
+| 10,000      | constrained | detail     | 5                  | 2                      | 56        | 90.8                | 3.6              | 8.1                                           |
+| 10,000      | constrained | comparison | 9                  | 4                      | 73        | 91.3                | 0.0              | 16.6                                          |
+| 10,000      | constrained | gate       | 8                  | 4                      | 45        | 89.8                | 0.0              | 7.5                                           |
+| 100,000     | standard    | detail     | 5                  | 2                      | 126       | 86.1                | 1.4              | 57.4                                          |
+| 100,000     | standard    | comparison | 9                  | 4                      | 390       | 88.5                | 2.0              | 191.4                                         |
+| 100,000     | standard    | gate       | 8                  | 4                      | 106       | 87.1                | 0.2              | 57.4                                          |
+| 100,000     | constrained | detail     | 5                  | 2                      | 112       | 89.7                | 1.2              | 20.4                                          |
+| 100,000     | constrained | comparison | 9                  | 4                      | 432       | 92.5                | 2.3              | 181.0                                         |
+| 100,000     | constrained | gate       | 8                  | 4                      | 104       | 85.9                | 0.0              | 20.4                                          |
+
+The benchmark asserts exact 5,000/50,000 regression counts, 100 returned comparison
+rows, explicit truncation, and 100 returned inspection results with full run totals.
+Gate checks use aggregates only. The table measures ClickHouse reader functions; the `gate`
+operation reads gate inputs and excludes authentication, alert recording, and rule evaluation.
+For a run linked to a managed dataset, the API adds one PostgreSQL query scoped to
+project, dataset name, and published version, selecting payloads for at most the
+100 distinct case IDs on the current result page. Empty pages and pages containing
+only unspecified case IDs skip PostgreSQL hydration. This synthetic benchmark does
+not measure that additional PostgreSQL query. Query count and concurrency stay constant as result
+count grows. Node memory samples include runtime/GC effects; server memory comes
+from `system.query_log`, not from the Node process.
+
+Cancellation is triggered 5 ms after dispatching the case-comparison query. All four
+size/profile combinations rejected, within 0–6 ms after abort. Signaled reads set
+`cancel_http_readonly_queries_on_client_close=1`; this verifies client rejection,
+not a separate measurement of server resource reclamation. Browser queries pass
+abort signals through the API to ClickHouse.
+
+## Reproduce
+
+Start an isolated ClickHouse service with a unique Compose project name and obtain
+its random published port:
+
+```sh
+docker compose -f docker-compose.test.yml -p lens-eval-benchmark up -d --wait clickhouse
+docker compose -f docker-compose.test.yml -p lens-eval-benchmark port clickhouse 8123
+```
+
+Use the reported port (replace `PORT`):
+
+```sh
+CLICKHOUSE_URL=http://127.0.0.1:PORT pnpm --filter @lens/db exec tsx scripts/benchmark-evaluations.ts
+docker compose -f docker-compose.test.yml -p lens-eval-benchmark down --volumes
+```
+
+The script creates a random database, applies ClickHouse migrations, inserts only
+synthetic data, and drops that database in `finally`. It never modifies existing
+tables. `CLICKHOUSE_USERNAME` and `CLICKHOUSE_PASSWORD` default to the disposable
+Compose credentials. The account needs database creation and query-log access.
+
+## Boundaries
+
+Run inspection paginates **results**, not complete cases; a case can span pages.
+The UI states that case summaries/search/filters are page-local, while run and
+metric summaries cover all results. Payloads are read only on the inspection path.
+Comparisons read lean case/metric tuples in ClickHouse and return at most 100 rows;
+classification totals cover all rows. Duplicate case/metric keys preserve the old
+reader's last-entry rule (oldest timestamp, greatest result ID at equal timestamp).
+
+Observed-dataset snapshot analysis still requires complete case definitions. Its
+legacy reader now fetches pages serially and counts only once, but dataset snapshot
+memory usage is not bounded by the run-inspection page size.

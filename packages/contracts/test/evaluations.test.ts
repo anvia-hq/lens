@@ -46,6 +46,28 @@ describe("evaluation contracts", () => {
     ).toBe(false);
   });
 
+  it("requires complete, bounded evidence settings while preserving legacy rules", () => {
+    const rule = {
+      type: "evaluation_threshold",
+      metricName: "safety",
+      measure: "pass_rate",
+      operator: "lte",
+      value: 0.05,
+    };
+    expect(qualityGateRuleSchema.parse(rule)).not.toHaveProperty("evidence");
+    const evidence = { minimumValidCases: 10, maxInvalidRate: 0, maxUnknownRate: 0.1 };
+    expect(qualityGateRuleSchema.parse({ ...rule, evidence })).toMatchObject({ evidence });
+    for (const invalid of [
+      {},
+      { ...evidence, minimumValidCases: 0 },
+      { ...evidence, minimumValidCases: 1.5 },
+      { ...evidence, maxInvalidRate: -0.1 },
+      { ...evidence, maxUnknownRate: 1.1 },
+    ]) {
+      expect(qualityGateRuleSchema.safeParse({ ...rule, evidence: invalid }).success).toBe(false);
+    }
+  });
+
   it("normalizes reviews and validates managed dataset updates", () => {
     expect(traceReviewInputSchema.parse({ outcome: "fail", explanation: "  broken  " })).toEqual({
       outcome: "fail",

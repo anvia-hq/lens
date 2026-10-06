@@ -1,11 +1,19 @@
 import { z } from "zod";
 
+// Optional to preserve existing policies; enabling evidence requires all limits explicitly.
+const qualityGateEvidenceSchema = z.object({
+  minimumValidCases: z.number().int().min(1).max(1_000_000),
+  maxInvalidRate: z.number().finite().min(0).max(1),
+  maxUnknownRate: z.number().finite().min(0).max(1),
+});
+
 export const qualityGateRuleSchema = z
   .discriminatedUnion("type", [
     z.object({
       type: z.literal("evaluation_threshold"),
       metricName: z.string().trim().min(1).max(128),
       measure: z.enum(["pass_rate", "average_score"]),
+      evidence: qualityGateEvidenceSchema.optional(),
       operator: z.enum(["gte", "lte"]),
       value: z.number().finite(),
     }),
@@ -13,6 +21,7 @@ export const qualityGateRuleSchema = z
       type: z.literal("evaluation_regression"),
       metricName: z.string().trim().min(1).max(128),
       measure: z.enum(["pass_rate", "average_score"]),
+      evidence: qualityGateEvidenceSchema.optional(),
       direction: z.enum(["decrease", "increase"]),
       maxAbsoluteChange: z.number().finite().nonnegative(),
     }),

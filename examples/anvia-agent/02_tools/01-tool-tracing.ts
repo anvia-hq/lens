@@ -1,16 +1,16 @@
-import { AgentBuilder } from "@anvia/core/agent";
+import { Agent } from "@anvia/core/agent";
 import { createTool } from "@anvia/core/tool";
-import { lens } from "@anvia/lens";
+import { LensClient } from "@anvia/lens";
 import { z } from "zod";
 import { createLiveModel } from "../_shared/model";
 
 const getTicket = createTool({
   name: "get_ticket",
   description: "Look up a support ticket by ID.",
-  input: z.object({
+  inputSchema: z.object({
     id: z.string().describe("The support ticket ID"),
   }),
-  output: z.object({
+  outputSchema: z.object({
     id: z.string(),
     title: z.string(),
     severity: z.enum(["low", "medium", "high"]),
@@ -25,29 +25,37 @@ const getTicket = createTool({
 });
 
 const model = createLiveModel();
-const tracing = lens.create({ captureMode: "full" });
-const agent = new AgentBuilder("ticket-triage-agent", model)
-  .name("Ticket Triage Agent")
-  .instructions("Use the ticket tool, then provide a concise engineering triage summary.")
-  .tool(getTicket)
-  .defaultMaxTurns(3)
-  .observe(tracing)
-  .build();
+const tracing = new LensClient();
+const agent = new Agent({
+  id: "ticket-triage-agent",
+  model,
+  name: "Ticket Triage Agent",
+  instructions: "Use the ticket tool, then provide a concise engineering triage summary.",
+  tools: [getTicket],
+  maxTurns: 3,
+  observability: {
+    observers: { lens: tracing.observer({ captureMode: "full" }) },
+    primaryTrace: "lens",
+  },
+});
 
 try {
-  const response = await agent
-    .prompt("Use get_ticket to inspect TICKET-1001 and summarize the priority.")
-    .withTrace({
+  const response = await agent.generate({
+    prompt: "Use get_ticket to inspect TICKET-1001 and summarize the priority.",
+    trace: {
       name: "ticket-triage",
       tags: ["lens-example", "tool-call"],
       metadata: { ticketId: "TICKET-1001", synthetic: true },
-    })
-    .send();
+    },
+  });
+  if (response.type !== "response") {
+    throw new Error(`Agent did not produce a response: ${response.type}`);
+  }
   await tracing.flush();
 
   console.log(response.output);
   console.log("trace:", response.trace?.traceId ?? "not available");
   console.log("Open the trace to inspect its agent, generation, and tool observations.");
 } finally {
-  await tracing.shutdown();
+  await tracing.close();
 }

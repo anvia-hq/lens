@@ -6,6 +6,7 @@ import {
   getTraceExpiration,
   getTraceSummary,
   insertEvaluations,
+  withActiveProjectWrite,
   listTraceFacets,
   listTraces,
 } from "@lens/db";
@@ -110,7 +111,13 @@ export const createTracesRouter = (deps: ApiDependencies) =>
           input,
           reviewer: { id: session.user.id, name: session.user.name },
         });
-        await insertEvaluations(deps.clickhouse, [result]);
+        const written = await withActiveProjectWrite(deps.postgres.db, projectId, async () => {
+          await insertEvaluations(deps.clickhouse, [result]);
+          return true;
+        });
+        if (written !== true) {
+          return apiError(c, 409, "project_deleting", "Project deletion is in progress");
+        }
         await recordHumanReviewAlert(deps.postgres, deps.queues, deps.logger, trace, result).catch(
           (error: unknown) =>
             deps.logger.warn({ err: error, projectId, traceId }, "failed to record review alert"),

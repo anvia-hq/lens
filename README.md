@@ -17,9 +17,13 @@ Langfuse OTLP instrumentation.
 - Run evaluations and review every case and result.
 - Build and publish managed datasets for repeatable tests.
 - Compare releases and apply quality gates before shipping.
-- Enforce quality gates from CI with the project key pair.
+- Enforce quality gates from CI with the project key pair. See [evidence policies](docs/quality-gate-evidence.md) for per-metric validity requirements.
 - Connect native Anvia applications or Langfuse-compatible instrumentation.
 - Keep all application and telemetry data in your own infrastructure.
+
+Relative time ranges (24 hours, 7 days, and 30 days) roll forward whenever lists and their
+filter options refresh. Automatic refresh preserves the selected filters and page. Choose **Off**
+to stop scheduled polling; the users view also supports an unbounded **All time** range.
 
 ## Connect an AI assistant with MCP
 
@@ -73,11 +77,16 @@ curl -fsSLO https://raw.githubusercontent.com/anvia-hq/lens/main/docker-compose.
 curl -fsSL https://raw.githubusercontent.com/anvia-hq/lens/main/.env.example -o .env
 ```
 
+Choose a published version from [Lens releases](https://github.com/anvia-hq/lens/releases) and
+confirm its backend and web image publication completed. Pin that numeric version in `.env`;
+the repository package version alone does not establish that images have been published. The
+release workflow publishes both images with the same version tag (without the `v` prefix).
+
 Open `.env` and configure the public URL and required secrets:
 
 ```dotenv
-# Pin a release for repeatable deployments.
-LENS_VERSION=0.4.0
+# Replace with the numeric version of a published release (without the v prefix).
+LENS_VERSION=<published-version>
 
 # Use your HTTPS URL when deploying behind a reverse proxy.
 PUBLIC_APP_URL=http://localhost
@@ -236,18 +245,64 @@ ANVIA_LENS_SERVICE_NAME=support-agent
 ANVIA_LENS_ENVIRONMENT=production
 ```
 
-```ts
-import { createLensEvalReporter, lens } from "@anvia/lens";
+The verified SDK baseline is `@anvia/core 1.6.1`, `@anvia/lens 1.2.1`, and
+`@anvia/openai 1.1.8` (published npm versions checked on 2026-10-06). Install the matching set:
 
-export const tracing = lens.create();
-export const evalReporter = createLensEvalReporter(tracing);
+```sh
+pnpm add --save-prefix= @anvia/core@1.6.1 @anvia/lens@1.2.1 @anvia/openai@1.1.8 zod@4.6.5
 ```
 
-Attach `tracing` to an Anvia agent with `.observe(tracing)`. Pass `evalReporter` to `runEvalSuite`
-to correlate evaluation lifecycle events with the traces produced by each case.
+Set `OPENAI_API_KEY` and `OPENAI_MODEL`, then use constructor configuration and `generate`:
+
+```ts
+import { Agent } from "@anvia/core/agent";
+import { LensClient } from "@anvia/lens";
+import { OpenAIClient } from "@anvia/openai";
+
+const tracing = new LensClient();
+const openai = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY! });
+const agent = new Agent({
+  id: "support-agent",
+  model: openai.completionModel({ modelId: process.env.OPENAI_MODEL!, api: "chat" }),
+  observability: {
+    observers: { lens: tracing.observer() },
+    primaryTrace: "lens",
+  },
+});
+
+try {
+  const result = await agent.generate({ prompt: "How do refunds work?" });
+  if (result.type !== "response") {
+    throw new Error(`Agent did not produce a response: ${result.type}`);
+  }
+  console.log(result.output, result.trace?.traceId);
+} finally {
+  await tracing.close();
+}
+```
+
+`close()` flushes and shuts down the client's telemetry providers. Keep the client alive for all
+agent and evaluation work. Pass `tracing.evalReporter()` to `runEvalSuite` before closing the client
+to correlate evaluation lifecycle events with each case's trace. Safe capture is the default.
 
 See the [native Anvia examples](examples/anvia-agent/README.md) for a live-model path from basic
 tracing through tools, evaluations, managed datasets, comparisons, and gates.
+
+Evaluation run inspection loads 100 results per page, with Previous/Next controls. Run and metric
+summaries always cover the full run; case summaries, search, and outcome filters cover the current
+result page, so a case with multiple metrics can span pages. The run detail API accepts `?page=N`
+and returns `resultsPage` metadata. The browser preserves `page` alongside `case` in shared links
+and browser history. Older case-only links default to page 1; if that case is absent, inspection
+shows an explicit missing-case message instead of selecting a different case. Automatic lookup
+of the page containing an older case-only link is not yet supported. Comparisons calculate exact counts for all changed case/metric
+pairs and return at most 100 inspection rows, with `caseChangesTruncated` indicating additional
+changes. CI gate checks read only aggregate summaries and metrics, without loading case payloads.
+For runs linked to a managed dataset, inspection fetches only the published dataset cases
+referenced by the current result page (at most 100 distinct case IDs).
+
+The [evaluation benchmark](packages/db/scripts/benchmark-evaluations.ts) exercises synthetic
+10k/100k-result runs, standard and constrained ClickHouse settings, and request cancellation. See
+[benchmark results and reproduction](docs/evaluation-query-benchmark.md).
 
 ## Connect Langfuse instrumentation
 
@@ -277,6 +332,47 @@ docker compose up -d
 The migration container completes before the API and worker start. Do not use
 `docker compose down -v` during an upgrade: `-v` permanently deletes the Lens data volumes.
 
+Release maintainers should run the [functional checks and upgrade/restore rehearsal](docs/release-verification.md)
+before promotion, including worker-failure controls and preservation of queued telemetry.
+
+## Trace summary convergence
+
+Workers coalesce materialization by project and trace using BullMQ's `keepLastIfActive`
+mode (minimum 5.81.3). Arrivals before a delayed read share that read; arrivals during an
+active read retain one follow-up with the configured delay. The follow-up survives retry
+backoff and is created atomically when the current job completes or exhausts its attempts.
+Multiple workers therefore run at most one materialization per trace at once, with at most
+one pending follow-up, even during a burst of ingestion.
+
+Convergence assumes acknowledged ClickHouse inserts, successful Redis scheduling, and an
+eventually successful materialization attempt. Exhausted failures still need operational
+retry; this is not an atomic transaction across stores. When upgrading from stable-ID
+materialization jobs, pause producers and drain ingestion and materialization before replacing
+all workers; mixed worker versions do not provide this guarantee. Project deletion continues
+to fence both ingestion and follow-up materialization writes.
+
+## Deletion and retention boundaries
+
+Project deletion first waits for admitted telemetry writes, marks the project deleting, revokes
+its keys, and queues cleanup through the durable outbox. Workers reject accepted or retried jobs
+for deleting or missing projects. Cleanup waits for all four ClickHouse table mutations to finish
+before removing the project row. If cleanup fails, the deleting row remains, ingestion stays
+blocked, and the maintenance job retries; exhausted jobs remain visible in System Health.
+Deletion can take longer while a write or ClickHouse mutation is running.
+
+Trace, session, and evaluation-run deletion is a point-in-time cleanup, not a permanent identifier
+blocklist. Producers and previously accepted jobs can send those identifiers again. Pause producers
+and drain ingestion before deleting individual entities when they must stay absent. Retention
+changes update data already stored; pending jobs retain the expiration calculated when accepted,
+and ClickHouse TTL cleanup is asynchronous. Drain ingestion before changing retention when all
+previously accepted data must receive the new policy, then run the retention update.
+
+The project fence uses PostgreSQL transaction row locks across acknowledged ClickHouse requests;
+all API and worker instances must run the fenced implementation. It is not a distributed transaction.
+If a PostgreSQL connection disappears while ClickHouse is still executing an unacknowledged write,
+stop writers, wait for outstanding ClickHouse queries to finish, and repeat project telemetry cleanup
+before treating deletion as verified. Roll out all writers before relying on the fence.
+
 ## Local development
 
 The development stack builds the current checkout, exposes infrastructure ports, and includes
@@ -304,15 +400,21 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Common checks:
+Required verification (the same checks run in CI):
 
 ```sh
 pnpm check
 pnpm typecheck
 pnpm build
-pnpm test
-pnpm test:integration
+pnpm check:bundle
+pnpm test:coverage
+pnpm audit:prod
 ```
+
+`pnpm test:coverage` includes API OIDC account-linking integration tests and starts isolated
+PostgreSQL, ClickHouse, and Redis containers with Docker. It removes those containers after the
+run. Use `pnpm test` for a faster unit-only check or `pnpm test:integration` for integration-only
+iteration; neither replaces the required coverage command.
 
 ## Contributing
 
