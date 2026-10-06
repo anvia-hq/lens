@@ -261,7 +261,7 @@ async function cleanup() {
 let interrupted = false;
 let interruption;
 for (const signal of ["SIGINT", "SIGTERM"])
-  process.once(signal, () => {
+  process.on(signal, () => {
     if (interrupted) return;
     interrupted = true;
     interruption = (async () => {

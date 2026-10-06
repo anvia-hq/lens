@@ -7,13 +7,14 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
 
-for (const { signal, stalled } of [
+for (const { signal, stalled, repeated } of [
   { signal: "SIGTERM", stalled: false },
   { signal: "SIGINT", stalled: false },
   { signal: "SIGTERM", stalled: true },
+  { signal: "SIGTERM", stalled: false, repeated: true },
 ]) {
   test(
-    `${signal} ${stalled ? "terminates stalled startup" : "waits for startup"} before cleanup`,
+    `${repeated ? "Repeated " : ""}${signal} ${stalled ? "terminates stalled startup" : "waits for startup"} before cleanup`,
     { timeout: 15_000 },
     async () => {
       const directory = await mkdtemp(path.join(tmpdir(), "lens-release-cancel-test-"));
@@ -72,6 +73,10 @@ esac
         }
         assert(ready, `Fake startup did not start: ${output}`);
         child.kill(signal);
+        if (repeated) {
+          await delay(100);
+          child.kill(signal);
+        }
         const [code] = await closed;
         assert.equal(code, signal === "SIGTERM" ? 143 : 130, output);
         // Give an orphaned startup enough time to recreate resources after parent exit.
