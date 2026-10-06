@@ -295,6 +295,22 @@ docker compose up -d
 The migration container completes before the API and worker start. Do not use
 `docker compose down -v` during an upgrade: `-v` permanently deletes the Lens data volumes.
 
+## Trace summary convergence
+
+Workers coalesce materialization by project and trace using BullMQ's `keepLastIfActive`
+mode (minimum 5.81.3). Arrivals before a delayed read share that read; arrivals during an
+active read retain one follow-up with the configured delay. The follow-up survives retry
+backoff and is created atomically when the current job completes or exhausts its attempts.
+Multiple workers therefore run at most one materialization per trace at once, with at most
+one pending follow-up, even during a burst of ingestion.
+
+Convergence assumes acknowledged ClickHouse inserts, successful Redis scheduling, and an
+eventually successful materialization attempt. Exhausted failures still need operational
+retry; this is not an atomic transaction across stores. When upgrading from stable-ID
+materialization jobs, pause producers and drain ingestion and materialization before replacing
+all workers; mixed worker versions do not provide this guarantee. Project deletion continues
+to fence both ingestion and follow-up materialization writes.
+
 ## Deletion and retention boundaries
 
 Project deletion first waits for admitted telemetry writes, marks the project deleting, revokes

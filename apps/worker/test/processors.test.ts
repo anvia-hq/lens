@@ -95,7 +95,10 @@ describe("worker processors", () => {
       { projectId, traceId: "a".repeat(32) },
       {
         delay: 3_000,
-        jobId: `materialize-${projectId}-${"a".repeat(32)}`,
+        deduplication: {
+          id: `materialize-${projectId}-${"a".repeat(32)}`,
+          keepLastIfActive: true,
+        },
         removeOnComplete: true,
       },
     );

@@ -85,7 +85,12 @@ export function createIngestTraceProcessor(deps: ProcessorDependencies) {
           { projectId: data.projectId, traceId },
           {
             delay: deps.materializeDelayMs,
-            jobId: materializeJobId(data.projectId, traceId),
+            // A stable jobId drops arrivals during an active read. BullMQ keeps
+            // one latest follow-up atomically through completion and retries.
+            deduplication: {
+              id: materializeJobId(data.projectId, traceId),
+              keepLastIfActive: true,
+            },
             removeOnComplete: true,
           },
         );
