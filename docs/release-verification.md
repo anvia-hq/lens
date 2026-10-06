@@ -89,19 +89,24 @@ side effects (for example notification dispatch) require separate duplicate-deli
 
 ## Observed local rehearsal
 
-On 2026-10-06, the full command above passed twice on the local Docker host (ARM64), using the
-published 0.14.0 images and candidate images built from source revision `b03a7f7` with frozen installs.
-The second run measured **13.544 seconds for upgrade** and **17.237 seconds for coordinated restore**.
-Both runs passed fresh ingestion, stopped-worker and failed-materialization controls, failed-job
-visibility and replay, historical and queued trace/evaluation preservation, original account/project
-access, and fresh ingestion with the original key. These measurements use a tiny synthetic fixture.
-Rerun against the final release revision; they do not establish final-release or production RTO status.
+On 2026-10-06, the full command above passed against the combined implementation at source
+revision `1226ec4`, using published 0.14.0 images and freshly built candidate images with frozen
+installs on the local ARM64 Docker host. Upgrade took **13.564 seconds** and coordinated restore
+into empty volumes took **14.519 seconds**. Fresh ingestion, stopped-worker and failed-materialization
+controls, failed-job visibility and replay, historical and queued trace/evaluation preservation,
+original account/project access, and fresh ingestion with the original key all passed. Temporary
+containers, volumes, networks, and backup files were removed on completion.
 
-Image manifest digests for that run:
+These measurements use a tiny synthetic fixture. They establish behavior for this implementation,
+not final published v1.0 image verification or a production RTO. The earlier Wave 1 rehearsal at
+`b03a7f7` also passed twice; its second run measured 13.544 seconds for upgrade and 17.237 seconds
+for restore. Repeat the rehearsal for the actual release candidate before promotion.
+
+Image manifest digests for the combined-implementation run:
 
 | Image                   | SHA-256 digest                                                     |
 | ----------------------- | ------------------------------------------------------------------ |
 | Previous backend 0.14.0 | `9504afd2237de784d19dc704100e4842465471836fd58c1f461d79f6dba24d69` |
 | Previous web 0.14.0     | `02965655160c8e94938f9cdba7e17aec1da7978c1b8722c09cc36a6423831c27` |
-| Candidate backend       | `f7c5dc069c748c0016f4909c2471ebb3d1676e2c0c20610fe1428616542dbbb4` |
-| Candidate web           | `27ad4c5c01c454c6b31cc7c7ab7d9ccc4246dab51c7c8b62ec3e2cf8e80b8fcf` |
+| Candidate backend       | `73423a022898fc83d2374ea880b1f8e77405768f3ef6109ca94522f32d758aec` |
+| Candidate web           | `8bc13967b521c120ca30ede055c134098d2f4c78a1bbd4504b22cefc45d82c14` |
