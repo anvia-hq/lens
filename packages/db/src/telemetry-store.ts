@@ -144,6 +144,15 @@ export async function materializeTrace(
 ): Promise<void> {
   const order = "tuple(span.start_time, span.span_id)";
   const hasRoot = "countIf(span.parent_span_id = '') > 0";
+  // Each Anvia run attempt (a durable retry, recovery, or resumed interaction) adds a root to the
+  // same trace. The latest attempt decides, and a suspended one is still waiting for input even
+  // though every span it exported has ended.
+  const runRoot = "span.parent_span_id = '' AND span.run_status != ''";
+  const latestRun = (expression: string) => `argMaxIf(${expression}, ${order}, ${runRoot})`;
+  const status =
+    `multiIf(countIf(${runRoot}) > 0, ` +
+    `if(${latestRun("span.run_status")} = 'suspended', 'running', ${latestRun("span.status")}), ` +
+    `${hasRoot}, argMinIf(span.status, ${order}, span.parent_span_id = ''), 'running')`;
   const representative = (expression: string) =>
     `if(${hasRoot}, argMinIf(${expression}, ${order}, span.parent_span_id = ''), argMin(${expression}, ${order}))`;
   const firstNonNull = (column: string) =>
@@ -171,7 +180,7 @@ export async function materializeTrace(
               span.trace_id,
               ${representative("ifNull(span.trace_name, span.name)")} AS name,
               ${representative("span.service_name")} AS service_name,
-              if(${hasRoot}, argMinIf(span.status, ${order}, span.parent_span_id = ''), 'running') AS status,
+              ${status} AS status,
               min(span.start_time) AS started_at,
               max(span.end_time) AS ended_at,
               greatest(0, dateDiff('nanosecond', min(span.start_time), max(span.end_time)) / 1000000) AS duration_ms,

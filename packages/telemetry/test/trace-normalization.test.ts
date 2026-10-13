@@ -221,6 +221,30 @@ describe("trace normalization", () => {
     expect(Number.isFinite(result.spans[0]?.inputTokens)).toBe(true);
   });
 
+  it("keeps real parents and treats a legacy Anvia run placeholder parent as a root", () => {
+    const placeholder = { parentSpanId: "0000000000000001" };
+    const runRoot = { "anvia.run.max_turns": { intValue: 10 } };
+
+    expect(normalize({}).spans[0]?.parentSpanId).toBeNull();
+    expect(normalize({}, { parentSpanId: "8899aabbccddeeff" }).spans[0]?.parentSpanId).toBe(
+      "8899aabbccddeeff",
+    );
+    for (const attributes of [
+      runRoot,
+      { "anvia.run.id": { stringValue: "run-1" } },
+      { "anvia.pipeline.id": { stringValue: "pipeline-1" } },
+    ]) {
+      expect(normalize(attributes, placeholder).spans[0]?.parentSpanId).toBeNull();
+    }
+    // Only Anvia run spans used the placeholder; any other span keeps its parent.
+    expect(
+      normalize({ "anvia.generation.turn": { intValue: 1 } }, placeholder).spans[0]?.parentSpanId,
+    ).toBe("0000000000000001");
+    expect(normalize(runRoot, { parentSpanId: "8899aabbccddeeff" }).spans[0]?.parentSpanId).toBe(
+      "8899aabbccddeeff",
+    );
+  });
+
   it("rejects invalid spans with bounded error messages", () => {
     const result = normalize({}, { traceId: "bad", name: "x".repeat(1_000) });
     expect(result.rejectedSpans).toBe(1);

@@ -1,0 +1,2578 @@
+{
+  "completed": {
+    "traceId": "f6fc6e5d9d194cec991ffac8c382880f",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "f6fc6e5d9d194cec991ffac8c382880f",
+                      "spanId": "f23b6e69893e2ba0",
+                      "parentSpanId": "33f66b6c78c4eff5",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691635000000",
+                      "endTimeUnixNano": "1791889691635258625",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "f6fc6e5d9d194cec991ffac8c382880f",
+                      "spanId": "23847507ac153a62",
+                      "parentSpanId": "33f66b6c78c4eff5",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691637000000",
+                      "endTimeUnixNano": "1791889691638142500",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "66f7a16b-06ce-4685-8956-4a51d27237f1"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.skipped",
+                          "value": {
+                            "boolValue": false
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "f6fc6e5d9d194cec991ffac8c382880f",
+                      "spanId": "834175fafc2971c9",
+                      "parentSpanId": "33f66b6c78c4eff5",
+                      "name": "model.turn.2",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691639000000",
+                      "endTimeUnixNano": "1791889691639048209",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "f6fc6e5d9d194cec991ffac8c382880f",
+                      "spanId": "33f66b6c78c4eff5",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691632000000",
+                      "endTimeUnixNano": "1791889691640543542",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "f6fc6e5d-9d19-4cec-991f-fac8c382880f"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "f6fc6e5d-9d19-4cec-991f-fac8c382880f"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "completed"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 4
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 6
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "failed": {
+    "traceId": "a397ebf854424c44a6e59462d631df9a",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "a397ebf854424c44a6e59462d631df9a",
+                      "spanId": "e71c5c2b66da4726",
+                      "parentSpanId": "5876ec402b20ed65",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691717000000",
+                      "endTimeUnixNano": "1791889691721168042",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "provider rejected the request"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691721156875",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "provider rejected the request"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "a397ebf854424c44a6e59462d631df9a",
+                      "spanId": "5876ec402b20ed65",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691716000000",
+                      "endTimeUnixNano": "1791889691721141250",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "a397ebf8-5442-4c44-a6e5-9462d631df9a"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "a397ebf8-5442-4c44-a6e5-9462d631df9a"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "failed"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.error",
+                          "value": {
+                            "stringValue": "provider rejected the request"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "provider rejected the request"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691721107000",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "provider rejected the request"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "retried": {
+    "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "715ad730db577650",
+                      "parentSpanId": "4444a3ef6e21da5f",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691798000000",
+                      "endTimeUnixNano": "1791889691798055125",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "c3e362fbb566b175",
+                      "parentSpanId": "4444a3ef6e21da5f",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691798000000",
+                      "endTimeUnixNano": "1791889691798383833",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "6bedca71-3cac-47bc-8851-bd661a634545"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.skipped",
+                          "value": {
+                            "boolValue": false
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "938170bc70210014",
+                      "parentSpanId": "4444a3ef6e21da5f",
+                      "name": "model.turn.2",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691799000000",
+                      "endTimeUnixNano": "1791889691799163500",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "transient"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691799157125",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "transient"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "4444a3ef6e21da5f",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691797000000",
+                      "endTimeUnixNano": "1791889691799600250",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "763c89cb-de6b-414c-ae2e-35dcdb58fd3b"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "763c89cb-de6b-414c-ae2e-35dcdb58fd3b"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "failed"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.error",
+                          "value": {
+                            "stringValue": "transient"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "transient"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691799588500",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "transient"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "7c011ce44b0911f6",
+                      "parentSpanId": "438bd5316d8e40cb",
+                      "name": "model.turn.2",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691803000000",
+                      "endTimeUnixNano": "1791889691803035000",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "763c89cbde6b414cae2e35dcdb58fd3b",
+                      "spanId": "438bd5316d8e40cb",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691802000000",
+                      "endTimeUnixNano": "1791889691804270917",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "763c89cb-de6b-414c-ae2e-35dcdb58fd3b"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "763c89cb-de6b-414c-ae2e-35dcdb58fd3b"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "completed"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "cancelled": {
+    "traceId": "16bbf3c750164684a6ee254194a3af80",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "16bbf3c750164684a6ee254194a3af80",
+                      "spanId": "24c606e6707653b4",
+                      "parentSpanId": "f89371d59274fbba",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691879000000",
+                      "endTimeUnixNano": "1791889691930205333",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "AgentRunCancelledError"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "Agent run cancelled: Durable run cancelled."
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691930189625",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "Agent run cancelled: Durable run cancelled."
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "16bbf3c750164684a6ee254194a3af80",
+                      "spanId": "f89371d59274fbba",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691878000000",
+                      "endTimeUnixNano": "1791889691930190500",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "16bbf3c7-5016-4684-a6ee-254194a3af80"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "16bbf3c7-5016-4684-a6ee-254194a3af80"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "cancelled"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.error",
+                          "value": {
+                            "stringValue": "Agent run cancelled: Durable run cancelled."
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "AgentRunCancelledError"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "Agent run cancelled: Durable run cancelled."
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791889691930165916",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "Agent run cancelled: Durable run cancelled."
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "approval": {
+    "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "9a911f315aff2958",
+                      "parentSpanId": "c8216105cb7ed8d7",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889691986000000",
+                      "endTimeUnixNano": "1791889691986098083",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "fe483a733bc800b4",
+                      "parentSpanId": "c8216105cb7ed8d7",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691987000000",
+                      "endTimeUnixNano": "1791889691987640375",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "a6898c23-ed6a-4f79-b1fa-c7a6e993e718"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.status",
+                          "value": {
+                            "stringValue": "suspended"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.interaction.id",
+                          "value": {
+                            "stringValue": "5e43e61d-3eba-4f18-8e2f-273fdc7a2692"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.interaction.type",
+                          "value": {
+                            "stringValue": "tool-approval"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "c8216105cb7ed8d7",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889691985000000",
+                      "endTimeUnixNano": "1791889691988869500",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "suspended"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.turn",
+                              "value": {
+                                "stringValue": "1"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.approvalId",
+                              "value": {
+                                "stringValue": "5e43e61d-3eba-4f18-8e2f-273fdc7a2692"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolName",
+                              "value": {
+                                "stringValue": "lookup"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.internalCallId",
+                              "value": {
+                                "stringValue": "a6898c23-ed6a-4f79-b1fa-c7a6e993e718"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolCallId",
+                              "value": {
+                                "stringValue": "call-1"
+                              }
+                            }
+                          ],
+                          "name": "tool.approval_requested",
+                          "timeUnixNano": "1791889691987470208",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "60bd88796ce85f68",
+                      "parentSpanId": "22b50b45402bfad3",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889692045000000",
+                      "endTimeUnixNano": "1791889692045859084",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "a6898c23-ed6a-4f79-b1fa-c7a6e993e718"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.skipped",
+                          "value": {
+                            "boolValue": false
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "956f0651980f96e0",
+                      "parentSpanId": "22b50b45402bfad3",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791889692047000000",
+                      "endTimeUnixNano": "1791889692047057083",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "ab5fdbb9737e4ff09b661c095b3840fe",
+                      "spanId": "22b50b45402bfad3",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791889692044000000",
+                      "endTimeUnixNano": "1791889692048625000",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "1"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "completed"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.resumed_from.id",
+                          "value": {
+                            "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.resumed_from.interaction_id",
+                          "value": {
+                            "stringValue": "5e43e61d-3eba-4f18-8e2f-273fdc7a2692"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.sourceRunId",
+                              "value": {
+                                "stringValue": "ab5fdbb9-737e-4ff0-9b66-1c095b3840fe"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.interactionId",
+                              "value": {
+                                "stringValue": "5e43e61d-3eba-4f18-8e2f-273fdc7a2692"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.interactionType",
+                              "value": {
+                                "stringValue": "tool-approval"
+                              }
+                            }
+                          ],
+                          "name": "agent.interaction_response",
+                          "timeUnixNano": "1791889692044064250",
+                          "droppedAttributesCount": 0
+                        },
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.approvalId",
+                              "value": {
+                                "stringValue": "5e43e61d-3eba-4f18-8e2f-273fdc7a2692"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolName",
+                              "value": {
+                                "stringValue": "lookup"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolCallId",
+                              "value": {
+                                "stringValue": "call-1"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.internalCallId",
+                              "value": {
+                                "stringValue": "a6898c23-ed6a-4f79-b1fa-c7a6e993e718"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.approved",
+                              "value": {
+                                "stringValue": "true"
+                              }
+                            }
+                          ],
+                          "name": "tool.approval_resolved",
+                          "timeUnixNano": "1791889692044202917",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "approvalFailed": {
+    "traceId": "1333126ff2d34376911a008c016ca74c",
+    "phases": [
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "73c436682ecb7bb9",
+                      "parentSpanId": "a1a95e266153f1db",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791890011007000000",
+                      "endTimeUnixNano": "1791890011007258750",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "ba81c20246706f74",
+                      "parentSpanId": "a1a95e266153f1db",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791890011009000000",
+                      "endTimeUnixNano": "1791890011009387709",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "e01d6b98-5187-4bce-8de0-b283e1ca01ca"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.status",
+                          "value": {
+                            "stringValue": "suspended"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.interaction.id",
+                          "value": {
+                            "stringValue": "3d902611-252f-4e50-8b55-3bda714ef624"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.interaction.type",
+                          "value": {
+                            "stringValue": "tool-approval"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "a1a95e266153f1db",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791890011005000000",
+                      "endTimeUnixNano": "1791890011011019708",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "1333126f-f2d3-4376-911a-008c016ca74c"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "1333126f-f2d3-4376-911a-008c016ca74c"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "0"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "suspended"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 2
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 3
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.turn",
+                              "value": {
+                                "stringValue": "1"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.approvalId",
+                              "value": {
+                                "stringValue": "3d902611-252f-4e50-8b55-3bda714ef624"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolName",
+                              "value": {
+                                "stringValue": "lookup"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.internalCallId",
+                              "value": {
+                                "stringValue": "e01d6b98-5187-4bce-8de0-b283e1ca01ca"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolCallId",
+                              "value": {
+                                "stringValue": "call-1"
+                              }
+                            }
+                          ],
+                          "name": "tool.approval_requested",
+                          "timeUnixNano": "1791890011010063833",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "anvia-durable-fixture"
+                    }
+                  },
+                  {
+                    "key": "deployment.environment.name",
+                    "value": {
+                      "stringValue": "test"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "@anvia/lens",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "80bddc80eb45a72e",
+                      "parentSpanId": "3eab37a5febb2a0c",
+                      "name": "tool.lookup",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791890011062000000",
+                      "endTimeUnixNano": "1791890011062948209",
+                      "attributes": [
+                        {
+                          "key": "anvia.tool.name",
+                          "value": {
+                            "stringValue": "lookup"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.internal_call_id",
+                          "value": {
+                            "stringValue": "e01d6b98-5187-4bce-8de0-b283e1ca01ca"
+                          }
+                        },
+                        {
+                          "key": "anvia.tool.skipped",
+                          "value": {
+                            "boolValue": false
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 1
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "b3665db2145af657",
+                      "parentSpanId": "3eab37a5febb2a0c",
+                      "name": "model.turn.1",
+                      "kind": 3,
+                      "startTimeUnixNano": "1791890011065000000",
+                      "endTimeUnixNano": "1791890011070972625",
+                      "attributes": [
+                        {
+                          "key": "anvia.generation.turn",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.model_id",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.tool_count",
+                          "value": {
+                            "intValue": 1
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.has_output_schema",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "anvia.generation.provider",
+                          "value": {
+                            "stringValue": "test"
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "provider rejected the request"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791890011070957250",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "provider rejected the request"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    },
+                    {
+                      "traceId": "1333126ff2d34376911a008c016ca74c",
+                      "spanId": "3eab37a5febb2a0c",
+                      "name": "agent.run",
+                      "kind": 1,
+                      "startTimeUnixNano": "1791890011062000000",
+                      "endTimeUnixNano": "1791890011071123250",
+                      "attributes": [
+                        {
+                          "key": "anvia.run.id",
+                          "value": {
+                            "stringValue": "1333126f-f2d3-4376-911a-008c016ca74c"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.max_turns",
+                          "value": {
+                            "intValue": 20
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.session_id",
+                          "value": {
+                            "stringValue": "s"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableRunId",
+                          "value": {
+                            "stringValue": "1333126f-f2d3-4376-911a-008c016ca74c"
+                          }
+                        },
+                        {
+                          "key": "anvia.trace.metadata.durableEpoch",
+                          "value": {
+                            "stringValue": "1"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.status",
+                          "value": {
+                            "stringValue": "failed"
+                          }
+                        },
+                        {
+                          "key": "anvia.run.error",
+                          "value": {
+                            "stringValue": "provider rejected the request"
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.output_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.total_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cached_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        },
+                        {
+                          "key": "anvia.usage.cache_creation_input_tokens",
+                          "value": {
+                            "intValue": 0
+                          }
+                        }
+                      ],
+                      "droppedAttributesCount": 0,
+                      "events": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.sourceRunId",
+                              "value": {
+                                "stringValue": "1333126f-f2d3-4376-911a-008c016ca74c"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.interactionId",
+                              "value": {
+                                "stringValue": "3d902611-252f-4e50-8b55-3bda714ef624"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.interactionType",
+                              "value": {
+                                "stringValue": "tool-approval"
+                              }
+                            }
+                          ],
+                          "name": "agent.interaction_response",
+                          "timeUnixNano": "1791890011062040167",
+                          "droppedAttributesCount": 0
+                        },
+                        {
+                          "attributes": [
+                            {
+                              "key": "anvia.event.attributes.approvalId",
+                              "value": {
+                                "stringValue": "3d902611-252f-4e50-8b55-3bda714ef624"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolName",
+                              "value": {
+                                "stringValue": "lookup"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.toolCallId",
+                              "value": {
+                                "stringValue": "call-1"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.internalCallId",
+                              "value": {
+                                "stringValue": "e01d6b98-5187-4bce-8de0-b283e1ca01ca"
+                              }
+                            },
+                            {
+                              "key": "anvia.event.attributes.approved",
+                              "value": {
+                                "stringValue": "true"
+                              }
+                            }
+                          ],
+                          "name": "tool.approval_resolved",
+                          "timeUnixNano": "1791890011062113833",
+                          "droppedAttributesCount": 0
+                        },
+                        {
+                          "attributes": [
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "Error"
+                              }
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "provider rejected the request"
+                              }
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": {
+                                "stringValue": "Error: redacted stack trace"
+                              }
+                            }
+                          ],
+                          "name": "exception",
+                          "timeUnixNano": "1791890011071093750",
+                          "droppedAttributesCount": 0
+                        }
+                      ],
+                      "droppedEventsCount": 0,
+                      "status": {
+                        "code": 2,
+                        "message": "provider rejected the request"
+                      },
+                      "links": [],
+                      "droppedLinksCount": 0,
+                      "flags": 257
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}
