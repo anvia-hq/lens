@@ -28,6 +28,24 @@ export function langfuseObservationKind(
   return observationKinds.find((kind) => kind === value);
 }
 
+/**
+ * `@anvia/otel` 1.2.2 and earlier parented an agent or pipeline run that supplied its own trace ID
+ * to this placeholder span ID, which is never exported. Such a span is the run's root.
+ */
+const legacyAnviaRootParentSpanId = "0000000000000001";
+
+export function parentSpanId(parent: string, attributes: Record<string, JsonValue>): string | null {
+  if (parent.length === 0) return null;
+  if (parent === legacyAnviaRootParentSpanId && isAnviaRunSpan(attributes)) return null;
+  return parent;
+}
+
+function isAnviaRunSpan(attributes: Record<string, JsonValue>): boolean {
+  return ["anvia.run.id", "anvia.run.max_turns", "anvia.pipeline.id"].some(
+    (key) => attributes[key] !== undefined,
+  );
+}
+
 export function spanStatus(
   code: number,
   attributes: Record<string, JsonValue>,

@@ -364,6 +364,9 @@ importers:
         specifier: ^3.4.7
         version: 3.4.9
     devDependencies:
+      '@lens/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3

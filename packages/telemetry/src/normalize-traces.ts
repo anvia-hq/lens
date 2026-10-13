@@ -18,6 +18,7 @@ import {
   extractedOutput,
   generationModel,
   langfuseObservationKind,
+  parentSpanId,
   reportedCosts,
   spanStatus,
 } from "./trace-fields.js";
@@ -84,7 +85,7 @@ export function normalizeOtlpRequest(
           projectId: options.projectId,
           traceId: span.traceId,
           spanId: span.spanId,
-          parentSpanId: span.parentSpanId.length > 0 ? span.parentSpanId : null,
+          parentSpanId: parentSpanId(span.parentSpanId, spanAttributes),
           traceState: span.traceState,
           name: span.name || "unnamed-span",
           kind: span.kind,

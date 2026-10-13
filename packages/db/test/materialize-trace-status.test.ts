@@ -20,6 +20,10 @@ describe("trace status materialization", () => {
     expect(sql).toContain("GROUP BY span.project_id, span.trace_id");
     expect(sql).toContain("countIf(span.parent_span_id = '') > 0");
     expect(sql).toContain("'running') AS status");
+    // The latest Anvia run attempt decides, and a suspended attempt is still running.
+    expect(sql).toContain(
+      "if(argMaxIf(span.run_status, tuple(span.start_time, span.span_id), span.parent_span_id = '' AND span.run_status != '') = 'suspended', 'running'",
+    );
     expect(sql).toContain("countIf(span.status = 'error')");
     expect(sql).toContain("sumIf(span.input_tokens, span.observation_kind = 'generation')");
     expect(sql).toContain("span.observation_kind IN ('generation', 'embedding')");

@@ -134,7 +134,7 @@ describe.sequential("database integration", () => {
       query: "SELECT countDistinct(filename) AS count FROM schema_migrations",
       format: "JSONEachRow",
     });
-    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 10 }]);
+    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 11 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
