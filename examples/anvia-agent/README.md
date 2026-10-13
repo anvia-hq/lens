@@ -6,16 +6,16 @@ model; the offline regression test uses a synthetic model and a loopback OTLP co
 
 ## Supported baseline
 
-Node.js 24 or later, with exact published SDK versions checked against npm on 2026-10-06:
+Node.js 24 or later, with exact published SDK versions checked against npm on 2026-10-13:
 
-| Package         | Version |
-| --------------- | ------- |
-| `@anvia/core`   | `1.6.1` |
-| `@anvia/lens`   | `1.2.1` |
-| `@anvia/openai` | `1.1.8` |
-| `zod`           | `4.6.5` |
+| Package         | Version  |
+| --------------- | -------- |
+| `@anvia/core`   | `1.14.1` |
+| `@anvia/lens`   | `1.2.2`  |
+| `@anvia/openai` | `1.1.8`  |
+| `zod`           | `4.6.5`  |
 
-Zod meets Core 1.6.1's `^4.6.5` peer requirement; this example does not use the server workspace's
+Zod meets Core 1.14.1's `^4.6.5` peer requirement; this example does not use the server workspace's
 older Zod catalog entry. These versions are pinned together in this package and the workspace
 lockfile. They are independent of the Lens server/image version. Choose a published Lens image release as described in the root
 [deployment guide](../../README.md#run-with-docker-compose); do not infer image availability from an
