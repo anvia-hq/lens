@@ -18,6 +18,7 @@ describe("trace status materialization", () => {
     const sql = String(command.mock.calls[0]?.[0]?.query ?? "");
     expect(sql).toContain("FROM spans AS span FINAL");
     expect(sql).toContain("GROUP BY span.project_id, span.trace_id");
+    expect(sql).toContain("max(span.ingest_version) AS summary_version");
     expect(sql).toContain("countIf(span.parent_span_id = '') > 0");
     expect(sql).toContain("'running') AS status");
     // The latest Anvia run attempt decides, and a suspended attempt is still running.

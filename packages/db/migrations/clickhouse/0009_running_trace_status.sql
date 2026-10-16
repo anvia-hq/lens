@@ -35,7 +35,7 @@ SELECT
   summary.total_cost,
   summary.last_seen_at,
   summary.expires_at,
-  toUInt64(toUnixTimestamp64Nano(now64(9)))
+  summary.summary_version
 FROM trace_summaries AS summary FINAL
 INNER JOIN
 (

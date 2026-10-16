@@ -5,6 +5,7 @@ import type { NormalizedSpan } from "@lens/contracts";
 import { decodeOtlpRequest, normalizeOtlpRequest } from "@lens/telemetry";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  applyModelPrices,
   createClickHouse,
   deleteProjectTelemetry,
   getSession,
@@ -12,6 +13,7 @@ import {
   insertSpans,
   listSessions,
   materializeTrace,
+  recalculateModelCosts,
 } from "../../src/index.js";
 import { runMigrations } from "../../src/migration-runner.js";
 
@@ -207,6 +209,83 @@ describe.sequential("Anvia durable run status", () => {
 
     expect(await getTraceSummary(clickhouse, projectId, capture.traceId)).toMatchObject({
       status: "ok",
+    });
+
+    // A queued update has a newer ingest version, but predates the migration's wall clock.
+    const updated = stored.map((span) => ({
+      ...span,
+      parentSpanId: span.parentSpanId === legacyParent ? null : span.parentSpanId,
+      ingestVersion: (BigInt(span.ingestVersion) + 1_000_000n).toString(),
+      status: "error" as const,
+      spanAttributes: { ...span.spanAttributes, "anvia.run.status": "failed" },
+    }));
+    await insertSpans(clickhouse, updated);
+    await materializeTrace(clickhouse, projectId, capture.traceId);
+    expect(await getTraceSummary(clickhouse, projectId, capture.traceId)).toMatchObject({
+      status: "error",
+    });
+  });
+
+  it("keeps repriced costs visible without outranking a late-span materialization", async () => {
+    const projectId = project();
+    const [base] = normalize(projectId, captures.completed.phases[0] ?? []);
+    if (base === undefined) throw new Error("Expected a captured span");
+    const version = BigInt(Date.now() - 60_000) * 1_000_000n;
+    const span: NormalizedSpan = {
+      ...base,
+      parentSpanId: null,
+      observationKind: "generation",
+      model: "priced-model",
+      inputTokens: 1_000_000,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 1_000_000,
+      inputCost: 99,
+      outputCost: 0,
+      totalCost: 99,
+      ingestVersion: version.toString(),
+    };
+    const prices = [
+      {
+        model: "priced-model",
+        inputPricePerMillion: 4,
+        cachedInputPricePerMillion: null,
+        outputPricePerMillion: 0,
+      },
+    ];
+    await insertSpans(clickhouse, [span]);
+    await materializeTrace(clickhouse, projectId, span.traceId);
+    await recalculateModelCosts(clickhouse, {
+      projectIds: [projectId],
+      prices,
+      from: null,
+      to: null,
+    });
+    expect(await getTraceSummary(clickhouse, projectId, span.traceId)).toMatchObject({
+      spanCount: 1,
+      totalCost: 4,
+    });
+
+    // Both versions are older than recalculation time; the late span is only one tick newer.
+    await insertSpans(
+      clickhouse,
+      applyModelPrices(
+        [
+          {
+            ...span,
+            spanId: "f".repeat(16),
+            parentSpanId: span.spanId,
+            ingestVersion: (version + 1n).toString(),
+          },
+        ],
+        prices,
+      ),
+    );
+    await materializeTrace(clickhouse, projectId, span.traceId);
+    expect(await getTraceSummary(clickhouse, projectId, span.traceId)).toMatchObject({
+      spanCount: 2,
+      inputTokens: 2_000_000,
+      totalCost: 8,
     });
   });
 });
