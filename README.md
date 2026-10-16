@@ -245,11 +245,11 @@ ANVIA_LENS_SERVICE_NAME=support-agent
 ANVIA_LENS_ENVIRONMENT=production
 ```
 
-The verified SDK baseline is `@anvia/core 1.6.1`, `@anvia/lens 1.2.1`, and
-`@anvia/openai 1.1.8` (published npm versions checked on 2026-10-06). Install the matching set:
+The verified SDK baseline is `@anvia/core 1.14.1`, `@anvia/lens 1.2.4`, and
+`@anvia/openai 1.1.8` (published npm versions checked on 2026-10-16). Install the matching set:
 
 ```sh
-pnpm add --save-prefix= @anvia/core@1.6.1 @anvia/lens@1.2.1 @anvia/openai@1.1.8 zod@4.6.5
+pnpm add --save-prefix= @anvia/core@1.14.1 @anvia/lens@1.2.4 @anvia/openai@1.1.8 zod@4.6.5
 ```
 
 Set `OPENAI_API_KEY` and `OPENAI_MODEL`, then use constructor configuration and `generate`:

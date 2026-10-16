@@ -70,6 +70,15 @@ test(
           primaryTrace: "lens",
         },
       });
+      // Durable runs supply their own trace ID. The exporter must create a real root,
+      // not a child of the legacy, never-exported 0000000000000001 placeholder.
+      const suppliedTraceId = "1234567890abcdef1234567890abcdef";
+      const response = await agent.generate({
+        prompt: "What is the refund window?",
+        trace: { traceId: suppliedTraceId },
+      });
+      assert.equal(response.type, "response");
+      assert.equal(response.trace?.traceId, suppliedTraceId);
       const suite = await runEvalSuite({
         name: "offline-sdk-regression",
         run: { datasetName: "synthetic-policies", datasetVersion: "v1" },
@@ -85,7 +94,7 @@ test(
         reporterErrorPolicy: "throw",
       });
       await tracing.flush();
-      assert.equal(calls, 2);
+      assert.equal(calls, 3);
       assert.deepEqual(suite.cases, { total: 2, passed: 1, failed: 1, invalid: 0 });
       assert.deepEqual(suite.reporterErrors, []);
       const spans = requests
@@ -97,6 +106,14 @@ test(
         .flatMap(({ body }) => body.resourceLogs ?? [])
         .flatMap(({ scopeLogs }) => scopeLogs.flatMap(({ logRecords }) => logRecords));
       assert.ok(spans.length >= 4, "both Agent runs and their generations must be exported");
+      const suppliedTraceSpans = spans.filter((span) => span.traceId === suppliedTraceId);
+      assert.equal(suppliedTraceSpans.length, 2, "the run and its generation must be exported");
+      const roots = suppliedTraceSpans.filter((span) => !span.parentSpanId);
+      assert.equal(roots.length, 1, "a supplied trace ID must have a real root span");
+      assert.ok(
+        suppliedTraceSpans.some((span) => span.parentSpanId === roots[0]!.spanId),
+        "the generation must remain a child of the run root",
+      );
       for (const result of suite.results) {
         const traceId = result.output?.trace?.traceId;
         assert.ok(traceId, "Agent response must include the primary Lens trace");
@@ -116,7 +133,11 @@ test(
 
 type LogRecord = { attributes: Array<{ key: string; value: { stringValue?: string } }> };
 type OtlpBody = {
-  resourceSpans?: Array<{ scopeSpans: Array<{ spans: Array<{ traceId: string }> }> }>;
+  resourceSpans?: Array<{
+    scopeSpans: Array<{
+      spans: Array<{ traceId: string; spanId: string; parentSpanId?: string }>;
+    }>;
+  }>;
   resourceLogs?: Array<{ scopeLogs: Array<{ logRecords: LogRecord[] }> }>;
 };
 function attribute(record: LogRecord, key: string): string | undefined {
