@@ -42,6 +42,10 @@ export type TraceDetail = {
   summary: TraceSummary;
   spans: TraceSpanSummary[];
   evaluations: EvaluationResult[];
+  /** Total matching evaluations; use the evaluations endpoint with traceId to page through all results. */
+  evaluationsTotal: number;
+  /** Whether evaluations contains only the newest subset of results. */
+  evaluationsTruncated: boolean;
 };
 
 export type TraceFilters = {

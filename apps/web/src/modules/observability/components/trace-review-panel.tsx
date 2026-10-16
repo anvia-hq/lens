@@ -48,21 +48,11 @@ export function TraceReviewPanel(props: {
         `/api/v1/projects/${props.projectId}/traces/${props.detail.summary.traceId}/review`,
         { method: "PUT", body: JSON.stringify(input) },
       ),
-    onSuccess: async (result) => {
-      queryClient.setQueryData<TraceDetail>(
-        ["trace", props.projectId, props.detail.summary.traceId],
-        (detail) =>
-          detail
-            ? {
-                ...detail,
-                evaluations: [
-                  ...detail.evaluations.filter((evaluation) => evaluation.id !== result.id),
-                  result,
-                ],
-              }
-            : detail,
-      );
+    onSuccess: async () => {
       await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["trace", props.projectId, props.detail.summary.traceId],
+        }),
         queryClient.invalidateQueries({ queryKey: ["traces", props.projectId] }),
         queryClient.invalidateQueries({ queryKey: ["evaluations", props.projectId] }),
         queryClient.invalidateQueries({ queryKey: ["evaluation-facets", props.projectId] }),

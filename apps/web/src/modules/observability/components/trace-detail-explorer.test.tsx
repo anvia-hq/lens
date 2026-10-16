@@ -22,6 +22,7 @@ import {
 import { MobileTraceLayout } from "./mobile-trace-layout";
 import { SpanInspector } from "./span-inspector";
 import { TraceDetailExplorer } from "./trace-detail-explorer";
+import { TraceHeader } from "./trace-header";
 import { TraceNavigator } from "./trace-navigator";
 
 afterEach(cleanup);
@@ -355,6 +356,35 @@ describe("trace detail controls", () => {
     expect(screen.getByRole("button", { name: "Copy Metadata JSON" })).toBeTruthy();
   });
 
+  it.each([0, 1, 100, 101, 250])(
+    "shows a truncation notice only for partial evaluation results (%i)",
+    (total) => {
+      const subject = detail([]);
+      subject.summary.sessionId = null;
+      subject.evaluations = Array.from(
+        { length: Math.min(total, 100) },
+        (_, index) =>
+          ({
+            id: `evaluation-${index}`,
+            metricName: "accuracy",
+            numericValue: 1,
+            outcome: "pass",
+          }) as EvaluationResult,
+      );
+      subject.evaluationsTotal = total;
+      subject.evaluationsTruncated = total > 100;
+      render(<TraceHeader detail={subject} projectId={subject.summary.projectId} />);
+
+      if (total > 100) {
+        expect(screen.getByRole("status").textContent).toBe(
+          `Showing the newest 100 of ${total} evaluations. Older results are not shown.`,
+        );
+      } else {
+        expect(screen.queryByRole("status")).toBeNull();
+      }
+    },
+  );
+
   it("renders the complete desktop explorer without a card wrapper", () => {
     const subject = detail([span({ spanId: "root", input: { prompt: "Hello" } })]);
     subject.summary.sessionId = null;
@@ -381,6 +411,8 @@ describe("trace detail controls", () => {
 function detail(spans: SpanDetail[]): TraceDetail {
   return {
     evaluations: [],
+    evaluationsTotal: 0,
+    evaluationsTruncated: false,
     summary: {
       projectId: "00000000-0000-0000-0000-000000000001",
       traceId: "trace-1",

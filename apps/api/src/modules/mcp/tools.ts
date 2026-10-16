@@ -165,7 +165,8 @@ export function createLensMcpServer(
             spans,
             spansOmitted: Math.max(0, trace.summary.spanCount - spans.length),
             evaluations,
-            evaluationsOmitted: trace.evaluations.length - evaluations.length,
+            evaluationsTotal: trace.evaluationsTotal,
+            evaluationsOmitted: Math.max(0, trace.evaluationsTotal - evaluations.length),
             payloadIncluded: input.includePayload,
           },
         );

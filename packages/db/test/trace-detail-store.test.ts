@@ -7,6 +7,46 @@ const traceId = "a".repeat(32);
 const spanId = "1".repeat(16);
 
 describe("trace detail reads", () => {
+  it.each([0, 1, 100, 101, 250])(
+    "reports the full evaluation total and truncation for %i results",
+    async (total) => {
+      const query = vi.fn(async ({ query: sql }: { query: string }) => ({
+        json: async () => {
+          if (sql.includes("trace_summaries")) return [summaryRow()];
+          if (sql.includes("count() AS total")) return [{ total: String(total) }];
+          if (sql.includes("evaluation_results")) {
+            return Array.from({ length: Math.min(total, 100) }, (_, index) => ({
+              ...evaluationRow(),
+              id: `evaluation-${index}`,
+            }));
+          }
+          return [];
+        },
+      }));
+
+      const trace = await getTrace(clickHouseClient({ query }), projectId, traceId);
+
+      expect(trace?.evaluations).toHaveLength(Math.min(total, 100));
+      expect(trace).toMatchObject({
+        evaluationsTotal: total,
+        evaluationsTruncated: total > 100,
+      });
+      const requests = query.mock.calls.map(([request]) => request);
+      const evaluationRequests = requests.filter((request) =>
+        request.query.includes("evaluation_results"),
+      );
+      expect(evaluationRequests).toHaveLength(2);
+      for (const request of evaluationRequests) {
+        expect(request).toMatchObject({ query_params: { projectId, traceId } });
+        expect(request.query).toContain("project_id = {projectId:UUID}");
+        expect(request.query).toContain("trace_id = {traceId:String}");
+      }
+      expect(evaluationRequests).toContainEqual(
+        expect.objectContaining({ query_params: { projectId, traceId, pageSize: 100, offset: 0 } }),
+      );
+    },
+  );
+
   it("loads and maps a full span on demand", async () => {
     const query = vi.fn(async () => ({ json: async () => [spanRow()] }));
 
@@ -121,6 +161,39 @@ describe("trace detail reads", () => {
     );
   });
 });
+
+function evaluationRow() {
+  return {
+    project_id: projectId,
+    id: "evaluation-1",
+    run_id: null,
+    timestamp: "2026-08-20 08:00:00.000",
+    trace_id: traceId,
+    observation_id: null,
+    response_id: null,
+    suite_name: "quality",
+    case_id: null,
+    metric_name: "accuracy",
+    outcome: "pass",
+    data_type: "NUMERIC",
+    numeric_value: 1,
+    categorical_value: null,
+    explanation: null,
+    payload: null,
+    payload_status: "not_requested",
+    config_id: null,
+    service_name: "agent",
+    environment: "production",
+    release: null,
+    metadata: "{}",
+    source: "telemetry",
+    reviewer_id: null,
+    reviewer_name: null,
+    expires_at: "2299-12-31 23:59:59.999",
+    ingested_at: "2026-08-20 08:00:02.000",
+    ingest_version: "1",
+  };
+}
 
 function spanRow() {
   return {

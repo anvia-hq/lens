@@ -34,7 +34,8 @@ export type EvaluationDatasetCase = {
 export type EvaluationDatasetDetail = {
   name: string;
   selectedVersion: EvaluationDatasetVersionSummary;
-  versions: EvaluationDatasetVersionSummary[];
+  /** Catalog metadata; payload-derived analysis is available on selectedVersion only. */
+  versions: Omit<EvaluationDatasetVersionSummary, "status" | "canonicalRunId">[];
   cases: EvaluationDatasetCase[];
   runs: EvaluationRunSummary[];
 };
