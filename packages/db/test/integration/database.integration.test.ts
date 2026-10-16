@@ -6,6 +6,7 @@ import type {
   NormalizedSpan,
   QualityGateInput,
 } from "@lens/contracts";
+import { decodeOtlpLogsRequest, normalizeOtlpLogsRequest } from "@lens/telemetry";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -57,6 +58,7 @@ import {
   listAlertChannels as listAlertChannelsPublic,
   listAlertRules,
   listEvaluationRuns,
+  listEvaluationRunsForDataset,
   listIncidentDeliveries,
   listManagedDatasets,
   listPromptLabelEvents,
@@ -134,7 +136,7 @@ describe.sequential("database integration", () => {
       query: "SELECT countDistinct(filename) AS count FROM schema_migrations",
       format: "JSONEachRow",
     });
-    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 11 }]);
+    expect(await result.json<{ count: number }[]>()).toEqual([{ count: 12 }]);
     const tables = await postgres.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
@@ -912,6 +914,58 @@ describe.sequential("database integration", () => {
       name: "support-cases",
       selectedVersion: { version: "v1", status: "complete" },
       cases: [{ caseId: "case-1", conflict: false }],
+    });
+  });
+
+  it("keeps the corrected terminal evaluation run after stale finishes and starts arrive", async () => {
+    const id = "corrected-run";
+    const records = [
+      { eventName: "anvia.eval.run.started", timeUnixNano: unixNano(2_000), status: "running" },
+      { eventName: "anvia.eval.run.finished", timeUnixNano: unixNano(), status: "completed" },
+      {
+        eventName: "anvia.eval.run.finished",
+        timeUnixNano: (BigInt(unixNano()) + 1n).toString(),
+        status: "failed",
+      },
+    ].map(({ eventName, timeUnixNano, status }) => ({
+      eventName,
+      timeUnixNano,
+      attributes: Object.entries({
+        "anvia.eval.run.id": id,
+        "anvia.eval.suite.name": "support",
+        "anvia.eval.run.started_at": now.toISOString(),
+        "anvia.eval.run.completed_at": now.toISOString(),
+        "anvia.eval.run.status": status,
+        "anvia.eval.run.dataset.name": "corrected-dataset",
+      }).map(([key, stringValue]) => ({ key, value: { stringValue } })),
+    }));
+    const request = decodeOtlpLogsRequest(
+      new TextEncoder().encode(
+        JSON.stringify({ resourceLogs: [{ scopeLogs: [{ logRecords: records }] }] }),
+      ),
+      "application/json",
+    );
+    const { runs } = normalizeOtlpLogsRequest(request, { projectId, retentionDays: 30, now });
+    expect(runs).toHaveLength(3);
+    const [start, stale, corrected] = runs as [EvaluationRun, EvaluationRun, EvaluationRun];
+    await insertEvaluationRuns(clickhouse, [start, stale, corrected]);
+    // Separate inserts put replays in newer parts, which used to win equal-version ties.
+    await insertEvaluationRuns(clickhouse, [stale]);
+    await insertEvaluationRuns(clickhouse, [{ ...stale, stateVersion: 2 }]);
+    await insertEvaluationRuns(clickhouse, [start]);
+    const expected = { id, status: "failed", stateVersion: corrected.stateVersion };
+    expect(await getEvaluationRunDetail(clickhouse, projectId, id)).toMatchObject({
+      run: expected,
+    });
+    expect((await listEvaluationRuns(clickhouse, projectId, {})).items).toContainEqual(
+      expect.objectContaining(expected),
+    );
+    expect(
+      await listEvaluationRunsForDataset(clickhouse, projectId, "corrected-dataset", null),
+    ).toEqual([expect.objectContaining(expected)]);
+    await clickhouse.command({ query: "OPTIMIZE TABLE evaluation_runs FINAL" });
+    expect(await getEvaluationRunDetail(clickhouse, projectId, id)).toMatchObject({
+      run: expected,
     });
   });
 

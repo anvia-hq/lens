@@ -195,6 +195,23 @@ function normalizeEvaluationRun(context: RecordContext): EvaluationRun | string 
     : "running";
   if (status === undefined) return `Evaluation run ${id} has an invalid terminal status`;
 
+  let stateVersion: EvaluationRun["stateVersion"] = 1;
+  if (terminal) {
+    const { timeUnixNano, observedTimeUnixNano } = context.record;
+    const timestamp = BigInt(
+      timeUnixNano !== "0"
+        ? timeUnixNano
+        : observedTimeUnixNano !== "0"
+          ? observedTimeUnixNano
+          : BigInt(Date.parse(logTime)) * 1_000_000n,
+    );
+    if (timestamp < 0n || timestamp > 18_446_744_073_709_551_615n) {
+      return `Evaluation run ${id} has an invalid timestamp`;
+    }
+    // Preserve nanoseconds and replay ordering; reserve 1/2 for legacy starts/finishes.
+    stateVersion = (timestamp > 2n ? timestamp : 3n).toString();
+  }
+
   const metadata = context.attributes["anvia.eval.run.metadata"];
   return {
     projectId: context.options.projectId,
@@ -231,6 +248,6 @@ function normalizeEvaluationRun(context: RecordContext): EvaluationRun | string 
     expiresAt: context.ingestion.expiresAt,
     ingestedAt: context.ingestion.ingestedAt,
     ingestVersion: context.ingestion.nextIngestVersion(),
-    stateVersion: terminal ? 2 : 1,
+    stateVersion,
   };
 }

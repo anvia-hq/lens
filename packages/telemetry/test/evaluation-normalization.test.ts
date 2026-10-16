@@ -107,7 +107,7 @@ describe("evaluation normalization", () => {
       status: "completed",
       passed: 1,
       release: "2026.08.07",
-      stateVersion: 2,
+      stateVersion: "1786089601000000000",
     });
   });
 
@@ -137,6 +137,41 @@ describe("evaluation normalization", () => {
     ]);
   });
 
+  it.each(["completed", "failed"])(
+    "orders corrected %s finishes by event time, even when replayed out of order",
+    (status) => {
+      const finish = (timeUnixNano: string) => ({
+        timeUnixNano,
+        eventName: "anvia.eval.run.finished",
+        attributes: [
+          attribute("anvia.eval.run.id", { stringValue: "run-1" }),
+          attribute("anvia.eval.suite.name", { stringValue: "suite" }),
+          attribute("anvia.eval.run.status", { stringValue: status }),
+          attribute("anvia.eval.run.completed_at", { stringValue: now.toISOString() }),
+        ],
+      });
+      const earlier = finish("1786089600000000000");
+      const corrected = finish("1786089600000000001");
+      const request = decodeRecords([
+        corrected,
+        earlier,
+        { ...earlier, eventName: "anvia.eval.run.started", timeUnixNano: "1786089601000000000" },
+      ]);
+      const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
+      expect(result.rejectedLogRecords).toBe(0);
+      const [latest, stale, start] = result.runs;
+      expect(BigInt(latest!.stateVersion)).toBeGreaterThan(BigInt(stale!.stateVersion));
+      expect(BigInt(stale!.stateVersion)).toBeGreaterThan(BigInt(start!.stateVersion));
+      expect(BigInt(stale!.stateVersion)).toBeGreaterThan(2n);
+      const replay = normalizeOtlpLogsRequest(decodeRecords([corrected]), {
+        projectId,
+        retentionDays: null,
+        now: new Date(now.getTime() + 60_000),
+      });
+      expect(replay.runs[0]?.stateVersion).toBe(latest!.stateVersion);
+    },
+  );
+
   it("drops unsafe integer counters", () => {
     const request = decodeRecords([
       {
@@ -152,5 +187,27 @@ describe("evaluation normalization", () => {
 
     const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
     expect(result.runs[0]?.caseCount).toBe(0);
+  });
+
+  it.each([
+    [{ observedTimeUnixNano: "1786089600000000001" }, "1786089600000000001"],
+    [{}, "1786060800000000000"],
+    [{ timeUnixNano: "1" }, "3"],
+    [{ timeUnixNano: "18446744073709551615" }, "18446744073709551615"],
+  ])("uses timestamp fallbacks and reserves legacy versions: %j", (timestamps, expected) => {
+    const request = decodeRecords([
+      {
+        ...timestamps,
+        eventName: "anvia.eval.run.finished",
+        attributes: [
+          attribute("anvia.eval.run.id", { stringValue: "run-1" }),
+          attribute("anvia.eval.suite.name", { stringValue: "suite" }),
+          attribute("anvia.eval.run.status", { stringValue: "completed" }),
+        ],
+      },
+    ]);
+    const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
+    expect(result.rejectedLogRecords).toBe(0);
+    expect(result.runs[0]?.stateVersion).toBe(expected);
   });
 });
