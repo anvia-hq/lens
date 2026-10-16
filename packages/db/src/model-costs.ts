@@ -97,6 +97,8 @@ export async function recalculateModelCosts(
     query_params: priceParams,
   });
 
+  // Keep the copied snapshot's version so queued span materializations can supersede it.
+  // ReplacingMergeTree keeps the latest insert when versions tie.
   await client.command({
     query: `INSERT INTO trace_summaries
             (
@@ -114,7 +116,7 @@ export async function recalculateModelCosts(
               summary.version, summary.service_version, summary.input_tokens, summary.output_tokens,
               summary.total_tokens, costs.input_cost, costs.output_cost, costs.total_cost,
               summary.last_seen_at, summary.expires_at,
-              toUInt64(toUnixTimestamp64Nano(now64(9)))
+              summary.summary_version
             FROM trace_summaries AS summary FINAL
             INNER JOIN
             (

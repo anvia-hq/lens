@@ -7,6 +7,80 @@ type QueryOptions = { query: string; query_params?: Record<string, unknown> };
 const projectId = "11111111-1111-4111-8111-111111111111";
 
 describe("evaluation dataset catalog", () => {
+  it.each([
+    { requestedVersion: undefined, selectedVersion: "v2" },
+    { requestedVersion: "v1", selectedVersion: "v1" },
+    { requestedVersion: null, selectedVersion: null },
+    { requestedVersion: "", selectedVersion: "" },
+  ])(
+    "loads runs and payloads only for $selectedVersion",
+    async ({ requestedVersion, selectedVersion }) => {
+      const client = fakeClient({
+        secondInput: "question",
+        secondOutput: "different answer",
+        versions: ["v2", "v1", null, ""],
+      });
+      const detail = await getEvaluationDatasetDetail(
+        client,
+        projectId,
+        "support-cases",
+        requestedVersion,
+      );
+
+      expect(detail?.selectedVersion).toMatchObject({
+        version: selectedVersion,
+        status: "complete",
+        canonicalRunId: "run-1",
+      });
+      expect(detail?.cases[0]?.payload).toEqual({
+        input: "question",
+        expected: "answer",
+        output: "first answer",
+      });
+      expect(detail?.runs.map((run) => run.id)).toEqual(["run-1", "run-2"]);
+      expect(detail?.versions).toEqual(
+        ["v2", "v1", null, ""].map((version) => ({
+          version,
+          caseCount: 1,
+          runCount: 2,
+          firstSeenAt: "2026-08-07T00:00:00.000Z",
+          lastSeenAt: "2026-08-07T00:01:00.000Z",
+        })),
+      );
+      const queries = vi
+        .mocked(client.query)
+        .mock.calls.map(([options]) => options as QueryOptions);
+      const runQueries = queries.filter(({ query }) =>
+        query.includes("SELECT * FROM evaluation_runs"),
+      );
+      expect(runQueries).toHaveLength(1);
+      expect(runQueries[0]?.query_params).toEqual({
+        projectId,
+        datasetName: "support-cases",
+        ...(selectedVersion === null ? {} : { datasetVersion: selectedVersion }),
+      });
+      if (selectedVersion === null)
+        expect(runQueries[0]?.query).toContain("isNull(dataset_version)");
+      expect(
+        queries.filter(({ query }) => query.includes("SELECT project_id, id, run_id")),
+      ).toHaveLength(2);
+    },
+  );
+
+  it.each([
+    { versions: ["v1"], requestedVersion: "missing" },
+    { versions: [], requestedVersion: undefined },
+  ])(
+    "returns undefined without loading runs for an absent dataset or version",
+    async ({ versions, requestedVersion }) => {
+      const client = fakeClient({ secondInput: "question", secondOutput: "answer", versions });
+      expect(
+        await getEvaluationDatasetDetail(client, projectId, "support-cases", requestedVersion),
+      ).toBeUndefined();
+      expect(client.query).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("marks changed case definitions as conflicts while preserving the first snapshot", async () => {
     const detail = await getEvaluationDatasetDetail(
       fakeClient({ secondInput: "changed question", secondOutput: "different answer" }),
@@ -40,19 +114,21 @@ describe("evaluation dataset catalog", () => {
   });
 });
 
-function fakeClient(options: { secondInput: string; secondOutput: string }): ClickHouseClient {
+function fakeClient(options: {
+  secondInput: string;
+  secondOutput: string;
+  versions?: Array<string | null>;
+}): ClickHouseClient {
   const query = vi.fn(async ({ query: sql, query_params: params }: QueryOptions) => ({
     json: async () => {
       if (sql.includes("SELECT dataset_version AS version")) {
-        return [
-          {
-            version: "v1",
-            run_count: "2",
-            case_count: "1",
-            first_seen_at: "2026-08-07 00:00:00.000",
-            last_seen_at: "2026-08-07 00:01:00.000",
-          },
-        ];
+        return (options.versions ?? ["v1"]).map((version) => ({
+          version,
+          run_count: "2",
+          case_count: "1",
+          first_seen_at: "2026-08-07 00:00:00.000",
+          last_seen_at: "2026-08-07 00:01:00.000",
+        }));
       }
       if (sql.includes("SELECT * FROM evaluation_runs")) return [runRow("run-1"), runRow("run-2")];
       if (sql.includes("SELECT run_id, count() AS results")) {

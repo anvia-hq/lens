@@ -37,7 +37,7 @@ describe("simple project pages", () => {
             project,
             snippets: {
               environment: "ANVIA_LENS_BASE_URL=http://localhost",
-              anvia: "lens.create()",
+              anvia: "new LensClient()",
               langfuse: "new LangfuseSpanProcessor()",
             },
           } as unknown as ConnectState

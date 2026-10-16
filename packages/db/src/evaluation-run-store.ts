@@ -133,10 +133,22 @@ export async function listEvaluationRuns(
   const where = runWhere(projectId, options);
   const sortColumn = evaluationRunSortColumns[options.sort ?? "startedAt"];
   const order = options.order ?? "desc";
+  // Run fields can be paged before hydration; aggregate sorts need all matching runs.
+  const pageRunsFirst = [
+    "startedAt",
+    "suiteName",
+    "status",
+    "release",
+    "environment",
+    "durationMs",
+  ].includes(options.sort ?? "startedAt");
+  const orderBy = `ORDER BY isNull(${sortColumn}) ASC, ${sortColumn} ${order.toUpperCase()}, started_at DESC, id ASC`;
+  const pagination = "LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}";
   const [rowsResult, countResult] = await Promise.all([
     client.query({
       query: `WITH filtered_runs AS
-                (SELECT * FROM evaluation_runs FINAL WHERE ${where.filters.join(" AND ")}),
+                (SELECT * FROM evaluation_runs FINAL WHERE ${where.filters.join(" AND ")}
+                 ${pageRunsFirst ? `${orderBy} ${pagination}` : ""}),
               aggregates AS
                 (SELECT run_id, count() AS results,
                         countIf(outcome = 'pass') AS actual_passed,
@@ -162,7 +174,9 @@ export async function listEvaluationRuns(
                         avgIf(summaries.total_tokens, summaries.trace_id IS NOT NULL) AS average_total_tokens
                  FROM trace_ids
                  LEFT JOIN
-                   (SELECT project_id, trace_id, duration_ms, total_tokens FROM trace_summaries FINAL) AS summaries
+                   (SELECT project_id, trace_id, duration_ms, total_tokens FROM trace_summaries FINAL
+                    PREWHERE project_id = {projectId:UUID}
+                      AND trace_id IN (SELECT trace_id FROM trace_ids)) AS summaries
                  ON summaries.project_id = {projectId:UUID} AND summaries.trace_id = trace_ids.trace_id
                  GROUP BY trace_ids.run_id)
               SELECT filtered_runs.*,
@@ -183,8 +197,8 @@ export async function listEvaluationRuns(
               FROM filtered_runs
               LEFT JOIN aggregates ON aggregates.run_id = filtered_runs.id
               LEFT JOIN operational ON operational.run_id = filtered_runs.id
-              ORDER BY isNull(${sortColumn}) ASC, ${sortColumn} ${order.toUpperCase()}, started_at DESC, id ASC
-              LIMIT {pageSize:UInt16} OFFSET {offset:UInt64}`,
+              ${orderBy}
+              ${pageRunsFirst ? "" : pagination}`,
       query_params: { ...where.params, pageSize, offset },
       format: "JSONEachRow",
     }),
@@ -382,16 +396,20 @@ async function hydrateRunSummaries(
     }),
     client.query({
       ...readCancellation(options.signal),
-      query: `SELECT traces.run_id,
+      query: `WITH traces AS
+                (SELECT run_id, trace_id FROM evaluation_results FINAL
+                 WHERE project_id = {projectId:UUID} AND run_id IN {runIds:Array(String)}
+                   AND trace_id IS NOT NULL GROUP BY run_id, trace_id)
+              SELECT traces.run_id,
                      count() AS expected_traces,
                      countIf(summaries.trace_id IS NOT NULL) AS found_traces,
                      quantileExactIf(0.95)(summaries.duration_ms, summaries.trace_id IS NOT NULL) AS p95_latency_ms,
                      avgIf(summaries.total_tokens, summaries.trace_id IS NOT NULL) AS average_total_tokens
-              FROM
-                (SELECT run_id, trace_id FROM evaluation_results FINAL
-                 WHERE project_id = {projectId:UUID} AND run_id IN {runIds:Array(String)}
-                   AND trace_id IS NOT NULL GROUP BY run_id, trace_id) AS traces
-              LEFT JOIN (SELECT project_id, trace_id, duration_ms, total_tokens FROM trace_summaries FINAL) AS summaries
+              FROM traces
+              LEFT JOIN
+                (SELECT project_id, trace_id, duration_ms, total_tokens FROM trace_summaries FINAL
+                 PREWHERE project_id = {projectId:UUID}
+                   AND trace_id IN (SELECT trace_id FROM traces)) AS summaries
                 ON summaries.project_id = {projectId:UUID} AND summaries.trace_id = traces.trace_id
               GROUP BY traces.run_id`,
       query_params: { projectId, runIds },
