@@ -915,6 +915,41 @@ describe.sequential("database integration", () => {
     });
   });
 
+  it("pages run fields before hydration while preserving global aggregate sorting", async () => {
+    const isolatedProject = crypto.randomUUID();
+    await insertEvaluationRuns(
+      clickhouse,
+      Array.from({ length: 26 }, (_, index) => ({
+        ...evaluationRun(),
+        projectId: isolatedProject,
+        id: `paged-${String(index).padStart(2, "0")}`,
+        startedAt: new Date(now.getTime() + index * 1_000).toISOString(),
+      })),
+    );
+    await insertEvaluations(
+      clickhouse,
+      ["paged-00", "paged-00", "paged-25"].map((runId, index) => ({
+        ...evaluationResult(),
+        projectId: isolatedProject,
+        id: `paged-result-${index}`,
+        runId,
+      })),
+    );
+
+    const first = await listEvaluationRuns(clickhouse, isolatedProject, {});
+    expect(first).toMatchObject({ total: 26, page: 1, pageSize: 25, pageCount: 2 });
+    expect(first.items).toHaveLength(25);
+    expect(first.items[0]).toMatchObject({ id: "paged-25", results: 1 });
+    expect(first.items.at(-1)).toMatchObject({ id: "paged-01", results: 0 });
+
+    const second = await listEvaluationRuns(clickhouse, isolatedProject, { page: 2 });
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0]).toMatchObject({ id: "paged-00", results: 2 });
+    const byResults = await listEvaluationRuns(clickhouse, isolatedProject, { sort: "results" });
+    expect(byResults.items[0]).toMatchObject({ id: "paged-00", results: 2 });
+    expect(byResults.items[1]).toMatchObject({ id: "paged-25", results: 1 });
+  });
+
   it("aggregates distinct usable metric cases and excludes unusable scores without loading cases", async () => {
     const isolatedProject = crypto.randomUUID();
     await insertEvaluationRuns(
