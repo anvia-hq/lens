@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  evaluationRunSchema,
   managedDatasetCaseImportSchema,
   managedDatasetCaseInputSchema,
   managedDatasetUpdateSchema,
@@ -10,6 +11,20 @@ import {
 } from "../src/index.js";
 
 describe("evaluation contracts", () => {
+  it.each([1, 2, "1", "2", "1786089600000000001", "18446744073709551615"])(
+    "accepts legacy and UInt64 evaluation run state versions: %s",
+    (version) => {
+      expect(evaluationRunSchema.shape.stateVersion.parse(version)).toBe(version);
+    },
+  );
+
+  it.each([0, 3, -1, 1.5, "0", "-1", "1.5", "invalid", "18446744073709551616"])(
+    "rejects invalid evaluation run state versions: %s",
+    (version) => {
+      expect(evaluationRunSchema.shape.stateVersion.safeParse(version).success).toBe(false);
+    },
+  );
+
   it("validates quality-gate rules and checks", () => {
     const gate = {
       name: "Production",

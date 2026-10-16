@@ -99,7 +99,16 @@ export const evaluationRunSchema = z.object({
   expiresAt: z.iso.datetime().nullable(),
   ingestedAt: z.iso.datetime(),
   ingestVersion: z.string(),
-  stateVersion: z.union([z.literal(1), z.literal(2)]),
+  stateVersion: z.union([
+    // Accept jobs queued before timestamp-based versions were introduced.
+    z.literal(1),
+    z.literal(2),
+    z
+      .string()
+      .refine(
+        (value) => /^[1-9]\d{0,19}$/.test(value) && BigInt(value) <= 18_446_744_073_709_551_615n,
+      ),
+  ]),
 });
 export type EvaluationRun = z.infer<typeof evaluationRunSchema>;
 

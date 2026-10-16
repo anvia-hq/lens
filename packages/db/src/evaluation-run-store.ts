@@ -41,7 +41,7 @@ type RunRow = {
   expires_at: string;
   ingested_at: string;
   ingest_version: number | string;
-  state_version: 1 | 2;
+  state_version: number | string;
 };
 
 type AggregateRow = {
@@ -201,6 +201,7 @@ export async function listEvaluationRuns(
               ${pageRunsFirst ? "" : pagination}`,
       query_params: { ...where.params, pageSize, offset },
       format: "JSONEachRow",
+      clickhouse_settings: { output_format_json_quote_64bit_integers: 1 },
     }),
     client.query({
       query: `SELECT count() AS total FROM evaluation_runs FINAL
@@ -258,6 +259,10 @@ export async function getEvaluationRun(
             WHERE project_id = {projectId:UUID} AND id = {runId:String} LIMIT 1`,
     query_params: { projectId, runId },
     format: "JSONEachRow",
+    clickhouse_settings: {
+      ...readCancellation(options.signal).clickhouse_settings,
+      output_format_json_quote_64bit_integers: 1,
+    },
   });
   const rows = await result.json<RunRow>();
   const run = rows[0];
@@ -287,6 +292,7 @@ export async function listEvaluationRunsForDataset(
       ...(datasetVersion === null ? {} : { datasetVersion }),
     },
     format: "JSONEachRow",
+    clickhouse_settings: { output_format_json_quote_64bit_integers: 1 },
   });
   const rows = await result.json<RunRow>();
   return hydrateRunSummaries(client, projectId, rows.map(runFromRow));
@@ -600,7 +606,7 @@ function runFromRow(row: RunRow): EvaluationRun {
     expiresAt: isoTime(row.expires_at),
     ingestedAt: isoTime(row.ingested_at),
     ingestVersion: String(row.ingest_version),
-    stateVersion: row.state_version,
+    stateVersion: String(row.state_version),
   };
 }
 
