@@ -107,5 +107,9 @@ describe("model costs", () => {
       to: "2026-08-02 00:00:00.000",
     });
     expect(command.mock.calls[1]?.[0].query).toContain("INSERT INTO trace_summaries");
+    // Repricing copies the summary's metadata, so it must retain that snapshot's version.
+    expect(command.mock.calls[1]?.[0].query).toMatch(
+      /summary\.expires_at,\s+summary\.summary_version\s+FROM trace_summaries/,
+    );
   });
 });
