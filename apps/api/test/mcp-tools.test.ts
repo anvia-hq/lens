@@ -208,6 +208,8 @@ describe("Lens MCP tools", () => {
       summary: { traceId: "trace-1", spanCount: 900 },
       spans: [{ traceId: "trace-1", spanId: "span-1" }],
       evaluations: [],
+      evaluationsTotal: 0,
+      evaluationsTruncated: false,
     });
     const { client } = await connect(basePrincipal);
     const result = await client.callTool({
@@ -218,7 +220,36 @@ describe("Lens MCP tools", () => {
       spanLimit: 500,
       includeEvaluationPayloads: false,
     });
-    expect(structuredData(result)).toMatchObject({ spansOmitted: 899, payloadIncluded: false });
+    expect(structuredData(result)).toMatchObject({
+      spansOmitted: 899,
+      payloadIncluded: false,
+      evaluationsTotal: 0,
+      evaluationsOmitted: 0,
+    });
+  });
+
+  it("counts evaluations omitted by the database limit", async () => {
+    db.getTrace.mockResolvedValue({
+      summary: { traceId: "trace-1", spanCount: 0 },
+      spans: [],
+      evaluations: Array.from({ length: 100 }, (_, index) => ({
+        id: `evaluation-${index}`,
+        metadata: {},
+        payload: null,
+      })),
+      evaluationsTotal: 250,
+      evaluationsTruncated: true,
+    });
+    const { client } = await connect(basePrincipal);
+    const result = await client.callTool({
+      name: "get_trace",
+      arguments: { projectId: PROJECT.id, traceId: "trace-1" },
+    });
+    expect(structuredData(result)).toMatchObject({
+      evaluationsTotal: 250,
+      evaluationsOmitted: 150,
+    });
+    expect(structuredData(result).evaluations).toHaveLength(100);
   });
 
   it("defaults searches to a bounded 24-hour range", async () => {

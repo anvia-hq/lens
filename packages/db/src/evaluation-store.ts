@@ -151,16 +151,12 @@ export async function listEvaluationsForTrace(
   projectId: string,
   traceId: string,
   options: { includePayloads?: boolean } = {},
-): Promise<EvaluationResult[]> {
-  return (
-    await listEvaluations(client, projectId, {
-      traceId,
-      pageSize: 100,
-      ...(options.includePayloads === undefined
-        ? {}
-        : { includePayloads: options.includePayloads }),
-    })
-  ).items;
+): Promise<Page<EvaluationResult>> {
+  return listEvaluations(client, projectId, {
+    traceId,
+    pageSize: 100,
+    ...(options.includePayloads === undefined ? {} : { includePayloads: options.includePayloads }),
+  });
 }
 
 export async function listHumanReviewOutcomes(

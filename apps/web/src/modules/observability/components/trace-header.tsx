@@ -92,6 +92,12 @@ export function TraceHeader({
       {detail.evaluations.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3">
           <span className="mr-1 text-xs font-medium text-muted-foreground">Evaluations</span>
+          {detail.evaluationsTruncated ? (
+            <span className="w-full text-xs text-muted-foreground" role="status">
+              Showing the newest {detail.evaluations.length} of {detail.evaluationsTotal}{" "}
+              evaluations. Older results are not shown.
+            </span>
+          ) : null}
           {detail.evaluations.map((evaluation) => (
             <Badge
               key={evaluation.id}

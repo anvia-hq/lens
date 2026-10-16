@@ -51,6 +51,8 @@ function largeTrace(count: number): TraceDetail {
   }));
   return {
     evaluations: [],
+    evaluationsTotal: 0,
+    evaluationsTruncated: false,
     spans,
     summary: {
       projectId: "project-1",

@@ -49,6 +49,8 @@ function detail(): TraceDetail {
   const spans = [span()];
   return {
     evaluations: [],
+    evaluationsTotal: 0,
+    evaluationsTruncated: false,
     summary: {
       projectId: "project-1",
       traceId: "trace-1",
