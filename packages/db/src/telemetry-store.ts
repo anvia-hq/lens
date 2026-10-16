@@ -518,7 +518,9 @@ export async function getTrace(
   return {
     summary: summaryFromRow(summary),
     spans: spans.map(traceSpanSummaryFromRow),
-    evaluations,
+    evaluations: evaluations.items,
+    evaluationsTotal: evaluations.total,
+    evaluationsTruncated: evaluations.total > evaluations.items.length,
   };
 }
 
