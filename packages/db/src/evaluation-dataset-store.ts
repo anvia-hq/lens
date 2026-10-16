@@ -103,29 +103,33 @@ export async function getEvaluationDatasetDetail(
     format: "JSONEachRow",
   });
   const rows = await versionResult.json<VersionRow>();
-  if (rows.length === 0) return undefined;
+  const selectedRow =
+    requestedVersion === undefined ? rows[0] : rows.find((row) => row.version === requestedVersion);
+  if (selectedRow === undefined) return undefined;
 
-  const analyses = await Promise.all(
-    rows.map(async (row) => {
-      const runs = await listEvaluationRunsForDataset(client, projectId, datasetName, row.version);
-      const results = await Promise.all(
-        runs.map(async (run) => ({
-          run,
-          results: await listRunResults(client, projectId, run.id),
-        })),
-      );
-      return analyzeVersion(row, runs, results);
-    }),
+  const runs = await listEvaluationRunsForDataset(
+    client,
+    projectId,
+    datasetName,
+    selectedRow.version,
   );
-  const selected =
-    requestedVersion === undefined
-      ? analyses[0]
-      : analyses.find((item) => item.summary.version === requestedVersion);
-  if (selected === undefined) return undefined;
+  const results = await Promise.all(
+    runs.map(async (run) => ({
+      run,
+      results: await listRunResults(client, projectId, run.id),
+    })),
+  );
+  const selected = analyzeVersion(selectedRow, runs, results);
   return {
     name: datasetName,
     selectedVersion: selected.summary,
-    versions: analyses.map((item) => item.summary),
+    versions: rows.map((row) => ({
+      version: row.version,
+      caseCount: numeric(row.case_count),
+      runCount: numeric(row.run_count),
+      firstSeenAt: isoTime(row.first_seen_at),
+      lastSeenAt: isoTime(row.last_seen_at),
+    })),
     cases: selected.cases,
     runs: selected.runs,
   };
