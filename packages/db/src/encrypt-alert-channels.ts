@@ -1,16 +1,24 @@
 /**
  * Re-encrypt alert channel secrets under a new key version.
  *
- * Usage:
+ * Standalone re-run / rotation helper. The plaintext-to-ciphertext migration
+ * also runs automatically inside `db:migrate` (and the `migrate` container),
+ * so upgrades do not leave delivery broken in between.
+ *
+ * Usage (source checkout):
  *   1. Generate a new key:  openssl rand -base64 32
- *   2. Migrate:              LENS_ALERT_SECRET_KEY=<new> pnpm --filter @lens/db db:encrypt-alert-channels
+ *   2. Re-run migrate:       LENS_ALERT_SECRET_KEY=<new> pnpm --filter @lens/db db:encrypt-alert-channels
  *      (rows already encrypted are skipped; safe to run twice)
  *   3. Rotate:               LENS_ALERT_SECRET_KEY=<new>,<old> pnpm --filter @lens/db db:rotate-alert-channels
  *      (rows still under the old key id are re-encrypted with the new active key)
  *   4. Remove the old key from the environment once rotation reports 0 remaining.
  *
- * Existing deployments must set LENS_ALERT_SECRET_KEY before running the
- * migration; delivery read paths reject plaintext rows until they are migrated.
+ * Usage (published image):
+ *   docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js migrate
+ *   docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js rotate
+ *
+ * Existing deployments must set LENS_ALERT_SECRET_KEY before upgrading; the
+ * automatic migration encrypts plaintext rows on `db:migrate`.
  */
 import { loadConfig } from "@lens/config";
 import { createPostgres, migrateAlertChannelSecrets, rotateAlertChannelSecrets } from "./index.js";

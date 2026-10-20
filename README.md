@@ -103,8 +103,9 @@ REDIS_PASSWORD=replace-with-a-random-value
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
 INGESTION_KEY_PEPPER=replace-with-an-independent-random-value
 # Alert channel secrets are encrypted at rest with AES-256-GCM. Generate with: openssl rand -base64 32
-# Existing deployments must set this key before upgrading, then run the migration:
-# LENS_ALERT_SECRET_KEY=<key> pnpm --filter @lens/db db:encrypt-alert-channels
+# Existing deployments must set this key before upgrading; plaintext rows are
+# encrypted automatically by the migrate step (or re-run manually with
+# `docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js migrate`).
 LENS_ALERT_SECRET_KEY=replace-with-base64-of-32-random-bytes
 ```
 
