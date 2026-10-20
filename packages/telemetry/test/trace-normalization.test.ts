@@ -275,7 +275,7 @@ describe("trace normalization", () => {
                       // Year 3000: beyond the DateTime64(9) maximum of
                       // 2262-04-11T23:47:16.854775807Z.
                       startTimeUnixNano: "32536848000000000000",
-                      endTimeUnixNano: "3253684800123000000",
+                      endTimeUnixNano: "32536848000123000000",
                     },
                   ],
                 },
