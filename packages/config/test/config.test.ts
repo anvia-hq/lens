@@ -138,6 +138,43 @@ describe("loadConfig", () => {
     );
   });
 
+  it("accepts the development default secrets outside production", () => {
+    expect(loadConfig({}).NODE_ENV).toBe("development");
+    expect(loadConfig({ NODE_ENV: "test" }).NODE_ENV).toBe("test");
+  });
+
+  it.each([
+    [{ NODE_ENV: "production" }, "BETTER_AUTH_SECRET"],
+    [{ NODE_ENV: "production" }, "INGESTION_KEY_PEPPER"],
+    [
+      {
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
+      },
+      "INGESTION_KEY_PEPPER",
+    ],
+    [
+      {
+        NODE_ENV: "production",
+        INGESTION_KEY_PEPPER: "a-production-safe-pepper",
+      },
+      "BETTER_AUTH_SECRET",
+    ],
+  ])("rejects development default secrets in production for %s", (source, field) => {
+    expect(() => loadConfig(source)).toThrow(
+      new RegExp(`Invalid Anvia Lens configuration.*${field}`, "s"),
+    );
+  });
+
+  it("accepts non-default secrets in production", () => {
+    const config = loadConfig({
+      NODE_ENV: "production",
+      BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
+      INGESTION_KEY_PEPPER: "a-production-safe-pepper",
+    });
+    expect(config.NODE_ENV).toBe("production");
+  });
+
   it("does not cache explicitly supplied environments", () => {
     expect(loadConfig({ API_PORT: "3002" }).API_PORT).toBe(3002);
     expect(loadConfig({ API_PORT: "3003" }).API_PORT).toBe(3003);

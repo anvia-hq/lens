@@ -42,6 +42,9 @@ const positiveInteger = (defaultValue: number) =>
 const nonnegativeInteger = (defaultValue: number) =>
   z.coerce.number().int().nonnegative().default(defaultValue);
 
+const DEVELOPMENT_BETTER_AUTH_SECRET = "development-only-secret-change-me-now";
+const DEVELOPMENT_INGESTION_KEY_PEPPER = "development-ingestion-key-pepper";
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -60,7 +63,7 @@ const envSchema = z
     CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_SORT: nonnegativeInteger(0),
     REDIS_URL: z.url().default("redis://localhost:6379"),
     SYSTEM_MONITOR_URL: optionalString.pipe(z.url().optional()),
-    BETTER_AUTH_SECRET: z.string().min(32).default("development-only-secret-change-me-now"),
+    BETTER_AUTH_SECRET: z.string().min(32).default(DEVELOPMENT_BETTER_AUTH_SECRET),
     PASSWORD_LOGIN_ENABLED: enabledByDefaultBooleanString,
     OIDC_ENABLED: booleanString,
     OIDC_PROVIDER_ID: z
@@ -78,7 +81,7 @@ const envSchema = z
     OIDC_REQUIRE_VERIFIED_EMAIL: booleanString,
     OIDC_AUTO_PROVISION: booleanString,
     OIDC_ALLOWED_DOMAINS: domainList.default([]),
-    INGESTION_KEY_PEPPER: z.string().min(16).default("development-ingestion-key-pepper"),
+    INGESTION_KEY_PEPPER: z.string().min(16).default(DEVELOPMENT_INGESTION_KEY_PEPPER),
     SMTP_HOST: optionalString,
     SMTP_PORT: positiveInteger(587),
     SMTP_FROM: z.string().default("Anvia Lens <lens@localhost>"),
@@ -112,6 +115,24 @@ const envSchema = z
     path: ["SMTP_HOST"],
   })
   .superRefine((value, context) => {
+    if (value.NODE_ENV === "production") {
+      if (value.BETTER_AUTH_SECRET === DEVELOPMENT_BETTER_AUTH_SECRET) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BETTER_AUTH_SECRET must not use the development default value in production",
+          path: ["BETTER_AUTH_SECRET"],
+        });
+      }
+      if (value.INGESTION_KEY_PEPPER === DEVELOPMENT_INGESTION_KEY_PEPPER) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "INGESTION_KEY_PEPPER must not use the development default value in production",
+          path: ["INGESTION_KEY_PEPPER"],
+        });
+      }
+    }
     if (!value.PASSWORD_LOGIN_ENABLED && !value.OIDC_ENABLED) {
       context.addIssue({
         code: "custom",
