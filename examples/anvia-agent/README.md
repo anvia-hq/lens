@@ -31,9 +31,11 @@ totals. `LensClient` owns observers, reporters, dataset access, and telemetry cl
 
 ## Setup
 
-Start Lens from the repository root:
+Start Lens from the repository root (copy `.env.dev.example` to `.env` first,
+as in the root README's [Local development](../../README.md#local-development) section):
 
 ```sh
+cp .env.dev.example .env
 docker compose -f docker-compose.dev.yml up -d
 ```
 
