@@ -402,6 +402,11 @@ and `LENS_SEED_DEMO_SECRET_KEY` before seeding. The seed refuses to run with
 leaves it unset (seed service is also `tools`-profile only), while the dev stack opts in
 by default.
 
+If the database was seeded by an older release, the seed prints a warning that the demo
+login and API key still use the previously published values. Change the demo password
+and revoke the `pk-lens-demo-production-agents` key, and treat any prior value as
+compromised — the seed deliberately never rotates or revives them on its own.
+
 Run application services outside containers while keeping infrastructure in Docker:
 
 ```sh

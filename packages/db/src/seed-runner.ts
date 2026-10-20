@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { type LensConfig, loadConfig } from "@lens/config";
-import { hashPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import {
   account,
@@ -24,6 +24,15 @@ const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const DEMO_EMAIL = "demo@lens.local";
 const DEMO_ACCOUNT_ID = "seed-account-demo";
 const DEMO_API_KEY_ID = "22222222-2222-4222-8222-222222222222";
+/**
+ * Credentials shipped by older seed versions (now removed). Only used to detect
+ * databases seeded before this fix so the operator can be warned; never written
+ * back. The secret is compared by hash, using the same HMAC construction the old
+ * seed used.
+ */
+const LEGACY_DEMO_SECRET_PLAINTEXT = "sk-lens-demo-4Yp9Xq7Wm2Ns8Kd5Rt3Vh6Bj1Lc0ZaEeFuGiPoUyQ";
+const LEGACY_DEMO_PUBLIC_KEY = "pk-lens-demo-production-agents";
+const LEGACY_DEMO_PASSWORD = "LensDemo2026!";
 
 /** Explicit opt-in required to run the demo seed in production. */
 const SEED_PRODUCTION_OPT_IN = "LENS_ALLOW_SEED";
@@ -77,12 +86,17 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     const now = new Date();
 
     const existingAccount = await postgres.db
-      .select({ id: account.id })
+      .select({ id: account.id, password: account.password })
       .from(account)
       .where(eq(account.id, DEMO_ACCOUNT_ID))
       .limit(1);
     const existingApiKey = await postgres.db
-      .select({ id: projectApiKey.id })
+      .select({
+        id: projectApiKey.id,
+        publicKey: projectApiKey.publicKey,
+        secretHash: projectApiKey.secretHash,
+        revokedAt: projectApiKey.revokedAt,
+      })
       .from(projectApiKey)
       .where(eq(projectApiKey.id, DEMO_API_KEY_ID))
       .limit(1);
@@ -90,20 +104,35 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     // Credentials exist only in memory for this run: prefer caller-supplied values,
     // otherwise generate fresh random ones. Nothing is hardcoded, and re-runs never
     // rotate existing auth data.
-    const demoPassword =
-      existingAccount.length > 0
-        ? null
-        : (readSeedEnv(SEED_DEMO_PASSWORD_ENV) ?? generateDemoPassword());
-    const demoPublicKey = existingApiKey.length > 0 ? null : generateDemoPublicKey();
-    const demoSecretKey =
-      existingApiKey.length > 0
-        ? null
-        : (readSeedEnv(SEED_DEMO_SECRET_KEY_ENV) ?? generateDemoSecretKey());
+    const accountExists = existingAccount.length > 0;
+    const apiKeyExists = existingApiKey.length > 0;
+    const demoPassword = accountExists
+      ? null
+      : (readSeedEnv(SEED_DEMO_PASSWORD_ENV) ?? generateDemoPassword());
+    const demoPublicKey = apiKeyExists ? null : generateDemoPublicKey();
+    const demoSecretKey = apiKeyExists
+      ? null
+      : (readSeedEnv(SEED_DEMO_SECRET_KEY_ENV) ?? generateDemoSecretKey());
     const passwordHash = demoPassword === null ? null : await hashPassword(demoPassword);
     const demoSecretHash =
       demoSecretKey === null
         ? null
         : hashIngestionSecret(demoSecretKey, config.INGESTION_KEY_PEPPER);
+
+    // Databases seeded by an older release still hold the publicly known demo
+    // password and ingestion key. Flag them without touching them: rotation is an
+    // explicit operator action (change the password, revoke the key).
+    const legacyPasswordInUse =
+      existingAccount[0]?.password !== undefined &&
+      existingAccount[0]?.password !== null &&
+      (await verifyPassword({
+        hash: existingAccount[0].password,
+        password: LEGACY_DEMO_PASSWORD,
+      }));
+    const legacyKeyInUse =
+      existingApiKey[0]?.publicKey === LEGACY_DEMO_PUBLIC_KEY ||
+      existingApiKey[0]?.secretHash ===
+        hashIngestionSecret(LEGACY_DEMO_SECRET_PLAINTEXT, config.INGESTION_KEY_PEPPER);
 
     await postgres.db.transaction(async (tx) => {
       await tx
@@ -255,6 +284,13 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
       // One-time generated value the operator needs to sign in; printed only on the
       // run that creates the credential.
       console.log(`  Password:      (generated for this seed run only) ${demoPassword}`);
+    } else if (legacyPasswordInUse) {
+      // No rotation: the fix for a previously published password is an explicit
+      // operator action, not a silent seed rewrite.
+      console.warn(
+        "  WARNING: the demo login still uses the previously published demo password. " +
+          "Change it and treat any prior value as compromised.",
+      );
     } else {
       console.log(`  Password:      (unchanged — demo login already exists)`);
     }
@@ -265,6 +301,13 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
       // on the run that creates the key.
       console.log(`  Public key:    (generated for this seed run only) ${demoPublicKey}`);
       console.log(`  Secret key:    (generated for this seed run only) ${demoSecretKey}`);
+    } else if (legacyKeyInUse) {
+      // No rotation or revival: revoking the compromised key is an explicit
+      // operator action, not a silent seed rewrite.
+      console.warn(
+        "  WARNING: the demo API key still uses previously published key material. " +
+          "Revoke it and treat any prior value as compromised.",
+      );
     } else {
       console.log(`  Public key:    (unchanged — demo API key already exists)`);
     }

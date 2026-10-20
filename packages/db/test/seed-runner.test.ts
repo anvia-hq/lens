@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { loadConfig } from "@lens/config";
+import { hashPassword } from "better-auth/crypto";
 import { getTableName } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { account } from "../src/schema.js";
@@ -13,8 +14,8 @@ type RecordedInsert = {
 };
 
 const recorded: RecordedInsert[] = [];
-let accountRows: { id: string }[] = [];
-let apiKeyRows: { id: string }[] = [];
+let accountRows: { id: string; password?: string | null }[] = [];
+let apiKeyRows: { id: string; publicKey?: string; secretHash?: string }[] = [];
 
 vi.mock("../src/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../src/index.js")>();
@@ -133,6 +134,7 @@ describe("demo seed credentials", () => {
     }
 
     // A second run finds the existing rows and leaves their auth data alone.
+    // (Rows without stored hashes exercise the "no legacy match" warning path.)
     recorded.length = 0;
     accountRows = [{ id: "seed-account-demo" }];
     apiKeyRows = [{ id: "22222222-2222-4222-8222-222222222222" }];
@@ -150,18 +152,46 @@ describe("demo seed credentials", () => {
     expect(recorded.some((entry) => entry.table === "project_api_keys")).toBe(false);
   });
 
-  it("never revives a revoked demo key on re-run", async () => {
-    recorded.length = 0;
-    accountRows = [{ id: "seed-account-demo" }];
-    // Only the API key row exists (for example after it was revoked): the seed must
-    // not touch it — no secretHash rewrite and no revokedAt reset.
-    apiKeyRows = [{ id: "22222222-2222-4222-8222-222222222222" }];
-    const credentials = await runSeed(testConfig());
+  it("warns about previously published credentials without rotating them", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const legacyPasswordHash = await hashPassword("LensDemo2026!");
+      accountRows = [{ id: "seed-account-demo", password: legacyPasswordHash }];
+      apiKeyRows = [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          publicKey: "pk-lens-demo-production-agents",
+          secretHash: createHmac("sha256", "test-ingestion-pepper")
+            .update("sk-lens-demo-4Yp9Xq7Wm2Ns8Kd5Rt3Vh6Bj1Lc0ZaEeFuGiPoUyQ")
+            .digest("hex"),
+        },
+      ];
 
-    expect(credentials.secretKey).toBeNull();
-    expect(recorded.some((entry) => entry.table === "project_api_keys")).toBe(false);
-    for (const entry of recorded) {
-      expect(entry.set ?? {}).not.toHaveProperty("revokedAt");
+      const credentials = await runSeed(testConfig());
+
+      // Flagged but untouched: no rotation, no revival.
+      expect(credentials).toEqual({
+        email: "demo@lens.local",
+        password: null,
+        publicKey: null,
+        secretKey: null,
+      });
+      expect(recorded.some((entry) => entry.table === "project_api_keys")).toBe(false);
+      const rerunAccount = recorded.find((entry) => entry.table === "accounts");
+      expect(rerunAccount?.values).not.toHaveProperty("password");
+      const warnings = warn.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(warnings).toContain("previously published demo password");
+      expect(warnings).toContain("previously published key material");
+
+      // A non-legacy existing login stays silent.
+      warn.mockClear();
+      recorded.length = 0;
+      accountRows = [{ id: "seed-account-demo", password: await hashPassword("rotated") }];
+      apiKeyRows = [{ id: "22222222-2222-4222-8222-222222222222", publicKey: "pk-fresh" }];
+      await runSeed(testConfig());
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
     }
   });
 
