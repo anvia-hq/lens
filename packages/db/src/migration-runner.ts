@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type LensConfig, loadConfig } from "@lens/config";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { migrateAlertChannelSecrets } from "./alert-channel-migration.js";
+import { loadAlertSecretKeyring } from "./alert-secrets.js";
 import { createClickHouse, createPostgres } from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,6 +15,16 @@ export async function runMigrations(config: LensConfig = loadConfig()): Promise<
 
   try {
     await migrate(postgres.db, { migrationsFolder: resolve(here, "../migrations/postgres") });
+    // Encrypt any pre-existing plaintext alert channel secrets so delivery
+    // keeps working after the upgrade. Idempotent: rows already in the
+    // envelope format are skipped.
+    const keyring = loadAlertSecretKeyring(process.env);
+    const result = await migrateAlertChannelSecrets(postgres.db, keyring);
+    if (result.encrypted > 0) {
+      console.log(
+        `alert channel secrets: encrypted ${result.encrypted} plaintext row(s) (scanned ${result.scanned})`,
+      );
+    }
     await clickhouse.command({
       query: `CREATE TABLE IF NOT EXISTS schema_migrations
               (filename String, applied_at DateTime64(3, 'UTC') DEFAULT now64(3))
