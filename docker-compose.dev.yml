@@ -201,7 +201,15 @@ services:
     build: *backend-build
     profiles: ["tools"]
     command: ["node", "packages/db/dist/seed.js"]
-    environment: *app-environment
+    # Not started by a default `docker compose up` (tools profile only). Only the
+    # seed service reads these: LENS_ALLOW_SEED defaults to 1 here to preserve the
+    # local `run --rm seed` flow (this stack sets NODE_ENV=production above).
+    environment:
+      <<: *app-environment
+      # Seed-only variables (the only consumer is this service).
+      LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-1}
+      LENS_SEED_DEMO_PASSWORD: ${LENS_SEED_DEMO_PASSWORD:-}
+      LENS_SEED_DEMO_SECRET_KEY: ${LENS_SEED_DEMO_SECRET_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
