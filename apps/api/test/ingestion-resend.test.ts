@@ -143,7 +143,70 @@ describe("ingestion re-send after a failed job", () => {
     expect(response.status).toBe(200);
     const expectedId = `ingest-${createHash("sha256").update(project.id).update("{}").digest("hex")}`;
     expect(queue.getJob).toHaveBeenCalledWith(expectedId);
-    expect(retry).toHaveBeenCalledWith("failed");
+    expect(retry).toHaveBeenCalledWith("failed", { resetAttemptsMade: true });
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("treats a lost retry race as success when the job already left failed", async () => {
+    const queue = traceQueue();
+    const loserError = Object.assign(
+      new Error("Job job-1 is not in the failed state. reprocessJob"),
+      { code: -3 },
+    );
+    const retry = vi.fn().mockRejectedValueOnce(loserError);
+    queue.getJob
+      .mockResolvedValueOnce({ isFailed: vi.fn().mockResolvedValue(true), retry })
+      .mockResolvedValueOnce({ isFailed: vi.fn().mockResolvedValue(false) });
+    const app = traceApp(queue);
+
+    const response = await post(app);
+
+    expect(response.status).toBe(200);
+    expect(retry).toHaveBeenCalledWith("failed", { resetAttemptsMade: true });
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("treats a lost retry race as success on the message alone", async () => {
+    const queue = traceQueue();
+    const retry = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Job job-1 is not in the failed state. reprocessJob"));
+    queue.getJob
+      .mockResolvedValueOnce({ isFailed: vi.fn().mockResolvedValue(true), retry })
+      .mockResolvedValueOnce({ isFailed: vi.fn().mockResolvedValue(false) });
+    const app = traceApp(queue);
+
+    const response = await post(app);
+
+    expect(response.status).toBe(200);
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("still fails the re-send when the job is failed after a retry race error", async () => {
+    const queue = traceQueue();
+    const loserError = Object.assign(
+      new Error("Job job-1 is not in the failed state. reprocessJob"),
+      { code: -3 },
+    );
+    const retry = vi.fn().mockRejectedValueOnce(loserError);
+    queue.getJob.mockResolvedValue({ isFailed: vi.fn().mockResolvedValue(true), retry });
+    const app = traceApp(queue);
+
+    const response = await post(app);
+
+    expect(response.status).toBe(503);
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when retry fails with a genuine error", async () => {
+    const queue = traceQueue();
+    const retry = vi.fn().mockRejectedValueOnce(new Error("Connection is closed"));
+    queue.getJob.mockResolvedValue({ isFailed: vi.fn().mockResolvedValue(true), retry });
+    const app = traceApp(queue);
+
+    const response = await post(app);
+
+    expect(response.status).toBe(503);
     expect(queue.add).not.toHaveBeenCalled();
   });
 
@@ -185,7 +248,7 @@ describe("ingestion re-send after a failed job", () => {
     expect(response.status).toBe(200);
     const expectedId = `evaluations-${createHash("sha256").update(project.id).update("{}").digest("hex")}`;
     expect(queue.getJob).toHaveBeenCalledWith(expectedId);
-    expect(retry).toHaveBeenCalledWith("failed");
+    expect(retry).toHaveBeenCalledWith("failed", { resetAttemptsMade: true });
     expect(queue.add).not.toHaveBeenCalled();
   });
 });
