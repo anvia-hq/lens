@@ -8,8 +8,8 @@ import {
   parseAlertSecretKey,
 } from "../src/alert-secrets.js";
 
-const RAW_KEY = Buffer.alloc(32, 7).toString("base64");
-const OTHER_RAW_KEY = Buffer.alloc(32, 9).toString("base64");
+const RAW_KEY = `v1:${Buffer.alloc(32, 7).toString("base64")}`;
+const OTHER_RAW_KEY = `v2:${Buffer.alloc(32, 9).toString("base64")}`;
 
 function keyring(raw: string = RAW_KEY) {
   return parseAlertSecretKey(raw);
@@ -60,17 +60,28 @@ describe("alert secret envelope", () => {
   it("fails fast on a missing or malformed key", () => {
     expect(() => parseAlertSecretKey(undefined)).toThrow(/Invalid LENS_ALERT_SECRET_KEY/);
     expect(() => parseAlertSecretKey("")).toThrow(/Invalid LENS_ALERT_SECRET_KEY/);
-    expect(() => parseAlertSecretKey("not-valid!!!")).toThrow(/Invalid LENS_ALERT_SECRET_KEY/);
-    expect(() => parseAlertSecretKey(Buffer.alloc(4).toString("base64"))).toThrow(/at least 32/);
+    expect(() => parseAlertSecretKey("not-valid!!!")).toThrow(/explicit key id/);
+    expect(() => parseAlertSecretKey("v1:not-valid!!!")).toThrow(/base64 or hex/);
+    expect(() => parseAlertSecretKey("v1:")).toThrow(/must not be empty/);
+    expect(() => parseAlertSecretKey(`v1:${Buffer.alloc(4).toString("base64")}`)).toThrow(
+      /at least 32/,
+    );
+    expect(() => parseAlertSecretKey(`${RAW_KEY},${RAW_KEY}`)).toThrow(/duplicate key id/);
   });
 
   it("supports key ids and comma-separated rotation keyrings", () => {
-    const ring = parseAlertSecretKey(`new:${RAW_KEY},old:${OTHER_RAW_KEY}`);
-    expect(ring.active.id).toBe("new");
-    expect(ring.previous.map((key) => key.id)).toEqual(["old"]);
-    const oldRing = parseAlertSecretKey(`old:${OTHER_RAW_KEY}`);
-    const envelope = encryptAlertSecret("s3cret-value-16chars", oldRing);
-    expect(decryptAlertSecret(envelope, ring)).toBe("s3cret-value-16chars");
+    const ring = parseAlertSecretKey(`${RAW_KEY},${OTHER_RAW_KEY}`);
+    expect(ring.active.id).toBe("v1");
+    expect(ring.previous.map((key) => key.id)).toEqual(["v2"]);
+    const otherRing = parseAlertSecretKey(`other:${Buffer.alloc(32, 5).toString("base64")}`);
+    const envelope = encryptAlertSecret("s3cret-value-16chars", otherRing);
+    expect(() => decryptAlertSecret(envelope, ring)).toThrow(/unknown key id/);
+    const oldRing = parseAlertSecretKey(OTHER_RAW_KEY);
+    const oldEnvelope = encryptAlertSecret("s3cret-value-16chars", oldRing);
+    // Same key material under the v2 id decrypts with the combined keyring.
+    expect(decryptAlertSecret(oldEnvelope, ring)).toBe("s3cret-value-16chars");
+    const both = parseAlertSecretKey(`${OTHER_RAW_KEY},${RAW_KEY}`);
+    expect(decryptAlertSecret(oldEnvelope, both)).toBe("s3cret-value-16chars");
   });
 
   it("uses a dev fallback outside production and requires a real key in production", () => {

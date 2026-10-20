@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
  * Envelope encryption for alert channel secrets at rest.
@@ -47,36 +47,41 @@ function fail(message: string): never {
 /**
  * Parse `LENS_ALERT_SECRET_KEY` into raw key material.
  *
- * Accepted forms:
- * - `kid:base64-key` (multi-key capable; kid identifies the key version)
- * - `base64-key` (single key; id defaults to `v1`)
- * - `hex-key` (single key; id defaults to `v1`)
+ * Accepted forms (explicit key ids are required so rotation is unambiguous):
+ * - `kid:base64-key`
+ * - `kid:hex-key`
  *
- * Also accepts comma-separated lists (`active,older,...`) so a rotation can
- * ship both the new and the previous key. The first entry is the active key.
+ * Also accepts comma-separated lists (`new-kid:new-key,old-kid:old-key`) so a
+ * rotation can ship both the new and the previous key. The first entry is the
+ * active key used for new encryptions; the rest decrypt existing envelopes.
  */
 export function parseAlertSecretKey(raw: string | undefined): AlertSecretKeyring {
   if (raw === undefined || raw.trim() === "") {
-    fail("missing. Set LENS_ALERT_SECRET_KEY to a base64 or hex encoded 32-byte key.");
+    fail('missing. Set LENS_ALERT_SECRET_KEY to "kid:base64-key" (32-byte key).');
   }
   const entries = raw
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
   if (entries.length === 0) {
-    fail("missing. Set LENS_ALERT_SECRET_KEY to a base64 or hex encoded 32-byte key.");
+    fail('missing. Set LENS_ALERT_SECRET_KEY to "kid:base64-key" (32-byte key).');
   }
-  const keys = entries.map((entry, index) =>
-    parseSingleKey(entry, index === 0 ? "v1" : `v${index + 1}`),
-  );
+  const ids = new Set<string>();
+  const keys = entries.map((entry) => {
+    const key = parseSingleKey(entry);
+    if (ids.has(key.id)) fail(`duplicate key id "${key.id}".`);
+    ids.add(key.id);
+    return key;
+  });
   const [active, ...previous] = keys as [AlertSecretKey, ...AlertSecretKey[]];
   return { active, previous };
 }
 
-function parseSingleKey(entry: string, defaultId: string): AlertSecretKey {
+function parseSingleKey(entry: string): AlertSecretKey {
   const colon = entry.indexOf(":");
-  const id = colon === -1 ? defaultId : entry.slice(0, colon).trim();
-  const material = colon === -1 ? entry : entry.slice(colon + 1).trim();
+  if (colon <= 0) fail('expected "kid:base64-key" (explicit key id required).');
+  const id = entry.slice(0, colon).trim();
+  const material = entry.slice(colon + 1).trim();
   if (id === "") fail('key id must not be empty (expected "kid:base64-key").');
   if (material === "") fail("key material must not be empty.");
   const bytes = decodeKeyMaterial(material);
@@ -212,7 +217,7 @@ export function isEncryptedAlertSecret(value: unknown): value is string {
   }
 }
 
-/** Constant-time comparison helper for migration bookkeeping. */
+/** Key id stored in an encrypted envelope, or undefined for non-envelopes. */
 export function envelopeKeyId(value: string): string | undefined {
   try {
     const parsed = JSON.parse(value) as Partial<EncryptedEnvelope>;
@@ -220,11 +225,4 @@ export function envelopeKeyId(value: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-export function timingSafeStringEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a, "utf8");
-  const right = Buffer.from(b, "utf8");
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }

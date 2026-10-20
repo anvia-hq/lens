@@ -102,11 +102,12 @@ CLICKHOUSE_PASSWORD=replace-with-a-random-value
 REDIS_PASSWORD=replace-with-a-random-value
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
 INGESTION_KEY_PEPPER=replace-with-an-independent-random-value
-# Alert channel secrets are encrypted at rest with AES-256-GCM. Generate with: openssl rand -base64 32
+# Alert channel secrets are encrypted at rest with AES-256-GCM. Generate with: "kid:$(openssl rand -base64 32)"
+# (key ids are required; use a new id per key so rotation is unambiguous)
 # Existing deployments must set this key before upgrading; plaintext rows are
 # encrypted automatically by the migrate step (or re-run manually with
 # `docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js migrate`).
-LENS_ALERT_SECRET_KEY=replace-with-base64-of-32-random-bytes
+LENS_ALERT_SECRET_KEY=replace-with-kid-and-base64-of-32-random-bytes
 ```
 
 Start Lens:

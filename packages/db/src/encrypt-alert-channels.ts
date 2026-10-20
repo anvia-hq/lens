@@ -6,12 +6,12 @@
  * so upgrades do not leave delivery broken in between.
  *
  * Usage (source checkout):
- *   1. Generate a new key:  openssl rand -base64 32
- *   2. Re-run migrate:       LENS_ALERT_SECRET_KEY=<new> pnpm --filter @lens/db db:encrypt-alert-channels
+ *   1. Generate a new key with an explicit id, e.g. LENS_ALERT_SECRET_KEY="2026-10:$(openssl rand -base64 32)"
+ *   2. Re-run migrate:       LENS_ALERT_SECRET_KEY=<kid:new-key> pnpm --filter @lens/db db:encrypt-alert-channels
  *      (rows already encrypted are skipped; safe to run twice)
- *   3. Rotate:               LENS_ALERT_SECRET_KEY=<new>,<old> pnpm --filter @lens/db db:rotate-alert-channels
+ *   3. Rotate:               LENS_ALERT_SECRET_KEY=<new-kid:new-key>,<old-kid:old-key> pnpm --filter @lens/db db:rotate-alert-channels
  *      (rows still under the old key id are re-encrypted with the new active key)
- *   4. Remove the old key from the environment once rotation reports 0 remaining.
+ *   4. Re-run until `updated=0`, then remove the old key from the environment.
  *
  * Usage (published image):
  *   docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js migrate

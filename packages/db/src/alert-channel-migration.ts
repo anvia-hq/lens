@@ -3,6 +3,7 @@ import {
   type AlertSecretKeyring,
   decryptAlertSecret,
   encryptAlertSecret,
+  envelopeKeyId,
   isEncryptedAlertSecret,
   loadAlertSecretKeyring,
 } from "./alert-secrets.js";
@@ -67,13 +68,7 @@ export function reencryptAlertChannelConfigForRotation(
   for (const field of secretFields) {
     const value = row.config[field];
     if (!isEncryptedAlertSecret(value)) continue;
-    let kid: string | undefined;
-    try {
-      kid = (JSON.parse(value) as { kid?: unknown }).kid as string | undefined;
-    } catch {
-      continue;
-    }
-    if (kid === keyring.active.id) continue;
+    if (envelopeKeyId(value) === keyring.active.id) continue;
     config[field] = encryptAlertSecret(decryptAlertSecret(value, keyring), keyring);
     changed = true;
   }

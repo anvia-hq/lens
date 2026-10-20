@@ -21,8 +21,8 @@ import {
   parseAlertSecretKey,
 } from "../src/alert-secrets.js";
 
-const RAW_KEY = Buffer.alloc(32, 7).toString("base64");
-const OTHER_RAW_KEY = Buffer.alloc(32, 9).toString("base64");
+const RAW_KEY = `v1:${Buffer.alloc(32, 7).toString("base64")}`;
+const OTHER_RAW_KEY = `v2:${Buffer.alloc(32, 9).toString("base64")}`;
 const ring = parseAlertSecretKey(RAW_KEY);
 
 const projectId = "10000000-0000-4000-8000-000000000001";
@@ -276,25 +276,23 @@ describe("alert channel migration and rotation", () => {
   });
 
   it("rotates envelopes to the new active key and leaves current rows alone", async () => {
-    const oldRing = parseAlertSecretKey(`old:${OTHER_RAW_KEY}`);
+    const oldRing = parseAlertSecretKey(OTHER_RAW_KEY);
     const { encryptStoredConfig } = await import("../src/alert-channel-store.js");
     const oldEnvelope = encryptStoredConfig(
       { url: "https://example.com/hook", secret: "s3cret-value-16chars" },
       oldRing,
     );
-    const newRing = parseAlertSecretKey(`${RAW_KEY},old:${OTHER_RAW_KEY}`);
-    // Active entry without an explicit kid defaults to "v1"; give it the new id.
-    const rotated: typeof newRing = {
-      active: { id: "new", bytes: newRing.active.bytes },
-      previous: [{ id: "old", bytes: oldRing.active.bytes }],
-    };
+    // New key carries a new id; the old key stays available for decryption.
+    const rotated = parseAlertSecretKey(
+      `v3:${Buffer.alloc(32, 11).toString("base64")},${OTHER_RAW_KEY}`,
+    );
     const result = reencryptAlertChannelConfigForRotation(
       { id: "1", type: "webhook", config: oldEnvelope as Record<string, unknown> },
       rotated,
     );
     expect(result.changed).toBe(true);
     const secret = (result.config as { secret: string }).secret;
-    expect(JSON.parse(secret).kid).toBe("new");
+    expect(JSON.parse(secret).kid).toBe("v3");
     expect(decryptAlertSecret(secret, rotated)).toBe("s3cret-value-16chars");
 
     const again = reencryptAlertChannelConfigForRotation(

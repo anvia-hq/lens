@@ -19,7 +19,7 @@ import {
 } from "../src/alert-channel-store.js";
 import { decryptAlertSecret, parseAlertSecretKey } from "../src/alert-secrets.js";
 
-const testKeyring = parseAlertSecretKey(Buffer.alloc(32, 7).toString("base64"));
+const testKeyring = parseAlertSecretKey(`v1:${Buffer.alloc(32, 7).toString("base64")}`);
 
 const projectId = "10000000-0000-4000-8000-000000000001";
 const channelId = "40000000-0000-4000-8000-000000000004";

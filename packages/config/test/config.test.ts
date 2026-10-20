@@ -148,7 +148,7 @@ describe("loadConfig", () => {
       {
         NODE_ENV: "production",
         INGESTION_KEY_PEPPER: "a-production-safe-pepper",
-        LENS_ALERT_SECRET_KEY: "aGVsbG8td29ybGQtYWxlcnQtc2VjcmV0LWtleS0xMjM0",
+        LENS_ALERT_SECRET_KEY: "v1:dGVzdDphbGVydC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=",
       },
       "BETTER_AUTH_SECRET",
     ],
@@ -156,7 +156,7 @@ describe("loadConfig", () => {
       {
         NODE_ENV: "production",
         BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
-        LENS_ALERT_SECRET_KEY: "aGVsbG8td29ybGQtYWxlcnQtc2VjcmV0LWtleS0xMjM0",
+        LENS_ALERT_SECRET_KEY: "v1:dGVzdDphbGVydC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=",
       },
       "INGESTION_KEY_PEPPER",
     ],
@@ -179,10 +179,10 @@ describe("loadConfig", () => {
       NODE_ENV: "production",
       BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
       INGESTION_KEY_PEPPER: "a-production-safe-pepper",
-      LENS_ALERT_SECRET_KEY: "aGVsbG8td29ybGQtYWxlcnQtc2VjcmV0LWtleS0xMjM0",
+      LENS_ALERT_SECRET_KEY: "v1:dGVzdDphbGVydC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=",
     });
     expect(config.NODE_ENV).toBe("production");
-    expect(config.LENS_ALERT_SECRET_KEY).toBe("aGVsbG8td29ybGQtYWxlcnQtc2VjcmV0LWtleS0xMjM0");
+    expect(config.LENS_ALERT_SECRET_KEY).toBe("v1:dGVzdDphbGVydC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=");
   });
 
   it("leaves the alert secret key unset outside production", () => {
