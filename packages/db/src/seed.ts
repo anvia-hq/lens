@@ -1,3 +1,8 @@
 import { runSeed } from "./seed-runner.js";
 
-await runSeed();
+try {
+  await runSeed();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+}

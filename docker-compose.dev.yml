@@ -53,6 +53,9 @@ x-app-environment: &app-environment
   SMTP_FROM: ${SMTP_FROM:-Anvia Lens <lens@localhost>}
   SMTP_SECURE: "false"
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Demo seed opt-in. The dev stack sets NODE_ENV=production above, so the seed
+  # stays enabled here by default; set LENS_ALLOW_SEED=0 to block it.
+  LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-1}
 
 services:
   monitor:
@@ -202,6 +205,8 @@ services:
     profiles: ["tools"]
     command: ["node", "packages/db/dist/seed.js"]
     environment: *app-environment
+    # Not started by a default `docker compose up` (tools profile only). The
+    # seed itself refuses to run unless LENS_ALLOW_SEED=1 (defaulted above).
     depends_on:
       migrate:
         condition: service_completed_successfully

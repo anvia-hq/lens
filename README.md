@@ -394,6 +394,14 @@ To load a realistic local workspace with traces and evaluations:
 docker compose -f docker-compose.dev.yml run --rm seed
 ```
 
+The seed prints a one-time generated demo password and API key on the run that creates
+them — save them then, because re-runs never print or rotate existing credentials and
+never revive a revoked key. To choose the values yourself, set `LENS_SEED_DEMO_PASSWORD`
+and `LENS_SEED_DEMO_SECRET_KEY` before seeding. The seed refuses to run with
+`NODE_ENV=production` unless `LENS_ALLOW_SEED=1` is set; the production Compose stack
+leaves it unset (seed service is also `tools`-profile only), while the dev stack opts in
+by default.
+
 Run application services outside containers while keeping infrastructure in Docker:
 
 ```sh
