@@ -119,16 +119,14 @@ const envSchema = z
       if (value.BETTER_AUTH_SECRET === DEVELOPMENT_BETTER_AUTH_SECRET) {
         context.addIssue({
           code: "custom",
-          message:
-            "BETTER_AUTH_SECRET must not use the development default value in production",
+          message: "BETTER_AUTH_SECRET must not use the development default value in production",
           path: ["BETTER_AUTH_SECRET"],
         });
       }
       if (value.INGESTION_KEY_PEPPER === DEVELOPMENT_INGESTION_KEY_PEPPER) {
         context.addIssue({
           code: "custom",
-          message:
-            "INGESTION_KEY_PEPPER must not use the development default value in production",
+          message: "INGESTION_KEY_PEPPER must not use the development default value in production",
           path: ["INGESTION_KEY_PEPPER"],
         });
       }
