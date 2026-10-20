@@ -15,6 +15,7 @@ import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
 import { queueHasCapacity } from "./capacity.js";
 import { recordIngestionRejection } from "./counters.js";
+import { enqueueIngestJob } from "./enqueue.js";
 import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
 export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
@@ -106,7 +107,8 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
     if (normalized.spans.length > 0) {
       try {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");
-        await deps.queues.ingest.add(
+        await enqueueIngestJob(
+          deps.queues.ingest,
           "ingest",
           {
             projectId: key.project.id,
@@ -114,7 +116,7 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
             receivedAt: new Date().toISOString(),
             spans: normalized.spans,
           },
-          { jobId: `ingest-${ingestId}` },
+          `ingest-${ingestId}`,
         );
         metrics.accepted.inc(normalized.spans.length);
       } catch (error) {

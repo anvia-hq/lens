@@ -73,6 +73,11 @@ restored. Do not combine a new PostgreSQL snapshot with old ClickHouse or Redis 
 
 ## Failed jobs and manual replay
 
+Re-sending an identical OTLP trace or evaluation batch automatically retries its retained failed
+ingestion job with a fresh retry budget. Pending, active, delayed, and completed batches remain
+deduplicated. This applies to the ingestion queues; a failed downstream materialization job still
+requires the targeted replay described below.
+
 After recovery, inspect System Health's per-queue waiting, active, delayed, and failed counts and worker
 heartbeats. A healthy `/health/ready` or queue-metrics status is insufficient. Failed jobs are retained
 according to configured age/count limits; once expired, the original durable telemetry source must
