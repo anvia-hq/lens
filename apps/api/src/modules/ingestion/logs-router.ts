@@ -14,6 +14,7 @@ import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { IngestionBodyError, readIngestionBody } from "./body.js";
 import { queueHasCapacity } from "./capacity.js";
+import { enqueueIngestJob } from "./enqueue.js";
 import { authenticateIngestionKey, recordProjectKeyUsage } from "./services.js";
 
 export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics) =>
@@ -100,7 +101,8 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMet
     if (normalized.evaluations.length > 0 || normalized.runs.length > 0) {
       try {
         const ingestId = createHash("sha256").update(key.project.id).update(bytes).digest("hex");
-        await deps.queues.evaluations.add(
+        await enqueueIngestJob(
+          deps.queues.evaluations,
           "ingest",
           {
             projectId: key.project.id,
@@ -109,7 +111,7 @@ export const createLogsIngestionRouter = (deps: ApiDependencies, metrics: ApiMet
             evaluations: normalized.evaluations,
             runs: normalized.runs,
           },
-          { jobId: `evaluations-${ingestId}` },
+          `evaluations-${ingestId}`,
         );
         metrics.evaluationsAccepted.inc(normalized.evaluations.length);
       } catch (error) {
