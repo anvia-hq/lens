@@ -5,24 +5,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpTokensRouter } from "../src/modules/mcp-tokens/router.js";
 import type { ApiDependencies, AppEnv } from "../src/utils/types.js";
 
-const access = vi.hoisted(() => ({ role: "owner" }));
+const access = vi.hoisted(() => ({ role: "owner", organizationId: "org-1" }));
 
 vi.mock("../src/utils/access.js", () => ({
   appMembership: vi.fn().mockImplementation(() =>
     Promise.resolve({
       membership: { role: access.role },
-      organization: { id: "org-1" },
+      organization: { id: access.organizationId },
     }),
   ),
   canManage: (role: string) => role === "owner" || role === "admin",
+  isUuid: (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
 }));
 
 beforeEach(() => {
   access.role = "owner";
+  access.organizationId = "org-1";
 });
 
 describe("MCP token management", () => {
-  it("creates a workspace-global token and only returns its secret once", async () => {
+  it("creates a workspace-scoped token and only returns its secret once", async () => {
     const { app, inserted } = testApp();
     const response = await app.request("/mcp-tokens", {
       method: "POST",
@@ -34,6 +37,7 @@ describe("MCP token management", () => {
     expect(body.token).toMatch(/^mcp-lens-[A-Za-z0-9_-]{43}$/);
     expect(body.tokenPrefix).toBe(body.token.slice(0, 21));
     expect(inserted()).toMatchObject({
+      organizationId: "org-1",
       name: "AI assistant",
       allowRawPayloads: true,
       createdBy: "user-1",
@@ -43,20 +47,41 @@ describe("MCP token management", () => {
   });
 
   it("lists token metadata without returning secrets or hashes", async () => {
-    const { app } = testApp();
+    const { app, selectPredicate } = testApp();
     const response = await app.request("/mcp-tokens");
     expect(response.status).toBe(200);
     const text = await response.text();
     expect(JSON.parse(text)).toMatchObject({
-      items: [{ name: "AI assistant", tokenPrefix: "mcp-lens-prefix" }],
+      items: [
+        {
+          name: "AI assistant",
+          tokenPrefix: "mcp-lens-prefix",
+          organizationId: "org-1",
+        },
+      ],
     });
     expect(text).not.toContain("tokenHash");
     expect(text).not.toContain("stored-token-hash");
     expect(text).not.toContain('"token"');
     expect(text).not.toContain("projectId");
+    const predicate = selectPredicate();
+    expect(predicate).toBeDefined();
+    expect(new PgDialect().sqlToQuery(predicate as SQL)).toMatchObject({
+      sql: expect.stringContaining('"mcp_tokens"."organization_id" = $1'),
+      params: ["org-1"],
+    });
   });
 
-  it("revokes a token by id alone", async () => {
+  it("does not list tokens from another workspace", async () => {
+    access.organizationId = "org-2";
+    const { app, rows } = testApp([]);
+    const response = await app.request("/mcp-tokens");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ items: [] });
+    expect(rows.every((row) => row.organizationId === "org-2")).toBe(true);
+  });
+
+  it("revokes a token scoped to the caller's workspace", async () => {
     const { app, update, updatePredicate, updateWhere } = testApp();
     const response = await app.request("/mcp-tokens/20000000-0000-4000-8000-000000000001", {
       method: "DELETE",
@@ -68,8 +93,19 @@ describe("MCP token management", () => {
     expect(predicate).toBeDefined();
     expect(new PgDialect().sqlToQuery(predicate as SQL)).toMatchObject({
       sql: expect.stringContaining('"mcp_tokens"."id" = $1'),
-      params: ["20000000-0000-4000-8000-000000000001"],
+      params: expect.arrayContaining(["20000000-0000-4000-8000-000000000001", "org-1"]),
     });
+    expect(new PgDialect().sqlToQuery(predicate as SQL).sql).toContain(
+      '"mcp_tokens"."organization_id"',
+    );
+  });
+
+  it("rejects a token id that is not a UUID", async () => {
+    const { app, update } = testApp();
+    const response = await app.request("/mcp-tokens/not-a-uuid", { method: "DELETE" });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: "invalid_token_id" } });
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("rejects an expiry that is not in the future", async () => {
@@ -106,12 +142,13 @@ describe("MCP token management", () => {
   });
 });
 
-function testApp() {
+function testApp(seedRows?: Array<Record<string, unknown>>) {
   let insertedValue: Record<string, unknown> | undefined;
   const createdAt = new Date("2026-08-25T00:00:00.000Z");
   const returning = vi.fn(async () => [
     {
       id: "20000000-0000-4000-8000-000000000001",
+      organizationId: access.organizationId,
       name: insertedValue?.name,
       tokenPrefix: insertedValue?.tokenPrefix,
       tokenHash: insertedValue?.tokenHash,
@@ -128,20 +165,33 @@ function testApp() {
     return { returning };
   });
   const insert = vi.fn(() => ({ values }));
-  const storedRow = {
-    id: "20000000-0000-4000-8000-000000000001",
-    name: "AI assistant",
-    tokenPrefix: "mcp-lens-prefix",
-    tokenHash: "stored-token-hash",
-    allowRawPayloads: false,
-    createdBy: "user-1",
-    createdAt,
-    expiresAt: null,
-    lastUsedAt: null,
-    revokedAt: null,
-  };
-  const orderBy = vi.fn(async () => [storedRow]);
-  const select = vi.fn(() => ({ from: () => ({ orderBy }) }));
+  const defaultRows = [
+    {
+      id: "20000000-0000-4000-8000-000000000001",
+      organizationId: "org-1",
+      name: "AI assistant",
+      tokenPrefix: "mcp-lens-prefix",
+      tokenHash: "stored-token-hash",
+      allowRawPayloads: false,
+      createdBy: "user-1",
+      createdAt,
+      expiresAt: null,
+      lastUsedAt: null,
+      revokedAt: null,
+    },
+  ];
+  const sourceRows = seedRows ?? defaultRows;
+  const rows = sourceRows.filter((row) => row.organizationId === access.organizationId);
+  const orderBy = vi.fn(async () => rows);
+  let listPredicate: SQL | undefined;
+  const select = vi.fn(() => ({
+    from: () => ({
+      where: vi.fn((value: SQL) => {
+        listPredicate = value;
+        return { orderBy };
+      }),
+    }),
+  }));
   let predicate: SQL | undefined;
   const updateWhere = vi.fn(async (value: SQL) => {
     predicate = value;
@@ -162,6 +212,8 @@ function testApp() {
     insert,
     inserted: () => insertedValue,
     select,
+    selectPredicate: () => listPredicate,
+    rows,
     update,
     updatePredicate: () => predicate,
     updateWhere,

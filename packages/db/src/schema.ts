@@ -178,20 +178,27 @@ export const projectApiKey = pgTable(
   (table) => [index("project_api_keys_project_idx").on(table.projectId)],
 );
 
-export const mcpToken = pgTable("mcp_tokens", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  tokenPrefix: text("token_prefix").notNull(),
-  tokenHash: text("token_hash").notNull().unique(),
-  allowRawPayloads: boolean("allow_raw_payloads").notNull().default(false),
-  createdBy: text("created_by")
-    .notNull()
-    .references(() => user.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
-  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-  revokedAt: timestamp("revoked_at", { withTimezone: true }),
-});
+export const mcpToken = pgTable(
+  "mcp_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    allowRawPayloads: boolean("allow_raw_payloads").notNull().default(false),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("mcp_tokens_org_idx").on(table.organizationId)],
+);
 
 export const qualityGate = pgTable(
   "quality_gates",
@@ -658,6 +665,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   projects: many(project),
+  mcpTokens: many(mcpToken),
   llmModelPrices: many(llmModelPrice),
   costRecalculations: many(costRecalculation),
 }));
@@ -686,6 +694,13 @@ export const projectRelations = relations(project, ({ one, many }) => ({
 
 export const projectApiKeyRelations = relations(projectApiKey, ({ one }) => ({
   project: one(project, { fields: [projectApiKey.projectId], references: [project.id] }),
+}));
+
+export const mcpTokenRelations = relations(mcpToken, ({ one }) => ({
+  organization: one(organization, {
+    fields: [mcpToken.organizationId],
+    references: [organization.id],
+  }),
 }));
 
 export const qualityGateRelations = relations(qualityGate, ({ one }) => ({

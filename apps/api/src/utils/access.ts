@@ -10,6 +10,10 @@ export function canManage(role: string | undefined): boolean {
   return role === "owner" || role === "admin";
 }
 
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export async function organizationMembership(
   db: LensPostgres,
   organizationId: string,
@@ -39,7 +43,7 @@ export async function requireProjectAccess(
   projectId: string,
   userId: string,
 ): Promise<ProjectAccess | undefined> {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+  if (!isUuid(projectId)) {
     return undefined;
   }
   const [row] = await db

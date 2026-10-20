@@ -9,6 +9,7 @@ describe("workspace MCP token schema", () => {
     expect(config.name).toBe("mcp_tokens");
     expect(config.columns.map((column) => column.name)).toEqual([
       "id",
+      "organization_id",
       "name",
       "token_prefix",
       "token_hash",
@@ -19,8 +20,11 @@ describe("workspace MCP token schema", () => {
       "last_used_at",
       "revoked_at",
     ]);
-    expect(config.indexes).toEqual([]);
+    expect(config.indexes.map((tableIndex) => tableIndex.config.name)).toEqual([
+      "mcp_tokens_org_idx",
+    ]);
     expect(config.foreignKeys.map((foreignKey) => foreignKey.getName())).toEqual([
+      "mcp_tokens_organization_id_organizations_id_fk",
       "mcp_tokens_created_by_users_id_fk",
     ]);
   });

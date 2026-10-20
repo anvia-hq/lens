@@ -23,6 +23,7 @@ const PROJECT = {
   name: "Support",
   slug: "support",
   state: "active",
+  organizationId: "org-1",
 };
 
 const postgresDb = {
@@ -48,6 +49,7 @@ const deps = {
 
 const basePrincipal: McpPrincipal = {
   tokenId: "token-1",
+  organizationId: "org-1",
   allowRawPayloads: false,
 };
 
@@ -84,7 +86,7 @@ describe("Lens MCP tools", () => {
     expect(tools.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
   });
 
-  it("lists active projects without echoing a selected project", async () => {
+  it("lists only active projects in the token workspace without echoing a selection", async () => {
     const { client } = await connect(basePrincipal);
     const result = await client.callTool({ name: "list_projects", arguments: {} });
     const structured = result.structuredContent as {
@@ -105,6 +107,19 @@ describe("Lens MCP tools", () => {
     const result = await client.callTool({
       name: "get_overview",
       arguments: { projectId: "20000000-0000-4000-8000-000000000009" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textResult(result)).toContain("not_found");
+    expect(textResult(result)).toContain("Project not found");
+    expect(db.queryMetrics).not.toHaveBeenCalled();
+  });
+
+  it("rejects data tool calls for a project in another workspace", async () => {
+    db.projectRow = undefined;
+    const { client } = await connect({ ...basePrincipal, organizationId: "org-2" });
+    const result = await client.callTool({
+      name: "get_overview",
+      arguments: { projectId: PROJECT.id },
     });
     expect(result.isError).toBe(true);
     expect(textResult(result)).toContain("not_found");

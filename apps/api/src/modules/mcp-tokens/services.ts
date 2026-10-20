@@ -4,6 +4,7 @@ import type { mcpToken } from "@lens/db";
 export function mcpTokenFromRow(row: typeof mcpToken.$inferSelect): McpToken {
   return {
     id: row.id,
+    organizationId: row.organizationId,
     name: row.name,
     tokenPrefix: row.tokenPrefix,
     allowRawPayloads: row.allowRawPayloads,

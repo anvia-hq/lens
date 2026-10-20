@@ -163,6 +163,7 @@ function mcpHeaders(token: string) {
 function testApp(options: { rateCount?: number; expiresAt?: Date; revokedAt?: Date } = {}) {
   const tokenRow = {
     id: "20000000-0000-4000-8000-000000000001",
+    organizationId: "org-1",
     allowRawPayloads: false,
     expiresAt: options.expiresAt ?? null,
     revokedAt: options.revokedAt ?? null,
@@ -172,6 +173,7 @@ function testApp(options: { rateCount?: number; expiresAt?: Date; revokedAt?: Da
     name: "Support",
     slug: "support",
     state: "active",
+    organizationId: "org-1",
   };
   const select = vi.fn().mockImplementation((projection: unknown) => {
     const result = projection === undefined ? [tokenRow] : [projectRow];

@@ -1,8 +1,8 @@
 import { createMcpTokenSchema } from "@lens/contracts";
 import { mcpToken } from "@lens/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { appMembership, canManage } from "../../utils/access.js";
+import { appMembership, canManage, isUuid } from "../../utils/access.js";
 import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
 import { createMcpCredentials } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
@@ -14,7 +14,11 @@ export const createMcpTokensRouter = (deps: ApiDependencies) =>
       const app = await appMembership(deps.postgres.db, requiredSession(c).user.id);
       if (app === undefined) return forbidden(c);
       if (!canManage(app.membership.role)) return adminRequired(c);
-      const rows = await deps.postgres.db.select().from(mcpToken).orderBy(desc(mcpToken.createdAt));
+      const rows = await deps.postgres.db
+        .select()
+        .from(mcpToken)
+        .where(eq(mcpToken.organizationId, app.organization.id))
+        .orderBy(desc(mcpToken.createdAt));
       return c.json({ items: rows.map(mcpTokenFromRow) });
     })
     .post(
@@ -34,6 +38,7 @@ export const createMcpTokensRouter = (deps: ApiDependencies) =>
         const [created] = await deps.postgres.db
           .insert(mcpToken)
           .values({
+            organizationId: app.organization.id,
             name: parsed.name,
             tokenPrefix: generated.prefix,
             tokenHash: generated.hash,
@@ -52,10 +57,14 @@ export const createMcpTokensRouter = (deps: ApiDependencies) =>
       const app = await appMembership(deps.postgres.db, requiredSession(c).user.id);
       if (app === undefined) return forbidden(c);
       if (!canManage(app.membership.role)) return adminRequired(c);
+      const tokenId = c.req.param("tokenId");
+      if (!isUuid(tokenId)) {
+        return apiError(c, 400, "invalid_token_id", "Token id must be a UUID");
+      }
       await deps.postgres.db
         .update(mcpToken)
         .set({ revokedAt: new Date() })
-        .where(eq(mcpToken.id, c.req.param("tokenId")));
+        .where(and(eq(mcpToken.id, tokenId), eq(mcpToken.organizationId, app.organization.id)));
       return c.body(null, 204);
     });
 

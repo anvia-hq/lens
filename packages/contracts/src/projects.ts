@@ -117,6 +117,7 @@ export type CreatedProjectApiKey = ProjectApiKey & {
 
 export type McpToken = {
   id: string;
+  organizationId: string;
   name: string;
   tokenPrefix: string;
   allowRawPayloads: boolean;
