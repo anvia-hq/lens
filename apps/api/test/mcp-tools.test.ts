@@ -1,4 +1,6 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createLensMcpServer, type McpPrincipal } from "../src/modules/mcp/tools.js";
 import { createApiMetrics } from "../src/utils/metrics.js";
@@ -13,9 +15,13 @@ const db = vi.hoisted(() => ({
   listTraces: vi.fn(),
   queryMetrics: vi.fn(),
   projectRow: undefined as Record<string, unknown> | undefined,
+  projectPredicate: undefined as SQL | undefined,
 }));
 
-vi.mock("@lens/db", () => ({ ...db, project: {} }));
+vi.mock("@lens/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@lens/db")>()),
+  ...db,
+}));
 vi.mock("../src/modules/alerts/services.js", () => ({ loadAlertIncidentDetail: vi.fn() }));
 
 const PROJECT = {
@@ -23,18 +29,22 @@ const PROJECT = {
   name: "Support",
   slug: "support",
   state: "active",
+  organizationId: "org-1",
 };
 
 const postgresDb = {
   select: () => ({
     from: () => ({
-      where: () => ({
-        limit: async () => (db.projectRow === undefined ? [] : [db.projectRow]),
-        orderBy: async () =>
-          db.projectRow === undefined
-            ? []
-            : [{ id: db.projectRow.id, name: db.projectRow.name, slug: db.projectRow.slug }],
-      }),
+      where: (predicate: SQL) => {
+        db.projectPredicate = predicate;
+        return {
+          limit: async () => (db.projectRow === undefined ? [] : [db.projectRow]),
+          orderBy: async () =>
+            db.projectRow === undefined
+              ? []
+              : [{ id: db.projectRow.id, name: db.projectRow.name, slug: db.projectRow.slug }],
+        };
+      },
     }),
   }),
 };
@@ -48,6 +58,7 @@ const deps = {
 
 const basePrincipal: McpPrincipal = {
   tokenId: "token-1",
+  organizationId: "org-1",
   allowRawPayloads: false,
 };
 
@@ -55,6 +66,7 @@ const connections: Array<{ client: Client; server: ReturnType<typeof createLensM
 
 beforeEach(() => {
   db.projectRow = { ...PROJECT };
+  db.projectPredicate = undefined;
 });
 
 afterEach(async () => {
@@ -84,7 +96,7 @@ describe("Lens MCP tools", () => {
     expect(tools.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
   });
 
-  it("lists active projects without echoing a selected project", async () => {
+  it("lists only active projects in the token workspace without echoing a selection", async () => {
     const { client } = await connect(basePrincipal);
     const result = await client.callTool({ name: "list_projects", arguments: {} });
     const structured = result.structuredContent as {
@@ -92,6 +104,10 @@ describe("Lens MCP tools", () => {
       webUrl: unknown;
       data: { projects: Array<{ id: string; name: string; slug: string }> };
     };
+    expect(new PgDialect().sqlToQuery(db.projectPredicate!)).toMatchObject({
+      sql: '("projects"."organization_id" = $1 and "projects"."state" = $2)',
+      params: ["org-1", "active"],
+    });
     expect(structured.project).toBeNull();
     expect(structured.webUrl).toBeNull();
     expect(structured.data.projects).toEqual([
@@ -105,6 +121,23 @@ describe("Lens MCP tools", () => {
     const result = await client.callTool({
       name: "get_overview",
       arguments: { projectId: "20000000-0000-4000-8000-000000000009" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textResult(result)).toContain("not_found");
+    expect(textResult(result)).toContain("Project not found");
+    expect(db.queryMetrics).not.toHaveBeenCalled();
+  });
+
+  it("rejects data tool calls for a project in another workspace", async () => {
+    db.projectRow = undefined;
+    const { client } = await connect({ ...basePrincipal, organizationId: "org-2" });
+    const result = await client.callTool({
+      name: "get_overview",
+      arguments: { projectId: PROJECT.id },
+    });
+    expect(new PgDialect().sqlToQuery(db.projectPredicate!)).toMatchObject({
+      sql: '("projects"."id" = $1 and "projects"."organization_id" = $2)',
+      params: [PROJECT.id, "org-2"],
     });
     expect(result.isError).toBe(true);
     expect(textResult(result)).toContain("not_found");

@@ -10,7 +10,7 @@ import {
   queryMetrics,
 } from "@lens/db";
 import { McpServer } from "@modelcontextprotocol/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ApiMetrics } from "../../utils/metrics.js";
 import type { ApiDependencies } from "../../utils/types.js";
 import { loadAlertIncidentDetail } from "../alerts/services.js";
@@ -36,6 +36,7 @@ const DEFAULT_RANGE_MS = 24 * 60 * 60 * 1_000;
 
 export type McpPrincipal = {
   tokenId: string;
+  organizationId: string;
   allowRawPayloads: boolean;
 };
 
@@ -68,7 +69,9 @@ export function createLensMcpServer(
         const rows = await deps.postgres.db
           .select({ id: project.id, name: project.name, slug: project.slug })
           .from(project)
-          .where(eq(project.state, "active"))
+          .where(
+            and(eq(project.organizationId, principal.organizationId), eq(project.state, "active")),
+          )
           .orderBy(project.name);
         return success(null, null, { projects: rows });
       }),
@@ -87,7 +90,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_overview", async () => {
         const input = overviewInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         return success(
           project,
           projectUrl(deps, project, ""),
@@ -109,7 +112,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "search_traces", async () => {
         const input = searchTracesInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         const range = normalizeRange(input.from, input.to);
         validateBounds(input);
         const page = await listTraces(deps.clickhouse, project.id, {
@@ -133,7 +136,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_trace", async () => {
         const input = getTraceInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         authorizePayload(principal, input.includePayload);
         const trace = await getTrace(deps.clickhouse, project.id, input.traceId, {
           spanLimit: MAX_TRACE_SPANS,
@@ -186,7 +189,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_span", async () => {
         const input = getSpanInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         authorizePayload(principal, input.includePayload);
         const span = await getSpan(deps.clickhouse, project.id, input.traceId, input.spanId, {
           includePayloads: input.includePayload,
@@ -241,7 +244,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "search_sessions", async () => {
         const input = searchSessionsInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         const range = normalizeRange(input.from, input.to);
         validateBounds(input);
         const page = await listSessions(deps.clickhouse, project.id, {
@@ -265,7 +268,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_session", async () => {
         const input = getSessionInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         authorizePayload(principal, input.includePayload);
         const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor);
         if (input.cursor !== undefined && !validCursor(cursor)) {
@@ -317,7 +320,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "list_alerts", async () => {
         const input = listAlertsInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         const page = await listAlertIncidents(deps.postgres.db, project.id, input);
         return success(project, projectUrl(deps, project, "/alerts"), page);
       }),
@@ -336,7 +339,7 @@ export function createLensMcpServer(
     (raw) =>
       runTool(deps, metrics, principal, "get_alert", async () => {
         const input = getAlertInputSchema.parse(raw);
-        const project = await resolveProject(deps, input.projectId);
+        const project = await resolveProject(deps, principal, input.projectId);
         const detail = await loadAlertIncidentDetail(deps, project.id, input.incidentId);
         if (detail === undefined) throw new ToolError("not_found", "Alert incident not found");
         return success(
@@ -389,12 +392,13 @@ async function runTool(
 
 async function resolveProject(
   deps: ApiDependencies,
+  principal: McpPrincipal,
   projectId: string,
 ): Promise<{ id: string; name: string; slug: string }> {
   const [row] = await deps.postgres.db
     .select({ id: project.id, name: project.name, slug: project.slug, state: project.state })
     .from(project)
-    .where(eq(project.id, projectId))
+    .where(and(eq(project.id, projectId), eq(project.organizationId, principal.organizationId)))
     .limit(1);
   if (row === undefined || row.state !== "active") {
     throw new ToolError("not_found", "Project not found");

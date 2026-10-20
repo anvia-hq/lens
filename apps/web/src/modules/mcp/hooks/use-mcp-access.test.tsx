@@ -24,6 +24,7 @@ describe("useMcpAccess", () => {
   it("creates workspace tokens and resets raw payload access", async () => {
     const created: CreatedMcpToken = {
       id: "20000000-0000-4000-8000-000000000001",
+      organizationId: "org-1",
       name: "AI assistant",
       tokenPrefix: "mcp-lens-prefix",
       token: `mcp-lens-${"a".repeat(43)}`,

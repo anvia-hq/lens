@@ -59,6 +59,9 @@ Tokens can be revoked immediately and may have an optional expiry.
 
 Upgrading from a Lens release before workspace-wide tokens: previously issued project-scoped MCP
 tokens are revoked by the database migration and must be recreated from the **MCP Access** page.
+Existing workspace-wide tokens are assigned to their creator's workspace during the organization
+scoping migration. Tokens whose creator no longer belongs to a workspace are removed; create a
+replacement token from an owner or admin account in the intended workspace.
 
 Use HTTPS whenever Lens is available beyond localhost. Clients must support Streamable HTTP and a
 static `Authorization` header; OAuth and local stdio connections are not included in this release.

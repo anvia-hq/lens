@@ -68,6 +68,7 @@ async function authenticateMcpToken(deps: ApiDependencies, token: string) {
   }
   const principal: McpPrincipal = {
     tokenId: row.id,
+    organizationId: row.organizationId,
     allowRawPayloads: row.allowRawPayloads,
   };
   const endpoint = new URL("/api/mcp", deps.config.PUBLIC_APP_URL);
@@ -87,6 +88,7 @@ function principalFromAuth(authInfo: AuthInfo | undefined): McpPrincipal {
   if (
     principal === undefined ||
     typeof principal.tokenId !== "string" ||
+    typeof principal.organizationId !== "string" ||
     typeof principal.allowRawPayloads !== "boolean"
   ) {
     throw new Error("Authenticated MCP principal is missing");
