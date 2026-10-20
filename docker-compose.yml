@@ -211,6 +211,8 @@ services:
     # is set in the environment above. Only the seed service reads these: keep
     # them out of the shared x-app-environment block.
     environment:
+      <<: *app-environment
+      # Seed-only variables (the only consumer is this service).
       LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-}
       LENS_SEED_DEMO_PASSWORD: ${LENS_SEED_DEMO_PASSWORD:-}
       LENS_SEED_DEMO_SECRET_KEY: ${LENS_SEED_DEMO_SECRET_KEY:-}
