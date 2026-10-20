@@ -82,6 +82,10 @@ const envSchema = z
     OIDC_AUTO_PROVISION: booleanString,
     OIDC_ALLOWED_DOMAINS: domainList.default([]),
     INGESTION_KEY_PEPPER: z.string().min(16).default(DEVELOPMENT_INGESTION_KEY_PEPPER),
+    // AES-256-GCM key for alert channel secrets at rest. Base64/hex 32-byte key,
+    // optionally prefixed with a key id ("kid:...") and comma-separated for rotation.
+    // Required in production; dev/test fall back to a local-only key.
+    LENS_ALERT_SECRET_KEY: optionalString,
     SMTP_HOST: optionalString,
     SMTP_PORT: positiveInteger(587),
     SMTP_FROM: z.string().default("Anvia Lens <lens@localhost>"),
@@ -128,6 +132,13 @@ const envSchema = z
           code: "custom",
           message: "INGESTION_KEY_PEPPER must not use the development default value in production",
           path: ["INGESTION_KEY_PEPPER"],
+        });
+      }
+      if (value.LENS_ALERT_SECRET_KEY === undefined) {
+        context.addIssue({
+          code: "custom",
+          message: "LENS_ALERT_SECRET_KEY is required in production",
+          path: ["LENS_ALERT_SECRET_KEY"],
         });
       }
     }
