@@ -53,9 +53,6 @@ x-app-environment: &app-environment
   SMTP_FROM: ${SMTP_FROM:-Anvia Lens <lens@localhost>}
   SMTP_SECURE: "false"
   LOG_LEVEL: ${LOG_LEVEL:-info}
-  # Demo seed opt-in. The dev stack sets NODE_ENV=production above, so the seed
-  # stays enabled here by default; set LENS_ALLOW_SEED=0 to block it.
-  LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-1}
 
 services:
   monitor:
@@ -204,9 +201,13 @@ services:
     build: *backend-build
     profiles: ["tools"]
     command: ["node", "packages/db/dist/seed.js"]
-    environment: *app-environment
-    # Not started by a default `docker compose up` (tools profile only). The
-    # seed itself refuses to run unless LENS_ALLOW_SEED=1 (defaulted above).
+    # Not started by a default `docker compose up` (tools profile only). Only the
+    # seed service reads these: LENS_ALLOW_SEED defaults to 1 here to preserve the
+    # local `run --rm seed` flow (this stack sets NODE_ENV=production above).
+    environment:
+      LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-1}
+      LENS_SEED_DEMO_PASSWORD: ${LENS_SEED_DEMO_PASSWORD:-}
+      LENS_SEED_DEMO_SECRET_KEY: ${LENS_SEED_DEMO_SECRET_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -130,9 +130,10 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
         password: LEGACY_DEMO_PASSWORD,
       }));
     const legacyKeyInUse =
-      existingApiKey[0]?.publicKey === LEGACY_DEMO_PUBLIC_KEY ||
-      existingApiKey[0]?.secretHash ===
-        hashIngestionSecret(LEGACY_DEMO_SECRET_PLAINTEXT, config.INGESTION_KEY_PEPPER);
+      (existingApiKey[0]?.publicKey === LEGACY_DEMO_PUBLIC_KEY ||
+        existingApiKey[0]?.secretHash ===
+          hashIngestionSecret(LEGACY_DEMO_SECRET_PLAINTEXT, config.INGESTION_KEY_PEPPER)) &&
+      existingApiKey[0]?.revokedAt == null;
 
     await postgres.db.transaction(async (tx) => {
       await tx
@@ -262,6 +263,40 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
       }
     });
 
+    if (demoPassword !== null || demoPublicKey !== null || demoSecretKey !== null) {
+      // Surface freshly created credentials immediately after the Postgres
+      // transaction commits, before the ClickHouse steps below: if those throw,
+      // the one-time values are already shown and never lost.
+      if (demoPassword !== null) {
+        // One-time generated value the operator needs to sign in; printed only on
+        // the run that creates the credential.
+        console.log(`  Password:      (generated for this seed run only) ${demoPassword}`);
+      }
+      if (demoPublicKey !== null && demoSecretKey !== null) {
+        // One-time generated values the operator needs to send telemetry; printed
+        // only on the run that creates the key.
+        console.log(`  Public key:    (generated for this seed run only) ${demoPublicKey}`);
+        console.log(`  Secret key:    (generated for this seed run only) ${demoSecretKey}`);
+      }
+    } else {
+      if (legacyPasswordInUse) {
+        // No rotation: the fix for a previously published password is an explicit
+        // operator action, not a silent seed rewrite.
+        console.warn(
+          "  WARNING: the demo login still uses the previously published demo password. " +
+            "Change it and treat any prior value as compromised.",
+        );
+      }
+      if (legacyKeyInUse) {
+        // No rotation or revival: revoking the compromised key is an explicit
+        // operator action, not a silent seed rewrite.
+        console.warn(
+          "  WARNING: the demo API key still uses previously published key material. " +
+            "Revoke it and treat any prior value as compromised.",
+        );
+      }
+    }
+
     for (const table of ["spans", "trace_summaries"]) {
       await clickhouse.command({
         query: `ALTER TABLE ${table} DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2`,
@@ -280,36 +315,10 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     console.log("Anvia Lens realistic demo data is ready.");
     console.log(`  Web:           ${config.PUBLIC_APP_URL}`);
     console.log(`  Login:         ${DEMO_EMAIL}`);
-    if (demoPassword !== null) {
-      // One-time generated value the operator needs to sign in; printed only on the
-      // run that creates the credential.
-      console.log(`  Password:      (generated for this seed run only) ${demoPassword}`);
-    } else if (legacyPasswordInUse) {
-      // No rotation: the fix for a previously published password is an explicit
-      // operator action, not a silent seed rewrite.
-      console.warn(
-        "  WARNING: the demo login still uses the previously published demo password. " +
-          "Change it and treat any prior value as compromised.",
-      );
-    } else {
-      console.log(`  Password:      (unchanged — demo login already exists)`);
-    }
     console.log(`  Team:          Acme AI`);
     console.log(`  Project:       Production Agents (${PROJECT_ID})`);
-    if (demoPublicKey !== null && demoSecretKey !== null) {
-      // One-time generated values the operator needs to send telemetry; printed only
-      // on the run that creates the key.
-      console.log(`  Public key:    (generated for this seed run only) ${demoPublicKey}`);
-      console.log(`  Secret key:    (generated for this seed run only) ${demoSecretKey}`);
-    } else if (legacyKeyInUse) {
-      // No rotation or revival: revoking the compromised key is an explicit
-      // operator action, not a silent seed rewrite.
-      console.warn(
-        "  WARNING: the demo API key still uses previously published key material. " +
-          "Revoke it and treat any prior value as compromised.",
-      );
-    } else {
-      console.log(`  Public key:    (unchanged — demo API key already exists)`);
+    if (demoPassword === null && demoPublicKey === null && demoSecretKey === null) {
+      console.log(`  Credentials:   (unchanged — demo login and API key already exist)`);
     }
     console.log(
       `  Seeded:        ${metrics.current.traces} traces, ${metrics.current.spans} spans, ${metrics.current.errors} errors`,

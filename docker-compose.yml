@@ -51,9 +51,6 @@ x-app-environment: &app-environment
   QUEUE_RETAIN_FAILED_AGE_SECONDS: ${QUEUE_RETAIN_FAILED_AGE_SECONDS:-604800}
   QUEUE_RETAIN_FAILED_COUNT: ${QUEUE_RETAIN_FAILED_COUNT:-10000}
   LOG_LEVEL: ${LOG_LEVEL:-info}
-  # Demo seed opt-in. The seed service refuses to run with NODE_ENV=production
-  # unless this is explicitly set to 1, and it never ships credentials.
-  LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-}
 
 x-backend-service: &backend-service
   image: ${LENS_BACKEND_IMAGE:-ghcr.io/anvia-hq/lens}:${LENS_VERSION:-latest}
@@ -211,7 +208,12 @@ services:
     command: ["node", "packages/db/dist/seed.js"]
     # Not started by a default `docker compose up` (tools profile only), and the
     # seed itself refuses to run with NODE_ENV=production unless LENS_ALLOW_SEED=1
-    # is set in the environment above.
+    # is set in the environment above. Only the seed service reads these: keep
+    # them out of the shared x-app-environment block.
+    environment:
+      LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-}
+      LENS_SEED_DEMO_PASSWORD: ${LENS_SEED_DEMO_PASSWORD:-}
+      LENS_SEED_DEMO_SECRET_KEY: ${LENS_SEED_DEMO_SECRET_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

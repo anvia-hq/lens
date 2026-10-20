@@ -15,7 +15,15 @@ type RecordedInsert = {
 
 const recorded: RecordedInsert[] = [];
 let accountRows: { id: string; password?: string | null }[] = [];
-let apiKeyRows: { id: string; publicKey?: string; secretHash?: string }[] = [];
+let apiKeyRows: {
+  id: string;
+  publicKey?: string;
+  secretHash?: string;
+  revokedAt?: Date | null;
+}[] = [];
+// Indirect the mocked insertSpans so tests can inject a failure after the
+// Postgres transaction commits.
+let mockInsertSpans: () => Promise<void> = async () => {};
 
 vi.mock("../src/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../src/index.js")>();
@@ -52,7 +60,7 @@ vi.mock("../src/index.js", async (importOriginal) => {
     ...original,
     createPostgres: () => ({ db, sql: {}, close: async () => {} }),
     createClickHouse: () => ({ command: async () => {}, close: async () => {} }),
-    insertSpans: async () => {},
+    insertSpans: (...args: unknown[]) => mockInsertSpans(...(args as [])),
     materializeTrace: async () => {},
     queryMetrics: async () => ({ current: { traces: 1, spans: 2, errors: 0 } }),
   };
@@ -71,6 +79,7 @@ beforeEach(() => {
   recorded.length = 0;
   accountRows = [];
   apiKeyRows = [];
+  mockInsertSpans = async () => {};
   delete process.env.LENS_ALLOW_SEED;
   delete process.env.LENS_SEED_DEMO_PASSWORD;
   delete process.env.LENS_SEED_DEMO_SECRET_KEY;
@@ -187,9 +196,29 @@ describe("demo seed credentials", () => {
       warn.mockClear();
       recorded.length = 0;
       accountRows = [{ id: "seed-account-demo", password: await hashPassword("rotated") }];
-      apiKeyRows = [{ id: "22222222-2222-4222-8222-222222222222", publicKey: "pk-fresh" }];
+      apiKeyRows = [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          publicKey: "pk-fresh",
+          revokedAt: null,
+        },
+      ];
       await runSeed(testConfig());
       expect(warn).not.toHaveBeenCalled();
+
+      // A revoked legacy key is left alone and no longer warned about.
+      warn.mockClear();
+      recorded.length = 0;
+      apiKeyRows = [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          publicKey: "pk-lens-demo-production-agents",
+          revokedAt: new Date("2026-09-01T00:00:00.000Z"),
+        },
+      ];
+      await runSeed(testConfig());
+      expect(warn).not.toHaveBeenCalled();
+      expect(recorded.some((entry) => entry.table === "project_api_keys")).toBe(false);
     } finally {
       warn.mockRestore();
     }
@@ -234,6 +263,33 @@ describe("demo seed credentials", () => {
     await runSeed(testConfig());
     expect(logs.some((line) => line.includes("(generated for this seed run only)"))).toBe(false);
     expect(logs.some((line) => line.includes("unchanged"))).toBe(true);
+  });
+
+  it("surfaces fresh credentials even when later steps fail", async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((message: string) => {
+      logs.push(message);
+    });
+
+    // Fail after the Postgres transaction commits: the one-time values must
+    // already have been printed, so they are not lost. insertSpans is mocked at
+    // the module level, so reach it through the mock factory's handle instead.
+    const failure = new Error("clickhouse down");
+    const previousInsertSpans = mockInsertSpans;
+    mockInsertSpans = async () => {
+      throw failure;
+    };
+    try {
+      await expect(runSeed(testConfig())).rejects.toBe(failure);
+      expect(logs.some((line) => line.includes("(generated for this seed run only)"))).toBe(true);
+      const accountInsert = recorded.find((entry) => entry.table === "accounts");
+      expect(accountInsert?.values).toMatchObject({ password: expect.any(String) });
+      expect(recorded.find((entry) => entry.table === "project_api_keys")?.conflict).toBe(
+        "nothing",
+      );
+    } finally {
+      mockInsertSpans = previousInsertSpans;
+    }
   });
 
   it("ships no hardcoded demo credential values", async () => {
