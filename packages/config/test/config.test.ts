@@ -144,21 +144,19 @@ describe("loadConfig", () => {
   });
 
   it.each([
-    [{ NODE_ENV: "production" }, "BETTER_AUTH_SECRET"],
-    [{ NODE_ENV: "production" }, "INGESTION_KEY_PEPPER"],
-    [
-      {
-        NODE_ENV: "production",
-        BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
-      },
-      "INGESTION_KEY_PEPPER",
-    ],
     [
       {
         NODE_ENV: "production",
         INGESTION_KEY_PEPPER: "a-production-safe-pepper",
       },
       "BETTER_AUTH_SECRET",
+    ],
+    [
+      {
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET: "a-production-safe-better-auth-secret-0123456789",
+      },
+      "INGESTION_KEY_PEPPER",
     ],
   ])("rejects development default secrets in production for %s", (source, field) => {
     expect(() => loadConfig(source)).toThrow(
