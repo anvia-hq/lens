@@ -252,6 +252,73 @@ describe("trace normalization", () => {
     expect(result.errors[0]?.length).toBeLessThan(180);
   });
 
+  it("rejects out-of-range span timestamps without failing the batch", () => {
+    const request = decodeOtlpRequest(
+      new TextEncoder().encode(
+        JSON.stringify({
+          resourceSpans: [
+            {
+              scopeSpans: [
+                {
+                  spans: [
+                    {
+                      traceId,
+                      spanId,
+                      name: "valid.span",
+                      startTimeUnixNano: "1785916800000000000",
+                      endTimeUnixNano: "1785916800123000000",
+                    },
+                    {
+                      traceId,
+                      spanId: "8899aabbccddeeff",
+                      name: "far-future.span",
+                      // Year 3000: beyond the DateTime64(9) maximum of
+                      // 2262-04-11T23:47:16.854775807Z.
+                      startTimeUnixNano: "32536848000000000000",
+                      endTimeUnixNano: "3253684800123000000",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+      "application/json",
+    );
+    const result = normalizeOtlpRequest(request, {
+      projectId: "00000000-0000-0000-0000-000000000001",
+      retentionDays: 30,
+      now,
+    });
+
+    expect(result.rejectedSpans).toBe(1);
+    expect(result.spans.map((span) => span.spanId)).toEqual([spanId]);
+    expect(result.errors).toHaveLength(1);
+  });
+
+  it("accepts timestamps at the DateTime64(9) boundary", () => {
+    const valid = normalize(
+      {},
+      {
+        startTimeUnixNano: "9223372036854775806",
+        endTimeUnixNano: "9223372036854775807",
+      },
+    );
+    expect(valid.rejectedSpans).toBe(0);
+    expect(valid.spans).toHaveLength(1);
+
+    const invalid = normalize(
+      {},
+      {
+        startTimeUnixNano: "9223372036854775807",
+        endTimeUnixNano: "9223372036854775808",
+      },
+    );
+    expect(invalid.rejectedSpans).toBe(1);
+    expect(invalid.spans).toEqual([]);
+  });
+
   it("validates normalization options and produces unique versions", () => {
     expect(() =>
       normalizeOtlpRequest({ resourceSpans: [] }, { projectId: "project", retentionDays: -1 }),

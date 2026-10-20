@@ -4,6 +4,13 @@ const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/;
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/;
 const ZERO_ID_PATTERN = /^0+$/;
 
+// ClickHouse DateTime64(9) stores nanoseconds in an Int64, so valid instants run
+// from the epoch up to 2262-04-11T23:47:16.854775807Z. Anything outside that
+// range throws in nanoToClickHouse (or fails the insert) after the exporter
+// already received a 200, failing the whole batch.
+const MIN_TIMESTAMP_NANO = 0n;
+const MAX_TIMESTAMP_NANO = 9_223_372_036_854_775_807n;
+
 export function validateSpan(span: OtlpSpan): string | undefined {
   if (!validTraceId(span.traceId)) {
     return `Invalid trace ID for span ${displaySpanName(span.name)}`;
@@ -14,7 +21,12 @@ export function validateSpan(span: OtlpSpan): string | undefined {
   try {
     const start = BigInt(span.startTimeUnixNano);
     const end = BigInt(span.endTimeUnixNano);
-    if (start <= 0n || end < start) return `Invalid timestamps for span ${span.spanId}`;
+    if (start <= MIN_TIMESTAMP_NANO || end < start) {
+      return `Invalid timestamps for span ${span.spanId}`;
+    }
+    if (start > MAX_TIMESTAMP_NANO || end > MAX_TIMESTAMP_NANO) {
+      return `Invalid timestamps for span ${span.spanId}`;
+    }
   } catch {
     return `Invalid timestamps for span ${span.spanId}`;
   }
