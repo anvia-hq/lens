@@ -74,11 +74,14 @@ describe("MCP token management", () => {
 
   it("does not list tokens from another workspace", async () => {
     access.organizationId = "org-2";
-    const { app, rows } = testApp([]);
+    const { app, selectPredicate } = testApp();
     const response = await app.request("/mcp-tokens");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ items: [] });
-    expect(rows.every((row) => row.organizationId === "org-2")).toBe(true);
+    expect(new PgDialect().sqlToQuery(selectPredicate()!)).toMatchObject({
+      sql: '"mcp_tokens"."organization_id" = $1',
+      params: ["org-2"],
+    });
   });
 
   it("revokes a token scoped to the caller's workspace", async () => {
