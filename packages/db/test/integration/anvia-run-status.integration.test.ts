@@ -62,7 +62,7 @@ function spansOf(body: OtlpBody) {
   return body.resourceSpans.flatMap((resource) => resource.scopeSpans.flatMap((s) => s.spans));
 }
 
-describe.sequential("Anvia durable run status", () => {
+describe("Anvia durable run status", () => {
   const config = integrationConfig();
   const clickhouse = createClickHouse(config);
   const projects: string[] = [];

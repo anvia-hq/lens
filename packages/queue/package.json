@@ -17,13 +17,13 @@
   },
   "dependencies": {
     "@lens/contracts": "workspace:*",
-    "bullmq": "^5.81.3",
-    "ioredis": "^5.7.0"
+    "bullmq": "^6.4.2",
+    "ioredis": "^5.11.1"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.0",
-    "vitest": "^4.0.0"
+    "@types/node": "^26.6.5",
+    "tsup": "^9.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
   }
 }

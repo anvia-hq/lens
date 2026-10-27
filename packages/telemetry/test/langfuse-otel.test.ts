@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { gunzipSync } from "node:zlib";
 import { LangfuseSpanProcessor } from "@langfuse/otel";
 import { type LangfuseObservationType, startObservation } from "@langfuse/tracing";
 import { NodeSDK } from "@opentelemetry/sdk-node";
@@ -31,6 +32,7 @@ describe("@langfuse/otel compatibility", () => {
       url: string;
       authorization: string | undefined;
       contentType: string | undefined;
+      contentEncoding: string | undefined;
       bytes: Uint8Array;
     }> = [];
     const server = createServer((request, response) => {
@@ -46,6 +48,10 @@ describe("@langfuse/otel compatibility", () => {
           contentType:
             typeof request.headers["content-type"] === "string"
               ? request.headers["content-type"]
+              : undefined,
+          contentEncoding:
+            typeof request.headers["content-encoding"] === "string"
+              ? request.headers["content-encoding"]
               : undefined,
           bytes: Buffer.concat(chunks),
         });
@@ -94,7 +100,9 @@ describe("@langfuse/otel compatibility", () => {
       expect(requests.map((request) => request.contentType)).toEqual(["application/json"]);
 
       const normalized = requests.flatMap((request) => {
-        const decoded = decodeOtlpRequest(request.bytes, "application/json");
+        const bytes =
+          request.contentEncoding === "gzip" ? gunzipSync(request.bytes) : request.bytes;
+        const decoded = decodeOtlpRequest(bytes, "application/json");
         return normalizeOtlpRequest(decoded, {
           projectId: "00000000-0000-0000-0000-000000000001",
           retentionDays: 30,
