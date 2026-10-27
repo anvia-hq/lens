@@ -17,15 +17,15 @@
     "@lens/db": "workspace:*",
     "@lens/notifications": "workspace:*",
     "@lens/queue": "workspace:*",
-    "bullmq": "^5.81.3",
-    "drizzle-orm": "^0.45.2",
-    "pino": "^9.9.0"
+    "bullmq": "^6.4.2",
+    "drizzle-orm": "^0.45.4",
+    "pino": "^10.4.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "tsup": "^8.5.0",
-    "tsx": "^4.20.0",
-    "typescript": "^5.9.0",
-    "vitest": "^4.0.0"
+    "@types/node": "^26.6.5",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
   }
 }
