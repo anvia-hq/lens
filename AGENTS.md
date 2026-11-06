@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for Pullfrog and other coding agents working in this repository.
+Guidance for coding agents working in this repository.
 
 ## Project Shape
 
