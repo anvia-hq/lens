@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Aven environment setup for Lens. Runs once as `node` (with sudo) to build the
+# snapshot new threads start from. Versions follow the repository:
+#   Node 24, pnpm 11.0.4   - .github/workflows/ci.yml, package.json packageManager
+#   PostgreSQL 17           - docker-compose.dev.yml / docker-compose.test.yml (postgres:17-alpine)
+#   Redis 8                 - same files (redis:8-alpine)
+#   ClickHouse 26.4         - same files (clickhouse/clickhouse-server:26.4-alpine), pinned to 26.4.3.37
+# Docker is not available in thread containers, so these run natively; .aven/resume
+# starts them. Mailpit (only for password-reset email in dev) is not installed.
+set -euo pipefail
+
+CLICKHOUSE_VERSION=26.4.3.37
+PLAYWRIGHT_VERSION=1.65.0
+
+step() { printf '\n==> %s\n' "$*"; }
+
+need_major() { # name actual wanted
+  if [ "${2%%.*}" != "$3" ]; then
+    echo "$1 is $2, but the repository uses major version $3" >&2
+    exit 1
+  fi
+}
+
+step "Checking Node and pnpm"
+need_major node "$(node -p 'process.versions.node')" 24
+if [ "$(pnpm -v 2> /dev/null || true)" != "11.0.4" ]; then
+  corepack enable --install-directory "$HOME/.local/bin" 2> /dev/null || sudo corepack enable
+  corepack prepare pnpm@11.0.4 --activate
+fi
+echo "node $(node -v), pnpm $(pnpm -v)"
+
+step "Installing PostgreSQL 17 and Redis 8 (Debian packages)"
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+  ca-certificates curl gnupg postgresql-17 postgresql-client-17 redis-server > /dev/null
+need_major postgres "$(/usr/lib/postgresql/17/bin/postgres --version | awk '{print $3}')" 17
+need_major redis "$(redis-server --version | sed -E 's/.*v=([0-9.]+).*/\1/')" 8
+# Debian's packages start their own system services; threads run their own as `node`.
+sudo service postgresql stop > /dev/null 2>&1 || true
+sudo service redis-server stop > /dev/null 2>&1 || true
+
+step "Installing ClickHouse $CLICKHOUSE_VERSION (official apt repository)"
+if [ "$(clickhouse local --version 2> /dev/null | grep -oE '[0-9]+(\.[0-9]+){3}' | head -1)" != "$CLICKHOUSE_VERSION" ]; then
+  curl -fsSL https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key \
+    | sudo gpg --dearmor --yes -o /usr/share/keyrings/clickhouse-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] https://packages.clickhouse.com/deb stable main" \
+    | sudo tee /etc/apt/sources.list.d/clickhouse.list > /dev/null
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+    "clickhouse-common-static=$CLICKHOUSE_VERSION" > /dev/null
+fi
+clickhouse local --version
+
+step "Installing Playwright $PLAYWRIGHT_VERSION for proof recordings (outside the repository)"
+# Used by .aven/ship.md to record screenshots and videos of UI changes. Kept out of
+# the workspace's package.json and lockfile on purpose.
+PROOF_TOOLS="$HOME/.local/share/lens-proof"
+export PLAYWRIGHT_BROWSERS_PATH="$PROOF_TOOLS/browsers"
+mkdir -p "$PROOF_TOOLS"
+if [ "$(node -p "require('$PROOF_TOOLS/node_modules/playwright/package.json').version" 2> /dev/null || true)" != "$PLAYWRIGHT_VERSION" ]; then
+  npm install --silent --no-audit --no-fund --prefix "$PROOF_TOOLS" "playwright@$PLAYWRIGHT_VERSION"
+fi
+sudo "$PROOF_TOOLS/node_modules/.bin/playwright" install-deps chromium > /dev/null
+"$PROOF_TOOLS/node_modules/.bin/playwright" install chromium-headless-shell ffmpeg > /dev/null
+echo "playwright $PLAYWRIGHT_VERSION in $PROOF_TOOLS"
+
+step "Installing workspace dependencies (frozen lockfile)"
+pnpm config set store-dir "$HOME/.local/share/pnpm/store" > /dev/null
+pnpm install --frozen-lockfile --reporter=silent
+
+step "Local .env from .env.dev.example"
+[ -f .env ] || cp .env.dev.example .env
+
+step "Initialising service data (then stopping the services)"
+LENS_RESUME_WAIT=1 ./.aven/resume
+/usr/lib/postgresql/17/bin/psql -h localhost -U lens -d lens -tAc 'SELECT version()' | cut -c1-40
+redis-cli ping
+clickhouse client --user lens --password lens -q 'SHOW DATABASES' | tr '\n' ' '
+echo
+/usr/lib/postgresql/17/bin/pg_ctl -D "$HOME/.lens-services/pgdata" -m fast stop > /dev/null
+redis-cli shutdown nosave > /dev/null 2>&1 || true
+kill "$(cat "$HOME/.lens-services/clickhouse/clickhouse.pid")" 2> /dev/null || true
+
+step "Done"

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Starts Lens's local services as the user `node` (no sudo) each time a thread
+# container starts. Idempotent: data directories and databases are created only
+# when missing, and a service already running is left alone.
+#
+#   PostgreSQL 17  -> postgresql://lens:lens@localhost:5432/lens   (+ lens_test)
+#   Redis 8        -> redis://localhost:6379                         (no password)
+#   ClickHouse 26.4 -> http://localhost:8123, user lens / password lens,
+#                      databases lens and lens_test
+#
+# These match the defaults in packages/config/src/schema.ts, so the API, worker
+# and `pnpm db:migrate` work without extra variables. Point integration tests at
+# the *_test databases, never at the development ones (see AGENTS.md).
+set -euo pipefail
+
+PGBIN="${PGBIN:-/usr/lib/postgresql/17/bin}"
+CLICKHOUSE_BIN="${CLICKHOUSE_BIN:-/usr/bin/clickhouse}"
+REDIS_BIN="${REDIS_BIN:-/usr/bin/redis-server}"
+SERVICES="${LENS_SERVICES_DIR:-$HOME/.lens-services}"
+mkdir -p "$SERVICES"
+
+# --- PostgreSQL ---------------------------------------------------------------
+PGDATA="$SERVICES/pgdata"
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  rm -rf "$PGDATA"
+  "$PGBIN/initdb" -D "$PGDATA" -U lens --auth=trust > /dev/null
+fi
+"$PGBIN/pg_ctl" -D "$PGDATA" status > /dev/null 2>&1 \
+  || "$PGBIN/pg_ctl" -D "$PGDATA" -l "$SERVICES/postgres.log" -w -t 8 \
+    -o "-c listen_addresses=localhost -c port=5432 -c unix_socket_directories=/tmp" start > /dev/null
+for db in lens lens_test; do
+  "$PGBIN/psql" -h localhost -U lens -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 \
+    || "$PGBIN/createdb" -h localhost -U lens "$db"
+done
+
+# --- Redis --------------------------------------------------------------------
+mkdir -p "$SERVICES/redis"
+if ! (exec 3<>/dev/tcp/127.0.0.1/6379) 2> /dev/null; then
+  "$REDIS_BIN" --daemonize yes --bind 127.0.0.1 --port 6379 --dir "$SERVICES/redis" \
+    --appendonly yes --maxmemory-policy noeviction \
+    --logfile "$SERVICES/redis.log" --pidfile "$SERVICES/redis.pid" > /dev/null
+fi
+
+# --- ClickHouse ---------------------------------------------------------------
+CH="$SERVICES/clickhouse"
+mkdir -p "$CH/data" "$CH/tmp" "$CH/user_files" "$CH/format_schemas" "$CH/access" "$CH/log"
+cat > "$CH/config.xml" << EOF
+<clickhouse>
+  <logger>
+    <level>warning</level>
+    <log>$CH/log/server.log</log>
+    <errorlog>$CH/log/server.err.log</errorlog>
+    <console>false</console>
+  </logger>
+  <listen_host>127.0.0.1</listen_host>
+  <http_port>8123</http_port>
+  <tcp_port>9000</tcp_port>
+  <path>$CH/data/</path>
+  <tmp_path>$CH/tmp/</tmp_path>
+  <user_files_path>$CH/user_files/</user_files_path>
+  <format_schema_path>$CH/format_schemas/</format_schema_path>
+  <users_config>$CH/users.xml</users_config>
+  <user_directories>
+    <users_xml><path>$CH/users.xml</path></users_xml>
+    <local_directory><path>$CH/access/</path></local_directory>
+  </user_directories>
+  <default_profile>default</default_profile>
+  <default_database>default</default_database>
+  <mark_cache_size>268435456</mark_cache_size>
+  <max_server_memory_usage_to_ram_ratio>0.5</max_server_memory_usage_to_ram_ratio>
+</clickhouse>
+EOF
+cat > "$CH/users.xml" << 'EOF'
+<clickhouse>
+  <profiles><default/></profiles>
+  <quotas><default/></quotas>
+  <users>
+    <default>
+      <password></password>
+      <networks><ip>127.0.0.1</ip><ip>::1</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <access_management>1</access_management>
+    </default>
+    <lens>
+      <password>lens</password>
+      <networks><ip>127.0.0.1</ip><ip>::1</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <access_management>1</access_management>
+      <named_collection_control>1</named_collection_control>
+    </lens>
+  </users>
+</clickhouse>
+EOF
+ch_up() { curl -fsS -o /dev/null http://127.0.0.1:8123/ping 2> /dev/null; }
+if ! ch_up; then
+  "$CLICKHOUSE_BIN" server --config-file="$CH/config.xml" --pid-file="$CH/clickhouse.pid" --daemon
+fi
+# ClickHouse takes a moment to accept queries; create the databases once it does,
+# without holding up the container start for longer than a few seconds.
+(
+  for _ in $(seq 1 60); do ch_up && break; sleep 0.25; done
+  for db in lens lens_test; do
+    "$CLICKHOUSE_BIN" client --user lens --password lens -q "CREATE DATABASE IF NOT EXISTS $db"
+  done
+) > "$CH/log/resume.log" 2>&1 &
+if [ "${LENS_RESUME_WAIT:-0}" = 1 ]; then wait; fi
