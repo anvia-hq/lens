@@ -55,7 +55,7 @@ The rehearsal:
 3. Stops API and all remaining services, including database engines, and archives PostgreSQL,
    ClickHouse, and Redis volumes at that single quiesced point. Retains matching runtime secrets in
    memory for the rehearsal. A real recovery set must securely retain configuration and image digests,
-   including the authentication secret and ingestion-key pepper, alongside its coordinated backups.
+   including the authentication secret, ingestion-key pepper, and alert channel secret key (`LENS_ALERT_SECRET_KEY`), alongside its coordinated backups. Deployments with alert channels created before secret encryption must set the key before upgrading; the migrate step encrypts plaintext rows automatically.
 4. Starts the candidate against the old volumes and runs migrations. Signs in with the original
    account, checks project membership, reads historical and formerly queued data, and submits fresh
    data with the original key.

@@ -71,6 +71,7 @@ function testConfig(nodeEnv: "development" | "production" = "development") {
     NODE_ENV: nodeEnv,
     BETTER_AUTH_SECRET: "test-better-auth-secret-with-32-chars",
     INGESTION_KEY_PEPPER: "test-ingestion-pepper",
+    LENS_ALERT_SECRET_KEY: "test:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
     LOG_LEVEL: "error",
   });
 }
