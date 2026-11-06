@@ -102,7 +102,7 @@ describe("createOidcTokenExchange", () => {
     const tokens = await exchange({
       code: "the-code",
       codeVerifier: "the-verifier",
-      redirectURI: "http://localhost:3000/api/auth/oauth2/callback/oidc",
+      redirectURI: "http://localhost:3000/api/auth/callback/oidc",
     });
 
     expect(tokens).toMatchObject({ accessToken: "at" });
@@ -113,7 +113,7 @@ describe("createOidcTokenExchange", () => {
     expect(body.get("grant_type")).toBe("authorization_code");
     expect(body.get("code")).toBe("the-code");
     expect(body.get("code_verifier")).toBe("the-verifier");
-    expect(body.get("redirect_uri")).toBe("http://localhost:3000/api/auth/oauth2/callback/oidc");
+    expect(body.get("redirect_uri")).toBe("http://localhost:3000/api/auth/callback/oidc");
     expect(body.get("client_secret")).toBeNull();
   });
 

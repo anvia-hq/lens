@@ -28,7 +28,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.user.create.before(
         { email: "person@example.com", emailVerified: false },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });
   });
@@ -48,7 +48,7 @@ describe("OIDC workspace access", () => {
         OIDC_ALLOWED_DOMAINS: [],
       } as never,
     );
-    const context = { path: "/oauth2/callback/oidc" };
+    const context = { path: "/callback/oidc" };
 
     await expect(
       hooks.user.create.before({ email: "person@example.com", emailVerified: false }, context),
@@ -75,7 +75,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.user.create.before(
         { email: "person@example.com", emailVerified: false },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });
   });
@@ -98,7 +98,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.session.create.before(
         { userId: "user-1", activeOrganizationId: null },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).rejects.toMatchObject({ body: { code: "oidc_email_unverified" } });
   });
@@ -132,7 +132,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.user.create.before(
         { email: "person@example.com", emailVerified: true },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).rejects.toMatchObject({ body: { code: "oidc_access_denied" } });
   });
@@ -151,7 +151,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.user.create.before(
         { email: "person@example.com", emailVerified: true },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).resolves.toBeUndefined();
     expect(database.select).toHaveBeenCalledTimes(2);
@@ -164,7 +164,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.session.create.before(
         { userId: "user-1", activeOrganizationId: null },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).resolves.toEqual({
       data: { userId: "user-1", activeOrganizationId: "workspace-1" },
@@ -187,7 +187,7 @@ describe("OIDC workspace access", () => {
         OIDC_ALLOWED_DOMAINS: [],
       } as never,
     );
-    const context = { path: "/oauth2/callback/oidc" };
+    const context = { path: "/callback/oidc" };
 
     await hooks.user.create.before({ email: "person@example.com", emailVerified: true }, context);
     await expect(
@@ -227,7 +227,7 @@ describe("OIDC workspace access", () => {
     await expect(
       hooks.session.create.before(
         { userId: "user-1", activeOrganizationId: null },
-        { path: "/oauth2/callback/oidc" },
+        { path: "/callback/oidc" },
       ),
     ).resolves.toEqual({
       data: { userId: "user-1", activeOrganizationId: "workspace-1" },

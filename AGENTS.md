@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for Pullfrog and other coding agents working in this repository.
+Guidance for coding agents working in this repository.
 
 ## Project Shape
 
@@ -83,6 +83,9 @@ API and worker start. `docker-compose.small.yml` supplies resource limits.
 - TypeScript is strict, ESM, target `ES2024`, with `moduleResolution: "Bundler"`
   and unchecked indexed access enabled. Shared packages extend the stricter
   `tsconfig.package.json`.
+- Type checking and the web build's `tsc -b` step use `tsrs` (a Rust port of the TypeScript 7
+  compiler, pinned in the root `package.json`) through each package's `typecheck` script. The
+  `typescript` package stays installed for `tsup` declaration builds and editor tooling.
 - Oxlint owns linting and Oxfmt owns formatting. Use the root check scripts;
   there is no separate format script.
 - `.oxfmtrc.json` uses formatter defaults and ignores `**/routeTree.gen.ts`.

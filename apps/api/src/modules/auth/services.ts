@@ -30,7 +30,6 @@ function oidcPlugins(config: LensConfig) {
           clientSecret: requiredOidcSetting(config.OIDC_CLIENT_SECRET, "OIDC_CLIENT_SECRET"),
           scopes: config.OIDC_SCOPES,
           pkce: true,
-          requireIssuerValidation: config.OIDC_REQUIRE_ISSUER_VALIDATION,
           getToken: createOidcTokenExchange(config),
         },
       ],

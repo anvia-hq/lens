@@ -9,10 +9,10 @@
     "start": "node dist/index.js",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
-    "@better-auth/core": "^1.6.33",
+    "@better-auth/core": "^1.7.18",
     "@clickhouse/client": "^1.24.1",
     "@hono/node-server": "^2.1.5",
     "@hono/zod-validator": "^0.9.1",
@@ -23,7 +23,7 @@
     "@lens/queue": "workspace:*",
     "@lens/telemetry": "workspace:*",
     "@modelcontextprotocol/server": "2.4.0",
-    "better-auth": "^1.6.33",
+    "better-auth": "^1.7.18",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",
     "ioredis": "^5.11.1",

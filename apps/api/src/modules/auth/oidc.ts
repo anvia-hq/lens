@@ -20,7 +20,7 @@ type OidcAccess = {
 };
 
 function isOidcCallback(context: OidcHookContext, providerId: string): boolean {
-  const callbackPath = `/oauth2/callback/${providerId}`;
+  const callbackPath = `/callback/${providerId}`;
   if (context?.path?.endsWith(callbackPath)) return true;
   if (context?.request === undefined) return false;
   return new URL(context.request.url).pathname.endsWith(callbackPath);

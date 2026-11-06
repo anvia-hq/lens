@@ -17,7 +17,7 @@
     "release:01": "tsx -r dotenv/config 04_release/01-compare-and-gate.ts dotenv_config_path=.env",
     "build": "tsup 01_basics/*.ts 02_tools/*.ts 03_evaluations/*.ts 04_release/*.ts --format esm --clean",
     "start": "pnpm basics:01",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsrs --noEmit",
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {

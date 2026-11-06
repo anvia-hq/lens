@@ -55,8 +55,8 @@ export function useAuthForm() {
     setError("");
     setIsOidcSubmitting(true);
     try {
-      const result = await authClient.signIn.oauth2({
-        providerId: oidc.providerId,
+      const result = await authClient.signIn.social({
+        provider: oidc.providerId,
         callbackURL: "/",
         errorCallbackURL: "/",
       });

@@ -210,7 +210,6 @@ OIDC_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
 OIDC_CLIENT_ID=lens
 OIDC_CLIENT_SECRET=replace-with-the-oidc-client-secret
 OIDC_SCOPES=openid profile email
-OIDC_REQUIRE_ISSUER_VALIDATION=false
 OIDC_TOKEN_ENDPOINT_AUTH=auto
 OIDC_REQUIRE_VERIFIED_EMAIL=false
 OIDC_AUTO_PROVISION=true
@@ -218,7 +217,10 @@ OIDC_ALLOWED_DOMAINS=example.com
 PASSWORD_LOGIN_ENABLED=true
 ```
 
-Register `${PUBLIC_APP_URL}/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
+Register `${PUBLIC_APP_URL}/api/auth/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
+Releases before Better Auth 1.7 used `/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}`: when upgrading,
+add the new URL at your identity provider before rolling out. The provider's issuer is now always
+validated from its discovery document, so `OIDC_REQUIRE_ISSUER_VALIDATION` is accepted but ignored.
 `OIDC_TOKEN_ENDPOINT_AUTH` controls how Lens authenticates to the provider's token endpoint: `auto`
 (default) follows the provider's own discovery metadata and falls back to the OAuth default
 `client_secret_basic` when the metadata is silent; set `basic` or `post` to force a method for
