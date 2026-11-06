@@ -26,7 +26,7 @@ import { evaluationResult, normalizedSpan } from "../helpers/telemetry.js";
 
 // This suite runs only inside the isolated Compose integration harness. Redis
 // holds accepted jobs while processors are deliberately stopped at boundaries.
-describe.sequential("project deletion across Postgres, Redis and ClickHouse", () => {
+describe("project deletion across Postgres, Redis and ClickHouse", () => {
   const config = loadConfig();
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);

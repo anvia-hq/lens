@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { PromptDetail, PromptVersion } from "@lens/contracts";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { PromptDetailState, PromptsState } from "../hooks/use-prompts";
@@ -54,7 +54,7 @@ describe("prompt config editing", () => {
     },
   );
 
-  it("creates with JSON config, retains a failed draft, and resets on reopen", () => {
+  it("creates with JSON config, retains a failed draft, and resets on reopen", async () => {
     const create = vi.fn();
     const view = render(<PromptsView state={listState(create)} />);
     fireEvent.click(screen.getByRole("button", { name: "Create prompt" }));
@@ -75,6 +75,7 @@ describe("prompt config editing", () => {
     expect(input("Name").value).toBe("support");
     expect(input(configLabel).value).toBe(JSON.stringify(config));
     closeDialog();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: "Create prompt" }));
     expect(input("Name").value).toBe("");
     expect(input(configLabel).value).toBe("{}");

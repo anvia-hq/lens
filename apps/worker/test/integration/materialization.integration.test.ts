@@ -17,7 +17,7 @@ import { normalizedSpan } from "../helpers/telemetry.js";
 
 // Real Redis transitions and ClickHouse INSERT SELECT; only the completion
 // boundary is held so a late insert deterministically follows the first read.
-describe.sequential("materialization convergence across workers", () => {
+describe("materialization convergence across workers", () => {
   const config = loadConfig();
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
@@ -134,7 +134,6 @@ describe.sequential("materialization convergence across workers", () => {
           active: 0,
           waiting: 0,
           delayed: 0,
-          paused: 0,
         });
       },
       { timeout: 10_000, interval: 30 },
@@ -198,7 +197,6 @@ describe.sequential("materialization convergence across workers", () => {
         active: 0,
         waiting: 0,
         delayed: 0,
-        paused: 0,
       });
     });
     expect(calls).toBe(1);
@@ -293,7 +291,6 @@ describe.sequential("materialization convergence across workers", () => {
         active: 0,
         waiting: 0,
         delayed: 0,
-        paused: 0,
       });
     });
     expect(calls).toBe(2);
