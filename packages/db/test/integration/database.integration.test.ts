@@ -98,7 +98,7 @@ const now = new Date(Math.floor(Date.now() / 60_000) * 60_000 - 60_000);
 const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1_000).toISOString();
 const unixNano = (offsetMs = 0) => (BigInt(now.getTime() + offsetMs) * 1_000_000n).toString();
 
-describe.sequential("database integration", () => {
+describe("database integration", () => {
   const config = integrationConfig();
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
