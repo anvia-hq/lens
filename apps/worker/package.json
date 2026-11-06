@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
     "@lens/config": "workspace:*",
