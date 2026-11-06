@@ -1,4 +1,5 @@
 import type { AlertChannelInput, AlertDelivery } from "@lens/contracts";
+import { Buffer } from "node:buffer";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   alertChannelCount,
@@ -6,6 +7,7 @@ import {
   createAlertChannel,
   createPendingDeliveries,
   deleteAlertChannel,
+  encryptStoredConfig,
   getAlertChannelWithConfig,
   listAlertChannels,
   listAlertChannelsByIds,
@@ -15,6 +17,9 @@ import {
   markDeliveryFinished,
   updateAlertChannel,
 } from "../src/alert-channel-store.js";
+import { decryptAlertSecret, parseAlertSecretKey } from "../src/alert-secrets.js";
+
+const testKeyring = parseAlertSecretKey(`v1:${Buffer.alloc(32, 7).toString("base64")}`);
 
 const projectId = "10000000-0000-4000-8000-000000000001";
 const channelId = "40000000-0000-4000-8000-000000000004";
@@ -26,7 +31,10 @@ const channelRow = {
   projectId,
   type: "webhook",
   name: "Ops hook",
-  config: { url: "https://example.com/hook", secret: "s3cret-value-16chars" },
+  config: encryptStoredConfig(
+    { url: "https://example.com/hook", secret: "s3cret-value-16chars" },
+    testKeyring,
+  ),
   createdBy: "user-1",
   createdAt: new Date("2026-09-05T00:00:00.000Z"),
   updatedAt: new Date("2026-09-05T00:00:00.000Z"),
@@ -171,8 +179,11 @@ describe("alert channel store", () => {
 
   it("returns the stored channel with config when found", async () => {
     db = mockDb([channelRow]);
-    const channel = await getAlertChannelWithConfig(db as never, projectId, channelId);
-    expect(channel).toMatchObject({ id: channelId, config: channelRow.config });
+    const channel = await getAlertChannelWithConfig(db as never, projectId, channelId, testKeyring);
+    expect(channel).toMatchObject({
+      id: channelId,
+      config: { url: "https://example.com/hook", secret: "s3cret-value-16chars" },
+    });
   });
 
   it("creates a channel and returns public columns", async () => {
@@ -183,45 +194,73 @@ describe("alert channel store", () => {
       url: "https://example.com/hook",
       secret: "s3cret-value-16chars",
     };
-    const channel = await createAlertChannel(db as never, projectId, "user-1", input);
+    const channel = await createAlertChannel(db as never, projectId, "user-1", input, testKeyring);
     expect(channel.id).toBe(channelId);
     expect(db.insert).toHaveBeenCalledTimes(1);
-    expect(db.builder.values).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId,
-        type: "webhook",
-        name: "Ops hook",
-        config: { url: "https://example.com/hook", secret: "s3cret-value-16chars" },
-        createdBy: "user-1",
-      }),
+    const written = db.builder.values?.mock.calls[0]?.[0] as
+      | {
+          config: { url: string; secret: string };
+          projectId: string;
+          type: string;
+          name: string;
+          createdBy: string;
+        }
+      | undefined;
+    expect(written).toMatchObject({
+      projectId,
+      type: "webhook",
+      name: "Ops hook",
+      createdBy: "user-1",
+    });
+    expect(written?.config.url).toBe("https://example.com/hook");
+    expect(decryptAlertSecret(written?.config.secret ?? "", testKeyring)).toBe(
+      "s3cret-value-16chars",
     );
   });
 
   it("throws when create returns no row", async () => {
     await expect(
-      createAlertChannel(db as never, projectId, "user-1", {
-        type: "slack",
-        name: "s",
-        webhookUrl: "https://hooks.slack.com/x",
-      }),
+      createAlertChannel(
+        db as never,
+        projectId,
+        "user-1",
+        {
+          type: "slack",
+          name: "s",
+          webhookUrl: "https://hooks.slack.com/x",
+        },
+        testKeyring,
+      ),
     ).rejects.toThrow("Alert channel was not created");
   });
 
   it("updates a channel and reports missing rows", async () => {
     db = mockDb([publicChannelRow({ name: "Renamed" })]);
-    const channel = await updateAlertChannel(db as never, projectId, channelId, {
-      type: "discord",
-      name: "Renamed",
-      webhookUrl: "https://discord.com/api/webhooks/1/x",
-    });
-    expect(channel?.name).toBe("Renamed");
-    db = mockDb([]);
-    expect(
-      await updateAlertChannel(db as never, projectId, channelId, {
+    const channel = await updateAlertChannel(
+      db as never,
+      projectId,
+      channelId,
+      {
         type: "discord",
         name: "Renamed",
         webhookUrl: "https://discord.com/api/webhooks/1/x",
-      }),
+      },
+      testKeyring,
+    );
+    expect(channel?.name).toBe("Renamed");
+    db = mockDb([]);
+    expect(
+      await updateAlertChannel(
+        db as never,
+        projectId,
+        channelId,
+        {
+          type: "discord",
+          name: "Renamed",
+          webhookUrl: "https://discord.com/api/webhooks/1/x",
+        },
+        testKeyring,
+      ),
     ).toBeUndefined();
   });
 
@@ -287,9 +326,9 @@ describe("alert channel store", () => {
         projectName: "Integration",
       },
     ]);
-    const payload = await loadDeliveryForDispatch(db as never, deliveryId);
+    const payload = await loadDeliveryForDispatch(db as never, deliveryId, testKeyring);
     expect(payload).toMatchObject({
-      channel: { id: channelId },
+      channel: { id: channelId, config: { url: "https://example.com/hook" } },
       projectName: "Integration",
       incident: { id: incidentId, observedValue: 0.5 },
     });
@@ -302,11 +341,11 @@ describe("alert channel store", () => {
         projectName: "Integration",
       },
     ]);
-    const deleted = await loadDeliveryForDispatch(db as never, deliveryId);
+    const deleted = await loadDeliveryForDispatch(db as never, deliveryId, testKeyring);
     expect(deleted?.channel).toBeNull();
 
     db = mockDb([]);
-    expect(await loadDeliveryForDispatch(db as never, deliveryId)).toBeUndefined();
+    expect(await loadDeliveryForDispatch(db as never, deliveryId, testKeyring)).toBeUndefined();
   });
 
   it("marks attempts without changing status", async () => {

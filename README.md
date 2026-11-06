@@ -102,6 +102,12 @@ CLICKHOUSE_PASSWORD=replace-with-a-random-value
 REDIS_PASSWORD=replace-with-a-random-value
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
 INGESTION_KEY_PEPPER=replace-with-an-independent-random-value
+# Alert channel secrets are encrypted at rest with AES-256-GCM. Generate with: "kid:$(openssl rand -base64 32)"
+# (key ids are required; use a new id per key so rotation is unambiguous)
+# Existing deployments must set this key before upgrading; plaintext rows are
+# encrypted automatically by the migrate step (or re-run manually with
+# `docker compose run --rm api node packages/db/dist/encrypt-alert-channels.js migrate`).
+LENS_ALERT_SECRET_KEY=replace-with-kid-and-base64-of-32-random-bytes
 ```
 
 Start Lens:
@@ -393,6 +399,19 @@ To load a realistic local workspace with traces and evaluations:
 ```sh
 docker compose -f docker-compose.dev.yml run --rm seed
 ```
+
+The seed prints a one-time generated demo password and API key on the run that creates
+them — save them then, because re-runs never print or rotate existing credentials and
+never revive a revoked key. To choose the values yourself, set `LENS_SEED_DEMO_PASSWORD`
+and `LENS_SEED_DEMO_SECRET_KEY` before seeding. The seed refuses to run with
+`NODE_ENV=production` unless `LENS_ALLOW_SEED=1` is set; the production Compose stack
+leaves it unset (seed service is also `tools`-profile only), while the dev stack opts in
+by default.
+
+If the database was seeded by an older release, the seed prints a warning that the demo
+login and API key still use the previously published values. Change the demo password
+and revoke the `pk-lens-demo-production-agents` key, and treat any prior value as
+compromised — the seed deliberately never rotates or revives them on its own.
 
 Run application services outside containers while keeping infrastructure in Docker:
 

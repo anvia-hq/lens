@@ -27,6 +27,7 @@ const env = {
   REDIS_PASSWORD: randomBytes(24).toString("hex"),
   BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
   INGESTION_KEY_PEPPER: randomBytes(32).toString("hex"),
+  LENS_ALERT_SECRET_KEY: `verify:${randomBytes(32).toString("base64")}`,
   PUBLIC_APP_URL: "http://127.0.0.1:3001",
   WEB_ORIGIN: "http://127.0.0.1:3001",
   WEB_PORT: "127.0.0.1:",

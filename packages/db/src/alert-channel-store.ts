@@ -8,6 +8,13 @@ import type {
 } from "@lens/contracts";
 import { alertDeliveryTargetSchema } from "@lens/contracts";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import {
+  type AlertSecretKeyring,
+  decryptAlertSecret,
+  encryptAlertSecret,
+  isEncryptedAlertSecret,
+  loadAlertSecretKeyring,
+} from "./alert-secrets.js";
 import { incidentFromRow } from "./alert-store.js";
 import type { LensPostgres } from "./index.js";
 import { alertChannel, alertDelivery, alertIncident, alertRule, project } from "./schema.js";
@@ -37,10 +44,72 @@ function channelFromRow(row: Omit<AlertChannelRow, "config" | "createdBy">): Ale
   };
 }
 
-function storedChannelFromRow(row: AlertChannelRow): StoredAlertChannel {
+function storedChannelFromRow(
+  row: AlertChannelRow,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
+): StoredAlertChannel {
   const channel = channelFromRow(row);
-  const target = alertDeliveryTargetSchema.parse({ type: row.type, config: row.config });
+  const target = alertDeliveryTargetSchema.parse({
+    type: row.type,
+    config: decryptStoredConfig(row.type, row.config, keyring),
+  });
   return { ...channel, ...target };
+}
+
+/**
+ * Secrets are encrypted field-by-field so non-secret routing fields
+ * (`chatId`, `url`) stay readable. Write paths must call this; delivery read
+ * paths go through {@link storedChannelFromRow}, which decrypts.
+ */
+export function encryptStoredConfig(
+  config: AlertChannelConfig,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
+): AlertChannelConfig {
+  if ("webhookUrl" in config) return { webhookUrl: encryptAlertSecret(config.webhookUrl, keyring) };
+  if ("botToken" in config) {
+    return {
+      botToken: encryptAlertSecret(config.botToken, keyring),
+      chatId: config.chatId,
+    };
+  }
+  if (config.secret === undefined) return { url: config.url };
+  return { url: config.url, secret: encryptAlertSecret(config.secret, keyring) };
+}
+
+function decryptStoredConfig(
+  type: AlertChannelRow["type"],
+  config: AlertChannelConfig,
+  keyring: AlertSecretKeyring,
+): AlertChannelConfig {
+  if (type === "slack" || type === "discord") {
+    const value = (config as { webhookUrl?: unknown }).webhookUrl;
+    if (!isEncryptedAlertSecret(value)) {
+      throw new Error(
+        "Alert channel secret is stored in plaintext. Run the alert channel encryption migration before delivering.",
+      );
+    }
+    return { webhookUrl: decryptAlertSecret(value, keyring) };
+  }
+  if (type === "telegram") {
+    const value = (config as { botToken?: unknown; chatId?: unknown }).botToken;
+    if (!isEncryptedAlertSecret(value)) {
+      throw new Error(
+        "Alert channel secret is stored in plaintext. Run the alert channel encryption migration before delivering.",
+      );
+    }
+    return {
+      botToken: decryptAlertSecret(value, keyring),
+      chatId: (config as { chatId: string }).chatId,
+    };
+  }
+  const secret = (config as { url: string; secret?: unknown }).secret;
+  if (secret === undefined) return { url: (config as { url: string }).url };
+  if (!isEncryptedAlertSecret(secret)) {
+    throw new Error(
+      "Alert channel secret is stored in plaintext. Run the alert channel encryption migration before delivering.",
+    );
+  }
+  return { url: (config as { url: string }).url, secret: decryptAlertSecret(secret, keyring) };
 }
 
 function deliveryFromRow(row: AlertDeliveryRow): AlertDelivery {
@@ -88,13 +157,14 @@ export async function getAlertChannelWithConfig(
   db: LensPostgres,
   projectId: string,
   channelId: string,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
 ): Promise<StoredAlertChannel | undefined> {
   const [row] = await db
     .select()
     .from(alertChannel)
     .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
     .limit(1);
-  return row === undefined ? undefined : storedChannelFromRow(row);
+  return row === undefined ? undefined : storedChannelFromRow(row, keyring);
 }
 
 export async function createAlertChannel(
@@ -102,6 +172,7 @@ export async function createAlertChannel(
   projectId: string,
   createdBy: string,
   input: AlertChannelInput,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
 ): Promise<AlertChannel> {
   const [row] = await db
     .insert(alertChannel)
@@ -109,7 +180,7 @@ export async function createAlertChannel(
       projectId,
       type: input.type,
       name: input.name,
-      config: channelConfigFromInput(input),
+      config: encryptStoredConfig(channelConfigFromInput(input), keyring),
       createdBy,
     })
     .returning(publicColumns);
@@ -122,13 +193,14 @@ export async function updateAlertChannel(
   projectId: string,
   channelId: string,
   input: AlertChannelInput,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
 ): Promise<AlertChannel | undefined> {
   const [row] = await db
     .update(alertChannel)
     .set({
       type: input.type,
       name: input.name,
-      config: channelConfigFromInput(input),
+      config: encryptStoredConfig(channelConfigFromInput(input), keyring),
       updatedAt: new Date(),
     })
     .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
@@ -160,13 +232,14 @@ export async function listAlertChannelsByIds(
   db: LensPostgres,
   projectId: string,
   ids: string[],
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
 ): Promise<StoredAlertChannel[]> {
   if (ids.length === 0) return [];
   const rows = await db
     .select()
     .from(alertChannel)
     .where(and(eq(alertChannel.projectId, projectId), inArray(alertChannel.id, ids)));
-  return rows.map(storedChannelFromRow);
+  return rows.map((row) => storedChannelFromRow(row, keyring));
 }
 
 export async function createPendingDeliveries(
@@ -218,6 +291,7 @@ export type DeliveryDispatchPayload = {
 export async function loadDeliveryForDispatch(
   db: LensPostgres,
   deliveryId: string,
+  keyring: AlertSecretKeyring = loadAlertSecretKeyring(),
 ): Promise<DeliveryDispatchPayload | undefined> {
   const [row] = await db
     .select({
@@ -235,7 +309,7 @@ export async function loadDeliveryForDispatch(
   if (row === undefined) return undefined;
   return {
     delivery: deliveryFromRow(row.delivery),
-    channel: row.channel === null ? null : storedChannelFromRow(row.channel),
+    channel: row.channel === null ? null : storedChannelFromRow(row.channel, keyring),
     incident: incidentFromRow(row.incident, new Map()),
     projectName: row.projectName,
   };

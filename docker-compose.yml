@@ -32,6 +32,7 @@ x-app-environment: &app-environment
   OIDC_AUTO_PROVISION: ${OIDC_AUTO_PROVISION:-false}
   OIDC_ALLOWED_DOMAINS: ${OIDC_ALLOWED_DOMAINS:-}
   INGESTION_KEY_PEPPER: ${INGESTION_KEY_PEPPER:?Set INGESTION_KEY_PEPPER in .env}
+  LENS_ALERT_SECRET_KEY: ${LENS_ALERT_SECRET_KEY:?Set LENS_ALERT_SECRET_KEY in .env}
   SMTP_HOST: ${SMTP_HOST:-}
   SMTP_PORT: ${SMTP_PORT:-587}
   SMTP_FROM: ${SMTP_FROM:-Anvia Lens <lens@localhost>}
@@ -206,6 +207,16 @@ services:
     <<: *backend-service
     profiles: ["tools"]
     command: ["node", "packages/db/dist/seed.js"]
+    # Not started by a default `docker compose up` (tools profile only), and the
+    # seed itself refuses to run with NODE_ENV=production unless LENS_ALLOW_SEED=1
+    # is set in the environment above. Only the seed service reads these: keep
+    # them out of the shared x-app-environment block.
+    environment:
+      <<: *app-environment
+      # Seed-only variables (the only consumer is this service).
+      LENS_ALLOW_SEED: ${LENS_ALLOW_SEED:-}
+      LENS_SEED_DEMO_PASSWORD: ${LENS_SEED_DEMO_PASSWORD:-}
+      LENS_SEED_DEMO_SECRET_KEY: ${LENS_SEED_DEMO_SECRET_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
