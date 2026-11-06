@@ -39,7 +39,7 @@ pnpm audit:prod
 
 Only when the work changes what users see in `apps/web` or `packages/ui`:
 
-1. Start the services and app in the background: `.aven/resume` (if not already running), then `pnpm db:migrate && pnpm db:seed`, then `pnpm dev` as a background process. Wait for http://localhost:3000.
+1. Start the services and app in the background: `.aven/resume` (if not already running), then `export LENS_SEED_DEMO_PASSWORD=local-proof-password-1 && pnpm db:migrate && pnpm db:seed` (the seed no longer ships a fixed password; it uses this variable, and the same variable is read when recording), then `pnpm dev` as a background process. Wait for http://localhost:3000.
 2. Write a short flow at `/tmp/proof-flow.mjs` that shows the change, for example:
    ```js
    export default async ({ page, shot, login }) => {

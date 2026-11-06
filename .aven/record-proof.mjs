@@ -6,7 +6,7 @@
 // <flow.mjs> default-exports `async ({ page, shot, login }) => { ... }`:
 //   page  - a Playwright page at 1280x800, base URL http://localhost:3000
 //   shot  - await shot("name") saves <outDir>/<name>.png
-//   login - await login() signs in as the seeded demo user (pnpm db:seed)
+//   login - await login() signs in as the seeded demo user (pnpm db:seed run with LENS_SEED_DEMO_PASSWORD set; the same variable must be set when recording)
 // The video is saved as <outDir>/flow.webm. outDir defaults to .aven/proof.
 // Playwright lives outside the repository; .aven/setup installs it.
 import { mkdir, readdir, rename, rm } from "node:fs/promises";
@@ -42,7 +42,7 @@ const shot = (name) => page.screenshot({ path: join(outDir, `${name}.png`), full
 const login = async () => {
   await page.goto("/");
   await page.locator("#auth-email").fill("demo@lens.local");
-  await page.locator("#auth-password").fill("LensDemo2026!");
+  await page.locator("#auth-password").fill(process.env.LENS_SEED_DEMO_PASSWORD ?? "");
   await page.locator('form button[type="submit"]').click();
   await page.locator("#auth-password").waitFor({ state: "detached" });
   await page.waitForLoadState("networkidle");
