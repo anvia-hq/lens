@@ -67,7 +67,7 @@ If a pull request is already open for this branch, the push updates it: edit its
 gh pr create --base main --title "<title>" --body-file /tmp/pr-body.md
 ```
 
-Open it ready for review (not a draft). No reviewers or labels: Pullfrog reviews it automatically. Title: plain sentence or Conventional Commit style, under ~70 characters.
+Open it ready for review (not a draft). No reviewers or labels. Title: plain sentence or Conventional Commit style, under ~70 characters.
 
 Body, in this order:
 
@@ -77,10 +77,6 @@ Body, in this order:
 - **Compatibility**: if the change touches schema, queue jobs or persisted data, say that the release upgrade and recovery rehearsal in `docs/release-verification.md` should be run before release, and that it was not run here.
 - **UI**: link the proof files from the branch, for example `https://github.com/anvia-hq/lens/blob/<branch>/.aven/proof/after.png` and `.../flow.webm`, and note that `.aven/proof/` must be removed before merging. Or "No visible UI changes."
 
-## 8. Pullfrog review
-
-On a later Ship for the same pull request, read Pullfrog's review comments: `gh pr view --comments` and `gh api repos/anvia-hq/lens/pulls/<number>/comments`. Fix the findings that are clearly right, run the relevant checks again, push, and reply briefly on each fixed thread saying what changed. For a finding you disagree with or that needs a product decision, do not change the code: list it for me.
-
-## 9. Do not merge
+## 8. Do not merge
 
 Do not merge, do not turn on auto-merge, do not run releases, tag, publish images or deploy. Tell me the pull request's URL, the checks you ran, and anything I need to decide.
