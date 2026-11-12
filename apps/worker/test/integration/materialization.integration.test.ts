@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import type { MaterializeTraceJob, NormalizedSpan } from "@lens/contracts";
 import { createClickHouse, createPostgres, organization, project } from "@lens/db";
 import { createQueues, createRedisConnection, type LensQueues } from "@lens/queue";
@@ -18,7 +18,7 @@ import { normalizedSpan } from "../helpers/telemetry.js";
 // Real Redis transitions and ClickHouse INSERT SELECT; only the completion
 // boundary is held so a late insert deterministically follows the first read.
 describe("materialization convergence across workers", () => {
-  const config = loadConfig();
+  const config = loadProcessConfig();
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
   const queues = createQueues(config.REDIS_URL);

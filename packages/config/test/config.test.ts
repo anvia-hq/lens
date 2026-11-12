@@ -198,9 +198,9 @@ describe("loadConfig", () => {
     vi.stubEnv("API_PORT", "4111");
     vi.resetModules();
     const module = await import("../src/index.js");
-    const first = module.loadConfig();
+    const first = module.loadProcessConfig();
     vi.stubEnv("API_PORT", "4222");
-    const second = module.loadConfig();
+    const second = module.loadProcessConfig();
     expect(first.API_PORT).toBe(4111);
     expect(second).toBe(first);
   });

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import type {
   DispatchAlertJob,
   EvaluateAlertsJob,
@@ -23,7 +23,7 @@ import {
   createMaterializeTraceProcessor,
 } from "./processors.js";
 
-const config = loadConfig();
+const config = loadProcessConfig();
 const logger = pino({ level: config.LOG_LEVEL, name: "lens-worker" });
 const clickhouse = createClickHouse(config);
 const postgres = createPostgres(config);

@@ -1,3 +1,4 @@
+import type { IngestVersionClock } from "./ingestion-context.js";
 import type { EvaluationResult, EvaluationRun, NormalizedSpan } from "@lens/contracts";
 
 export type NormalizeOptions = {
@@ -5,6 +6,8 @@ export type NormalizeOptions = {
   retentionDays: number | null;
   now?: Date;
   additionalRedactionPatterns?: readonly string[];
+  /** Defaults to the process-wide clock. */
+  versionClock?: IngestVersionClock;
 };
 
 export type NormalizeResult = {

@@ -1,5 +1,5 @@
 import { type ClickHouseClient, type ClickHouseSettings, createClient } from "@clickhouse/client";
-import { type LensConfig, loadConfig } from "@lens/config";
+import { type LensConfig, loadProcessConfig } from "@lens/config";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 import * as schema from "./schema.js";
@@ -14,7 +14,7 @@ export type PostgresConnection = {
   close: () => Promise<void>;
 };
 
-export function createPostgres(config: LensConfig = loadConfig()): PostgresConnection {
+export function createPostgres(config: LensConfig = loadProcessConfig()): PostgresConnection {
   const sql = postgres(config.POSTGRES_URL, { max: config.POSTGRES_MAX_CONNECTIONS });
   return {
     db: drizzle(sql, { schema }),
@@ -23,7 +23,7 @@ export function createPostgres(config: LensConfig = loadConfig()): PostgresConne
   };
 }
 
-export function createClickHouse(config: LensConfig = loadConfig()): ClickHouseClient {
+export function createClickHouse(config: LensConfig = loadProcessConfig()): ClickHouseClient {
   const clickhouseSettings: ClickHouseSettings = {
     date_time_input_format: "best_effort",
     output_format_json_quote_64bit_integers: 0,

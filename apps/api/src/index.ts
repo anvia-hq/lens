@@ -1,12 +1,12 @@
 import { serve } from "@hono/node-server";
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import { createClickHouse, createPostgres } from "@lens/db";
 import { createQueues, createRedisConnection } from "@lens/queue";
 import pino from "pino";
 import { createApp } from "./app.js";
 import { createAuth } from "./modules/auth/services.js";
 
-const config = loadConfig();
+const config = loadProcessConfig();
 const logger = pino({ level: config.LOG_LEVEL, name: "lens-api" });
 const postgres = createPostgres(config);
 const clickhouse = createClickHouse(config);
