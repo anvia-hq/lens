@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { type LensConfig, loadConfig } from "@lens/config";
+import { type LensConfig, loadProcessConfig } from "@lens/config";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import {
@@ -72,7 +72,7 @@ function hashIngestionSecret(secretKey: string, pepper: string): string {
   return createHmac("sha256", pepper).update(secretKey).digest("hex");
 }
 
-export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCredentials> {
+export async function runSeed(config: LensConfig = loadProcessConfig()): Promise<SeedCredentials> {
   if (config.NODE_ENV === "production" && readSeedEnv(SEED_PRODUCTION_OPT_IN) !== "1") {
     throw new Error(
       `Refusing to run the demo seed in production. Set ${SEED_PRODUCTION_OPT_IN}=1 to confirm this is intentional.`,

@@ -20,13 +20,13 @@
  * Existing deployments must set LENS_ALERT_SECRET_KEY before upgrading; the
  * automatic migration encrypts plaintext rows on `db:migrate`.
  */
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import { createPostgres, migrateAlertChannelSecrets, rotateAlertChannelSecrets } from "./index.js";
 import { loadAlertSecretKeyring } from "./alert-secrets.js";
 
 const mode = process.argv[2] === "rotate" ? "rotate" : "migrate";
 
-const config = loadConfig();
+const config = loadProcessConfig();
 const postgres = createPostgres(config);
 try {
   const keyring = loadAlertSecretKeyring(process.env);

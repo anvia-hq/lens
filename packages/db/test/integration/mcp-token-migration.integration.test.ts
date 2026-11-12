@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import postgres from "postgres";
 import { expect, it } from "vitest";
 
 it("upgrades existing MCP tokens without crossing workspace boundaries", async () => {
   const database = `lens_mcp_migration_${randomUUID().replaceAll("-", "")}`;
-  const config = loadConfig();
+  const config = loadProcessConfig();
   const admin = postgres(config.POSTGRES_URL, { max: 1 });
   const url = new URL(config.POSTGRES_URL);
   url.pathname = `/${database}`;

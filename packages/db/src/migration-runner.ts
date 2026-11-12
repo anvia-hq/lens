@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type LensConfig, loadConfig } from "@lens/config";
+import { type LensConfig, loadProcessConfig } from "@lens/config";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { migrateAlertChannelSecrets } from "./alert-channel-migration.js";
 import { loadAlertSecretKeyring } from "./alert-secrets.js";
@@ -9,7 +9,7 @@ import { createClickHouse, createPostgres } from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-export async function runMigrations(config: LensConfig = loadConfig()): Promise<void> {
+export async function runMigrations(config: LensConfig = loadProcessConfig()): Promise<void> {
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
 

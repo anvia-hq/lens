@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadConfig } from "@lens/config";
+import { loadProcessConfig } from "@lens/config";
 import type { EvaluationRun } from "@lens/contracts";
 import {
   createClickHouse,
@@ -27,7 +27,7 @@ import { evaluationResult, normalizedSpan } from "../helpers/telemetry.js";
 // This suite runs only inside the isolated Compose integration harness. Redis
 // holds accepted jobs while processors are deliberately stopped at boundaries.
 describe("project deletion across Postgres, Redis and ClickHouse", () => {
-  const config = loadConfig();
+  const config = loadProcessConfig();
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
   const queues = createQueues(config.REDIS_URL);
