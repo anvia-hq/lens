@@ -7,7 +7,29 @@ import {
 
 const NANOS_PER_MILLISECOND = 1_000_000n;
 const MILLIS_PER_DAY = 86_400_000;
-let lastIngestVersion = 0n;
+
+/**
+ * Hands out strictly increasing ingest versions. Versions must stay unique and
+ * ordered across every normalization that shares a clock, so the high-water mark
+ * lives here instead of in a hidden module variable.
+ */
+export type IngestVersionClock = {
+  /** Returns `candidate`, or one past the last version issued if that is not greater. */
+  issue: (candidate: bigint) => bigint;
+};
+
+export function createIngestVersionClock(): IngestVersionClock {
+  let last = 0n;
+  return {
+    issue: (candidate) => {
+      last = candidate > last ? candidate : last + 1n;
+      return last;
+    },
+  };
+}
+
+/** Clock shared by all normalizations in this process unless a caller supplies its own. */
+export const processIngestVersionClock: IngestVersionClock = createIngestVersionClock();
 
 export type IngestionContext = {
   expiresAt: string | null;
@@ -32,6 +54,7 @@ export function createIngestionContext(options: NormalizeOptions): IngestionCont
       ? null
       : new Date(now.getTime() + options.retentionDays * MILLIS_PER_DAY).toISOString();
   const ingestedAt = now.toISOString();
+  const clock = options.versionClock ?? processIngestVersionClock;
   let sequence = 0n;
 
   return {
@@ -45,8 +68,7 @@ export function createIngestionContext(options: NormalizeOptions): IngestionCont
     nextIngestVersion: () => {
       const candidate = BigInt(now.getTime()) * NANOS_PER_MILLISECOND + sequence;
       sequence += 1n;
-      lastIngestVersion = candidate > lastIngestVersion ? candidate : lastIngestVersion + 1n;
-      return lastIngestVersion.toString();
+      return clock.issue(candidate).toString();
     },
   };
 }

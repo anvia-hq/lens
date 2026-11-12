@@ -1,3 +1,8 @@
+export {
+  createIngestVersionClock,
+  type IngestVersionClock,
+  processIngestVersionClock,
+} from "./ingestion-context.js";
 export type {
   NormalizeEvaluationsResult,
   NormalizeOptions,

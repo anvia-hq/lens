@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { decodeOtlpRequest, defaultRedactionPatterns, normalizeOtlpRequest } from "../src/index.js";
+import {
+  createIngestVersionClock,
+  decodeOtlpRequest,
+  defaultRedactionPatterns,
+  type IngestVersionClock,
+  normalizeOtlpRequest,
+} from "../src/index.js";
 
 const traceId = "00112233445566778899aabbccddeeff";
 const spanId = "0011223344556677";
@@ -9,6 +15,7 @@ function normalize(
   attributes: Record<string, unknown>,
   overrides: Record<string, unknown> = {},
   redactionPatterns?: readonly string[],
+  versionClock?: IngestVersionClock,
 ) {
   const request = decodeOtlpRequest(
     new TextEncoder().encode(
@@ -52,6 +59,7 @@ function normalize(
     projectId: "00000000-0000-0000-0000-000000000001",
     retentionDays: 30,
     now,
+    ...(versionClock === undefined ? {} : { versionClock }),
     ...(redactionPatterns === undefined ? {} : { additionalRedactionPatterns: redactionPatterns }),
   });
 }
@@ -327,5 +335,13 @@ describe("trace normalization", () => {
     const first = normalize({}).spans[0]?.ingestVersion;
     const second = normalize({}).spans[0]?.ingestVersion;
     expect(BigInt(second ?? 0)).toBeGreaterThan(BigInt(first ?? 0));
+  });
+
+  it("issues versions from a caller-supplied clock instead of the process clock", () => {
+    const clock = createIngestVersionClock();
+    const first = normalize({}, {}, undefined, clock).spans[0]?.ingestVersion;
+    const second = normalize({}, {}, undefined, clock).spans[0]?.ingestVersion;
+    // Same `now`, so a fresh clock starts from the timestamp and then increments.
+    expect(BigInt(second ?? 0)).toBe(BigInt(first ?? 0) + 1n);
   });
 });
