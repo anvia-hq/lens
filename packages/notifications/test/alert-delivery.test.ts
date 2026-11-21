@@ -229,6 +229,21 @@ describe("deliverAlert", () => {
     expect(() => alertDeliveryBackoffStrategy(1, "unknown", error)).toThrow(
       "Unsupported backoff strategy",
     );
+
+    const httpDate = new Date(Date.now() + 30_000).toUTCString();
+    const rateLimited = vi.fn<AlertTransport>().mockResolvedValue({
+      status: 429,
+      body: "",
+      retryAfter: httpDate,
+    });
+    const dateError = await deliverAlert(
+      { type: "slack", config: { webhookUrl: "https://hooks.slack.com/x" } },
+      "hello",
+      undefined,
+      { transport: rateLimited },
+    ).catch((caught: unknown) => caught);
+    expect(dateError).toMatchObject({ retryable: true, status: 429 });
+    expect((dateError as AlertDeliveryError).retryAfterMs).toBeGreaterThan(0);
   });
 });
 
@@ -236,8 +251,13 @@ describe("public webhook transport", () => {
   it.each([
     "http://127.0.0.1/hook",
     "http://10.0.0.1/hook",
+    "http://192.0.2.1/hook",
     "http://[::1]/hook",
     "http://[::ffff:127.0.0.1]/hook",
+    "http://[64:ff9b::169.254.169.254]/hook",
+    "http://[2002:7f00:0001::1]/hook",
+    "http://[::127.0.0.1]/hook",
+    "http://[fec0::1]/hook",
   ])("blocks non-public target %s", async (url) => {
     await expect(
       sendPublicHttpRequest({ url, body: "{}", headers: {}, timeoutMs: 100 }),
@@ -341,5 +361,94 @@ describe("public webhook transport", () => {
         timeoutMs: 500,
       }),
     ).rejects.toThrow("response reset");
+  });
+
+  it("enforces an overall request deadline and aborts oversized response streams", async () => {
+    nodeMocks.lookup.mockImplementation(() => new Promise(() => undefined));
+    await expect(
+      sendPublicHttpRequest({
+        url: "http://slow-dns.example/hook",
+        body: "{}",
+        headers: {},
+        timeoutMs: 20,
+      }),
+    ).rejects.toThrow("request timed out");
+
+    nodeMocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const destroyIncoming = vi.fn();
+    nodeMocks.httpRequest.mockImplementation((_options, callback) => {
+      const incoming = new EventEmitter() as EventEmitter & {
+        headers: Record<string, string | undefined>;
+        setEncoding: ReturnType<typeof vi.fn>;
+        destroy: ReturnType<typeof vi.fn>;
+        statusCode?: number;
+      };
+      incoming.statusCode = 502;
+      incoming.headers = {};
+      incoming.setEncoding = vi.fn();
+      incoming.destroy = destroyIncoming;
+      const outgoing = new EventEmitter() as EventEmitter & {
+        end: ReturnType<typeof vi.fn>;
+        setTimeout: ReturnType<typeof vi.fn>;
+        destroy: ReturnType<typeof vi.fn>;
+      };
+      outgoing.setTimeout = vi.fn();
+      outgoing.destroy = vi.fn();
+      outgoing.end = vi.fn(() => {
+        callback(incoming);
+        incoming.emit("data", "a".repeat(250));
+        incoming.emit("data", "ignored-after-cap");
+        incoming.emit("end");
+      });
+      return outgoing;
+    });
+
+    const capped = await sendPublicHttpRequest({
+      url: "http://receiver.example/hook",
+      body: "{}",
+      headers: { host: "evil.example" },
+      timeoutMs: 200,
+    });
+    expect(capped).toEqual({ status: 502, body: "a".repeat(200), retryAfter: undefined });
+    expect(destroyIncoming).toHaveBeenCalledTimes(1);
+    expect(nodeMocks.httpRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({ host: "receiver.example" }),
+      }),
+      expect.any(Function),
+    );
+
+    const destroyOutgoing = vi.fn();
+    nodeMocks.httpRequest.mockImplementation((_options, callback) => {
+      const incoming = new EventEmitter() as EventEmitter & {
+        headers: Record<string, string | undefined>;
+        setEncoding: ReturnType<typeof vi.fn>;
+        statusCode?: number;
+      };
+      incoming.statusCode = 200;
+      incoming.headers = {};
+      incoming.setEncoding = vi.fn();
+      const outgoing = new EventEmitter() as EventEmitter & {
+        end: ReturnType<typeof vi.fn>;
+        setTimeout: ReturnType<typeof vi.fn>;
+        destroy: ReturnType<typeof vi.fn>;
+      };
+      outgoing.setTimeout = vi.fn();
+      outgoing.destroy = destroyOutgoing;
+      outgoing.end = vi.fn(() => {
+        callback(incoming);
+        incoming.emit("data", "x");
+      });
+      return outgoing;
+    });
+    await expect(
+      sendPublicHttpRequest({
+        url: "http://trickle.example/hook",
+        body: "{}",
+        headers: {},
+        timeoutMs: 25,
+      }),
+    ).rejects.toThrow("request timed out");
+    expect(destroyOutgoing).toHaveBeenCalledTimes(1);
   });
 });

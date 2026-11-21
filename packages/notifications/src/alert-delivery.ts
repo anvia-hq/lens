@@ -190,25 +190,52 @@ function createBlockedAddressList(): BlockList {
     ["169.254.0.0", 16],
     ["172.16.0.0", 12],
     ["192.0.0.0", 24],
+    ["192.0.2.0", 24],
     ["192.168.0.0", 16],
     ["198.18.0.0", 15],
+    ["198.51.100.0", 24],
+    ["203.0.113.0", 24],
     ["224.0.0.0", 4],
     ["240.0.0.0", 4],
   ] as const) {
     list.addSubnet(network, prefix, "ipv4");
   }
   for (const [network, prefix] of [
-    ["::", 128],
-    ["::1", 128],
+    ["::", 96],
+    ["::ffff:0:0:0", 96],
+    ["64:ff9b::", 96],
+    ["64:ff9b:1::", 48],
     ["100::", 64],
+    ["2001::", 32],
+    ["2001:10::", 28],
+    ["2001:20::", 28],
     ["2001:db8::", 32],
+    ["2002::", 16],
     ["fc00::", 7],
     ["fe80::", 10],
+    ["fec0::", 10],
     ["ff00::", 8],
   ] as const) {
     list.addSubnet(network, prefix, "ipv6");
   }
   return list;
+}
+
+function withDeadline<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("request timed out")), timeoutMs);
+    timer.unref();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function publicAddress(hostname: string): Promise<{ address: string; family: 4 | 6 }> {
@@ -250,7 +277,10 @@ export async function sendPublicHttpRequest(
   if (url.username || url.password) {
     throw new AlertDeliveryError("Webhook URL cannot contain credentials", false);
   }
-  const address = await publicAddress(url.hostname);
+  const deadlineAt = Date.now() + input.timeoutMs;
+  const address = await withDeadline(publicAddress(url.hostname), input.timeoutMs);
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) throw new Error("request timed out");
   const originalHostname =
     url.hostname.startsWith("[") && url.hostname.endsWith("]")
       ? url.hostname.slice(1, -1)
@@ -266,35 +296,57 @@ export async function sendPublicHttpRequest(
     servername:
       url.protocol === "https:" && isIP(originalHostname) === 0 ? originalHostname : undefined,
     headers: {
+      ...input.headers,
       host: url.host,
       "content-type": "application/json",
       "content-length": Buffer.byteLength(input.body),
-      ...input.headers,
     },
   };
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadlineTimer);
+      callback();
+    };
     const outgoing = request(requestOptions, (response) => {
       response.setEncoding("utf8");
       let body = "";
+      const retryAfter = Array.isArray(response.headers["retry-after"])
+        ? response.headers["retry-after"][0]
+        : response.headers["retry-after"];
+      const resolveResponse = () =>
+        finish(() =>
+          resolve({
+            status: response.statusCode ?? 0,
+            body,
+            retryAfter,
+          }),
+        );
       response.on("data", (chunk: string) => {
+        if (settled) return;
         if (body.length < maxErrorMessageLength) {
           body += chunk.slice(0, maxErrorMessageLength - body.length);
         }
+        if (body.length >= maxErrorMessageLength) {
+          resolveResponse();
+          if (typeof response.destroy === "function") response.destroy();
+        }
       });
-      response.on("error", reject);
-      response.on("end", () =>
-        resolve({
-          status: response.statusCode ?? 0,
-          body,
-          retryAfter: Array.isArray(response.headers["retry-after"])
-            ? response.headers["retry-after"][0]
-            : response.headers["retry-after"],
-        }),
-      );
+      response.on("error", (error: Error) => finish(() => reject(error)));
+      response.on("end", resolveResponse);
     });
-    outgoing.setTimeout(input.timeoutMs, () => outgoing.destroy(new Error("request timed out")));
-    outgoing.on("error", reject);
+    const abortOnTimeout = () => {
+      const error = new Error("request timed out");
+      finish(() => reject(error));
+      if (typeof outgoing.destroy === "function") outgoing.destroy(error);
+    };
+    const deadlineTimer = setTimeout(abortOnTimeout, remainingMs);
+    deadlineTimer.unref();
+    outgoing.setTimeout(remainingMs, abortOnTimeout);
+    outgoing.on("error", (error: Error) => finish(() => reject(error)));
     outgoing.end(input.body);
   });
 }
