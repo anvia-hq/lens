@@ -145,6 +145,34 @@ describe("job outbox dispatcher", () => {
     expect(retryDelayMs(1)).toBe(1_000);
     expect(retryDelayMs(2)).toBe(2_000);
   });
+
+  it("discards non-retryable invalid outbox payloads instead of retrying forever", async () => {
+    dbMocks.claimJobOutbox.mockResolvedValue([
+      row({ id: "20000000-0000-4000-8000-000000000009", payload: { projectId: "not-a-uuid" } }),
+    ]);
+    dbMocks.completeJobOutbox.mockResolvedValueOnce(undefined);
+
+    expect(await dispatchJobOutboxBatch(deps)).toBe(1);
+    expect(dbMocks.completeJobOutbox).toHaveBeenCalledWith(
+      deps.postgres.db,
+      "20000000-0000-4000-8000-000000000009",
+    );
+    expect(dbMocks.retryJobOutbox).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "20000000-0000-4000-8000-000000000009" }),
+      "discarded invalid job outbox event",
+    );
+
+    dbMocks.claimJobOutbox.mockResolvedValue([
+      row({ id: "20000000-0000-4000-8000-000000000010", payload: { projectId: "not-a-uuid" } }),
+    ]);
+    dbMocks.completeJobOutbox.mockRejectedValueOnce(new Error("pg error"));
+    expect(await dispatchJobOutboxBatch(deps)).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "20000000-0000-4000-8000-000000000010" }),
+      "failed to discard invalid job outbox event",
+    );
+  });
 });
 
 function row(overrides: Partial<JobOutboxRow> = {}): JobOutboxRow {

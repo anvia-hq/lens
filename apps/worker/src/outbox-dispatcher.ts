@@ -9,6 +9,13 @@ import {
 import type { LensQueues } from "@lens/queue";
 import type { Logger } from "pino";
 
+class InvalidOutboxEventError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "InvalidOutboxEventError";
+  }
+}
+
 type DispatcherDependencies = {
   postgres: PostgresConnection;
   queues: LensQueues;
@@ -67,6 +74,21 @@ export async function dispatchJobOutboxBatch(
         "job outbox event published",
       );
     } catch (error) {
+      if (error instanceof InvalidOutboxEventError) {
+        try {
+          await completeJobOutbox(deps.postgres.db, row.id);
+        } catch (completeError) {
+          deps.logger.error(
+            { err: completeError, eventId: row.id, queue: row.queue, name: row.name },
+            "failed to discard invalid job outbox event",
+          );
+        }
+        deps.logger.error(
+          { err: error, eventId: row.id, queue: row.queue, name: row.name },
+          "discarded invalid job outbox event",
+        );
+        continue;
+      }
       const delayMs = retryDelayMs(row.attempts);
       try {
         await retryJobOutbox(deps.postgres.db, row.id, error, delayMs, now);
@@ -97,11 +119,15 @@ export function retryDelayMs(attempt: number): number {
 }
 
 async function publishJobOutbox(queues: LensQueues, row: JobOutboxRow): Promise<void> {
-  const event = jobOutboxEventSchema.parse({
+  const parsed = jobOutboxEventSchema.safeParse({
     queue: row.queue,
     name: row.name,
     payload: row.payload,
   });
+  if (!parsed.success) {
+    throw new InvalidOutboxEventError("Invalid job outbox payload", { cause: parsed.error });
+  }
+  const event = parsed.data;
   const options = { jobId: `outbox-${row.id}` };
   switch (event.name) {
     case "reconcile-retention":

@@ -1,7 +1,7 @@
 import { type DispatchAlertJob, dispatchAlertJobSchema } from "@lens/contracts";
 import { loadDeliveryForDispatch, markDeliveryAttempt, markDeliveryFinished } from "@lens/db";
 import { AlertDeliveryError, deliverAlert, renderAlertMessage } from "@lens/notifications";
-import type { Job } from "bullmq";
+import { type Job, UnrecoverableError } from "bullmq";
 import type { ProcessorDependencies } from "./processors.js";
 
 export function createAlertDispatchProcessor(deps: ProcessorDependencies) {
@@ -46,10 +46,9 @@ export function createAlertDispatchProcessor(deps: ProcessorDependencies) {
         await markDeliveryAttempt(deps.postgres.db, deliveryId, attempts, detail);
         throw error;
       }
-      // Final failure recorded on the row; job completes (matches the status-tracking
-      // pattern used by the other processors).
+      // Record terminal failure on the delivery row and fail the BullMQ job without retrying.
       await markDeliveryFinished(deps.postgres.db, deliveryId, "failed", attempts, detail);
-      return;
+      throw new UnrecoverableError(detail);
     }
     await markDeliveryFinished(
       deps.postgres.db,

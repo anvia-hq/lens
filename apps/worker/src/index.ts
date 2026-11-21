@@ -137,13 +137,30 @@ for (const worker of [
 }
 
 outboxDispatcher.start();
-void queues.alerts
-  .upsertJobScheduler(
-    "evaluate-alert-rules-every-minute",
-    { every: 60_000 },
-    { name: "evaluate-alert-rules", data: { schemaVersion: 1 } },
-  )
-  .catch((error: unknown) => logger.error({ err: error }, "alert scheduler setup failed"));
+async function setupAlertScheduler(maxAttempts = 5): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await queues.alerts.upsertJobScheduler(
+        "evaluate-alert-rules-every-minute",
+        { every: 60_000 },
+        { name: "evaluate-alert-rules", data: { schemaVersion: 1 } },
+      );
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        logger.error({ err: error, attempt }, "alert scheduler setup failed after retries");
+        return;
+      }
+      const delayMs = 1_000 * 2 ** (attempt - 1);
+      logger.warn({ err: error, attempt, retryInMs: delayMs }, "alert scheduler setup retrying");
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, delayMs);
+        timer.unref();
+      });
+    }
+  }
+}
+void setupAlertScheduler();
 logger.info("Anvia Lens worker started");
 
 const shutdownTimeoutMs = 25_000;
