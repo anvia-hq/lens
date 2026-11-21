@@ -107,15 +107,22 @@ async function deleteSessions(client: ClickHouseClient, projectId: string, sessi
       format: "JSONEachRow",
     });
     const rows = await result.json<{ trace_id: string }>();
-    if (rows.length === 0) return;
+    if (rows.length === 0) break;
     await deleteTraces(
       client,
       projectId,
       rows.map((row) => row.trace_id),
     );
-    if (rows.length < 10_000) return;
+    if (rows.length < 10_000) break;
     cursor = rows.at(-1)?.trace_id ?? cursor;
   }
+  // Remove any unmaterialized spans whose session_id matches even without a trace_summary row.
+  await mutation(
+    client,
+    "spans",
+    "project_id = {projectId:UUID} AND session_id IN {sessionIds:Array(String)}",
+    { projectId, sessionIds },
+  );
 }
 
 async function deleteEvaluationRuns(client: ClickHouseClient, projectId: string, runIds: string[]) {

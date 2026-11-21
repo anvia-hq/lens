@@ -154,7 +154,7 @@ describe("session queries", () => {
 
     const detail = await getSession(clickHouseClient({ query }), projectId, "session-1", {
       pageSize: 25,
-      cursor: { startedAt: "2026-08-04T23:59:59.000Z", traceId: "trace-before" },
+      cursor: { startedAt: "2026-08-04T23:59:59.123456789Z", traceId: "trace-before" },
     });
 
     expect(detail?.summary.traceCount).toBe(101);
@@ -165,7 +165,9 @@ describe("session queries", () => {
       options.query.includes("SELECT * FROM trace_summaries"),
     );
     expect(traceCall?.[0].query).toContain("ORDER BY started_at ASC, trace_id ASC");
+    expect(traceCall?.[0].query).toContain("DateTime64(9)");
     expect(traceCall?.[0].query_params).toMatchObject({
+      cursorStartedAt: "2026-08-04 23:59:59.123456789",
       cursorTraceId: "trace-before",
       limit: 26,
     });

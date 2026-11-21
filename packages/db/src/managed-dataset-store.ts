@@ -252,11 +252,11 @@ export async function getPublishedManagedDataset(
   const filters = [
     eq(managedDataset.projectId, projectId),
     isNull(managedDataset.archivedAt),
-    eq(sql`lower(${managedDataset.name})`, name.toLocaleLowerCase()),
+    eq(sql`lower(${managedDataset.name})`, name.toLowerCase()),
     eq(managedDatasetVersion.status, "published"),
   ];
   if (version !== undefined) {
-    filters.push(eq(sql`lower(${managedDatasetVersion.version})`, version.toLocaleLowerCase()));
+    filters.push(eq(sql`lower(${managedDatasetVersion.version})`, version.toLowerCase()));
   }
   const [row] = await db
     .select({ dataset: managedDataset, version: managedDatasetVersion })
@@ -294,8 +294,8 @@ export async function getPublishedManagedDatasetCases(
       and(
         eq(managedDataset.projectId, projectId),
         isNull(managedDataset.archivedAt),
-        eq(sql`lower(${managedDataset.name})`, name.toLocaleLowerCase()),
-        eq(sql`lower(${managedDatasetVersion.version})`, version.toLocaleLowerCase()),
+        eq(sql`lower(${managedDataset.name})`, name.toLowerCase()),
+        eq(sql`lower(${managedDatasetVersion.version})`, version.toLowerCase()),
         eq(managedDatasetVersion.status, "published"),
         inArray(managedDatasetCase.caseId, ids),
       ),
@@ -320,7 +320,7 @@ export async function upsertManagedDatasetCase(
       .where(
         and(
           eq(managedDatasetCase.versionId, versionId),
-          eq(sql`lower(${managedDatasetCase.caseId})`, item.id.toLocaleLowerCase()),
+          eq(sql`lower(${managedDatasetCase.caseId})`, item.id.toLowerCase()),
         ),
       )
       .limit(1);
@@ -431,7 +431,7 @@ export async function deleteManagedDatasetCase(
       .where(
         and(
           eq(managedDatasetCase.versionId, versionId),
-          eq(sql`lower(${managedDatasetCase.caseId})`, caseId.toLocaleLowerCase()),
+          eq(sql`lower(${managedDatasetCase.caseId})`, caseId.toLowerCase()),
         ),
       )
       .returning({ id: managedDatasetCase.id });

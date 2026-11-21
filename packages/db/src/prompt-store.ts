@@ -238,7 +238,7 @@ export async function setPromptLabel(
       .where(
         and(
           eq(promptLabel.promptId, promptId),
-          eq(sql`lower(${promptLabel.label})`, label.toLocaleLowerCase()),
+          eq(sql`lower(${promptLabel.label})`, label.toLowerCase()),
         ),
       )
       .limit(1);
@@ -249,7 +249,7 @@ export async function setPromptLabel(
       .where(
         and(
           eq(promptLabel.promptId, promptId),
-          eq(sql`lower(${promptLabel.label})`, label.toLocaleLowerCase()),
+          eq(sql`lower(${promptLabel.label})`, label.toLowerCase()),
         ),
       )
       .limit(1);
@@ -290,7 +290,7 @@ export async function listPromptLabelEvents(
   if (row === undefined) return [];
   const filters = [eq(promptLabelEvent.promptId, promptId)];
   if (options.label !== undefined) {
-    filters.push(eq(sql`lower(${promptLabelEvent.label})`, options.label.toLocaleLowerCase()));
+    filters.push(eq(sql`lower(${promptLabelEvent.label})`, options.label.toLowerCase()));
   }
   const rows = await db
     .select()
@@ -323,7 +323,7 @@ export async function getPromptDeployment(
       and(
         eq(prompt.projectId, projectId),
         isNull(prompt.archivedAt),
-        eq(sql`lower(${prompt.name})`, name.toLocaleLowerCase()),
+        eq(sql`lower(${prompt.name})`, name.toLowerCase()),
       ),
     )
     .limit(1);
@@ -342,7 +342,7 @@ export async function getPromptDeployment(
           .where(
             and(
               eq(promptLabel.promptId, row.id),
-              eq(sql`lower(${promptLabel.label})`, label.toLocaleLowerCase()),
+              eq(sql`lower(${promptLabel.label})`, label.toLowerCase()),
             ),
           )
           .limit(1),
@@ -462,7 +462,7 @@ function uniqueLabels(labels: string[] | undefined): string[] {
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const label of labels) {
-    const key = label.toLocaleLowerCase();
+    const key = label.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(label);
