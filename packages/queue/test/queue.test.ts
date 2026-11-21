@@ -145,10 +145,7 @@ describe("queue contracts", () => {
     await expect(listWorkerHeartbeats(redis)).resolves.toEqual(["2026-08-17T00:00:00.000Z"]);
 
     const queue = {
-      getWaitingCount: vi.fn().mockResolvedValue(1),
-      getActiveCount: vi.fn().mockResolvedValue(2),
-      getDelayedCount: vi.fn().mockResolvedValue(3),
-      getFailedCount: vi.fn().mockResolvedValue(4),
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 1, active: 2, delayed: 3, failed: 4 }),
       getWaiting: vi.fn().mockResolvedValue([{ timestamp: Date.now() - 90_000 }]),
     };
     const queues = {
@@ -175,10 +172,7 @@ describe("queue contracts", () => {
 
   it("reports a null oldest waiting age for idle queues", async () => {
     const queue = {
-      getWaitingCount: vi.fn().mockResolvedValue(0),
-      getActiveCount: vi.fn().mockResolvedValue(0),
-      getDelayedCount: vi.fn().mockResolvedValue(0),
-      getFailedCount: vi.fn().mockResolvedValue(0),
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0, failed: 0 }),
       getWaiting: vi.fn().mockResolvedValue([]),
     };
     const queues = {
@@ -192,14 +186,12 @@ describe("queue contracts", () => {
     };
     const health = await queryQueueHealth(queues as never);
     expect(health[0]?.oldestWaitingSeconds).toBeNull();
+    expect(queue.getWaiting).not.toHaveBeenCalled();
   });
 
   it("does not hide failures while reading the oldest waiting job", async () => {
     const queue = {
-      getWaitingCount: vi.fn().mockResolvedValue(1),
-      getActiveCount: vi.fn().mockResolvedValue(0),
-      getDelayedCount: vi.fn().mockResolvedValue(0),
-      getFailedCount: vi.fn().mockResolvedValue(0),
+      getJobCounts: vi.fn().mockResolvedValue({ waiting: 1, active: 0, delayed: 0, failed: 0 }),
       getWaiting: vi.fn().mockRejectedValue(new Error("redis unavailable")),
     };
     const queues = {

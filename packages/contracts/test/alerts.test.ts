@@ -81,5 +81,21 @@ describe("alert contracts", () => {
         config: { webhookUrl: "https://hooks.slack.com/x" },
       }).success,
     ).toBe(false);
+    expect(
+      alertChannelInputSchema.safeParse({
+        type: "telegram",
+        name: "Ops bot",
+        botToken: "123456:ABC-def_789",
+        chatId: "@ops",
+      }).success,
+    ).toBe(true);
+    expect(
+      alertChannelInputSchema.safeParse({
+        type: "telegram",
+        name: "Ops bot",
+        botToken: "not-a-valid/token",
+        chatId: "@ops",
+      }).success,
+    ).toBe(false);
   });
 });
