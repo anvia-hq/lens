@@ -203,6 +203,24 @@ describe("system health aggregation", () => {
     expect(probeSignal?.aborted).toBe(true);
     expect(health.services.postgres.status).toBe("critical");
   });
+
+  it("forwards the probe abort signal to ClickHouse ingestion throughput queries", async () => {
+    vi.useFakeTimers();
+    let throughputSignal: AbortSignal | undefined;
+    vi.mocked(queryIngestionThroughput).mockImplementationOnce((_client, _now, signal) => {
+      throughputSignal = signal;
+      return new Promise((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    });
+
+    const collecting = collectSystemHealth(dependencies());
+    await vi.advanceTimersByTimeAsync(2_000);
+    const health = await collecting;
+
+    expect(throughputSignal?.aborted).toBe(true);
+    expect(health.ingestion.status).toBe("unavailable");
+  });
 });
 
 function dependencies(options: { monitorUrl?: string } = { monitorUrl: "http://monitor:3100" }) {

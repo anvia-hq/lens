@@ -62,8 +62,19 @@ describe("public quality gate evidence", () => {
       postgres: { db: {} },
       clickhouse: {},
       queues: {},
+      redis: {
+        multi: () => ({
+          incr() {
+            return this;
+          },
+          expire() {
+            return this;
+          },
+          exec: () => Promise.resolve([[null, 1]]),
+        }),
+      },
       logger: { warn: vi.fn() },
-      config: { INGESTION_KEY_PEPPER: "test-pepper" },
+      config: { INGESTION_KEY_PEPPER: "test-pepper", OTLP_RATE_LIMIT_PER_MINUTE: 600 },
     } as unknown as ApiDependencies;
     const app = createPublicQualityGatesRouter(deps);
     const response = await app.request(`/${gateId}/evaluate`, {

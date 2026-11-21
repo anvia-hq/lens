@@ -431,9 +431,20 @@ function promptApp(route: Route) {
   };
 
   const deps = {
-    config: { INGESTION_KEY_PEPPER: "test-pepper" },
+    config: { INGESTION_KEY_PEPPER: "test-pepper", OTLP_RATE_LIMIT_PER_MINUTE: 600 },
     postgres: { db },
-    logger: { error: vi.fn() },
+    redis: {
+      multi: () => ({
+        incr() {
+          return this;
+        },
+        expire() {
+          return this;
+        },
+        exec: () => Promise.resolve([[null, 1]]),
+      }),
+    },
+    logger: { error: vi.fn(), warn: vi.fn() },
   } as unknown as ApiDependencies;
 
   const app = new Hono<AppEnv>();

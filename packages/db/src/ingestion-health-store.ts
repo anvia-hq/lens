@@ -18,6 +18,7 @@ type IngestionThroughputRow = {
 export async function queryIngestionThroughput(
   client: ClickHouseClient,
   now = new Date(),
+  signal?: AbortSignal,
 ): Promise<IngestionThroughput> {
   const from24h = new Date(now.getTime() - 24 * 3_600_000);
   const from1h = new Date(now.getTime() - 3_600_000);
@@ -36,6 +37,7 @@ export async function queryIngestionThroughput(
       from24h: clickHouseDateTimeParam(from24h.toISOString()),
     },
     format: "JSONEachRow",
+    ...(signal === undefined ? {} : { abort_signal: signal }),
   });
   const rows = await result.json<IngestionThroughputRow>();
   const row = rows[0];

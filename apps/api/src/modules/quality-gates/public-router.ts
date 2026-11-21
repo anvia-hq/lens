@@ -1,6 +1,7 @@
 import { qualityGateCheckInputSchema } from "@lens/contracts";
 import { Hono } from "hono";
 import { apiError, jsonInput } from "../../utils/http.js";
+import { enforcePublicApiRateLimit } from "../../utils/rate-limit.js";
 import { parseBasicAuthorization } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { recordQualityGateAlert } from "../alerts/events.js";
@@ -26,6 +27,8 @@ export const createPublicQualityGatesRouter = (deps: ApiDependencies) =>
       if (key === undefined || key.project.state !== "active") {
         return apiError(c, 401, "unauthorized", "Invalid or revoked project key");
       }
+      const rateLimited = await enforcePublicApiRateLimit(c, deps, key.project.id);
+      if (rateLimited !== undefined) return rateLimited;
       const input = c.req.valid("json");
       const checked = await checkEvaluationRuns(
         deps.clickhouse,
