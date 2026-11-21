@@ -5,7 +5,7 @@ import type {
   EvaluationRunSummary,
   Page,
 } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -54,8 +54,17 @@ export function useEvaluationRuns() {
     search: filters.search,
   };
   const runs = useQuery({
-    queryKey: ["evaluation-runs", project.id, filters],
-    queryFn: () =>
+    queryKey: [
+      "evaluation-runs",
+      project.id,
+      filters.range,
+      requestFilters,
+      filters.page,
+      filters.pageSize,
+      filters.sort,
+      filters.order,
+    ],
+    queryFn: ({ signal }) =>
       api<Page<EvaluationRunSummary>>(
         `/api/v1/projects/${project.id}/evaluation-runs?${queryString({
           ...requestFilters,
@@ -65,19 +74,22 @@ export function useEvaluationRuns() {
           sort: filters.sort,
           order: filters.order,
         })}`,
+        { signal },
       ),
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
     queryKey: ["evaluation-run-facets", project.id, filters.range, requestFilters],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<EvaluationRunFacets>(
         `/api/v1/projects/${project.id}/evaluation-runs/facets?${queryString({
           ...requestFilters,
           ...timeRangeForPreset(filters.range),
         })}`,
+        { signal },
       ),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const overview = useQuery({
@@ -89,7 +101,7 @@ export function useEvaluationRuns() {
       filters.environments,
       filters.releases,
     ],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<EvaluationOverview>(
         `/api/v1/projects/${project.id}/evaluations/overview?${queryString({
           range: filters.range,
@@ -97,6 +109,7 @@ export function useEvaluationRuns() {
           environment: filters.environments,
           release: filters.releases,
         })}`,
+        { signal },
       ),
     enabled: overviewOpen,
     refetchInterval: refreshMilliseconds(refreshInterval),
@@ -192,7 +205,8 @@ export function useEvaluationRunDetail(runId: string) {
         `/api/v1/projects/${project.id}/evaluation-runs/${encodeURIComponent(runId)}?page=${resultPage}`,
         { signal },
       ),
-    refetchInterval: 5_000,
+    placeholderData: keepPreviousData,
+    refetchInterval: (query) => (query.state.data?.run?.status === "running" ? 5_000 : false),
   });
   const selectCase = useCallback(
     (caseId: string | null) => {

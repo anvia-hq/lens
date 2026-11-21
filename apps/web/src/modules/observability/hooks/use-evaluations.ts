@@ -1,5 +1,5 @@
 import type { EvaluationFacets, EvaluationResult, Page } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -54,8 +54,17 @@ export function useEvaluations() {
     search: filters.search,
   };
   const evaluations = useQuery({
-    queryKey: ["evaluations", project.id, filters],
-    queryFn: () =>
+    queryKey: [
+      "evaluations",
+      project.id,
+      filters.range,
+      requestFilters,
+      filters.page,
+      filters.pageSize,
+      filters.sort,
+      filters.order,
+    ],
+    queryFn: ({ signal }) =>
       api<Page<EvaluationResult>>(
         `/api/v1/projects/${project.id}/evaluations?${queryString({
           ...requestFilters,
@@ -65,19 +74,22 @@ export function useEvaluations() {
           sort: filters.sort,
           order: filters.order,
         })}`,
+        { signal },
       ),
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
     queryKey: ["evaluation-facets", project.id, filters.range, requestFilters],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<EvaluationFacets>(
         `/api/v1/projects/${project.id}/evaluations/facets?${queryString({
           ...requestFilters,
           ...timeRangeForPreset(filters.range),
         })}`,
+        { signal },
       ),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const clearFilters = () =>
