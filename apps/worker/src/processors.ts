@@ -1,6 +1,7 @@
 import {
   deleteDataJobSchema,
   deleteProjectTelemetryJobSchema,
+  dispatchAlertJobSchema,
   type IngestEvaluationsJob,
   type IngestTraceJob,
   ingestEvaluationsJobSchema,
@@ -11,6 +12,7 @@ import {
   reconcileRetentionJobSchema,
 } from "@lens/contracts";
 import {
+  alertDelivery,
   applyModelPrices,
   type ClickHouseClient,
   costRecalculation,
@@ -45,58 +47,67 @@ export type ProcessorDependencies = {
 export function createIngestTraceProcessor(deps: ProcessorDependencies) {
   return async (job: Job<IngestTraceJob>) => {
     const data = ingestTraceJobSchema.parse(job.data);
-    await withActiveProjectWrite(deps.postgres.db, data.projectId, async (projectRow, tx) => {
-      const modelNames = Array.from(
-        new Set(
-          data.spans.flatMap((span) =>
-            span.model === null ||
-            (span.observationKind !== "generation" && span.observationKind !== "embedding")
-              ? []
-              : [span.model],
+    const traceIds = await withActiveProjectWrite(
+      deps.postgres.db,
+      data.projectId,
+      async (projectRow, tx) => {
+        const modelNames = Array.from(
+          new Set(
+            data.spans.flatMap((span) =>
+              span.model === null ||
+              (span.observationKind !== "generation" && span.observationKind !== "embedding")
+                ? []
+                : [span.model],
+            ),
           ),
-        ),
-      );
-      const priceRows =
-        modelNames.length === 0
-          ? []
-          : await tx
-              .select()
-              .from(llmModelPrice)
-              .where(
-                and(
-                  eq(llmModelPrice.organizationId, projectRow.organizationId),
-                  inArray(llmModelPrice.model, modelNames),
-                ),
-              );
-      const spans = applyModelPrices(
-        data.spans,
-        priceRows.map((row) => ({
-          model: row.model,
-          inputPricePerMillion: Number(row.inputPricePerMillion),
-          cachedInputPricePerMillion:
-            row.cachedInputPricePerMillion === null ? null : Number(row.cachedInputPricePerMillion),
-          outputPricePerMillion: Number(row.outputPricePerMillion),
-        })),
-      );
-      await insertSpans(deps.clickhouse, spans);
-      for (const traceId of new Set(data.spans.map((span) => span.traceId))) {
-        await deps.queues.materialize.add(
-          "materialize",
-          { projectId: data.projectId, traceId },
-          {
-            delay: deps.materializeDelayMs,
-            // A stable jobId drops arrivals during an active read. BullMQ keeps
-            // one latest follow-up atomically through completion and retries.
-            deduplication: {
-              id: materializeJobId(data.projectId, traceId),
-              keepLastIfActive: true,
-            },
-            removeOnComplete: true,
-          },
         );
-      }
-      deps.logger.info({ jobId: job.id, spans: data.spans.length }, "ingested trace batch");
-    });
+        const priceRows =
+          modelNames.length === 0
+            ? []
+            : await tx
+                .select()
+                .from(llmModelPrice)
+                .where(
+                  and(
+                    eq(llmModelPrice.organizationId, projectRow.organizationId),
+                    inArray(llmModelPrice.model, modelNames),
+                  ),
+                );
+        const spans = applyModelPrices(
+          data.spans,
+          priceRows.map((row) => ({
+            model: row.model,
+            inputPricePerMillion: Number(row.inputPricePerMillion),
+            cachedInputPricePerMillion:
+              row.cachedInputPricePerMillion === null
+                ? null
+                : Number(row.cachedInputPricePerMillion),
+            outputPricePerMillion: Number(row.outputPricePerMillion),
+          })),
+        );
+        await insertSpans(deps.clickhouse, spans);
+        return Array.from(new Set(data.spans.map((span) => span.traceId)));
+      },
+    );
+    if (traceIds === undefined) return;
+    // Schedule materialization after releasing the Postgres FOR SHARE transaction.
+    for (const traceId of traceIds) {
+      await deps.queues.materialize.add(
+        "materialize",
+        { projectId: data.projectId, traceId },
+        {
+          delay: deps.materializeDelayMs,
+          // A stable jobId drops arrivals during an active read. BullMQ keeps
+          // one latest follow-up atomically through completion and retries.
+          deduplication: {
+            id: materializeJobId(data.projectId, traceId),
+            keepLastIfActive: true,
+          },
+          removeOnComplete: true,
+        },
+      );
+    }
+    deps.logger.info({ jobId: job.id, spans: data.spans.length }, "ingested trace batch");
   };
 }
 
@@ -252,4 +263,65 @@ export function createCostsProcessor(deps: ProcessorDependencies) {
       throw error;
     }
   };
+}
+
+/**
+ * Reconcile Postgres state machines when BullMQ moves a job straight to failed
+ * (for example after stalling on a crash/OOM) without invoking the processor catch block.
+ */
+export async function reconcileTerminalJobFailure(
+  deps: Pick<ProcessorDependencies, "postgres" | "logger">,
+  job: Job<unknown> | undefined,
+  error: Error,
+): Promise<void> {
+  if (job === undefined) return;
+  const maxAttempts = job.opts.attempts ?? 1;
+  const stalled = error.message.toLowerCase().includes("stalled");
+  if (!stalled && job.attemptsMade < maxAttempts) return;
+  const message = error.message.slice(0, 2_000) || "Job failed";
+  try {
+    if (job.name === "recalculate-model-costs") {
+      const parsed = recalculateModelCostsJobSchema.safeParse(job.data);
+      if (!parsed.success) return;
+      await deps.postgres.db
+        .update(costRecalculation)
+        .set({ status: "failed", completedAt: new Date(), error: message })
+        .where(
+          and(
+            eq(costRecalculation.id, parsed.data.recalculationId),
+            inArray(costRecalculation.status, ["queued", "running"]),
+          ),
+        );
+      return;
+    }
+    if (job.name === "delete-data") {
+      const parsed = deleteDataJobSchema.safeParse(job.data);
+      if (!parsed.success) return;
+      await deps.postgres.db
+        .update(dataDeletionRequest)
+        .set({ status: "failed", completedAt: new Date(), error: message })
+        .where(
+          and(
+            eq(dataDeletionRequest.id, parsed.data.requestId),
+            inArray(dataDeletionRequest.status, ["queued", "running"]),
+          ),
+        );
+      return;
+    }
+    if (job.name === "dispatch-alert") {
+      const parsed = dispatchAlertJobSchema.safeParse(job.data);
+      if (!parsed.success) return;
+      await deps.postgres.db
+        .update(alertDelivery)
+        .set({ status: "failed", attempts: Math.max(1, job.attemptsMade), error: message })
+        .where(
+          and(eq(alertDelivery.id, parsed.data.deliveryId), eq(alertDelivery.status, "pending")),
+        );
+    }
+  } catch (reconcileError) {
+    deps.logger.error(
+      { err: reconcileError, jobId: job.id, jobName: job.name },
+      "failed to reconcile terminal job status",
+    );
+  }
 }

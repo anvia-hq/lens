@@ -17,7 +17,15 @@ import {
 } from "./alert-secrets.js";
 import { incidentFromRow } from "./alert-store.js";
 import type { LensPostgres } from "./index.js";
-import { alertChannel, alertDelivery, alertIncident, alertRule, project } from "./schema.js";
+import { jobOutboxValues } from "./job-outbox-store.js";
+import {
+  alertChannel,
+  alertDelivery,
+  alertIncident,
+  alertRule,
+  jobOutbox,
+  project,
+} from "./schema.js";
 
 export type StoredAlertChannel = Omit<AlertChannel, "type"> & AlertDeliveryTarget;
 
@@ -251,18 +259,32 @@ export async function createPendingDeliveries(
   channels: StoredAlertChannel[],
 ): Promise<AlertDelivery[]> {
   if (channels.length === 0) return [];
-  const rows = await db
-    .insert(alertDelivery)
-    .values(
-      channels.map((channel) => ({
-        projectId,
-        incidentId,
-        channelId: channel.id,
-        channelName: channel.name, // snapshot: survives channel rename/deletion
-        channelType: channel.type,
-      })),
-    )
-    .returning();
+  const rows = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(alertDelivery)
+      .values(
+        channels.map((channel) => ({
+          projectId,
+          incidentId,
+          channelId: channel.id,
+          channelName: channel.name, // snapshot: survives channel rename/deletion
+          channelType: channel.type,
+        })),
+      )
+      .returning();
+    if (inserted.length > 0) {
+      await tx.insert(jobOutbox).values(
+        inserted.map((row) =>
+          jobOutboxValues({
+            queue: "dispatch",
+            name: "dispatch-alert",
+            payload: { deliveryId: row.id },
+          }),
+        ),
+      );
+    }
+    return inserted;
+  });
   const byChannel = new Map(rows.map((row) => [row.channelId, row]));
   return channels.flatMap((channel) => {
     const row = byChannel.get(channel.id);

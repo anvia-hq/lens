@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dispatchAlertJobSchema } from "./alerts.js";
 import { deleteDataJobSchema } from "./data-deletions.js";
 import { jobSchemaVersion } from "./job-schema.js";
 
@@ -40,6 +41,11 @@ export const jobOutboxEventSchema = z.discriminatedUnion("name", [
     queue: z.literal("costs"),
     name: z.literal("recalculate-model-costs"),
     payload: recalculateModelCostsJobSchema,
+  }),
+  z.object({
+    queue: z.literal("dispatch"),
+    name: z.literal("dispatch-alert"),
+    payload: dispatchAlertJobSchema,
   }),
 ]);
 export type JobOutboxEvent = z.input<typeof jobOutboxEventSchema>;

@@ -23,6 +23,7 @@ import {
 describe("job outbox dispatcher", () => {
   const maintenanceAdd = vi.fn();
   const costsAdd = vi.fn();
+  const dispatchAdd = vi.fn();
   const logger = {
     info: vi.fn(),
     warn: vi.fn(),
@@ -33,6 +34,7 @@ describe("job outbox dispatcher", () => {
     queues: {
       maintenance: { add: maintenanceAdd },
       costs: { add: costsAdd },
+      dispatch: { add: dispatchAdd },
     } as unknown as LensQueues,
     logger,
   };
@@ -78,12 +80,15 @@ describe("job outbox dispatcher", () => {
 
   it.each([
     ["delete-project", "maintenance", maintenanceAdd],
+    ["delete-data", "maintenance", maintenanceAdd],
     ["recalculate-model-costs", "costs", costsAdd],
   ] as const)("routes %s through the %s queue", async (name, queue, add) => {
     const payload =
       name === "delete-project"
         ? { projectId: "10000000-0000-4000-8000-000000000001" }
-        : { recalculationId: "30000000-0000-4000-8000-000000000001" };
+        : name === "delete-data"
+          ? { requestId: "30000000-0000-4000-8000-000000000002" }
+          : { recalculationId: "30000000-0000-4000-8000-000000000001" };
     dbMocks.claimJobOutbox.mockResolvedValue([row({ name, queue, payload })]);
     add.mockResolvedValue({ id: "job" });
 
@@ -103,6 +108,7 @@ describe("job outbox dispatcher", () => {
     const dispatcher = createJobOutboxDispatcher(deps);
 
     dispatcher.start();
+    dispatcher.start();
     await vi.waitFor(() => {
       expect(logger.error).toHaveBeenCalledWith(
         { err: expect.any(Error) },
@@ -110,6 +116,28 @@ describe("job outbox dispatcher", () => {
       );
     });
     await dispatcher.close();
+  });
+
+  it("routes dispatch-alert with delivery-id deduplication and contains retry persistence errors", async () => {
+    const deliveryId = "40000000-0000-4000-8000-000000000001";
+    dbMocks.claimJobOutbox.mockResolvedValue([
+      row({ queue: "dispatch", name: "dispatch-alert", payload: { deliveryId } }),
+      row({ id: "20000000-0000-4000-8000-000000000002" }),
+    ]);
+    dispatchAdd.mockResolvedValue({ id: "job" });
+    maintenanceAdd.mockRejectedValue(new Error("redis down"));
+    dbMocks.retryJobOutbox.mockRejectedValueOnce(new Error("pg down"));
+
+    expect(await dispatchJobOutboxBatch(deps)).toBe(2);
+    expect(dispatchAdd).toHaveBeenCalledWith(
+      "dispatch-alert",
+      { schemaVersion: 1, deliveryId },
+      { jobId: `alert-delivery-${deliveryId}` },
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "20000000-0000-4000-8000-000000000002" }),
+      "failed to defer job outbox event",
+    );
   });
 
   it("uses one-second backoff for the first attempt", () => {

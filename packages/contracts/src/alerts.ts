@@ -255,6 +255,8 @@ export type AlertDelivery = {
   deliveredAt: string | null;
 };
 
+export const ALERT_DELIVERY_BACKOFF_TYPE = "alert-delivery";
+
 export const dispatchAlertJobSchema = z.object({
   schemaVersion: jobSchemaVersion,
   deliveryId: z.uuid(),

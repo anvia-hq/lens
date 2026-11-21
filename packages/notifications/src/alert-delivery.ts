@@ -3,7 +3,12 @@ import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest, type RequestOptions } from "node:https";
 import { BlockList, isIP } from "node:net";
-import type { AlertDeliveryTarget, AlertIncident, AlertRuleKind } from "@lens/contracts";
+import {
+  ALERT_DELIVERY_BACKOFF_TYPE,
+  type AlertDeliveryTarget,
+  type AlertIncident,
+  type AlertRuleKind,
+} from "@lens/contracts";
 
 export type AlertDeliveryInput = {
   ruleName: string;
@@ -72,7 +77,7 @@ export class AlertDeliveryError extends Error {
 
 const maxErrorMessageLength = 200;
 const maxRetryAfterMs = 60 * 60_000;
-export const alertDeliveryBackoffType = "alert-delivery";
+export const alertDeliveryBackoffType = ALERT_DELIVERY_BACKOFF_TYPE;
 
 export function alertDeliveryBackoffStrategy(
   attemptsMade: number,

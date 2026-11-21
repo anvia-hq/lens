@@ -102,6 +102,11 @@ describe("queue lifecycle", () => {
         removeOnFail: { age: 86_400, count: 750 },
       },
     });
+    expect(mocks.queueInstances[6]?.options).toMatchObject({
+      defaultJobOptions: {
+        backoff: { type: "alert-delivery", delay: 1_000 },
+      },
+    });
 
     await queues.close();
 
