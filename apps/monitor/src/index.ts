@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { HostCollector } from "./host.js";
 import { SnapshotCache } from "./snapshot-cache.js";
 
@@ -25,7 +25,23 @@ void snapshots.collect();
 const collectionTimer = setInterval(() => void snapshots.collect(), 5_000);
 collectionTimer.unref();
 
-const server = createServer(async (request, response) => {
+const server = createServer((request, response) => {
+  void handleRequest(request, response).catch((error: unknown) => {
+    logError("Monitor request failed", error);
+    if (!response.headersSent) {
+      response
+        .writeHead(500, { "Content-Type": "application/json; charset=utf-8" })
+        .end(JSON.stringify({ status: "error", message: "Internal monitor error" }));
+    } else if (!response.writableEnded) {
+      response.end();
+    }
+  });
+});
+server.requestTimeout = 10_000;
+server.headersTimeout = 5_000;
+server.keepAliveTimeout = 5_000;
+
+async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
   if (request.method === "GET" && request.url === "/health/live") {
@@ -36,25 +52,40 @@ const server = createServer(async (request, response) => {
     if (snapshots.latest() === undefined) await snapshots.collect();
     const snapshot = snapshots.latest();
     if (snapshot === undefined) {
+      if (snapshots.error() !== undefined) {
+        logError("Host metrics collection failed", snapshots.error());
+      }
       response
         .writeHead(503)
-        .end(JSON.stringify({ status: "unavailable", message: errorMessage(snapshots.error()) }));
+        .end(JSON.stringify({ status: "unavailable", message: "Host metrics are unavailable" }));
     } else {
       response.writeHead(200).end(JSON.stringify(snapshot));
     }
     return;
   }
   response.writeHead(404).end(JSON.stringify({ status: "not_found" }));
-});
+}
 
 server.listen(port, "0.0.0.0", () => {
   process.stdout.write(`Lens system monitor listening on port ${port}\n`);
 });
 
+let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     clearInterval(collectionTimer);
-    server.close(() => process.exit(0));
+    const timer = setTimeout(() => {
+      server.closeAllConnections();
+      process.exit(0);
+    }, 5_000);
+    timer.unref();
+    server.close(() => {
+      clearTimeout(timer);
+      process.exit(0);
+    });
+    server.closeIdleConnections();
   });
 }
 
@@ -63,6 +94,7 @@ function positiveInteger(value: string | undefined, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Host metrics are unavailable";
+function logError(context: string, error: unknown): void {
+  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`${context}: ${detail}\n`);
 }

@@ -8,7 +8,7 @@ import type {
   Page,
   QualityGate,
 } from "@lens/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -19,7 +19,8 @@ import { useObservabilityProject } from "./use-observability-project";
 export function useActiveAlertCount(projectId: string) {
   return useQuery({
     queryKey: ["alert-active-count", projectId],
-    queryFn: () => api<{ count: number }>(`/api/v1/projects/${projectId}/alerts/active-count`),
+    queryFn: ({ signal }) =>
+      api<{ count: number }>(`/api/v1/projects/${projectId}/alerts/active-count`, { signal }),
     refetchInterval: 30_000,
   });
 }
@@ -48,13 +49,16 @@ export function useAlerts() {
   const refreshChannels = () => {
     void queryClient.invalidateQueries({ queryKey: ["alert-channels", project.id] });
   };
+  const canManage = project.role === "owner" || project.role === "admin";
   const rules = useQuery({
     queryKey: ["alert-rules", project.id],
-    queryFn: () => api<{ items: AlertRule[] }>(`/api/v1/projects/${project.id}/alert-rules`),
+    queryFn: ({ signal }) =>
+      api<{ items: AlertRule[] }>(`/api/v1/projects/${project.id}/alert-rules`, { signal }),
+    enabled: filters.tab === "rules",
   });
   const incidents = useQuery({
     queryKey: ["alerts", project.id, filters.status, filters.kind, filters.page],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<Page<AlertIncident>>(
         `/api/v1/projects/${project.id}/alerts?${queryString({
           status: filters.status,
@@ -62,15 +66,22 @@ export function useAlerts() {
           page: filters.page,
           pageSize: 50,
         })}`,
+        { signal },
       ),
+    enabled: filters.tab === "incidents",
+    placeholderData: keepPreviousData,
   });
   const gates = useQuery({
     queryKey: ["quality-gates", project.id],
-    queryFn: () => api<{ items: QualityGate[] }>(`/api/v1/projects/${project.id}/quality-gates`),
+    queryFn: ({ signal }) =>
+      api<{ items: QualityGate[] }>(`/api/v1/projects/${project.id}/quality-gates`, { signal }),
+    enabled: filters.tab === "rules" && canManage,
   });
   const channels = useQuery({
     queryKey: ["alert-channels", project.id],
-    queryFn: () => api<{ items: AlertChannel[] }>(`/api/v1/projects/${project.id}/alert-channels`),
+    queryFn: ({ signal }) =>
+      api<{ items: AlertChannel[] }>(`/api/v1/projects/${project.id}/alert-channels`, { signal }),
+    enabled: filters.tab === "channels" || (filters.tab === "rules" && canManage),
   });
   const createRule = useMutation({
     mutationFn: (input: AlertRuleInput) =>
@@ -181,8 +192,9 @@ export function useAlertIncident(incidentId: string) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: ["alert-incident", project.id, incidentId],
-    queryFn: () => api<AlertIncidentDetail>(`/api/v1/projects/${project.id}/alerts/${incidentId}`),
-    refetchInterval: 30_000,
+    queryFn: ({ signal }) =>
+      api<AlertIncidentDetail>(`/api/v1/projects/${project.id}/alerts/${incidentId}`, { signal }),
+    refetchInterval: (query) => (query.state.data?.incident.status === "resolved" ? false : 30_000),
   });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["alert-incident", project.id, incidentId] });

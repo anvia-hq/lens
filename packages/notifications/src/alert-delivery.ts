@@ -77,7 +77,12 @@ export class AlertDeliveryError extends Error {
 
 const maxErrorMessageLength = 200;
 const maxRetryAfterMs = 60 * 60_000;
+const telegramBotTokenPattern = /^\d+:[A-Za-z0-9_-]+$/;
 export const alertDeliveryBackoffType = ALERT_DELIVERY_BACKOFF_TYPE;
+
+function sanitizeErrorDetail(value: string): string {
+  return value.replace(/bot\d+:[A-Za-z0-9_-]+/gi, "bot[REDACTED]");
+}
 
 export function alertDeliveryBackoffStrategy(
   attemptsMade: number,
@@ -103,13 +108,13 @@ async function postJson(
     response = await options.transport({ url, body, headers, timeoutMs: options.timeoutMs });
   } catch (error) {
     if (error instanceof AlertDeliveryError) throw error;
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = sanitizeErrorDetail(error instanceof Error ? error.message : String(error));
     throw new AlertDeliveryError(`request failed: ${detail}`, true, undefined, undefined, {
       cause: error,
     });
   }
   if (response.status < 200 || response.status >= 300) {
-    const detail = response.body.slice(0, maxErrorMessageLength);
+    const detail = sanitizeErrorDetail(response.body.slice(0, maxErrorMessageLength));
     const retryable =
       response.status === 408 ||
       response.status === 425 ||
@@ -154,6 +159,9 @@ export async function deliverAlert(
       );
       return;
     case "telegram": {
+      if (!telegramBotTokenPattern.test(target.config.botToken)) {
+        throw new AlertDeliveryError("Telegram bot token format is invalid", false);
+      }
       const url = `https://api.telegram.org/bot${target.config.botToken}/sendMessage`;
       await postJson(
         url,
@@ -243,7 +251,9 @@ function withDeadline<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
-async function publicAddress(hostname: string): Promise<{ address: string; family: 4 | 6 }> {
+type ResolvedAddress = { address: string; family: 4 | 6 };
+
+async function publicAddresses(hostname: string): Promise<ResolvedAddress[]> {
   const normalizedHostname =
     hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
   const literalFamily = isIP(normalizedHostname);
@@ -251,6 +261,7 @@ async function publicAddress(hostname: string): Promise<{ address: string; famil
     ? [{ address: normalizedHostname, family: literalFamily }]
     : await lookup(normalizedHostname, { all: true, verbatim: true });
   if (addresses.length === 0) throw new Error("Webhook hostname did not resolve");
+  const validated: ResolvedAddress[] = [];
   for (const address of addresses) {
     const family = address.family === 6 ? "ipv6" : "ipv4";
     if (
@@ -259,10 +270,23 @@ async function publicAddress(hostname: string): Promise<{ address: string; famil
     ) {
       throw new AlertDeliveryError("Webhook target resolves to a non-public address", false);
     }
+    validated.push({ address: address.address, family: address.family === 6 ? 6 : 4 });
   }
-  const selected = addresses[0];
-  if (selected === undefined) throw new Error("Webhook hostname did not resolve");
-  return { address: selected.address, family: selected.family === 6 ? 6 : 4 };
+  return validated;
+}
+
+function createPinnedLookup(
+  addresses: readonly ResolvedAddress[],
+): NonNullable<RequestOptions["lookup"]> {
+  return (_hostname, options, callback) => {
+    const all = typeof options === "object" && options !== null && options.all === true;
+    if (all) {
+      callback(null, [...addresses]);
+      return;
+    }
+    const first = addresses[0]!;
+    callback(null, first.address, first.family);
+  };
 }
 
 export async function sendPublicHttpRequest(
@@ -283,7 +307,7 @@ export async function sendPublicHttpRequest(
     throw new AlertDeliveryError("Webhook URL cannot contain credentials", false);
   }
   const deadlineAt = Date.now() + input.timeoutMs;
-  const address = await withDeadline(publicAddress(url.hostname), input.timeoutMs);
+  const addresses = await withDeadline(publicAddresses(url.hostname), input.timeoutMs);
   const remainingMs = deadlineAt - Date.now();
   if (remainingMs <= 0) throw new Error("request timed out");
   const originalHostname =
@@ -293,8 +317,8 @@ export async function sendPublicHttpRequest(
   const request = url.protocol === "https:" ? httpsRequest : httpRequest;
   const requestOptions: RequestOptions = {
     protocol: url.protocol,
-    hostname: address.address,
-    family: address.family,
+    hostname: originalHostname,
+    lookup: createPinnedLookup(addresses),
     port: url.port || undefined,
     path: `${url.pathname}${url.search}`,
     method: "POST",

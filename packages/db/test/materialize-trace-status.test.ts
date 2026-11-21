@@ -26,7 +26,9 @@ describe("trace status materialization", () => {
       "if(argMaxIf(span.run_status, tuple(span.start_time, span.span_id), span.parent_span_id = '' AND span.run_status != '') = 'suspended', 'running'",
     );
     expect(sql).toContain("countIf(span.status = 'error')");
-    expect(sql).toContain("sumIf(span.input_tokens, span.observation_kind = 'generation')");
+    expect(sql).toContain(
+      "sumIf(span.input_tokens, span.observation_kind IN ('generation', 'embedding'))",
+    );
     expect(sql).toContain("span.observation_kind IN ('generation', 'embedding')");
   });
 

@@ -10,6 +10,16 @@ import {
   promptInputSchema,
   promptVersionCommitSchema,
 } from "@lens/contracts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@lens/ui/components/alert-dialog";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import {
@@ -184,6 +194,7 @@ export function PromptsView({ state }: { state: PromptsState }) {
 
       <CreatePromptDialog
         open={createOpen}
+        pending={state.createPrompt.isPending}
         error={state.createPrompt.error}
         onClose={() => setCreateOpen(false)}
         onSave={(input) =>
@@ -197,6 +208,7 @@ export function PromptsView({ state }: { state: PromptsState }) {
 export function PromptDetailView({ state }: { state: PromptDetailState }) {
   const [versionOpen, setVersionOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [moveLabel, setMoveLabel] = useState<string | null>(null);
   const canManage = state.project.role === "owner" || state.project.role === "admin";
   if (state.detail.isLoading)
@@ -219,6 +231,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
             <Button
               size="icon-sm"
               variant="ghost"
+              nativeButton={false}
               render={
                 <Link
                   to="/$projectId/prompts"
@@ -245,15 +258,11 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
               <Button size="sm" variant="outline" onClick={() => setVersionOpen(true)}>
                 <Plus /> New version
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (window.confirm(`Archive ${prompt.name}?`)) state.archivePrompt.mutate();
-                }}
-              >
-                <Archive /> Archive
-              </Button>
+              {prompt.archivedAt === null ? (
+                <Button size="sm" variant="outline" onClick={() => setArchiveOpen(true)}>
+                  <Archive /> Archive
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -362,6 +371,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
       <CommitVersionDialog
         open={versionOpen}
         prompt={prompt}
+        pending={state.commitVersion.isPending}
         error={state.commitVersion.error}
         onClose={() => setVersionOpen(false)}
         onSave={(input) =>
@@ -371,6 +381,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
       <EditDescriptionDialog
         open={descriptionOpen}
         description={prompt.description ?? ""}
+        pending={state.updateDescription.isPending}
         error={state.updateDescription.error}
         onClose={() => setDescriptionOpen(false)}
         onSave={(description) =>
@@ -382,6 +393,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
       <MoveLabelDialog
         label={moveLabel}
         versions={versions}
+        pending={state.setLabel.isPending}
         error={state.setLabel.error}
         onClose={() => setMoveLabel(null)}
         onSave={(version) => {
@@ -392,6 +404,28 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
           );
         }}
       />
+      <AlertDialog open={archiveOpen} onOpenChange={(open) => !open && setArchiveOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {prompt.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Archived prompts move out of the active list while keeping existing versions and
+              deployment history intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={state.archivePrompt.isPending}
+              onClick={() =>
+                state.archivePrompt.mutate(undefined, { onSuccess: () => setArchiveOpen(false) })
+              }
+            >
+              Archive prompt
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
@@ -542,6 +576,7 @@ function PromptContentFields(props: {
 
 function CreatePromptDialog(props: {
   open: boolean;
+  pending: boolean;
   error: unknown;
   onClose: () => void;
   onSave: (input: PromptInput) => void;
@@ -655,7 +690,7 @@ function CreatePromptDialog(props: {
         </div>
         {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
-          <Button disabled={!name.trim()} onClick={save}>
+          <Button disabled={!name.trim() || props.pending} onClick={save}>
             Create prompt
           </Button>
         </DialogFooter>
@@ -667,6 +702,7 @@ function CreatePromptDialog(props: {
 function CommitVersionDialog(props: {
   open: boolean;
   prompt: PromptDetail;
+  pending: boolean;
   error: unknown;
   onClose: () => void;
   onSave: (input: PromptVersionCommit) => void;
@@ -753,7 +789,9 @@ function CommitVersionDialog(props: {
         </div>
         {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
-          <Button onClick={save}>Commit version</Button>
+          <Button disabled={props.pending} onClick={save}>
+            Commit version
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -763,13 +801,21 @@ function CommitVersionDialog(props: {
 function EditDescriptionDialog(props: {
   open: boolean;
   description: string;
+  pending: boolean;
   error: unknown;
   onClose: () => void;
   onSave: (description: string) => void;
 }) {
   const [description, setDescription] = useState(props.description);
+  const initializedOpen = useRef(false);
   useEffect(() => {
-    if (props.open) setDescription(props.description);
+    if (!props.open) {
+      initializedOpen.current = false;
+      return;
+    }
+    if (initializedOpen.current) return;
+    initializedOpen.current = true;
+    setDescription(props.description);
   }, [props.open, props.description]);
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
@@ -781,10 +827,16 @@ function EditDescriptionDialog(props: {
         {props.error ? <ErrorAlert error={props.error} /> : null}
         <Field>
           <FieldLabel>Description</FieldLabel>
-          <Textarea value={description} onChange={(event) => setDescription(event.target.value)} />
+          <Textarea
+            aria-label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
         </Field>
         <DialogFooter showCloseButton>
-          <Button onClick={() => props.onSave(description.trim())}>Save</Button>
+          <Button disabled={props.pending} onClick={() => props.onSave(description.trim())}>
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -794,6 +846,7 @@ function EditDescriptionDialog(props: {
 function MoveLabelDialog(props: {
   label: string | null;
   versions: PromptVersion[];
+  pending: boolean;
   error: unknown;
   onClose: () => void;
   onSave: (version: number) => void;
@@ -823,7 +876,10 @@ function MoveLabelDialog(props: {
           </NativeSelect>
         </Field>
         <DialogFooter showCloseButton>
-          <Button disabled={!version} onClick={() => props.onSave(Number(version))}>
+          <Button
+            disabled={!version || props.pending}
+            onClick={() => props.onSave(Number(version))}
+          >
             Move label
           </Button>
         </DialogFooter>

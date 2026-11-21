@@ -196,10 +196,10 @@ export async function materializeTrace(
               ${representativeNullable("span.release")} AS release,
               ${representativeNullable("span.version")} AS version,
               ${representativeNullable("span.service_version")} AS service_version,
-              sumIf(span.input_tokens, span.observation_kind = 'generation') AS input_tokens,
-              sumIf(span.output_tokens, span.observation_kind = 'generation') AS output_tokens,
-              sumIf(span.input_tokens, span.observation_kind = 'generation') +
-                sumIf(span.output_tokens, span.observation_kind = 'generation') AS total_tokens,
+              sumIf(span.input_tokens, span.observation_kind IN ('generation', 'embedding')) AS input_tokens,
+              sumIf(span.output_tokens, span.observation_kind IN ('generation', 'embedding')) AS output_tokens,
+              sumIf(span.input_tokens, span.observation_kind IN ('generation', 'embedding')) +
+                sumIf(span.output_tokens, span.observation_kind IN ('generation', 'embedding')) AS total_tokens,
               ${cost("span.input_cost")} AS input_cost,
               ${cost("span.output_cost")} AS output_cost,
               ${cost("span.total_cost")} AS total_cost,

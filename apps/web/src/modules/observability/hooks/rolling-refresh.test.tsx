@@ -165,6 +165,37 @@ describe("rolling list refresh", () => {
     },
   );
 
+  it("does not refetch traces when only visible columns change and forwards AbortSignal", async () => {
+    router.filters = validateTracesSearch({ range: "24h", columns: ["startedAt", "trace"] });
+    function View() {
+      useTraces();
+      return null;
+    }
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <View />
+      </QueryClientProvider>,
+    );
+    await advance(1);
+    expect(requests("traces")).toHaveLength(2);
+    expect(vi.mocked(api)).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/projects/project-1/traces?"),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    router.filters = validateTracesSearch({
+      range: "24h",
+      columns: ["startedAt", "trace", "status", "totalCost"],
+    });
+    rerender(
+      <QueryClientProvider client={client}>
+        <View />
+      </QueryClientProvider>,
+    );
+    await advance(1);
+    expect(requests("traces")).toHaveLength(2);
+  });
+
   it("refetches list and facets when the preset changes without resetting pagination", async () => {
     router.filters = validateTracesSearch({ range: "24h", page: 3 });
     function View() {

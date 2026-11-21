@@ -431,10 +431,23 @@ export function toggleCollapsed(
   onChange(next);
 }
 
+const standardNumberFormat = new Intl.NumberFormat("en", { notation: "standard" });
+const compactNumberFormat = new Intl.NumberFormat("en", { notation: "compact" });
+const smallUsdFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 6,
+});
+const standardUsdFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en", { notation: value > 99_999 ? "compact" : "standard" }).format(
-    value,
-  );
+  return (value > 99_999 ? compactNumberFormat : standardNumberFormat).format(value);
 }
 
 export function formatDuration(value: number): string {
@@ -446,12 +459,7 @@ export function formatDuration(value: number): string {
 export function formatCost(value: number | null): string {
   if (value === null) return "—";
   if (value > 0 && value < 0.0001) return "<$0.0001";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: value < 0.01 ? 4 : 2,
-    maximumFractionDigits: value < 0.01 ? 6 : 4,
-  }).format(value);
+  return (value < 0.01 ? smallUsdFormat : standardUsdFormat).format(value);
 }
 
 export function formatTimestamp(value: string): string {

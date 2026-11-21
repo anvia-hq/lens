@@ -10,8 +10,12 @@ export function useTraceCompare() {
   const traces = useQueries({
     queries: traceIds.map((traceId) => ({
       queryKey: ["trace", project.id, traceId],
-      queryFn: () => api<TraceDetail>(`/api/v1/projects/${project.id}/traces/${traceId}`),
-      refetchInterval: 5_000,
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        api<TraceDetail>(`/api/v1/projects/${project.id}/traces/${traceId}`, { signal }),
+      refetchInterval: (query: { state: { data?: TraceDetail } }) =>
+        query.state.data?.summary.status === "running" ? 5_000 : false,
+      staleTime: (query: { state: { data?: TraceDetail } }) =>
+        query.state.data?.summary.status === "running" ? 0 : 5 * 60 * 1_000,
     })),
   });
 

@@ -241,9 +241,14 @@ describe("database integration", () => {
       );
       expect(
         await getPromptDeployment(postgres.db, projectId, name, {
-          version: Number.MAX_SAFE_INTEGER,
+          version: 2_147_483_647,
         }),
       ).toBe("unknown_version");
+      await expect(
+        getPromptDeployment(postgres.db, projectId, name, {
+          version: Number.MAX_SAFE_INTEGER,
+        }),
+      ).rejects.toThrow();
       expect(await getPromptDeployment(postgres.db, projectId, name, { label: "missing" })).toBe(
         "no_deployment",
       );

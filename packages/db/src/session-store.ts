@@ -14,7 +14,13 @@ import type {
 } from "@lens/contracts";
 import { encodeCursor } from "./cursor.js";
 import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
-import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
+import {
+  clickHouseDateTime9Param,
+  clickHouseDateTimeParam,
+  ensureIso,
+  nullableNumeric,
+  numeric,
+} from "./values.js";
 
 type SessionSummaryRow = {
   project_id: string;
@@ -174,9 +180,9 @@ export async function getSession(
   };
   if (options.cursor !== undefined) {
     pageFilters.push(
-      "(started_at > {cursorStartedAt:DateTime64(3)} OR (started_at = {cursorStartedAt:DateTime64(3)} AND trace_id > {cursorTraceId:String}))",
+      "(started_at > {cursorStartedAt:DateTime64(9)} OR (started_at = {cursorStartedAt:DateTime64(9)} AND trace_id > {cursorTraceId:String}))",
     );
-    params.cursorStartedAt = clickHouseDateTimeParam(options.cursor.startedAt);
+    params.cursorStartedAt = clickHouseDateTime9Param(options.cursor.startedAt);
     params.cursorTraceId = options.cursor.traceId;
   }
   const aggregate = sessionAggregateSql([

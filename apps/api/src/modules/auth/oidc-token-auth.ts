@@ -6,6 +6,8 @@ export type TokenEndpointAuth = "basic" | "post";
 
 const CLIENT_SECRET_BASIC = "client_secret_basic";
 const CLIENT_SECRET_POST = "client_secret_post";
+const DISCOVERY_TIMEOUT_MS = 10_000;
+const DISCOVERY_CACHE_TTL_MS = 60 * 60_000;
 
 /**
  * Picks how Lens authenticates to the provider's token endpoint. An explicit
@@ -53,10 +55,15 @@ export function createOidcTokenExchange(config: LensConfig) {
     config.OIDC_TOKEN_ENDPOINT_AUTH === "auto" ? undefined : config.OIDC_TOKEN_ENDPOINT_AUTH;
 
   let resolution: Promise<{ tokenEndpoint: string; authentication: TokenEndpointAuth }> | undefined;
+  let expiresAt = 0;
   const resolve = () => {
-    if (resolution !== undefined) return resolution;
-    resolution = (async () => {
-      const response = await fetch(discoveryUrl, { headers: { accept: "application/json" } });
+    const now = Date.now();
+    if (resolution !== undefined && now < expiresAt) return resolution;
+    const next = (async () => {
+      const response = await fetch(discoveryUrl, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+      });
       if (!response.ok) {
         throw new Error(
           `OIDC discovery request to ${discoveryUrl} failed with HTTP ${response.status}`,
@@ -71,10 +78,15 @@ export function createOidcTokenExchange(config: LensConfig) {
       }
       return { tokenEndpoint, authentication: resolveTokenEndpointAuth(metadata, override) };
     })();
-    resolution.catch(() => {
-      resolution = undefined;
+    resolution = next;
+    expiresAt = now + DISCOVERY_CACHE_TTL_MS;
+    next.catch(() => {
+      if (resolution === next) {
+        resolution = undefined;
+        expiresAt = 0;
+      }
     });
-    return resolution;
+    return next;
   };
 
   return async (data: {

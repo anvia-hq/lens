@@ -42,6 +42,7 @@ function tokenRequest(
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -168,6 +169,28 @@ describe("createOidcTokenExchange", () => {
     await expect(
       exchange({ code: "c", redirectURI: "http://localhost:3000/callback/oidc" }),
     ).resolves.toMatchObject({ accessToken: "at" });
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === discoveryUrl)).toHaveLength(2);
+  });
+
+  it("passes an abort signal and refreshes discovery after the cache TTL", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-21T00:00:00.000Z"));
+    const fetchMock = stubFetch((url) =>
+      jsonResponse(
+        url === discoveryUrl
+          ? discoveryDocument(["client_secret_basic"])
+          : { access_token: "at", token_type: "Bearer" },
+      ),
+    );
+    const exchange = createOidcTokenExchange(config);
+
+    await exchange({ code: "code-1", redirectURI: "http://localhost:3000/callback/oidc" });
+    const discoveryCall = fetchMock.mock.calls.find(([url]) => String(url) === discoveryUrl);
+    expect(discoveryCall?.[1]?.signal).toBeInstanceOf(AbortSignal);
+
+    vi.advanceTimersByTime(60 * 60_000 + 1);
+    await exchange({ code: "code-2", redirectURI: "http://localhost:3000/callback/oidc" });
+
     expect(fetchMock.mock.calls.filter(([url]) => String(url) === discoveryUrl)).toHaveLength(2);
   });
 });

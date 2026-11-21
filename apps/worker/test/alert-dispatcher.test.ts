@@ -1,5 +1,5 @@
 import type { AlertDelivery, AlertIncident, DispatchAlertJob } from "@lens/contracts";
-import type { Job } from "bullmq";
+import { type Job, UnrecoverableError } from "bullmq";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbFunctions = vi.hoisted(() => ({
@@ -172,12 +172,14 @@ describe("alert dispatch processor", () => {
     expect(dbFunctions.markDeliveryFinished).not.toHaveBeenCalled();
   });
 
-  it("fails the delivery on the final retryable attempt without throwing", async () => {
+  it("fails the delivery on the final retryable attempt with UnrecoverableError", async () => {
     dbFunctions.loadDeliveryForDispatch.mockResolvedValue(payload({ delivery: { attempts: 4 } }));
     queueFunctions.deliverAlert.mockRejectedValue(
       new AlertDeliveryError("request failed: timeout", true),
     );
-    await createAlertDispatchProcessor(deps())(job(4));
+    await expect(createAlertDispatchProcessor(deps())(job(4))).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
     expect(dbFunctions.markDeliveryAttempt).not.toHaveBeenCalled();
     expect(dbFunctions.markDeliveryFinished).toHaveBeenCalledWith(
       {},
@@ -188,12 +190,14 @@ describe("alert dispatch processor", () => {
     );
   });
 
-  it("fails the delivery immediately on non-retryable errors", async () => {
+  it("fails the delivery immediately on non-retryable errors with UnrecoverableError", async () => {
     dbFunctions.loadDeliveryForDispatch.mockResolvedValue(payload());
     queueFunctions.deliverAlert.mockRejectedValue(
       new AlertDeliveryError("delivery failed with status 400", false, 400),
     );
-    await createAlertDispatchProcessor(deps())(job(0));
+    await expect(createAlertDispatchProcessor(deps())(job(0))).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
     expect(dbFunctions.markDeliveryAttempt).not.toHaveBeenCalled();
     expect(dbFunctions.markDeliveryFinished).toHaveBeenCalledWith(
       {},

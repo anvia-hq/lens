@@ -69,13 +69,13 @@ export const promptLabelQuerySchema = z.object({
 });
 export type PromptLabelQuery = z.infer<typeof promptLabelQuerySchema>;
 
+const promptVersionNumberSchema = z.number().int().min(1).max(2_147_483_647);
+
 export const promptLabelInputSchema = z.object({
   label: z.string().trim().min(1).max(80),
-  version: z.number().int().min(1),
+  version: promptVersionNumberSchema,
 });
 export type PromptLabelInput = z.infer<typeof promptLabelInputSchema>;
-
-const promptVersionNumberSchema = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
 
 export const promptDeploymentQuerySchema = z
   .object({

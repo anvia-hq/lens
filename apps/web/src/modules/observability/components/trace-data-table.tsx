@@ -67,18 +67,15 @@ export function TraceDataTable(props: {
                 </TableHead>
               ) : null}
               {headerGroup.headers.map((header) => {
-                const direction = header.column.getIsSorted();
+                const sortField = header.column.id === "trace" ? "name" : header.column.id;
+                const ariaSort =
+                  props.onSort && props.sort === sortField
+                    ? props.order === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined;
                 return (
-                  <TableHead
-                    key={header.id}
-                    aria-sort={
-                      direction === "asc"
-                        ? "ascending"
-                        : direction === "desc"
-                          ? "descending"
-                          : undefined
-                    }
-                  >
+                  <TableHead key={header.id} aria-sort={ariaSort}>
                     {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
                 );

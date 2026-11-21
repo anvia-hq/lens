@@ -40,6 +40,9 @@ describe("data deletion store", () => {
       expect.stringContaining("ALTER TABLE evaluation_results DELETE"),
       expect.stringContaining("ALTER TABLE spans DELETE"),
       expect.stringContaining("ALTER TABLE trace_summaries DELETE"),
+      expect.stringContaining(
+        "ALTER TABLE spans DELETE WHERE project_id = {projectId:UUID} AND session_id IN {sessionIds:Array(String)}",
+      ),
     ]);
   });
 

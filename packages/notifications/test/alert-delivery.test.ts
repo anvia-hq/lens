@@ -118,6 +118,29 @@ describe("deliverAlert", () => {
     const telegram = transport.mock.calls[2]?.[0];
     expect(telegram?.url).toBe("https://api.telegram.org/bot123:abc/sendMessage");
     expect(JSON.parse(telegram?.body ?? "{}").text).toHaveLength(4_096);
+
+    await expect(
+      deliverAlert(
+        { type: "telegram", config: { botToken: "bad/token", chatId: "@alerts" } },
+        "hello",
+        undefined,
+        { transport },
+      ),
+    ).rejects.toMatchObject({ retryable: false, message: "Telegram bot token format is invalid" });
+
+    const leakingTransport = vi
+      .fn<AlertTransport>()
+      .mockRejectedValue(
+        new Error("connect failed for https://api.telegram.org/bot123:secret_XYZ/sendMessage"),
+      );
+    await expect(
+      deliverAlert(
+        { type: "telegram", config: { botToken: "123:secret_XYZ", chatId: "@alerts" } },
+        "hello",
+        undefined,
+        { transport: leakingTransport },
+      ),
+    ).rejects.toThrow("bot[REDACTED]");
   });
 
   it("signs timestamped webhook payloads", async () => {
@@ -299,13 +322,27 @@ describe("public webhook transport", () => {
     expect(response).toEqual({ status: 202, body: "x".repeat(200), retryAfter: "5" });
     expect(nodeMocks.httpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        hostname: "93.184.216.34",
+        hostname: "receiver.example",
+        lookup: expect.any(Function),
         port: "8080",
         path: "/hook?q=1",
         headers: expect.objectContaining({ host: "receiver.example:8080", "x-test": "yes" }),
       }),
       expect.any(Function),
     );
+    const callOptions = nodeMocks.httpRequest.mock.calls.at(-1)?.[0] as {
+      lookup: (
+        host: string,
+        opts: { all?: boolean },
+        cb: (err: Error | null, address: unknown, family?: number) => void,
+      ) => void;
+    };
+    const allCb = vi.fn();
+    callOptions.lookup("receiver.example", { all: true }, allCb);
+    expect(allCb).toHaveBeenCalledWith(null, [{ address: "93.184.216.34", family: 4 }]);
+    const singleCb = vi.fn();
+    callOptions.lookup("receiver.example", {}, singleCb);
+    expect(singleCb).toHaveBeenCalledWith(null, "93.184.216.34", 4);
   });
 
   it("uses pinned TLS server names and exposes connection failures", async () => {
@@ -320,7 +357,7 @@ describe("public webhook transport", () => {
       }),
     ).resolves.toMatchObject({ status: 200 });
     expect(nodeMocks.httpsRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ hostname: "93.184.216.34", servername: "receiver.example" }),
+      expect.objectContaining({ hostname: "receiver.example", servername: "receiver.example" }),
       expect.any(Function),
     );
 

@@ -1,5 +1,5 @@
 import type { Page as PaginatedPage, TraceFacets, TraceListItem } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -61,8 +61,17 @@ export function useTraces() {
     maxTotalCost: filters.maxTotalCost,
   };
   const traces = useQuery({
-    queryKey: ["traces", project.id, filters],
-    queryFn: () =>
+    queryKey: [
+      "traces",
+      project.id,
+      filters.range,
+      requestFilters,
+      filters.page,
+      filters.pageSize,
+      filters.sort,
+      filters.order,
+    ],
+    queryFn: ({ signal }) =>
       api<PaginatedPage<TraceListItem>>(
         `/api/v1/projects/${project.id}/traces?${queryString({
           ...requestFilters,
@@ -72,19 +81,22 @@ export function useTraces() {
           sort: filters.sort,
           order: filters.order,
         })}`,
+        { signal },
       ),
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
     queryKey: ["trace-facets", project.id, filters.range, requestFilters],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<TraceFacets>(
         `/api/v1/projects/${project.id}/traces/facets?${queryString({
           ...requestFilters,
           ...timeRangeForPreset(filters.range),
         })}`,
+        { signal },
       ),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const activeFilterCount = traceActiveFilterCount(filters);

@@ -5,19 +5,15 @@ export async function queryQueueHealth(queues: LensQueues): Promise<SystemQueueH
   return Promise.all(
     queueKeys.map(async (key) => {
       const queue = queues[key];
-      const [waiting, active, delayed, failed, oldestWaitingSeconds] = await Promise.all([
-        queue.getWaitingCount(),
-        queue.getActiveCount(),
-        queue.getDelayedCount(),
-        queue.getFailedCount(),
-        oldestWaitingAgeSeconds(queue),
-      ]);
+      const counts = await queue.getJobCounts("waiting", "active", "delayed", "failed");
+      const waiting = counts.waiting ?? 0;
+      const oldestWaitingSeconds = waiting > 0 ? await oldestWaitingAgeSeconds(queue) : null;
       return {
         name: queueDefinitions[key].displayName,
         waiting,
-        active,
-        delayed,
-        failed,
+        active: counts.active ?? 0,
+        delayed: counts.delayed ?? 0,
+        failed: counts.failed ?? 0,
         oldestWaitingSeconds,
       };
     }),

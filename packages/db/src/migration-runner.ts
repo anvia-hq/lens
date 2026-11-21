@@ -8,12 +8,16 @@ import { loadAlertSecretKeyring } from "./alert-secrets.js";
 import { createClickHouse, createPostgres } from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const MIGRATION_ADVISORY_LOCK_KEY = 741852963;
 
 export async function runMigrations(config: LensConfig = loadConfig()): Promise<void> {
   const postgres = createPostgres(config);
   const clickhouse = createClickHouse(config);
+  let lockConnection: Awaited<ReturnType<typeof postgres.sql.reserve>> | undefined;
 
   try {
+    lockConnection = await postgres.sql.reserve();
+    await lockConnection`SELECT pg_advisory_lock(${MIGRATION_ADVISORY_LOCK_KEY})`;
     await migrate(postgres.db, { migrationsFolder: resolve(here, "../migrations/postgres") });
     // Encrypt any pre-existing plaintext alert channel secrets so delivery
     // keeps working after the upgrade. Idempotent: rows already in the
@@ -56,6 +60,12 @@ export async function runMigrations(config: LensConfig = loadConfig()): Promise<
       });
     }
   } finally {
+    if (lockConnection !== undefined) {
+      await lockConnection`SELECT pg_advisory_unlock(${MIGRATION_ADVISORY_LOCK_KEY})`.catch(
+        () => undefined,
+      );
+      lockConnection.release();
+    }
     await postgres.close();
     await clickhouse.close();
   }

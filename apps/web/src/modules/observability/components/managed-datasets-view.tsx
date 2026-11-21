@@ -5,6 +5,16 @@ import {
   managedDatasetCaseImportSchema,
   managedDatasetCaseInputSchema,
 } from "@lens/contracts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@lens/ui/components/alert-dialog";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import {
@@ -166,6 +176,7 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
 
 export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetailState }) {
   const [versionOpen, setVersionOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [caseItem, setCaseItem] = useState<ManagedDatasetCaseInput | "new" | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const canManage = state.project.role === "owner" || state.project.role === "admin";
@@ -190,6 +201,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
             <Button
               size="icon-sm"
               variant="ghost"
+              nativeButton={false}
               render={
                 <Link
                   to="/$projectId/evaluations/datasets"
@@ -215,13 +227,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
                   <Plus /> New version
                 </Button>
               ) : null}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (window.confirm(`Archive ${dataset.name}?`)) state.archiveDataset.mutate();
-                }}
-              >
+              <Button size="sm" variant="outline" onClick={() => setArchiveOpen(true)}>
                 <Archive /> Archive
               </Button>
             </div>
@@ -291,6 +297,28 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
           );
         }}
       />
+      <AlertDialog open={archiveOpen} onOpenChange={(open) => !open && setArchiveOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {dataset.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Archived datasets are hidden from active listings while keeping existing versions
+              available to past evaluation runs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={state.archiveDataset.isPending}
+              onClick={() =>
+                state.archiveDataset.mutate(undefined, { onSuccess: () => setArchiveOpen(false) })
+              }
+            >
+              Archive dataset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
@@ -304,6 +332,7 @@ function ManagedVersion(props: {
   onImport: () => void;
 }) {
   const { state, version } = props;
+  const [publishOpen, setPublishOpen] = useState(false);
   const editable = props.canManage && version.status === "draft";
   return (
     <>
@@ -325,18 +354,35 @@ function ManagedVersion(props: {
             </Button>
             <Button
               size="sm"
-              disabled={version.items.length === 0}
-              onClick={() => {
-                if (window.confirm(`Publish ${version.version}? It will become immutable.`)) {
-                  state.publishVersion.mutate(version.id);
-                }
-              }}
+              disabled={version.items.length === 0 || state.publishVersion.isPending}
+              onClick={() => setPublishOpen(true)}
             >
               Publish version
             </Button>
           </div>
         ) : null}
       </div>
+      <AlertDialog open={publishOpen} onOpenChange={(open) => !open && setPublishOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish {version.version}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once published, {version.version} becomes immutable and cannot be edited.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={state.publishVersion.isPending}
+              onClick={() =>
+                state.publishVersion.mutate(version.id, { onSuccess: () => setPublishOpen(false) })
+              }
+            >
+              Publish version
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {version.items.length ? (
         <Table>
           <TableHeader>
@@ -393,6 +439,7 @@ function ManagedVersion(props: {
                 key={run.id}
                 size="sm"
                 variant="outline"
+                nativeButton={false}
                 render={
                   <Link
                     to="/$projectId/evaluations/runs/$runId"

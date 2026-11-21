@@ -1,5 +1,5 @@
 import type { Page as PaginatedPage, SessionFacets, SessionSummary } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -54,8 +54,17 @@ export function useSessions() {
     maxTotalCost: filters.maxTotalCost,
   };
   const sessions = useQuery({
-    queryKey: ["sessions", project.id, filters],
-    queryFn: () =>
+    queryKey: [
+      "sessions",
+      project.id,
+      filters.range,
+      requestFilters,
+      filters.page,
+      filters.pageSize,
+      filters.sort,
+      filters.order,
+    ],
+    queryFn: ({ signal }) =>
       api<PaginatedPage<SessionSummary>>(
         `/api/v1/projects/${project.id}/sessions?${queryString({
           ...requestFilters,
@@ -65,19 +74,22 @@ export function useSessions() {
           sort: filters.sort,
           order: filters.order,
         })}`,
+        { signal },
       ),
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const facets = useQuery({
     queryKey: ["session-facets", project.id, filters.range, requestFilters],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<SessionFacets>(
         `/api/v1/projects/${project.id}/sessions/facets?${queryString({
           ...requestFilters,
           ...timeRangeForPreset(filters.range),
         })}`,
+        { signal },
       ),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
   const activeFilterCount = sessionActiveFilterCount(filters);

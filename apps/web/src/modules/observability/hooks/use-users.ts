@@ -1,5 +1,5 @@
 import type { Page as PaginatedPage, UserSummary } from "@lens/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { api, queryString } from "../../../lib/api";
@@ -36,8 +36,17 @@ export function useUsers() {
   }, [filters.search, searchDraft, setFilters]);
 
   const users = useQuery({
-    queryKey: ["users", project.id, filters],
-    queryFn: () =>
+    queryKey: [
+      "users",
+      project.id,
+      filters.range,
+      filters.search,
+      filters.page,
+      filters.pageSize,
+      filters.sort,
+      filters.order,
+    ],
+    queryFn: ({ signal }) =>
       api<PaginatedPage<UserSummary>>(
         `/api/v1/projects/${project.id}/users?${queryString({
           ...timeRangeForUserRange(filters.range),
@@ -47,8 +56,9 @@ export function useUsers() {
           sort: filters.sort,
           order: filters.order,
         })}`,
+        { signal },
       ),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
     refetchInterval: refreshMilliseconds(refreshInterval),
   });
 

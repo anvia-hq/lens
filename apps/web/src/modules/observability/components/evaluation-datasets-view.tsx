@@ -1,6 +1,15 @@
 import type { EvaluationDatasetCase } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@lens/ui/components/dialog";
+import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
 import {
   Pagination,
@@ -116,10 +125,12 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
                 <PaginationPrevious
                   href="#"
                   aria-disabled={page.page <= 1}
+                  tabIndex={page.page <= 1 ? -1 : undefined}
                   className={cn(page.page <= 1 && "pointer-events-none opacity-50")}
                   onClick={(event) => {
                     event.preventDefault();
-                    state.setSearch({ page: Math.max(1, page.page - 1) });
+                    if (page.page <= 1) return;
+                    state.setSearch({ page: page.page - 1 });
                   }}
                 />
               </PaginationItem>
@@ -127,9 +138,11 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
                 <PaginationNext
                   href="#"
                   aria-disabled={page.page >= page.pageCount}
+                  tabIndex={page.page >= page.pageCount ? -1 : undefined}
                   className={cn(page.page >= page.pageCount && "pointer-events-none opacity-50")}
                   onClick={(event) => {
                     event.preventDefault();
+                    if (page.page >= page.pageCount) return;
                     state.setSearch({ page: page.page + 1 });
                   }}
                 />
@@ -144,6 +157,7 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
 
 export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDetailState }) {
   const [selectedCase, setSelectedCase] = useState<EvaluationDatasetCase>();
+  const [saveManagedOpen, setSaveManagedOpen] = useState(false);
   useEffect(() => setSelectedCase(state.detail.data?.cases[0]), [state.detail.data]);
   if (state.detail.isLoading)
     return <FullPageMessage icon={<Database />} text="Loading dataset" contained />;
@@ -158,6 +172,7 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
             <Button
               size="icon-sm"
               variant="ghost"
+              nativeButton={false}
               render={
                 <Link
                   to="/$projectId/evaluations/datasets"
@@ -181,23 +196,7 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
           </div>
           {detail.selectedVersion.status === "complete" &&
           (state.project.role === "owner" || state.project.role === "admin") ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const name = window.prompt("Managed dataset name", detail.name)?.trim();
-                if (!name) return;
-                const suggested = detail.selectedVersion.version ?? "v1";
-                const version = window.prompt("Draft version label", suggested)?.trim();
-                if (!version) return;
-                state.importObserved.mutate({
-                  sourceName: detail.name,
-                  sourceVersion: detail.selectedVersion.version,
-                  name,
-                  version,
-                });
-              }}
-            >
+            <Button size="sm" variant="outline" onClick={() => setSaveManagedOpen(true)}>
               Save as managed
             </Button>
           ) : null}
@@ -235,9 +234,15 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
                 {detail.cases.map((item) => (
                   <TableRow
                     key={item.caseId}
-                    className="cursor-pointer"
+                    className="cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    tabIndex={0}
                     data-state={selectedCase?.caseId === item.caseId ? "selected" : undefined}
                     onClick={() => setSelectedCase(item)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      setSelectedCase(item);
+                    }}
                   >
                     <TableCell className="pl-4 font-medium">{item.caseId}</TableCell>
                     <TableCell>{item.payload === null ? "Unavailable" : "Captured"}</TableCell>
@@ -273,6 +278,7 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
                 key={run.id}
                 size="sm"
                 variant="outline"
+                nativeButton={false}
                 render={
                   <Link
                     to="/$projectId/evaluations/runs/$runId"
@@ -287,6 +293,80 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
           </div>
         </div>
       </ScrollArea>
+      <SaveAsManagedDialog
+        open={saveManagedOpen}
+        defaultName={detail.name}
+        defaultVersion={detail.selectedVersion.version ?? "v1"}
+        pending={state.importObserved.isPending}
+        error={state.importObserved.error}
+        onClose={() => setSaveManagedOpen(false)}
+        onSave={({ name, version }) =>
+          state.importObserved.mutate(
+            {
+              sourceName: detail.name,
+              sourceVersion: detail.selectedVersion.version,
+              name,
+              version,
+            },
+            { onSuccess: () => setSaveManagedOpen(false) },
+          )
+        }
+      />
     </main>
+  );
+}
+
+function SaveAsManagedDialog(props: {
+  open: boolean;
+  defaultName: string;
+  defaultVersion: string;
+  pending: boolean;
+  error: unknown;
+  onClose: () => void;
+  onSave: (input: { name: string; version: string }) => void;
+}) {
+  const [name, setName] = useState(props.defaultName);
+  const [version, setVersion] = useState(props.defaultVersion);
+  useEffect(() => {
+    if (!props.open) return;
+    setName(props.defaultName);
+    setVersion(props.defaultVersion);
+  }, [props.open, props.defaultName, props.defaultVersion]);
+  return (
+    <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Save as managed dataset</DialogTitle>
+          <DialogDescription>
+            Create an editable managed dataset draft from this observed dataset version.
+          </DialogDescription>
+        </DialogHeader>
+        {props.error ? <ErrorAlert error={props.error} /> : null}
+        <Field>
+          <FieldLabel>Managed dataset name</FieldLabel>
+          <Input
+            aria-label="Managed dataset name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Draft version label</FieldLabel>
+          <Input
+            aria-label="Draft version label"
+            value={version}
+            onChange={(event) => setVersion(event.target.value)}
+          />
+        </Field>
+        <DialogFooter showCloseButton>
+          <Button
+            disabled={!name.trim() || !version.trim() || props.pending}
+            onClick={() => props.onSave({ name: name.trim(), version: version.trim() })}
+          >
+            Save as managed
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -38,9 +38,9 @@ export async function collectSystemHealth(deps: ApiDependencies): Promise<System
     }),
     probe("Worker heartbeat is unavailable", () => listWorkerHeartbeats(deps.systemHealthRedis)),
     probe("Queue metrics are unavailable", () => queryQueueHealth(deps.systemHealthQueues)),
-    probe("Ingestion metrics are unavailable", () =>
+    probe("Ingestion metrics are unavailable", (signal) =>
       Promise.all([
-        queryIngestionThroughput(deps.clickhouse),
+        queryIngestionThroughput(deps.clickhouse, new Date(), signal),
         readIngestionRejections(deps.systemHealthRedis),
       ]),
     ),

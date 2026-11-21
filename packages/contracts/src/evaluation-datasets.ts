@@ -51,7 +51,7 @@ export type ManagedDatasetInput = z.infer<typeof managedDatasetInputSchema>;
 
 export const managedDatasetUpdateSchema = managedDatasetInputSchema
   .partial()
-  .refine((value) => Object.keys(value).length > 0, {
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
     message: "At least one dataset field is required",
   });
 export type ManagedDatasetUpdate = z.infer<typeof managedDatasetUpdateSchema>;

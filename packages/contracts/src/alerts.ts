@@ -191,6 +191,11 @@ const slackWebhookUrl = providerWebhookUrl(
   "Slack",
 );
 const discordWebhookUrl = providerWebhookUrl(new Set(["discord.com", "discordapp.com"]), "Discord");
+const telegramBotToken = z
+  .string()
+  .trim()
+  .max(256)
+  .regex(/^\d+:[A-Za-z0-9_-]+$/, "Telegram bot token must use the <id>:<secret> format");
 
 export const alertDeliveryTargetSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("slack"), config: z.object({ webhookUrl: slackWebhookUrl }) }),
@@ -198,7 +203,7 @@ export const alertDeliveryTargetSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("telegram"),
     config: z.object({
-      botToken: z.string().trim().min(1).max(256),
+      botToken: telegramBotToken,
       chatId: z.string().trim().min(1).max(128),
     }),
   }),
@@ -217,7 +222,7 @@ export const alertChannelInputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("telegram"),
     name: channelName,
-    botToken: z.string().trim().min(1).max(256),
+    botToken: telegramBotToken,
     chatId: z.string().trim().min(1).max(128), // numeric id or @channelname
   }),
   z.object({

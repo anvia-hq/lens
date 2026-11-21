@@ -40,6 +40,19 @@ describe("trace table selection", () => {
     fireEvent.click(limitedCheckbox);
     expect(onTraceSelectionChange).toHaveBeenCalledOnce();
   });
+
+  it("populates aria-sort on the active server-sorted column header", () => {
+    render(
+      <ProjectContext.Provider value={{ project, projects: [project] }}>
+        <TraceDataTable traces={[trace()]} sort="name" order="asc" onSort={vi.fn()} />
+      </ProjectContext.Provider>,
+    );
+
+    const traceHeader = screen.getByRole("button", { name: /Sort by Trace/i }).closest("th");
+    const startedHeader = screen.getByRole("button", { name: /Sort by Started/i }).closest("th");
+    expect(traceHeader?.getAttribute("aria-sort")).toBe("ascending");
+    expect(startedHeader?.getAttribute("aria-sort")).toBeNull();
+  });
 });
 
 const project: ProjectWithRole = {
