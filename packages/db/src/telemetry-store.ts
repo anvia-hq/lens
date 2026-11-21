@@ -219,12 +219,12 @@ async function currentTraceExpiration(
   traceId: string,
 ): Promise<string> {
   const result = await client.query({
-    query: `SELECT max(expires_at) AS expires_at FROM spans FINAL
+    query: `SELECT maxOrNull(expires_at) AS expires_at FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}`,
     query_params: { projectId, traceId },
     format: "JSONEachRow",
   });
-  const rows = await result.json<{ expires_at: string }>();
+  const rows = await result.json<{ expires_at: string | null }>();
   return rows[0]?.expires_at ?? "2299-12-31 23:59:59.999";
 }
 
@@ -553,11 +553,12 @@ export async function getSpan(
       : "resource_attributes, span_attributes, events, links, input, output";
   const result = await client.query({
     query: `SELECT project_id, trace_id, span_id, parent_span_id, trace_state, name, kind,
-                   observation_kind, status, status_message, start_time, end_time, duration_nano,
+                   observation_kind, status, status_message, start_time, end_time,
+                   toString(duration_nano) AS duration_nano,
                    service_name, scope_name, scope_version, ${payloadColumns}, trace_name, user_id,
                    session_id, tags, version, environment, release, service_version, model,
                    input_tokens, cached_input_tokens, output_tokens, total_tokens, input_cost,
-                   output_cost, total_cost, ingested_at, ingest_version
+                   output_cost, total_cost, ingested_at, toString(ingest_version) AS ingest_version
             FROM spans FINAL
             WHERE project_id = {projectId:UUID}
               AND trace_id = {traceId:String}
@@ -575,33 +576,38 @@ export async function reconcileProjectRetention(
   projectId: string,
   retentionDays: number | null,
 ): Promise<void> {
+  const days = retentionDays === null ? null : Math.max(1, Math.trunc(retentionDays));
+  if (days !== null && !Number.isSafeInteger(days)) {
+    throw new RangeError("Retention days must be a finite integer");
+  }
+  const params = days === null ? { projectId } : { projectId, days };
   const expression =
-    retentionDays === null
+    days === null
       ? "toDateTime64('2299-12-31 23:59:59.999', 3, 'UTC')"
-      : `addDays(toDateTime64(start_time, 3), ${Math.max(1, Math.trunc(retentionDays))})`;
+      : "addDays(toDateTime64(start_time, 3), {days:UInt32})";
   await client.command({
     query: `ALTER TABLE spans UPDATE expires_at = ${expression} WHERE project_id = {projectId:UUID}`,
-    query_params: { projectId },
+    query_params: params,
   });
   const summaryExpression =
-    retentionDays === null
+    days === null
       ? "toDateTime64('2299-12-31 23:59:59.999', 3, 'UTC')"
-      : `addDays(toDateTime64(started_at, 3), ${Math.max(1, Math.trunc(retentionDays))})`;
+      : "addDays(toDateTime64(started_at, 3), {days:UInt32})";
   await client.command({
     query: `ALTER TABLE trace_summaries UPDATE expires_at = ${summaryExpression} WHERE project_id = {projectId:UUID}`,
-    query_params: { projectId },
+    query_params: params,
   });
   const evaluationExpression =
-    retentionDays === null
+    days === null
       ? "toDateTime64('2299-12-31 23:59:59.999', 3, 'UTC')"
-      : `addDays(toDateTime64(timestamp, 3), ${Math.max(1, Math.trunc(retentionDays))})`;
+      : "addDays(toDateTime64(timestamp, 3), {days:UInt32})";
   await client.command({
     query: `ALTER TABLE evaluation_results UPDATE expires_at = ${evaluationExpression} WHERE project_id = {projectId:UUID}`,
-    query_params: { projectId },
+    query_params: params,
   });
   await client.command({
     query: `ALTER TABLE evaluation_runs UPDATE expires_at = ${summaryExpression} WHERE project_id = {projectId:UUID}`,
-    query_params: { projectId },
+    query_params: params,
   });
 }
 
@@ -641,8 +647,8 @@ async function readTraceSpanSummaryRows(
     spanLimit === undefined ? undefined : Math.max(1, Math.min(1_000, Math.trunc(spanLimit)));
   const result = await client.query({
     query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, status,
-                   start_time, end_time, duration_nano, service_name, model,
-                   total_tokens, total_cost
+                   start_time, end_time, toString(duration_nano) AS duration_nano,
+                   service_name, model, total_tokens, total_cost
             FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
             ORDER BY start_time ASC, span_id ASC${limit === undefined ? "" : "\n            LIMIT {spanLimit:UInt16}"}`,

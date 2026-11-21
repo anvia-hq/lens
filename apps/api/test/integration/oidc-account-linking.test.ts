@@ -129,11 +129,11 @@ async function signInThroughProvider(
   const base = config.PUBLIC_APP_URL;
 
   const startResponse = await auth.handler(
-    new Request(`${base}/api/auth/sign-in/oauth2`, {
+    new Request(`${base}/api/auth/sign-in/social`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: base },
       body: JSON.stringify({
-        providerId: config.OIDC_PROVIDER_ID,
+        provider: config.OIDC_PROVIDER_ID,
         callbackURL: `${base}/auth/sso`,
         errorCallbackURL: `${base}/auth/sso-error`,
       }),
@@ -155,7 +155,7 @@ async function signInThroughProvider(
   expect(authorizeResponse.status).toBe(302);
   const callbackUrl = authorizeResponse.headers.get("location");
   if (callbackUrl === null) throw new Error("authorize response has no location header");
-  expect(callbackUrl).toContain(`/api/auth/oauth2/callback/${config.OIDC_PROVIDER_ID}`);
+  expect(callbackUrl).toContain(`/api/auth/callback/${config.OIDC_PROVIDER_ID}`);
 
   const callbackResponse = await auth.handler(
     new Request(callbackUrl, { headers: { cookie: cookieHeader(jar) } }),

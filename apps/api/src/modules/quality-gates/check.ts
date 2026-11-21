@@ -6,6 +6,7 @@ import {
   getQualityGate,
   type LensPostgres,
 } from "@lens/db";
+import { isUuidParam } from "../../utils/http.js";
 import { evaluateQualityGate } from "./evaluate.js";
 
 type CheckError = {
@@ -43,6 +44,7 @@ export async function checkEvaluationRuns(
     return failure(400, "incompatible_runs", "Runs must use the same suite and environment");
   }
   if (gateId === undefined) return { ok: true as const, comparison: { ...comparison, gate: null } };
+  if (!isUuidParam(gateId)) return failure(404, "gate_not_found", "Quality gate not found");
 
   const gate = await getQualityGate(postgres, projectId, gateId);
   if (gate === undefined) return failure(404, "gate_not_found", "Quality gate not found");

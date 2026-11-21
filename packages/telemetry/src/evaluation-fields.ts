@@ -9,6 +9,13 @@ import type {
 } from "@lens/contracts";
 import { firstPayload, stringAttribute } from "./attributes.js";
 
+function toBoundedIso(date: Date): string | undefined {
+  if (Number.isNaN(date.getTime())) return undefined;
+  const year = date.getUTCFullYear();
+  if (year < 0 || year > 9_999) return undefined;
+  return date.toISOString();
+}
+
 export function logTimestamp(
   primary: string,
   observed: string,
@@ -17,10 +24,11 @@ export function logTimestamp(
   const raw = primary !== "0" ? primary : observed;
   if (raw === "0") return fallback.toISOString();
   try {
-    const milliseconds = Number(BigInt(raw) / 1_000_000n);
+    const nano = BigInt(raw);
+    if (nano < 0n) return undefined;
+    const milliseconds = Number(nano / 1_000_000n);
     if (!Number.isFinite(milliseconds)) return undefined;
-    const value = new Date(milliseconds);
-    return Number.isNaN(value.getTime()) ? undefined : value.toISOString();
+    return toBoundedIso(new Date(milliseconds));
   } catch {
     return undefined;
   }
@@ -32,8 +40,7 @@ export function isoAttribute(
 ): string | undefined {
   const value = stringAttribute(attributes, key);
   if (value === null) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  return toBoundedIso(new Date(value));
 }
 
 export function evaluationOutcome(value: string | null, label: string | null): EvaluationOutcome {

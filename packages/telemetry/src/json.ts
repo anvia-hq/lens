@@ -70,7 +70,13 @@ function optionalUnixNano(value: unknown, label: string): string {
   throw new TypeError(`${label} must be an unsigned integer string`);
 }
 
-function anyValue(value: unknown, label: string): JsonValue {
+const MAX_ANY_VALUE_DEPTH = 64;
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+
+function anyValue(value: unknown, label: string, depth = 0): JsonValue {
+  if (depth > MAX_ANY_VALUE_DEPTH) {
+    throw new RangeError(`${label} exceeds maximum nesting depth`);
+  }
   const source = requiredRecord(value, label);
   const presentKeys = ANY_VALUE_KEYS.filter((key) => source[key] !== undefined);
   if (presentKeys.length > 1) throw new TypeError(`${label} must contain exactly one value`);
@@ -113,24 +119,24 @@ function anyValue(value: unknown, label: string): JsonValue {
   if (key === "arrayValue") {
     const arrayValue = requiredRecord(source.arrayValue, `${label}.arrayValue`);
     return optionalArray(arrayValue.values, `${label}.arrayValue.values`).map((item, index) =>
-      anyValue(item, `${label}.arrayValue.values[${index}]`),
+      anyValue(item, `${label}.arrayValue.values[${index}]`, depth + 1),
     );
   }
 
   const list = requiredRecord(source.kvlistValue, `${label}.kvlistValue`);
   return Object.fromEntries(
     optionalArray(list.values, `${label}.kvlistValue.values`).map((item, index) => {
-      const decoded = keyValue(item, `${label}.kvlistValue.values[${index}]`);
+      const decoded = keyValue(item, `${label}.kvlistValue.values[${index}]`, depth + 1);
       return [decoded.key, decoded.value];
     }),
   );
 }
 
-function keyValue(value: unknown, label: string): OtlpKeyValue {
+function keyValue(value: unknown, label: string, depth = 0): OtlpKeyValue {
   const source = requiredRecord(value, label);
   return {
     key: optionalText(source.key, `${label}.key`),
-    value: source.value === undefined ? null : anyValue(source.value, `${label}.value`),
+    value: source.value === undefined ? null : anyValue(source.value, `${label}.value`, depth),
   };
 }
 
@@ -292,5 +298,5 @@ export function decodeJsonLogsRequest(bytes: Uint8Array): OtlpLogsExportRequest 
 }
 
 function parseJson(bytes: Uint8Array): unknown {
-  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+  return JSON.parse(UTF8_DECODER.decode(bytes)) as unknown;
 }

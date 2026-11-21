@@ -3,6 +3,22 @@ import type IORedis from "ioredis";
 const rejectedPrefix = "lens:ingest:rejected:";
 const counterTtlSeconds = 48 * 3_600;
 
+export const INGESTION_REJECTION_REASONS = [
+  "content_type",
+  "auth",
+  "rate_limit",
+  "queue_capacity",
+  "queue_unavailable",
+  "body_size",
+  "decompressed_size",
+  "gzip",
+  "content_encoding",
+  "decode",
+  "invalid_span",
+] as const;
+
+export type IngestionRejectionReason = (typeof INGESTION_REJECTION_REASONS)[number];
+
 function dayKey(now: Date, dayOffset: number): string {
   const date = new Date(now.getTime() - dayOffset * 86_400_000);
   return date.toISOString().slice(0, 10);
@@ -14,7 +30,7 @@ function key(now: Date, reason: string, dayOffset: number): string {
 
 export async function recordIngestionRejection(
   redis: IORedis,
-  reason: string,
+  reason: IngestionRejectionReason,
   count = 1,
   now = new Date(),
 ): Promise<void> {
@@ -31,18 +47,7 @@ export async function readIngestionRejections(
   redis: IORedis,
   now = new Date(),
 ): Promise<Array<{ reason: string; count: number }>> {
-  const reasons = [
-    "content_type",
-    "auth",
-    "rate_limit",
-    "queue_capacity",
-    "queue_unavailable",
-    "payload_too_large",
-    "invalid_gzip",
-    "unsupported_encoding",
-    "decode",
-    "invalid_span",
-  ];
+  const reasons = INGESTION_REJECTION_REASONS;
   const todayKeys = reasons.map((reason) => key(now, reason, 0));
   const yesterdayKeys = reasons.map((reason) => key(now, reason, 1));
   const [today, yesterday] = await Promise.all([

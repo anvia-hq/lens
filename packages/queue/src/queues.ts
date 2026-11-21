@@ -1,4 +1,4 @@
-import { type QueueJobMap, queueJobSchemas } from "@lens/contracts";
+import { ALERT_DELIVERY_BACKOFF_TYPE, type QueueJobMap, queueJobSchemas } from "@lens/contracts";
 import {
   type BulkJobOptions,
   type Job,
@@ -122,6 +122,13 @@ export function createQueues(
       },
     },
   } satisfies QueueOptions;
+  const dispatchOptions: QueueOptions = {
+    ...options,
+    defaultJobOptions: {
+      ...options.defaultJobOptions,
+      backoff: { type: ALERT_DELIVERY_BACKOFF_TYPE, delay: 1_000 },
+    },
+  };
   const queues: QueueSet = {
     ingest: createQueue("ingest", options),
     evaluations: createQueue("evaluations", options),
@@ -129,7 +136,7 @@ export function createQueues(
     maintenance: createQueue("maintenance", options),
     costs: createQueue("costs", options),
     alerts: createQueue("alerts", options),
-    dispatch: createQueue("dispatch", options),
+    dispatch: createQueue("dispatch", dispatchOptions),
   };
   let closePromise: Promise<void> | undefined;
 

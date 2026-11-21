@@ -3,6 +3,21 @@ import type { Context, MiddlewareHandler, Next } from "hono";
 import type { z } from "zod";
 import type { AppEnv, SessionValue } from "./types.js";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuidParam(value: string | undefined): value is string {
+  return value !== undefined && UUID_PATTERN.test(value);
+}
+
+export function isPgUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
 export async function safeJson(c: Context): Promise<Record<string, unknown> | undefined> {
   try {
     const value: unknown = await c.req.json();

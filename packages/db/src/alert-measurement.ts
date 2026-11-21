@@ -63,18 +63,34 @@ export async function queryAlertMeasurement(
     };
   }
   filters.push("started_at >= {from:DateTime64(3)}", "started_at <= {to:DateTime64(3)}");
-  const row = await measurementRow(
-    client,
-    `SELECT count() AS samples, countIf(status = 'error') AS errors,
-            quantileExact(0.95)(duration_ms) AS p95,
-            ${
-              rule.kind === "trace_error_rate"
-                ? "groupUniqArrayIf(5)(trace_id, status = 'error')"
-                : "arrayMap(item -> item.2, arraySlice(arrayReverseSort(groupArray((duration_ms, trace_id))), 1, 5))"
-            } AS trace_ids
-     FROM trace_summaries FINAL WHERE ${filters.join(" AND ")}`,
-    params,
-  );
+  const where = filters.join(" AND ");
+  const [row, slowTraceIds] = await Promise.all([
+    measurementRow(
+      client,
+      `SELECT count() AS samples, countIf(status = 'error') AS errors,
+              quantileTDigest(0.95)(duration_ms) AS p95${
+                rule.kind === "trace_error_rate"
+                  ? ", groupUniqArrayIf(5)(trace_id, status = 'error') AS trace_ids"
+                  : ""
+              }
+       FROM trace_summaries FINAL WHERE ${where}`,
+      params,
+    ),
+    rule.kind === "trace_p95_latency_ms"
+      ? client
+          .query({
+            query: `SELECT toString(trace_id) AS trace_id
+                    FROM trace_summaries FINAL
+                    WHERE ${where}
+                    ORDER BY duration_ms DESC
+                    LIMIT 5`,
+            query_params: params,
+            format: "JSONEachRow",
+          })
+          .then((result) => result.json<{ trace_id: string }>())
+          .then((rows) => rows.map((entry) => entry.trace_id))
+      : Promise.resolve<string[] | undefined>(undefined),
+  ]);
   const samples = numericValue(row.samples);
   return {
     value:
@@ -84,7 +100,7 @@ export async function queryAlertMeasurement(
           : numericValue(row.errors) / samples
         : numericValue(row.p95),
     sampleCount: samples,
-    evidence: { traceIds: stringArray(row.trace_ids) },
+    evidence: { traceIds: slowTraceIds ?? stringArray(row.trace_ids) },
   };
 }
 
@@ -115,7 +131,7 @@ export async function queryAlertSignalSeries(
   let timestampColumn = "started_at";
   const valueSql =
     rule.kind === "trace_p95_latency_ms"
-      ? "quantileExact(0.95)(duration_ms)"
+      ? "quantileTDigest(0.95)(duration_ms)"
       : "countIf(status = 'error') / count()";
   if (rule.kind === "tool_error_rate") {
     timestampColumn = "start_time";
@@ -273,7 +289,7 @@ function traceContributorSql(filters: string[], kind: AlertRuleInput["kind"]) {
       ? "argMax(toString(trace_id), duration_ms)"
       : "if(countIf(status = 'error') > 0, argMaxIf(toString(trace_id), started_at, status = 'error'), argMax(toString(trace_id), started_at))";
   const aggregate = `count() AS samples, countIf(status = 'error') AS errors,
-    quantileExact(0.95)(duration_ms) AS p95, ${representative} AS trace_id`;
+    quantileTDigest(0.95)(duration_ms) AS p95, ${representative} AS trace_id`;
   const where = `${filters.join(" AND ")} AND started_at >= {baselineFrom:DateTime64(3)} AND started_at <= {breachTo:DateTime64(3)}`;
   return `SELECT period, tupleElement(dimension_tuple, 1) AS dimension,
       tupleElement(dimension_tuple, 2) AS value, ${aggregate}
@@ -311,7 +327,7 @@ function toolContributorSql(filters: string[], kind: AlertRuleInput["kind"], sco
       ? "argMax(toString(trace_id), duration_nano)"
       : "if(countIf(status = 'error') > 0, argMaxIf(toString(trace_id), start_time, status = 'error'), argMax(toString(trace_id), start_time))";
   const aggregate = `count() AS samples, countIf(status = 'error') AS errors,
-    quantileExact(0.95)(duration_nano / 1000000) AS p95, ${representative} AS trace_id`;
+    quantileTDigest(0.95)(duration_nano / 1000000) AS p95, ${representative} AS trace_id`;
   const toolFilter = scopedTool ? " AND name = {toolName:String}" : "";
   const where = `${filters.join(" AND ")} AND observation_kind = 'tool'${toolFilter} AND start_time >= {baselineFrom:DateTime64(3)} AND start_time <= {breachTo:DateTime64(3)}`;
   return `SELECT period, tupleElement(dimension_tuple, 1) AS dimension,

@@ -30,11 +30,15 @@ describe("ingestion rejection counters", () => {
       "lens:ingest:rejected:2026-08-17:auth": "2",
       "lens:ingest:rejected:2026-08-16:auth": "1",
       "lens:ingest:rejected:2026-08-16:decode": "5",
+      "lens:ingest:rejected:2026-08-17:body_size": "4",
+      "lens:ingest:rejected:2026-08-17:gzip": "2",
     });
     const counters = await readIngestionRejections(client as unknown as IORedis, now);
     expect(counters).toEqual([
       { reason: "decode", count: 5 },
+      { reason: "body_size", count: 4 },
       { reason: "auth", count: 3 },
+      { reason: "gzip", count: 2 },
     ]);
   });
 

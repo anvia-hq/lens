@@ -140,6 +140,49 @@ describe("alert signal history", () => {
       }),
     );
   });
+
+  it("queries top 5 slow traces with ORDER BY LIMIT instead of unbounded groupArray", async () => {
+    const query = vi.fn(async ({ query: sql }: { query: string }) => ({
+      json: async () =>
+        sql.includes("ORDER BY duration_ms DESC")
+          ? [{ trace_id: "slow-1" }, { trace_id: "slow-2" }]
+          : [{ samples: 40, errors: 0, p95: 2_100 }],
+    }));
+
+    const measurement = await queryAlertMeasurement(
+      clickHouseClient({ query }),
+      {
+        id: "30000000-0000-4000-8000-000000000002",
+        projectId,
+        name: "Slow traces",
+        enabled: true,
+        channelIds: [],
+        kind: "trace_p95_latency_ms",
+        threshold: 1_500,
+        windowMinutes: 15,
+        minimumSamples: 5,
+        environment: undefined,
+        serviceName: undefined,
+        lastEvaluatedAt: null,
+        createdAt: incident.firstTriggeredAt,
+        updatedAt: incident.firstTriggeredAt,
+        consecutiveBreaches: 0,
+        cooldownUntil: null,
+      },
+      new Date(incident.firstTriggeredAt),
+    );
+
+    expect(measurement).toEqual({
+      value: 2_100,
+      sampleCount: 40,
+      evidence: { traceIds: ["slow-1", "slow-2"] },
+    });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[0]?.[0].query).not.toContain("groupArray");
+    expect(query.mock.calls[0]?.[0].query).toContain("quantileTDigest(0.95)");
+    expect(query.mock.calls[1]?.[0].query).toContain("ORDER BY duration_ms DESC");
+    expect(query.mock.calls[1]?.[0].query).toContain("LIMIT 5");
+  });
 });
 
 describe("alert contributor analysis", () => {

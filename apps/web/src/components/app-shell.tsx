@@ -1,6 +1,7 @@
 import { SidebarInset, SidebarProvider } from "@lens/ui/components/sidebar";
 import { Activity, Danger as AlertCircle } from "@mynaui/icons-react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { ProjectSetup } from "../modules/projects/components/project-setup";
 import { ProjectContext } from "../modules/projects/hooks/use-project";
 import { useProjects } from "../modules/projects/hooks/use-projects";
@@ -21,13 +22,18 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
     pathname === "/mcp";
   const { project, projects, projectsQuery } = useProjects();
 
+  const contextValue = useMemo(
+    () => (project === undefined ? undefined : { project, projects }),
+    [project, projects],
+  );
+
   if (projectsQuery.isLoading)
     return <FullPageMessage icon={<Activity />} text="Loading projects" />;
   if (projectsQuery.isError)
     return (
       <FullPageMessage icon={<AlertCircle />} text="Could not load your Anvia Lens projects" />
     );
-  if (project === undefined) {
+  if (contextValue === undefined) {
     return projects.length === 0 ? (
       <ProjectSetup />
     ) : (
@@ -36,7 +42,7 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
   }
 
   return (
-    <ProjectContext.Provider value={{ project, projects }}>
+    <ProjectContext.Provider value={contextValue}>
       {isWorkspaceRoute ? (
         <ProjectSelectorShell user={user} />
       ) : (

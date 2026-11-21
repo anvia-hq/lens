@@ -29,6 +29,7 @@ import {
   createMaintenanceProcessor,
   createMaterializeTraceProcessor,
   type ProcessorDependencies,
+  reconcileTerminalJobFailure,
 } from "../src/processors.js";
 
 import { evaluationResult, normalizedSpan } from "./helpers/telemetry.js";
@@ -435,6 +436,95 @@ describe("worker processors", () => {
 
     expect(updates.at(-1)).toMatchObject({ status, error: "clickhouse unavailable" });
     expect(updates.at(-1)?.completedAt === null).toBe(status === "queued");
+  });
+
+  it("reconciles stalled or terminally failed Postgres state-machine jobs", async () => {
+    const { deps, updates, update, logger } = dependencies();
+
+    await reconcileTerminalJobFailure(
+      deps,
+      undefined,
+      new Error("job stalled more than allowable"),
+    );
+    expect(updates).toHaveLength(0);
+
+    await reconcileTerminalJobFailure(
+      deps,
+      job(
+        { recalculationId },
+        { name: "recalculate-model-costs", attemptsMade: 1, opts: { attempts: 5 } },
+      ),
+      new Error("transient error"),
+    );
+    expect(updates).toHaveLength(0);
+
+    await reconcileTerminalJobFailure(
+      deps,
+      job(
+        { recalculationId },
+        { name: "recalculate-model-costs", attemptsMade: 1, opts: { attempts: 5 } },
+      ),
+      new Error("job stalled more than allowable limit"),
+    );
+    await reconcileTerminalJobFailure(
+      deps,
+      job(
+        { requestId: deletionRequestId },
+        { name: "delete-data", attemptsMade: 5, opts: { attempts: 5 } },
+      ),
+      new Error("worker OOM"),
+    );
+    await reconcileTerminalJobFailure(
+      deps,
+      job(
+        { deliveryId: "50000000-0000-4000-8000-000000000001" },
+        { name: "dispatch-alert", attemptsMade: 5, opts: { attempts: 5 } },
+      ),
+      new Error("stalled"),
+    );
+    expect(updates).toEqual([
+      expect.objectContaining({ status: "failed", error: "job stalled more than allowable limit" }),
+      expect.objectContaining({ status: "failed", error: "worker OOM" }),
+      expect.objectContaining({ status: "failed", attempts: 5, error: "stalled" }),
+    ]);
+
+    await reconcileTerminalJobFailure(
+      deps,
+      job({ recalculationId: "not-a-uuid" }, { name: "recalculate-model-costs", attemptsMade: 5 }),
+      new Error("fatal"),
+    );
+    await reconcileTerminalJobFailure(
+      deps,
+      job({ requestId: "not-a-uuid" }, { name: "delete-data", attemptsMade: 5 }),
+      new Error("fatal"),
+    );
+    await reconcileTerminalJobFailure(
+      deps,
+      job({ deliveryId: "not-a-uuid" }, { name: "dispatch-alert", attemptsMade: 5 }),
+      new Error("fatal"),
+    );
+    await reconcileTerminalJobFailure(
+      deps,
+      job({}, { name: "other-job", attemptsMade: 5 }),
+      new Error(""),
+    );
+    expect(updates).toHaveLength(3);
+
+    update.mockImplementationOnce(() => {
+      throw new Error("pg unavailable");
+    });
+    await reconcileTerminalJobFailure(
+      deps,
+      job(
+        { recalculationId },
+        { name: "recalculate-model-costs", attemptsMade: 5, opts: { attempts: 5 } },
+      ),
+      new Error("fatal"),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ jobName: "recalculate-model-costs" }),
+      "failed to reconcile terminal job status",
+    );
   });
 });
 

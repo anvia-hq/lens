@@ -34,9 +34,16 @@ describe("quality gate query path", () => {
   });
 
   it("uses aggregate-only reads for gate checks and passes them to the evaluator", async () => {
-    const checked = await checkEvaluationRuns(clickhouse, postgres, "project", input, "gate", {
-      includeCases: false,
-    });
+    const checked = await checkEvaluationRuns(
+      clickhouse,
+      postgres,
+      "project",
+      input,
+      "30000000-0000-4000-8000-000000000001",
+      {
+        includeCases: false,
+      },
+    );
     expect(checked.ok).toBe(true);
     expect(mocks.aggregate).toHaveBeenCalledOnce();
     expect(mocks.full).not.toHaveBeenCalled();

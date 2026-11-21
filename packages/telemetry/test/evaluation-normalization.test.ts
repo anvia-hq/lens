@@ -210,4 +210,43 @@ describe("evaluation normalization", () => {
     expect(result.rejectedLogRecords).toBe(0);
     expect(result.runs[0]?.stateVersion).toBe(expected);
   });
+
+  it("rejects oversized evaluation identifiers and out-of-range timestamps per record", () => {
+    const tooLong = "x".repeat(129);
+    const request = decodeRecords([
+      {
+        eventName: "gen_ai.evaluation.result",
+        attributes: [attribute("gen_ai.evaluation.name", { stringValue: tooLong })],
+      },
+      {
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "metric" }),
+          attribute("anvia.eval.run.id", { stringValue: tooLong }),
+        ],
+      },
+      {
+        eventName: "anvia.eval.run.started",
+        attributes: [
+          attribute("anvia.eval.run.id", { stringValue: "run-long-suite" }),
+          attribute("anvia.eval.suite.name", { stringValue: tooLong }),
+        ],
+      },
+      {
+        // Year > 9999 would produce "+010000-..." which fails ISO datetime validation.
+        timeUnixNano: "315569520000000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [attribute("gen_ai.evaluation.name", { stringValue: "metric" })],
+      },
+      {
+        eventName: "gen_ai.evaluation.result",
+        attributes: [attribute("gen_ai.evaluation.name", { stringValue: "ok" })],
+      },
+    ]);
+
+    const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
+    expect(result.rejectedLogRecords).toBe(4);
+    expect(result.evaluations).toHaveLength(1);
+    expect(result.evaluations[0]?.metricName).toBe("ok");
+  });
 });

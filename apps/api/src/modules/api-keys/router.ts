@@ -2,7 +2,7 @@ import { projectApiKey } from "@lens/db";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
+import { apiError, isUuidParam, jsonInput, requiredSession } from "../../utils/http.js";
 import { createIngestionCredentials } from "../../utils/security.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { createApiKeySchema } from "./schema.js";
@@ -68,14 +68,11 @@ export const createApiKeysRouter = (deps: ApiDependencies) =>
       if (!canManage(access.role)) {
         return apiError(c, 403, "forbidden", "Admin access is required");
       }
+      const keyId = c.req.param("keyId");
+      if (!isUuidParam(keyId)) return apiError(c, 404, "not_found", "Ingestion key not found");
       await deps.postgres.db
         .update(projectApiKey)
         .set({ revokedAt: new Date() })
-        .where(
-          and(
-            eq(projectApiKey.id, c.req.param("keyId")),
-            eq(projectApiKey.projectId, access.project.id),
-          ),
-        );
+        .where(and(eq(projectApiKey.id, keyId), eq(projectApiKey.projectId, access.project.id)));
       return c.body(null, 204);
     });

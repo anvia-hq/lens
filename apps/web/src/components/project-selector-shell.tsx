@@ -1,4 +1,4 @@
-import { SidebarInset, SidebarProvider } from "@lens/ui/components/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@lens/ui/components/sidebar";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import type { AuthenticatedUser } from "../types";
 import { ModeToggle } from "./mode-toggle";
@@ -23,7 +23,10 @@ export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
       <WorkspaceSidebar user={user} />
       <SidebarInset className="h-svh min-h-0 overflow-y-auto">
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
-          <span className="font-medium">{title}</span>
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden" />
+            <span className="font-medium">{title}</span>
+          </div>
           <ModeToggle standalone />
         </header>
         <Outlet />

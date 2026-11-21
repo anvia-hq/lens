@@ -214,7 +214,12 @@ export async function getSession(
         );
   const rowsByTrace = new Map<string, SessionConversationRow[]>();
   for (const row of conversationRows) {
-    rowsByTrace.set(row.trace_id, [...(rowsByTrace.get(row.trace_id) ?? []), row]);
+    let list = rowsByTrace.get(row.trace_id);
+    if (list === undefined) {
+      list = [];
+      rowsByTrace.set(row.trace_id, list);
+    }
+    list.push(row);
   }
   const lastTrace = traces.at(-1);
   return {

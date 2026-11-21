@@ -36,12 +36,18 @@ export function createJobOutboxDispatcher(deps: DispatcherDependencies) {
 
   return {
     start() {
+      if (timer !== undefined) return;
+      stopped = false;
       trigger();
       timer = setInterval(trigger, pollMs);
+      timer.unref();
     },
     async close() {
       stopped = true;
-      if (timer !== undefined) clearInterval(timer);
+      if (timer !== undefined) {
+        clearInterval(timer);
+        timer = undefined;
+      }
       await inFlight;
     },
   };
@@ -62,7 +68,14 @@ export async function dispatchJobOutboxBatch(
       );
     } catch (error) {
       const delayMs = retryDelayMs(row.attempts);
-      await retryJobOutbox(deps.postgres.db, row.id, error, delayMs, now);
+      try {
+        await retryJobOutbox(deps.postgres.db, row.id, error, delayMs, now);
+      } catch (retryError) {
+        deps.logger.error(
+          { err: retryError, eventId: row.id, queue: row.queue, name: row.name },
+          "failed to defer job outbox event",
+        );
+      }
       deps.logger.warn(
         {
           err: error,
@@ -90,13 +103,23 @@ async function publishJobOutbox(queues: LensQueues, row: JobOutboxRow): Promise<
     payload: row.payload,
   });
   const options = { jobId: `outbox-${row.id}` };
-  if (event.name === "reconcile-retention") {
-    await queues.maintenance.add(event.name, event.payload, options);
-    return;
+  switch (event.name) {
+    case "reconcile-retention":
+      await queues.maintenance.add(event.name, event.payload, options);
+      return;
+    case "delete-project":
+      await queues.maintenance.add(event.name, event.payload, options);
+      return;
+    case "delete-data":
+      await queues.maintenance.add(event.name, event.payload, options);
+      return;
+    case "recalculate-model-costs":
+      await queues.costs.add(event.name, event.payload, options);
+      return;
+    case "dispatch-alert":
+      await queues.dispatch.add(event.name, event.payload, {
+        jobId: `alert-delivery-${event.payload.deliveryId}`,
+      });
+      return;
   }
-  if (event.name === "delete-project" || event.name === "delete-data") {
-    await queues.maintenance.add(event.name, event.payload, options);
-    return;
-  }
-  await queues.costs.add(event.name, event.payload, options);
 }

@@ -24,6 +24,7 @@ const thresholdKinds: AlertRuleKind[] = [
   "trace_p95_latency_ms",
   "tool_error_rate",
 ];
+const minEvaluationIntervalMs = 45_000;
 
 export function createAlertProcessor(deps: ProcessorDependencies) {
   return async (job: Job<EvaluateAlertsJob>) => {
@@ -32,63 +33,77 @@ export function createAlertProcessor(deps: ProcessorDependencies) {
     const rules = (await listEnabledAlertRules(deps.postgres.db, data.projectId)).filter((rule) =>
       thresholdKinds.includes(rule.kind),
     );
-    // ponytail: one global scan is enough for self-hosted scale; shard by project if this nears 60s.
+    // One global scan is enough for self-hosted scale; shard by project if this nears 60s.
     for (const rule of rules) {
       if (!("minimumSamples" in rule)) continue;
-      const measurement = await queryAlertMeasurement(deps.clickhouse, rule, now);
-      if (measurement === undefined || measurement.sampleCount < rule.minimumSamples) {
-        await updateAlertRuleState(deps.postgres.db, rule.id, {
-          consecutiveBreaches: 0,
-          lastEvaluatedAt: now,
-        });
-        continue;
-      }
-      if (measurement.value < rule.threshold) {
-        const resolved = await autoResolveAlertIncident(
-          deps.postgres.db,
-          rule.id,
-          "threshold",
-          "healthy",
-          now,
-        );
-        await updateAlertRuleState(deps.postgres.db, rule.id, {
-          consecutiveBreaches: 0,
-          lastEvaluatedAt: now,
-          ...(resolved ? { cooldownUntil: new Date(now.getTime() + 30 * 60_000) } : {}),
-        });
-        continue;
-      }
-      const consecutiveBreaches = rule.consecutiveBreaches + 1;
-      await updateAlertRuleState(deps.postgres.db, rule.id, {
-        consecutiveBreaches,
-        lastEvaluatedAt: now,
-      });
       if (
-        consecutiveBreaches >= 2 &&
-        (rule.cooldownUntil === null || Date.parse(rule.cooldownUntil) <= now.getTime())
+        rule.lastEvaluatedAt !== null &&
+        rule.lastEvaluatedAt !== undefined &&
+        now.getTime() - Date.parse(rule.lastEvaluatedAt) < minEvaluationIntervalMs
       ) {
-        const opened = await openAlertIncident(
-          deps.postgres.db,
-          rule,
-          {
-            subjectKey: "threshold",
-            summary: alertSummary(rule.kind, measurement.value, rule.threshold),
-            observedValue: measurement.value,
-            sampleCount: measurement.sampleCount,
-            evidence: measurement.evidence,
-          },
-          now,
-        );
-        if (opened.created && opened.incidentId) {
-          await scheduleDispatch(
-            deps.postgres.db,
-            deps.queues,
-            deps.logger,
-            rule.projectId,
-            opened.incidentId,
-            rule.channelIds,
-          );
+        continue;
+      }
+      try {
+        const measurement = await queryAlertMeasurement(deps.clickhouse, rule, now);
+        if (measurement === undefined || measurement.sampleCount < rule.minimumSamples) {
+          await updateAlertRuleState(deps.postgres.db, rule.id, {
+            consecutiveBreaches: 0,
+            lastEvaluatedAt: now,
+          });
+          continue;
         }
+        if (measurement.value < rule.threshold) {
+          const resolved = await autoResolveAlertIncident(
+            deps.postgres.db,
+            rule.id,
+            "threshold",
+            "healthy",
+            now,
+          );
+          await updateAlertRuleState(deps.postgres.db, rule.id, {
+            consecutiveBreaches: 0,
+            lastEvaluatedAt: now,
+            ...(resolved ? { cooldownUntil: new Date(now.getTime() + 30 * 60_000) } : {}),
+          });
+          continue;
+        }
+        const consecutiveBreaches = rule.consecutiveBreaches + 1;
+        await updateAlertRuleState(deps.postgres.db, rule.id, {
+          consecutiveBreaches,
+          lastEvaluatedAt: now,
+        });
+        if (
+          consecutiveBreaches >= 2 &&
+          (rule.cooldownUntil === null || Date.parse(rule.cooldownUntil) <= now.getTime())
+        ) {
+          const opened = await openAlertIncident(
+            deps.postgres.db,
+            rule,
+            {
+              subjectKey: "threshold",
+              summary: alertSummary(rule.kind, measurement.value, rule.threshold),
+              observedValue: measurement.value,
+              sampleCount: measurement.sampleCount,
+              evidence: measurement.evidence,
+            },
+            now,
+          );
+          if (opened.created && opened.incidentId) {
+            await scheduleDispatch(
+              deps.postgres.db,
+              deps.queues,
+              deps.logger,
+              rule.projectId,
+              opened.incidentId,
+              rule.channelIds,
+            );
+          }
+        }
+      } catch (error) {
+        deps.logger.error(
+          { err: error, ruleId: rule.id, projectId: rule.projectId },
+          "failed to evaluate alert rule",
+        );
       }
     }
   };

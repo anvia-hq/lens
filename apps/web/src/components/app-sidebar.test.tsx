@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { SidebarProvider } from "@lens/ui/components/sidebar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +17,10 @@ vi.mock("@tanstack/react-router", () => ({
     select({ location: { pathname: "/project-alpha/prompts" } }),
 }));
 
-vi.mock("../lib/auth", () => ({ authClient: { signOut: vi.fn() } }));
+vi.mock("../lib/auth", () => ({
+  authClient: { signOut: vi.fn() },
+  signOutAndClearCache: vi.fn(),
+}));
 vi.mock("../modules/observability/hooks/use-alerts", () => ({
   useActiveAlertCount: () => ({ data: { count: 0 } }),
 }));
@@ -29,9 +33,11 @@ afterEach(cleanup);
 describe("AppSidebar prompt management navigation", () => {
   it("places prompts in its own section outside evaluations", () => {
     render(
-      <SidebarProvider>
-        <AppSidebar user={{ name: "Ada", email: "ada@example.com" }} />
-      </SidebarProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <SidebarProvider>
+          <AppSidebar user={{ name: "Ada", email: "ada@example.com" }} />
+        </SidebarProvider>
+      </QueryClientProvider>,
     );
 
     const promptGroup = screen

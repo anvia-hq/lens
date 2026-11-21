@@ -1,4 +1,4 @@
-import type { NormalizedSpan } from "@lens/contracts";
+import { ALERT_DELIVERY_BACKOFF_TYPE, type NormalizedSpan } from "@lens/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createQueues,
@@ -74,7 +74,10 @@ describe("queue integration", () => {
       expect(job.data).toMatchObject({ schemaVersion: 1 });
       expect(job.opts).toMatchObject({
         attempts: 5,
-        backoff: { type: "exponential", delay: 1_000 },
+        backoff: {
+          type: job.queueName === queueNames.dispatch ? ALERT_DELIVERY_BACKOFF_TYPE : "exponential",
+          delay: 1_000,
+        },
         removeOnComplete: { age: 3_600, count: 10_000 },
         removeOnFail: { age: 604_800, count: 10_000 },
       });

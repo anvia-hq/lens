@@ -101,9 +101,14 @@ function normalizeLogRecord(context: RecordContext): NormalizedRecord {
     : { kind: "evaluation", value: normalized };
 }
 
+const MAX_IDENTIFIER_LENGTH = 128;
+
 function normalizeEvaluationResult(context: RecordContext): EvaluationResult | string {
   const metricName = stringAttribute(context.attributes, "gen_ai.evaluation.name");
   if (metricName === null) return "Evaluation log is missing gen_ai.evaluation.name";
+  if (metricName.length > MAX_IDENTIFIER_LENGTH) {
+    return "Evaluation gen_ai.evaluation.name exceeds maximum length";
+  }
 
   const timestamp = logTimestamp(
     context.record.timeUnixNano,
@@ -124,7 +129,21 @@ function normalizeEvaluationResult(context: RecordContext): EvaluationResult | s
     "gen_ai.evaluation.score.value",
   ]);
   const suiteName = stringAttribute(context.attributes, "anvia.eval.suite.name") ?? "unspecified";
+  if (suiteName.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation ${metricName} has an invalid anvia.eval.suite.name`;
+  }
   const caseId = stringAttribute(context.attributes, "anvia.eval.case.id");
+  if (caseId !== null && caseId.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation ${metricName} has an invalid anvia.eval.case.id`;
+  }
+  const runId = stringAttribute(context.attributes, "anvia.eval.run.id");
+  if (runId !== null && runId.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation ${metricName} has an invalid anvia.eval.run.id`;
+  }
+  const responseId = stringAttribute(context.attributes, "gen_ai.response.id");
+  if (responseId !== null && responseId.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation ${metricName} has an invalid gen_ai.response.id`;
+  }
   const id =
     stringAttribute(context.attributes, "anvia.eval.id") ??
     evaluationHash(
@@ -136,15 +155,18 @@ function normalizeEvaluationResult(context: RecordContext): EvaluationResult | s
       caseId,
       metricName,
     );
+  if (id.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation ${metricName} has an invalid anvia.eval.id`;
+  }
 
   return {
     projectId: context.options.projectId,
     id,
-    runId: stringAttribute(context.attributes, "anvia.eval.run.id"),
+    runId,
     timestamp,
     traceId,
     observationId,
-    responseId: stringAttribute(context.attributes, "gen_ai.response.id"),
+    responseId,
     suiteName,
     caseId,
     metricName,
@@ -177,7 +199,9 @@ function normalizeEvaluationRun(context: RecordContext): EvaluationRun | string 
     return "Evaluation run is missing a valid anvia.eval.run.id";
   }
   const suiteName = stringAttribute(context.attributes, "anvia.eval.suite.name");
-  if (suiteName === null) return `Evaluation run ${id} is missing anvia.eval.suite.name`;
+  if (suiteName === null || suiteName.length > MAX_IDENTIFIER_LENGTH) {
+    return `Evaluation run ${id} is missing a valid anvia.eval.suite.name`;
+  }
 
   const logTime = logTimestamp(
     context.record.timeUnixNano,

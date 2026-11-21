@@ -17,7 +17,15 @@ import {
 } from "./alert-secrets.js";
 import { incidentFromRow } from "./alert-store.js";
 import type { LensPostgres } from "./index.js";
-import { alertChannel, alertDelivery, alertIncident, alertRule, project } from "./schema.js";
+import { jobOutboxValues } from "./job-outbox-store.js";
+import {
+  alertChannel,
+  alertDelivery,
+  alertIncident,
+  alertRule,
+  jobOutbox,
+  project,
+} from "./schema.js";
 
 export type StoredAlertChannel = Omit<AlertChannel, "type"> & AlertDeliveryTarget;
 
@@ -213,19 +221,21 @@ export async function deleteAlertChannel(
   projectId: string,
   channelId: string,
 ): Promise<boolean> {
-  const rows = await db
-    .delete(alertChannel)
-    .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
-    .returning({ id: alertChannel.id });
-  if (rows.length === 0) return false;
-  // Detach from rules so stored rules never reference a dead channel id.
-  await db
-    .update(alertRule)
-    .set({ channelIds: sql`array_remove(${alertRule.channelIds}, ${channelId})` })
-    .where(
-      and(eq(alertRule.projectId, projectId), sql`${channelId} = any(${alertRule.channelIds})`),
-    );
-  return true;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(alertChannel)
+      .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
+      .returning({ id: alertChannel.id });
+    if (rows.length === 0) return false;
+    // Detach from rules so stored rules never reference a dead channel id.
+    await tx
+      .update(alertRule)
+      .set({ channelIds: sql`array_remove(${alertRule.channelIds}, ${channelId})` })
+      .where(
+        and(eq(alertRule.projectId, projectId), sql`${channelId} = any(${alertRule.channelIds})`),
+      );
+    return true;
+  });
 }
 
 export async function listAlertChannelsByIds(
@@ -249,18 +259,32 @@ export async function createPendingDeliveries(
   channels: StoredAlertChannel[],
 ): Promise<AlertDelivery[]> {
   if (channels.length === 0) return [];
-  const rows = await db
-    .insert(alertDelivery)
-    .values(
-      channels.map((channel) => ({
-        projectId,
-        incidentId,
-        channelId: channel.id,
-        channelName: channel.name, // snapshot: survives channel rename/deletion
-        channelType: channel.type,
-      })),
-    )
-    .returning();
+  const rows = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(alertDelivery)
+      .values(
+        channels.map((channel) => ({
+          projectId,
+          incidentId,
+          channelId: channel.id,
+          channelName: channel.name, // snapshot: survives channel rename/deletion
+          channelType: channel.type,
+        })),
+      )
+      .returning();
+    if (inserted.length > 0) {
+      await tx.insert(jobOutbox).values(
+        inserted.map((row) =>
+          jobOutboxValues({
+            queue: "dispatch",
+            name: "dispatch-alert",
+            payload: { deliveryId: row.id },
+          }),
+        ),
+      );
+    }
+    return inserted;
+  });
   const byChannel = new Map(rows.map((row) => [row.channelId, row]));
   return channels.flatMap((channel) => {
     const row = byChannel.get(channel.id);

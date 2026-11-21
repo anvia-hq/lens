@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
+import { secureHeaders } from "hono/secure-headers";
 import { createAlertsRouter } from "./modules/alerts/router.js";
 import { createApiKeysRouter } from "./modules/api-keys/router.js";
 import { createAuthRouter, createSetupRouter } from "./modules/auth/router.js";
@@ -38,8 +39,13 @@ export type { ApiDependencies } from "./utils/types.js";
 
 export function createApp(deps: ApiDependencies) {
   const metrics = createApiMetrics();
+  const allowedOrigins = new Set([
+    new URL(deps.config.WEB_ORIGIN).origin,
+    new URL(deps.config.PUBLIC_APP_URL).origin,
+  ]);
   const app = new Hono<AppEnv>()
     .use("*", requestId())
+    .use("*", secureHeaders())
     .use("*", async (c, next) => {
       const startedAt = performance.now();
       await next();
@@ -82,6 +88,15 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/public/prompts", createPublicPromptsRouter(deps))
     .route("/api/public/quality-gates", createPublicQualityGatesRouter(deps))
     .route("/api/mcp", createMcpRouter(deps, metrics))
+    .use("/api/v1/*", async (c, next) => {
+      if (c.req.method !== "GET" && c.req.method !== "HEAD" && c.req.method !== "OPTIONS") {
+        const origin = c.req.header("origin");
+        if (origin !== undefined && !allowedOrigins.has(origin)) {
+          return apiError(c, 403, "forbidden_origin", "Origin is not allowed");
+        }
+      }
+      await next();
+    })
     .use("/api/v1/*", createSessionMiddleware(deps))
     .route("/api/v1/system", createSystemHealthRouter(deps))
     .route("/api/v1/members", createMembersRouter(deps))

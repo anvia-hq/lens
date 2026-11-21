@@ -25,7 +25,11 @@ describe("database connections", () => {
   it("applies configured PostgreSQL pool capacity", () => {
     createPostgres(loadConfig({ POSTGRES_MAX_CONNECTIONS: "4" }));
 
-    expect(mocks.postgres).toHaveBeenCalledWith(expect.any(String), { max: 4 });
+    expect(mocks.postgres).toHaveBeenCalledWith(expect.any(String), {
+      max: 4,
+      connect_timeout: 10,
+      idle_timeout: 30,
+    });
   });
 
   it("only applies enabled ClickHouse resource limits", () => {

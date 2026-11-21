@@ -41,7 +41,7 @@ import { Textarea } from "@lens/ui/components/textarea";
 import { Activity, ArrowLeft, Bell, Check, Database } from "@mynaui/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
@@ -694,17 +694,19 @@ function PromoteEvidenceDialog(props: {
   });
   const details = useQuery({
     queryKey: ["incident-promotion-traces", props.projectId, props.traceIds],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       Promise.all(
         props.traceIds.map(async (traceId) => {
           try {
             const detail = await api<TraceDetail>(
               `/api/v1/projects/${props.projectId}/traces/${traceId}`,
+              { signal },
             );
             const root = buildSpanForest(detail.spans)[0]?.span;
             const span = root
               ? await api<SpanDetail>(
                   `/api/v1/projects/${props.projectId}/traces/${traceId}/spans/${root.spanId}`,
+                  { signal },
                 )
               : null;
             return { traceId, span };
@@ -720,10 +722,17 @@ function PromoteEvidenceDialog(props: {
     () => datasets.data?.items.filter((item) => item.draft) ?? [],
     [datasets.data],
   );
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (!props.open) return;
+    if (!props.open) {
+      initializedRef.current = false;
+      return;
+    }
     setDatasetId((current) => current || datasetDrafts[0]?.id || "");
-    if (!details.data) return;
+  }, [datasetDrafts, props.open]);
+  useEffect(() => {
+    if (!props.open || initializedRef.current || !details.data) return;
+    initializedRef.current = true;
     const next = details.data.flatMap(({ traceId, span }) => {
       if (!span || span.input === null) return [];
       return [
@@ -741,7 +750,7 @@ function PromoteEvidenceDialog(props: {
       current && next.some((item) => item.traceId === current) ? current : (next[0]?.traceId ?? ""),
     );
     setError(undefined);
-  }, [datasetDrafts, details.data, props.open]);
+  }, [details.data, props.open]);
   const selectedDataset = datasetDrafts.find((item) => item.id === datasetId);
   const active = drafts.find((item) => item.traceId === activeTraceId);
   const promote = useMutation({

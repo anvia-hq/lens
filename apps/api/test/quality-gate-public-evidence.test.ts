@@ -45,8 +45,9 @@ const run = { status: "completed", suiteName: "suite", environment: "test", eval
 
 describe("public quality gate evidence", () => {
   it("returns insufficient_data for the 1-pass/99-invalid fixture through the real evaluator", async () => {
+    const gateId = "30000000-0000-4000-8000-000000000001";
     mocks.gate.mockResolvedValue({
-      id: "gate",
+      id: gateId,
       suiteName: "suite",
       environment: "test",
       minimumCaseCount: 100,
@@ -65,7 +66,7 @@ describe("public quality gate evidence", () => {
       config: { INGESTION_KEY_PEPPER: "test-pepper" },
     } as unknown as ApiDependencies;
     const app = createPublicQualityGatesRouter(deps);
-    const response = await app.request("/gate/evaluate", {
+    const response = await app.request(`/${gateId}/evaluate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

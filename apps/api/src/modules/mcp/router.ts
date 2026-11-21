@@ -30,14 +30,29 @@ export function createMcpRouter(deps: ApiDependencies, metrics: ApiMetrics) {
     if (token === undefined) return tracked(metrics, unauthorized(c));
     const authenticated = await authenticateMcpToken(deps, token);
     if (authenticated === undefined) return tracked(metrics, unauthorized(c));
-    if (
-      !(await withinFixedWindowRateLimit(
+    let withinLimit: boolean;
+    try {
+      withinLimit = await withinFixedWindowRateLimit(
         deps.redis,
         "mcp",
         authenticated.principal.tokenId,
         deps.config.MCP_RATE_LIMIT_PER_MINUTE,
-      ))
-    ) {
+      );
+    } catch (error) {
+      deps.logger.warn(
+        { err: error, tokenId: authenticated.principal.tokenId },
+        "MCP rate limiter unavailable",
+      );
+      c.header("Retry-After", "5");
+      return tracked(
+        metrics,
+        c.json(
+          { error: "service_unavailable", message: "MCP service is temporarily unavailable" },
+          503,
+        ),
+      );
+    }
+    if (!withinLimit) {
       c.header("Retry-After", "60");
       return tracked(
         metrics,

@@ -147,6 +147,7 @@ describe("trace detail reads", () => {
 
   it.each([
     ["2026-09-20 08:00:00.000", "2026-09-20T08:00:00.000Z"],
+    [null, "2299-12-31T23:59:59.999Z"],
     [undefined, "2299-12-31T23:59:59.999Z"],
   ])("reads and normalizes trace expiration %s", async (expiresAt, expected) => {
     const query = vi.fn(async () => ({
@@ -157,7 +158,10 @@ describe("trace detail reads", () => {
       expected,
     );
     expect(query).toHaveBeenCalledWith(
-      expect.objectContaining({ query_params: { projectId, traceId } }),
+      expect.objectContaining({
+        query: expect.stringContaining("maxOrNull(expires_at)"),
+        query_params: { projectId, traceId },
+      }),
     );
   });
 });

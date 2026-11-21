@@ -116,7 +116,7 @@ export async function listEvaluations(
                      suite_name, case_id, metric_name, outcome, data_type, numeric_value,
                      categorical_value, explanation, ${payloadColumns}, config_id, service_name,
                      environment, release, source, reviewer_id, reviewer_name, expires_at,
-                     ingested_at, ingest_version
+                     ingested_at, toString(ingest_version) AS ingest_version
               FROM evaluation_results FINAL
               WHERE ${where.filters.join(" AND ")}
               ORDER BY isNull(${sortColumn}) ASC, ${sortColumn} ${order.toUpperCase()}, timestamp DESC, id ASC

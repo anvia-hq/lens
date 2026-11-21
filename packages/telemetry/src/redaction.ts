@@ -1,6 +1,8 @@
 import type { JsonValue } from "@lens/contracts";
 
 const REDACTED = "[REDACTED]";
+const MAX_REDACTION_DEPTH = 64;
+const MAX_JSON_REPARSE_DEPTH = 8;
 
 export const defaultRedactionPatterns: readonly string[] = Object.freeze([
   "http.request.header.authorization",
@@ -28,24 +30,31 @@ export function createAttributeRedactor(
   const matches = (key: string, path: string): boolean =>
     matchers.some((matcher) => matcher.test(key) || matcher.test(path));
 
-  const redactValue = (value: JsonValue, path: string): JsonValue => {
+  const redactValue = (value: JsonValue, path: string, depth = 0, jsonDepth = 0): JsonValue => {
+    if (depth >= MAX_REDACTION_DEPTH) return value;
     if (Array.isArray(value)) {
-      return value.map((item) => redactValue(item, path));
+      return value.map((item) => redactValue(item, path, depth + 1, jsonDepth));
     }
     if (typeof value === "object" && value !== null) {
       return Object.fromEntries(
         Object.entries(value).map(([key, item]) => {
           const itemPath = path.length === 0 ? key : `${path}.${key}`;
-          return [key, matches(key, itemPath) ? REDACTED : redactValue(item, itemPath)];
+          return [
+            key,
+            matches(key, itemPath) ? REDACTED : redactValue(item, itemPath, depth + 1, jsonDepth),
+          ];
         }),
       );
     }
     if (typeof value !== "string") return value;
+    if (jsonDepth >= MAX_JSON_REPARSE_DEPTH) return value;
 
     const trimmed = value.trim();
     if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
     try {
-      return JSON.stringify(redactValue(JSON.parse(value) as JsonValue, path));
+      return JSON.stringify(
+        redactValue(JSON.parse(value) as JsonValue, path, depth + 1, jsonDepth + 1),
+      );
     } catch {
       return value;
     }

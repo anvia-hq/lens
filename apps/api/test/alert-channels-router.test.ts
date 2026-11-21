@@ -180,6 +180,23 @@ describe("alert channels API", () => {
     expect(response.status).toBe(404);
     expect(queueFunctions.deliverAlert).not.toHaveBeenCalled();
   });
+
+  it("returns 404 for malformed channel UUIDs and redacts non-delivery test errors", async () => {
+    const invalid = await app().request(`/projects/${projectId}/alert-channels/not-a-uuid/test`, {
+      method: "POST",
+    });
+    expect(invalid.status).toBe(404);
+    expect(dbFunctions.getAlertChannelWithConfig).not.toHaveBeenCalled();
+
+    queueFunctions.deliverAlert.mockRejectedValue(new Error("internal stack detail"));
+    const failed = await app().request(`/projects/${projectId}/alert-channels/${channelId}/test`, {
+      method: "POST",
+    });
+    expect(failed.status).toBe(502);
+    expect(await failed.json()).toEqual({
+      error: { code: "delivery_failed", message: "Delivery failed" },
+    });
+  });
 });
 
 function app() {

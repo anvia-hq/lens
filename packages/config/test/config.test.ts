@@ -204,4 +204,34 @@ describe("loadConfig", () => {
     expect(first.API_PORT).toBe(4111);
     expect(second).toBe(first);
   });
+
+  it("treats empty strings as unset for numeric and boolean variables", () => {
+    const config = loadConfig({
+      API_PORT: "",
+      MATERIALIZE_DELAY_MS: "",
+      SMTP_PORT: "   ",
+      PASSWORD_LOGIN_ENABLED: "",
+      OIDC_ENABLED: "",
+    });
+    expect(config.API_PORT).toBe(3001);
+    expect(config.MATERIALIZE_DELAY_MS).toBe(1_500);
+    expect(config.SMTP_PORT).toBe(587);
+    expect(config.PASSWORD_LOGIN_ENABLED).toBe(true);
+    expect(config.OIDC_ENABLED).toBe(false);
+  });
+
+  it.each([
+    [{ API_PORT: "65536" }, "API_PORT"],
+    [{ SMTP_PORT: "70000" }, "SMTP_PORT"],
+    [{ PUBLIC_APP_URL: "javascript:alert(1)" }, "PUBLIC_APP_URL"],
+    [{ WEB_ORIGIN: "file:///etc/passwd" }, "WEB_ORIGIN"],
+    [{ REDIS_URL: "http://localhost:6379" }, "REDIS_URL"],
+    [{ POSTGRES_URL: "http://localhost:5432/lens" }, "POSTGRES_URL"],
+    [{ BETTER_AUTH_SECRET: " ".repeat(40) }, "BETTER_AUTH_SECRET"],
+    [{ INGESTION_KEY_PEPPER: " ".repeat(20) }, "INGESTION_KEY_PEPPER"],
+  ])("rejects invalid ports, URL schemes, or whitespace secrets: %s", (source, field) => {
+    expect(() => loadConfig(source)).toThrow(
+      new RegExp(`Invalid Anvia Lens configuration.*${field}`, "s"),
+    );
+  });
 });

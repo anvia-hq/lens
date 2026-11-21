@@ -11,6 +11,8 @@ import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { LensPostgres } from "./index.js";
 import { managedDataset, managedDatasetCase, managedDatasetVersion } from "./schema.js";
 
+const CASE_INSERT_CHUNK_SIZE = 500;
+
 export async function listManagedDatasets(
   db: LensPostgres,
   projectId: string,
@@ -25,7 +27,22 @@ export async function listManagedDatasets(
         : and(eq(managedDataset.projectId, projectId), isNull(managedDataset.archivedAt)),
     )
     .orderBy(asc(managedDataset.name));
-  return Promise.all(rows.map((row) => summarizeDataset(db, row)));
+  if (rows.length === 0) return [];
+  const datasetIds = rows.map((row) => row.id);
+  const allVersions = await db
+    .select({ version: managedDatasetVersion, caseCount: count(managedDatasetCase.id) })
+    .from(managedDatasetVersion)
+    .leftJoin(managedDatasetCase, eq(managedDatasetVersion.id, managedDatasetCase.versionId))
+    .where(inArray(managedDatasetVersion.datasetId, datasetIds))
+    .groupBy(managedDatasetVersion.id)
+    .orderBy(desc(managedDatasetVersion.createdAt));
+  const versionsByDataset = new Map<string, ManagedDatasetVersion[]>();
+  for (const entry of allVersions) {
+    const list = versionsByDataset.get(entry.version.datasetId) ?? [];
+    list.push(versionFromRow(entry.version, Number(entry.caseCount)));
+    versionsByDataset.set(entry.version.datasetId, list);
+  }
+  return rows.map((row) => summaryFromRows(row, versionsByDataset.get(row.id) ?? []));
 }
 
 export async function getManagedDataset(
@@ -96,7 +113,8 @@ export async function createManagedDatasetWithCases(
       .returning({ id: managedDatasetVersion.id });
     if (draft === undefined) throw new Error("Managed dataset draft was not created");
     if (items.length > 0) {
-      await tx.insert(managedDatasetCase).values(
+      await insertCasesChunked(
+        tx as LensPostgres,
         items.map((item, position) => ({
           versionId: draft.id,
           caseId: item.id,
@@ -182,7 +200,8 @@ export async function createManagedDatasetVersion(
         .where(eq(managedDatasetCase.versionId, latest.id))
         .orderBy(asc(managedDatasetCase.position));
       if (items.length > 0) {
-        await tx.insert(managedDatasetCase).values(
+        await insertCasesChunked(
+          tx as LensPostgres,
           items.map((item) => ({
             versionId: created.id,
             caseId: item.caseId,
@@ -349,24 +368,46 @@ export async function importManagedDatasetCases(
       })
       .from(managedDatasetCase)
       .where(eq(managedDatasetCase.versionId, versionId));
-    const byCase = new Map(existing.map((row) => [row.caseId.toLocaleLowerCase(), row]));
+    const byCase = new Map(existing.map((row) => [row.caseId.toLowerCase(), row]));
     let position = existing.reduce((maximum, row) => Math.max(maximum, row.position), -1) + 1;
+    const toInsert: Array<{
+      versionId: string;
+      caseId: string;
+      position: number;
+      item: ManagedDatasetCaseInput;
+    }> = [];
+    const seenNew = new Map<string, number>();
+    const now = new Date();
     for (const item of items) {
-      const row = byCase.get(item.id.toLocaleLowerCase());
+      const normalizedKey = item.id.toLowerCase();
+      const row = byCase.get(normalizedKey);
       if (row === undefined) {
-        await tx.insert(managedDatasetCase).values({
-          versionId,
-          caseId: item.id,
-          position,
-          item,
-        });
-        position += 1;
+        const queuedIndex = seenNew.get(normalizedKey);
+        if (queuedIndex !== undefined) {
+          const queued = toInsert[queuedIndex];
+          if (queued !== undefined) {
+            queued.caseId = item.id;
+            queued.item = item;
+          }
+        } else {
+          seenNew.set(normalizedKey, toInsert.length);
+          toInsert.push({
+            versionId,
+            caseId: item.id,
+            position,
+            item,
+          });
+          position += 1;
+        }
       } else {
         await tx
           .update(managedDatasetCase)
-          .set({ caseId: item.id, item, updatedAt: new Date() })
+          .set({ caseId: item.id, item, updatedAt: now })
           .where(eq(managedDatasetCase.id, row.id));
       }
+    }
+    if (toInsert.length > 0) {
+      await insertCasesChunked(tx as LensPostgres, toInsert);
     }
     await touchVersion(tx as LensPostgres, datasetId, versionId);
     return true;
@@ -476,11 +517,18 @@ async function versionRows(db: LensPostgres, datasetId: string): Promise<Managed
   return rows.map((row) => versionFromRow(row.version, Number(row.caseCount)));
 }
 
-async function summarizeDataset(
+async function insertCasesChunked(
   db: LensPostgres,
-  row: typeof managedDataset.$inferSelect,
-): Promise<ManagedDatasetSummary> {
-  return summaryFromRows(row, await versionRows(db, row.id));
+  rows: Array<{
+    versionId: string;
+    caseId: string;
+    position: number;
+    item: ManagedDatasetCaseInput;
+  }>,
+): Promise<void> {
+  for (let start = 0; start < rows.length; start += CASE_INSERT_CHUNK_SIZE) {
+    await db.insert(managedDatasetCase).values(rows.slice(start, start + CASE_INSERT_CHUNK_SIZE));
+  }
 }
 
 function summaryFromRows(

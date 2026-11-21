@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@lens/ui/components/card";
+import { ChartStyle } from "@lens/ui/components/chart";
 import { Input } from "@lens/ui/components/input";
 import { useIsMobile } from "@lens/ui/hooks/use-mobile";
 import { cn } from "@lens/ui/lib/utils";
@@ -88,5 +89,26 @@ describe("UI foundations", () => {
 
     await act(() => root.unmount());
     expect(removeEventListener).toHaveBeenCalledWith("change", changeListener);
+  });
+
+  it("sanitizes ChartStyle identifiers and color values", () => {
+    const valid = renderToStaticMarkup(
+      <ChartStyle
+        id="chart-latency"
+        config={{
+          p95: { color: "var(--chart-1)" },
+          "bad;key": { color: "red" },
+          injected: { color: "red; } body { display: none }" },
+        }}
+      />,
+    );
+    expect(valid).toContain("--color-p95: var(--chart-1);");
+    expect(valid).not.toContain("bad;key");
+    expect(valid).not.toContain("display: none");
+
+    const invalidId = renderToStaticMarkup(
+      <ChartStyle id='bad"]{}' config={{ p95: { color: "#123456" } }} />,
+    );
+    expect(invalidId).toBe("");
   });
 });

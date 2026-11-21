@@ -21,6 +21,7 @@ import {
   createIngestTraceProcessor,
   createMaintenanceProcessor,
   createMaterializeTraceProcessor,
+  reconcileTerminalJobFailure,
 } from "./processors.js";
 
 const config = loadConfig();
@@ -116,9 +117,23 @@ for (const worker of [
   dispatchWorker,
 ]) {
   worker.on("failed", (job, error) => {
-    logger.error({ jobId: job?.id, queue: worker.name, error }, "queue job failed");
+    logger.error(
+      {
+        err: error,
+        jobId: job?.id,
+        jobName: job?.name,
+        attemptsMade: job?.attemptsMade,
+        maxAttempts: job?.opts.attempts,
+        queue: worker.name,
+      },
+      "queue job failed",
+    );
+    void reconcileTerminalJobFailure(processorDeps, job, error);
   });
-  worker.on("error", (error) => logger.error({ queue: worker.name, error }, "queue error"));
+  worker.on("stalled", (jobId) => {
+    logger.warn({ jobId, queue: worker.name }, "queue job stalled");
+  });
+  worker.on("error", (error) => logger.error({ err: error, queue: worker.name }, "queue error"));
 }
 
 outboxDispatcher.start();
@@ -131,34 +146,70 @@ void queues.alerts
   .catch((error: unknown) => logger.error({ err: error }, "alert scheduler setup failed"));
 logger.info("Anvia Lens worker started");
 
-async function shutdown(signal: string): Promise<void> {
+const shutdownTimeoutMs = 25_000;
+let shutdownPromise: Promise<void> | undefined;
+
+async function runShutdown(signal: string): Promise<void> {
   logger.info({ signal }, "shutting down");
-  await outboxDispatcher.close();
-  await Promise.all([
-    ingestWorker.close(),
-    evaluationWorker.close(),
-    materializeWorker.close(),
-    maintenanceWorker.close(),
-    costsWorker.close(),
-    alertsWorker.close(),
-    dispatchWorker.close(),
+  // Stop advertising liveness before draining workers so health checks reflect drain immediately.
+  const closeTasks = async () => {
+    await workerHeartbeat.close().catch((err: unknown) => {
+      logger.warn({ err }, "worker heartbeat close failed");
+    });
+    const stages = await Promise.allSettled([
+      outboxDispatcher.close(),
+      ingestWorker.close(),
+      evaluationWorker.close(),
+      materializeWorker.close(),
+      maintenanceWorker.close(),
+      costsWorker.close(),
+      alertsWorker.close(),
+      dispatchWorker.close(),
+    ]);
+    for (const stage of stages) {
+      if (stage.status === "rejected") {
+        logger.error({ err: stage.reason }, "worker shutdown stage failed");
+      }
+    }
+    ingestConnection.disconnect();
+    evaluationConnection.disconnect();
+    materializeConnection.disconnect();
+    maintenanceConnection.disconnect();
+    costsConnection.disconnect();
+    alertsConnection.disconnect();
+    dispatchConnection.disconnect();
+    heartbeatConnection.disconnect();
+    const infra = await Promise.allSettled([queues.close(), clickhouse.close(), postgres.close()]);
+    for (const result of infra) {
+      if (result.status === "rejected") {
+        logger.error({ err: result.reason }, "infrastructure close failed");
+      }
+    }
+  };
+  await Promise.race([
+    closeTasks(),
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        logger.error({ timeoutMs: shutdownTimeoutMs }, "worker shutdown timed out");
+        resolve();
+      }, shutdownTimeoutMs);
+      timer.unref();
+    }),
   ]);
-  await workerHeartbeat.close();
-  ingestConnection.disconnect();
-  evaluationConnection.disconnect();
-  materializeConnection.disconnect();
-  maintenanceConnection.disconnect();
-  costsConnection.disconnect();
-  alertsConnection.disconnect();
-  dispatchConnection.disconnect();
-  heartbeatConnection.disconnect();
-  await queues.close();
-  await clickhouse.close();
-  await postgres.close();
+}
+
+function shutdown(signal: string): Promise<void> {
+  shutdownPromise ??= runShutdown(signal);
+  return shutdownPromise;
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    void shutdown(signal).then(() => process.exit(0));
+    void shutdown(signal)
+      .then(() => process.exit(0))
+      .catch((err: unknown) => {
+        logger.error({ err, signal }, "worker shutdown failed");
+        process.exit(1);
+      });
   });
 }

@@ -20,10 +20,13 @@ type OidcAccess = {
 };
 
 function isOidcCallback(context: OidcHookContext, providerId: string): boolean {
-  const callbackPath = `/oauth2/callback/${providerId}`;
-  if (context?.path?.endsWith(callbackPath)) return true;
+  const callbackPaths = [`/callback/${providerId}`, `/oauth2/callback/${providerId}`];
+  if (context?.path !== undefined && callbackPaths.some((path) => context.path?.endsWith(path))) {
+    return true;
+  }
   if (context?.request === undefined) return false;
-  return new URL(context.request.url).pathname.endsWith(callbackPath);
+  const { pathname } = new URL(context.request.url);
+  return callbackPaths.some((path) => pathname.endsWith(path));
 }
 
 export function oidcEmailDomain(email: string): string | undefined {

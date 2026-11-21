@@ -1,20 +1,45 @@
 import { z } from "zod";
 
-const booleanString = z
-  .enum(["true", "false"])
-  .optional()
-  .transform((value) => value === "true");
+const emptyToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim().length === 0 ? undefined : value;
 
-const enabledByDefaultBooleanString = z
-  .enum(["true", "false"])
-  .optional()
-  .transform((value) => value !== "false");
+const booleanString = z.preprocess(
+  emptyToUndefined,
+  z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
+);
+
+const enabledByDefaultBooleanString = z.preprocess(
+  emptyToUndefined,
+  z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value !== "false"),
+);
 
 const optionalString = z
   .string()
   .trim()
   .optional()
   .transform((value) => value || undefined);
+
+const urlWithProtocols = (protocols: readonly string[], label: string) =>
+  z.url().refine(
+    (value) => {
+      try {
+        return protocols.includes(new URL(value).protocol);
+      } catch {
+        return false;
+      }
+    },
+    { message: `${label} must use ${protocols.join(" or ")}` },
+  );
+
+const httpUrl = (label: string) => urlWithProtocols(["http:", "https:"], label);
+const redisUrl = urlWithProtocols(["redis:", "rediss:"], "REDIS_URL");
+const postgresUrl = urlWithProtocols(["postgres:", "postgresql:"], "POSTGRES_URL");
 
 const domainList = z
   .string()
@@ -37,10 +62,13 @@ const caseSensitiveStringList = z
   );
 
 const positiveInteger = (defaultValue: number) =>
-  z.coerce.number().int().positive().default(defaultValue);
+  z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(defaultValue));
+
+const portNumber = (defaultValue: number) =>
+  z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(65_535).default(defaultValue));
 
 const nonnegativeInteger = (defaultValue: number) =>
-  z.coerce.number().int().nonnegative().default(defaultValue);
+  z.preprocess(emptyToUndefined, z.coerce.number().int().nonnegative().default(defaultValue));
 
 const DEVELOPMENT_BETTER_AUTH_SECRET = "development-only-secret-change-me-now";
 const DEVELOPMENT_INGESTION_KEY_PEPPER = "development-ingestion-key-pepper";
@@ -48,12 +76,12 @@ const DEVELOPMENT_INGESTION_KEY_PEPPER = "development-ingestion-key-pepper";
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
-    API_PORT: positiveInteger(3001),
-    WEB_ORIGIN: z.url().default("http://localhost:3000"),
-    POSTGRES_URL: z.string().min(1).default("postgresql://lens:lens@localhost:5432/lens"),
+    PUBLIC_APP_URL: httpUrl("PUBLIC_APP_URL").default("http://localhost:3000"),
+    API_PORT: portNumber(3001),
+    WEB_ORIGIN: httpUrl("WEB_ORIGIN").default("http://localhost:3000"),
+    POSTGRES_URL: postgresUrl.default("postgresql://lens:lens@localhost:5432/lens"),
     POSTGRES_MAX_CONNECTIONS: positiveInteger(10),
-    CLICKHOUSE_URL: z.url().default("http://localhost:8123"),
+    CLICKHOUSE_URL: httpUrl("CLICKHOUSE_URL").default("http://localhost:8123"),
     CLICKHOUSE_DATABASE: z.string().min(1).default("lens"),
     CLICKHOUSE_USERNAME: z.string().min(1).default("lens"),
     CLICKHOUSE_PASSWORD: z.string().default("lens"),
@@ -61,9 +89,9 @@ const envSchema = z
     CLICKHOUSE_MAX_MEMORY_USAGE_BYTES: nonnegativeInteger(0),
     CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY: nonnegativeInteger(0),
     CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_SORT: nonnegativeInteger(0),
-    REDIS_URL: z.url().default("redis://localhost:6379"),
-    SYSTEM_MONITOR_URL: optionalString.pipe(z.url().optional()),
-    BETTER_AUTH_SECRET: z.string().min(32).default(DEVELOPMENT_BETTER_AUTH_SECRET),
+    REDIS_URL: redisUrl.default("redis://localhost:6379"),
+    SYSTEM_MONITOR_URL: optionalString.pipe(httpUrl("SYSTEM_MONITOR_URL").optional()),
+    BETTER_AUTH_SECRET: z.string().trim().min(32).default(DEVELOPMENT_BETTER_AUTH_SECRET),
     PASSWORD_LOGIN_ENABLED: enabledByDefaultBooleanString,
     OIDC_ENABLED: booleanString,
     OIDC_PROVIDER_ID: z
@@ -72,7 +100,7 @@ const envSchema = z
       .regex(/^[a-zA-Z0-9_-]+$/)
       .default("oidc"),
     OIDC_DISPLAY_NAME: z.string().trim().min(1).max(100).default("Company SSO"),
-    OIDC_DISCOVERY_URL: optionalString.pipe(z.url().optional()),
+    OIDC_DISCOVERY_URL: optionalString.pipe(httpUrl("OIDC_DISCOVERY_URL").optional()),
     OIDC_CLIENT_ID: optionalString,
     OIDC_CLIENT_SECRET: optionalString,
     OIDC_SCOPES: caseSensitiveStringList.default(["openid", "profile", "email"]),
@@ -81,22 +109,18 @@ const envSchema = z
     OIDC_REQUIRE_VERIFIED_EMAIL: booleanString,
     OIDC_AUTO_PROVISION: booleanString,
     OIDC_ALLOWED_DOMAINS: domainList.default([]),
-    INGESTION_KEY_PEPPER: z.string().min(16).default(DEVELOPMENT_INGESTION_KEY_PEPPER),
+    INGESTION_KEY_PEPPER: z.string().trim().min(16).default(DEVELOPMENT_INGESTION_KEY_PEPPER),
     // AES-256-GCM key for alert channel secrets at rest. Base64/hex 32-byte key,
     // optionally prefixed with a key id ("kid:...") and comma-separated for rotation.
     // Required in production; dev/test fall back to a local-only key.
     LENS_ALERT_SECRET_KEY: optionalString,
     SMTP_HOST: optionalString,
-    SMTP_PORT: positiveInteger(587),
+    SMTP_PORT: portNumber(587),
     SMTP_FROM: z.string().default("Anvia Lens <lens@localhost>"),
     SMTP_SECURE: booleanString,
     SMTP_USER: optionalString,
     SMTP_PASSWORD: optionalString,
-    OTLP_MAX_BODY_BYTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(10 * 1024 * 1024),
+    OTLP_MAX_BODY_BYTES: positiveInteger(10 * 1024 * 1024),
     OTLP_RATE_LIMIT_PER_MINUTE: positiveInteger(600),
     INGESTION_QUEUE_MAX_WAITING: nonnegativeInteger(0),
     MCP_RATE_LIMIT_PER_MINUTE: positiveInteger(120),

@@ -1,13 +1,19 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { type Theme, ThemeContext } from "../hooks/use-theme";
 
 const storageKey = "lens-ui-theme";
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
+function readStoredTheme(): Theme {
+  try {
     const stored = window.localStorage.getItem(storageKey);
     return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-  });
+  } catch {
+    return "system";
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -19,10 +25,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.getElementById("favicon")?.setAttribute("href", `/favicon-${resolvedTheme}.svg?v=2`);
     };
     apply();
-    window.localStorage.setItem(storageKey, theme);
+    try {
+      window.localStorage.setItem(storageKey, theme);
+    } catch {
+      // Ignore storage write errors in restricted browsing contexts.
+    }
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [theme]);
 
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
+  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

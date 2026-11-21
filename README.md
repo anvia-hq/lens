@@ -218,7 +218,7 @@ OIDC_ALLOWED_DOMAINS=example.com
 PASSWORD_LOGIN_ENABLED=true
 ```
 
-Register `${PUBLIC_APP_URL}/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
+Register `${PUBLIC_APP_URL}/api/auth/callback/${OIDC_PROVIDER_ID}` as the OIDC callback URL.
 `OIDC_TOKEN_ENDPOINT_AUTH` controls how Lens authenticates to the provider's token endpoint: `auto`
 (default) follows the provider's own discovery metadata and falls back to the OAuth default
 `client_secret_basic` when the metadata is silent; set `basic` or `post` to force a method for

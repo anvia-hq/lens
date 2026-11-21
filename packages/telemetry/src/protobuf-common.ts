@@ -66,16 +66,16 @@ export function decodeKeyValue(reader: ProtobufReader): OtlpKeyValue {
 }
 
 function decodeKeyValueList(reader: ProtobufReader): Record<string, JsonValue> {
-  const result: Record<string, JsonValue> = {};
+  const entries: Array<[string, JsonValue]> = [];
   while (!reader.done) {
     const { field, wire } = reader.tag();
     if (field === 1) {
       expectWire(wire, 2, "KeyValueList.values");
       const item = reader.message(decodeKeyValue);
-      result[item.key] = item.value;
+      entries.push([item.key, item.value]);
     } else reader.skip(wire);
   }
-  return result;
+  return Object.fromEntries(entries);
 }
 
 export function decodeResource(reader: ProtobufReader): { attributes: OtlpKeyValue[] } {

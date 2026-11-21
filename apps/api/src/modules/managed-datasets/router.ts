@@ -25,7 +25,7 @@ import {
 } from "@lens/db";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
+import { apiError, isUuidParam, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 
 export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
@@ -117,11 +117,11 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
     .get("/:projectId/managed-datasets/:datasetId", async (c) => {
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
-      const dataset = await getManagedDataset(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("datasetId"),
-      );
+      const datasetId = c.req.param("datasetId");
+      if (!isUuidParam(datasetId)) {
+        return apiError(c, 404, "not_found", "Managed dataset not found");
+      }
+      const dataset = await getManagedDataset(deps.postgres.db, access.project.id, datasetId);
       return dataset === undefined
         ? apiError(c, 404, "not_found", "Managed dataset not found")
         : c.json(dataset);
@@ -133,12 +133,16 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
         const access = await accessFor(c, deps);
         if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
         if (!canManage(access.role)) return adminRequired(c);
+        const datasetId = c.req.param("datasetId");
+        if (!isUuidParam(datasetId)) {
+          return apiError(c, 404, "not_found", "Managed dataset not found");
+        }
         const parsed = c.req.valid("json");
         try {
           const dataset = await updateManagedDataset(
             deps.postgres.db,
             access.project.id,
-            c.req.param("datasetId"),
+            datasetId,
             parsed,
           );
           return dataset === undefined
@@ -153,11 +157,11 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
       const access = await accessFor(c, deps);
       if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
       if (!canManage(access.role)) return adminRequired(c);
-      const archived = await archiveManagedDataset(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("datasetId"),
-      );
+      const datasetId = c.req.param("datasetId");
+      if (!isUuidParam(datasetId)) {
+        return apiError(c, 404, "not_found", "Managed dataset not found");
+      }
+      const archived = await archiveManagedDataset(deps.postgres.db, access.project.id, datasetId);
       return archived
         ? c.body(null, 204)
         : apiError(c, 404, "not_found", "Managed dataset not found");
@@ -169,12 +173,16 @@ export const createManagedDatasetsRouter = (deps: ApiDependencies) =>
         const access = await accessFor(c, deps);
         if (access === undefined) return apiError(c, 404, "not_found", "Project not found");
         if (!canManage(access.role)) return adminRequired(c);
+        const datasetId = c.req.param("datasetId");
+        if (!isUuidParam(datasetId)) {
+          return apiError(c, 404, "not_found", "Managed dataset not found");
+        }
         const parsed = c.req.valid("json");
         try {
           const version = await createManagedDatasetVersion(
             deps.postgres.db,
             access.project.id,
-            c.req.param("datasetId"),
+            datasetId,
             requiredSession(c).user.id,
             parsed.version,
           );
@@ -291,12 +299,10 @@ async function versionFor(
   deps: ApiDependencies,
   projectId: string,
 ) {
-  return getManagedDatasetVersion(
-    deps.postgres.db,
-    projectId,
-    c.req.param("datasetId") ?? "",
-    c.req.param("versionId") ?? "",
-  );
+  const datasetId = c.req.param("datasetId");
+  const versionId = c.req.param("versionId");
+  if (!isUuidParam(datasetId) || !isUuidParam(versionId)) return undefined;
+  return getManagedDatasetVersion(deps.postgres.db, projectId, datasetId, versionId);
 }
 
 async function requireDraft(
