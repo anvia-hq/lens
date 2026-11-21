@@ -213,19 +213,21 @@ export async function deleteAlertChannel(
   projectId: string,
   channelId: string,
 ): Promise<boolean> {
-  const rows = await db
-    .delete(alertChannel)
-    .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
-    .returning({ id: alertChannel.id });
-  if (rows.length === 0) return false;
-  // Detach from rules so stored rules never reference a dead channel id.
-  await db
-    .update(alertRule)
-    .set({ channelIds: sql`array_remove(${alertRule.channelIds}, ${channelId})` })
-    .where(
-      and(eq(alertRule.projectId, projectId), sql`${channelId} = any(${alertRule.channelIds})`),
-    );
-  return true;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(alertChannel)
+      .where(and(eq(alertChannel.projectId, projectId), eq(alertChannel.id, channelId)))
+      .returning({ id: alertChannel.id });
+    if (rows.length === 0) return false;
+    // Detach from rules so stored rules never reference a dead channel id.
+    await tx
+      .update(alertRule)
+      .set({ channelIds: sql`array_remove(${alertRule.channelIds}, ${channelId})` })
+      .where(
+        and(eq(alertRule.projectId, projectId), sql`${channelId} = any(${alertRule.channelIds})`),
+      );
+    return true;
+  });
 }
 
 export async function listAlertChannelsByIds(

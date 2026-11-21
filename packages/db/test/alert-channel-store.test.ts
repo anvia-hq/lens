@@ -105,13 +105,15 @@ function mockDb(rows: unknown[] | (() => unknown[])) {
   ]) {
     builder[method] = vi.fn(() => builder);
   }
-  return {
+  const client = {
     select: vi.fn(() => builder),
     insert: vi.fn(() => builder),
     update: vi.fn(() => builder),
     delete: vi.fn(() => builder),
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(client)),
     builder,
   };
+  return client;
 }
 
 function publicChannelRow(overrides: Record<string, unknown> = {}) {

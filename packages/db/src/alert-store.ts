@@ -79,18 +79,21 @@ export async function updateAlertRule(
   ruleId: string,
   input: AlertRuleInput,
 ): Promise<AlertRule | undefined> {
-  await resolveRuleIncidents(db, projectId, ruleId, "rule_changed");
-  const [row] = await db
-    .update(alertRule)
-    .set({
-      ...ruleValues(input),
-      consecutiveBreaches: 0,
-      cooldownUntil: null,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(alertRule.projectId, projectId), eq(alertRule.id, ruleId)))
-    .returning();
-  return row === undefined ? undefined : ruleFromRow(row);
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(alertRule)
+      .set({
+        ...ruleValues(input),
+        consecutiveBreaches: 0,
+        cooldownUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(alertRule.projectId, projectId), eq(alertRule.id, ruleId)))
+      .returning();
+    if (row === undefined) return undefined;
+    await resolveRuleIncidents(tx, projectId, ruleId, "rule_changed");
+    return ruleFromRow(row);
+  });
 }
 
 export async function deleteAlertRule(
@@ -99,12 +102,14 @@ export async function deleteAlertRule(
   ruleId: string,
   now = new Date(),
 ): Promise<boolean> {
-  await resolveRuleIncidents(db, projectId, ruleId, "rule_deleted", now);
-  const rows = await db
-    .delete(alertRule)
-    .where(and(eq(alertRule.projectId, projectId), eq(alertRule.id, ruleId)))
-    .returning({ id: alertRule.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    await resolveRuleIncidents(tx, projectId, ruleId, "rule_deleted", now);
+    const rows = await tx
+      .delete(alertRule)
+      .where(and(eq(alertRule.projectId, projectId), eq(alertRule.id, ruleId)))
+      .returning({ id: alertRule.id });
+    return rows.length > 0;
+  });
 }
 
 export async function resolveRuleIncidents(
@@ -229,29 +234,37 @@ export async function resolveAlertIncident(
   userId: string,
   now = new Date(),
 ): Promise<AlertIncident | undefined> {
-  const [row] = await db
-    .update(alertIncident)
-    .set({ status: "resolved", resolvedAt: now, resolvedBy: userId, resolution: "manual" })
-    .where(
-      and(
-        eq(alertIncident.projectId, projectId),
-        eq(alertIncident.id, incidentId),
-        inArray(alertIncident.status, ["open", "acknowledged"]),
-      ),
-    )
-    .returning();
-  if (row === undefined) return undefined;
-  if (row.ruleId !== null) {
-    await db
-      .update(alertRule)
-      .set({ consecutiveBreaches: 0, cooldownUntil: new Date(now.getTime() + 30 * 60_000) })
+  const row = await db.transaction(async (tx) => {
+    const [resolved] = await tx
+      .update(alertIncident)
+      .set({ status: "resolved", resolvedAt: now, resolvedBy: userId, resolution: "manual" })
       .where(
         and(
-          eq(alertRule.id, row.ruleId),
-          inArray(alertRule.kind, ["trace_error_rate", "trace_p95_latency_ms", "tool_error_rate"]),
+          eq(alertIncident.projectId, projectId),
+          eq(alertIncident.id, incidentId),
+          inArray(alertIncident.status, ["open", "acknowledged"]),
         ),
-      );
-  }
+      )
+      .returning();
+    if (resolved === undefined) return undefined;
+    if (resolved.ruleId !== null) {
+      await tx
+        .update(alertRule)
+        .set({ consecutiveBreaches: 0, cooldownUntil: new Date(now.getTime() + 30 * 60_000) })
+        .where(
+          and(
+            eq(alertRule.id, resolved.ruleId),
+            inArray(alertRule.kind, [
+              "trace_error_rate",
+              "trace_p95_latency_ms",
+              "tool_error_rate",
+            ]),
+          ),
+        );
+    }
+    return resolved;
+  });
+  if (row === undefined) return undefined;
   return incidentFromRow(row, await userNames(db, [userId]));
 }
 
@@ -289,7 +302,12 @@ export async function openAlertIncident(
         evidence: input.evidence ?? {},
         lastTriggeredAt: now,
       })
-      .where(eq(alertIncident.id, active.id));
+      .where(
+        and(
+          eq(alertIncident.id, active.id),
+          inArray(alertIncident.status, ["open", "acknowledged"]),
+        ),
+      );
     return { incidentId: active.id, created: false };
   }
   const rows = await db
