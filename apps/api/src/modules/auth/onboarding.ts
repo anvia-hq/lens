@@ -44,11 +44,14 @@ export function invitationOnboarding(options: { passwordLoginEnabled: boolean })
                 }
 
                 const password = await ctx.context.password.hash(ctx.body.password);
-                const createdUser = await ctx.context.internalAdapter.createUser({
-                  name: ctx.body.name,
-                  email: ctx.body.email,
-                  emailVerified: true,
-                });
+                const createdUser = await ctx.context.internalAdapter.createUser(
+                  {
+                    name: ctx.body.name,
+                    email: ctx.body.email,
+                    emailVerified: true,
+                  },
+                  { method: "email-password" },
+                );
                 await ctx.context.internalAdapter.linkAccount({
                   userId: createdUser.id,
                   providerId: "credential",
@@ -118,11 +121,14 @@ export function invitationOnboarding(options: { passwordLoginEnabled: boolean })
             }
 
             const password = await ctx.context.password.hash(ctx.body.password);
-            const createdUser = await ctx.context.internalAdapter.createUser({
-              name: ctx.body.name,
-              email: invitation.email.toLowerCase(),
-              emailVerified: true,
-            });
+            const createdUser = await ctx.context.internalAdapter.createUser(
+              {
+                name: ctx.body.name,
+                email: invitation.email.toLowerCase(),
+                emailVerified: true,
+              },
+              { method: "email-password" },
+            );
             await ctx.context.internalAdapter.linkAccount({
               userId: createdUser.id,
               providerId: "credential",
