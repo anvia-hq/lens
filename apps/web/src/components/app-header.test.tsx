@@ -76,6 +76,27 @@ describe("AppHeader evaluation breadcrumbs", () => {
     );
     expect(screen.getByText("run-12…6789")).toBeTruthy();
   });
+
+  it("links dataset detail breadcrumbs back to Datasets and shows the dataset identifier", () => {
+    const managed = renderHeader("/project-alpha/evaluations/datasets/managed/dataset-123456789", {
+      datasetId: "dataset-123456789",
+    });
+
+    expect(screen.getByText("Datasets").closest("a")?.dataset.route).toBe(
+      "/$projectId/evaluations/datasets",
+    );
+    expect(screen.getByText("datase…6789")).toBeTruthy();
+    managed.unmount();
+
+    renderHeader("/project-alpha/evaluations/datasets/observed/support-eval", {
+      datasetName: "support-eval",
+    });
+
+    expect(screen.getByText("Datasets").closest("a")?.dataset.route).toBe(
+      "/$projectId/evaluations/datasets",
+    );
+    expect(screen.getByText("support-eval")).toBeTruthy();
+  });
 });
 
 describe("AppHeader prompt management breadcrumbs", () => {

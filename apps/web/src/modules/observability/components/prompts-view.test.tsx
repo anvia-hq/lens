@@ -151,6 +151,34 @@ describe("prompt config editing", () => {
       expect.any(Object),
     );
   });
+
+  it("hides Archive on already-archived prompts, confirms archiving via AlertDialog, and preserves description drafts", () => {
+    const archive = vi.fn((_variables?: unknown, options?: { onSuccess?: () => void }) =>
+      options?.onSuccess?.(),
+    );
+    const state = detailState(vi.fn());
+    state.archivePrompt = { mutate: archive, isPending: false } as never;
+    const view = render(<PromptDetailView state={state} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    fireEvent.click(screen.getByRole("button", { name: "Archive prompt" }));
+    expect(archive).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit description" }));
+    change("Description", "Unsaved draft");
+    view.rerender(
+      <PromptDetailView
+        state={detailState(vi.fn(), null, {
+          ...prompt,
+          description: "Background update",
+          archivedAt: "2026-08-08T00:00:00.000Z",
+        })}
+      />,
+    );
+    expect(input("Description").value).toBe("Unsaved draft");
+    closeDialog();
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+  });
 });
 
 function input(label: string) {

@@ -75,7 +75,16 @@ export function AppHeader() {
               <BreadcrumbItem>
                 <BreadcrumbLink
                   render={
-                    isEvaluations ? (
+                    isEvaluations && evaluationPage === "datasets" ? (
+                      <Link
+                        to="/$projectId/evaluations/datasets"
+                        params={{ projectId: project.id }}
+                        search={{
+                          tab: detailId === "observed" ? "observed" : "managed",
+                          page: 1,
+                        }}
+                      />
+                    ) : isEvaluations ? (
                       <Link
                         to="/$projectId/evaluations/runs"
                         params={{ projectId: project.id }}
@@ -127,13 +136,17 @@ export function AppHeader() {
                     ? shortId(String(params.traceId))
                     : "runId" in params
                       ? shortId(String(params.runId))
-                      : "sessionId" in params
-                        ? String(params.sessionId)
-                        : "userId" in params
-                          ? String(params.userId)
-                          : "incidentId" in params
-                            ? shortId(String(params.incidentId))
-                            : detailLabel}
+                      : "datasetId" in params
+                        ? shortId(String(params.datasetId))
+                        : "datasetName" in params
+                          ? String(params.datasetName)
+                          : "sessionId" in params
+                            ? String(params.sessionId)
+                            : "userId" in params
+                              ? String(params.userId)
+                              : "incidentId" in params
+                                ? shortId(String(params.incidentId))
+                                : detailLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>

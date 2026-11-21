@@ -12,24 +12,32 @@ import {
 // worker as explicit, independently bundled modules.
 const elk = new ELK({ workerFactory: () => new ElkWorker() });
 
-self.addEventListener("message", (event: MessageEvent<{ spans: TraceSpanSummary[] }>) => {
-  const graph = buildExpandedTraceGraph(event.data.spans);
-  if (graph.limitExceeded || graph.nodes.length === 0) {
-    self.postMessage({ graph: serializableGraph(graph) });
-    return;
-  }
-  void elk.layout(traceGraphElkInput(graph)).then(
-    (result) => {
-      self.postMessage({
-        graph: serializableGraph(graph),
-        layout: normalizeTraceGraphLayout(result),
-      });
-    },
-    (error: unknown) => {
-      self.postMessage({ error: error instanceof Error ? error.message : String(error) });
-    },
-  );
-});
+self.addEventListener(
+  "message",
+  (event: MessageEvent<{ requestId: number; spans: TraceSpanSummary[] }>) => {
+    const { requestId, spans } = event.data;
+    const graph = buildExpandedTraceGraph(spans);
+    if (graph.limitExceeded || graph.nodes.length === 0) {
+      self.postMessage({ requestId, graph: serializableGraph(graph) });
+      return;
+    }
+    void elk.layout(traceGraphElkInput(graph)).then(
+      (result) => {
+        self.postMessage({
+          requestId,
+          graph: serializableGraph(graph),
+          layout: normalizeTraceGraphLayout(result),
+        });
+      },
+      (error: unknown) => {
+        self.postMessage({
+          requestId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      },
+    );
+  },
+);
 
 function serializableGraph(graph: ReturnType<typeof buildExpandedTraceGraph>) {
   return {

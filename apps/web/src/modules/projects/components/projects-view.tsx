@@ -73,8 +73,12 @@ export function ProjectsView({
   const invitationUrl = (invitationId: string) =>
     new URL(`/accept-invitation/${invitationId}`, window.location.origin).toString();
   const copyInvitation = async (invitationId: string) => {
-    await navigator.clipboard.writeText(invitationUrl(invitationId));
-    notify("Invitation link copied");
+    try {
+      await navigator.clipboard.writeText(invitationUrl(invitationId));
+      notify("Invitation link copied");
+    } catch {
+      notify("Could not copy invitation link", "error");
+    }
   };
   return (
     <Page

@@ -577,22 +577,39 @@ export function adaptiveRefreshInterval(range: MetricsRangePreset): RefreshInter
 export function refreshMilliseconds(interval: RefreshInterval): number | false {
   return interval === "Off" ? false : Number.parseInt(interval, 10) * 1_000;
 }
+const standardNumberFormat = new Intl.NumberFormat("en", { notation: "standard" });
+const compactNumberFormat = new Intl.NumberFormat("en", { notation: "compact" });
+const decimalOneFormat = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
+const decimalZeroFormat = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
+const compactAxisFormat = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const smallUsdFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 6,
+});
+const standardUsdFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 export function formatNumber(value?: number) {
   return value === undefined
     ? "—"
-    : new Intl.NumberFormat("en", { notation: value > 99_999 ? "compact" : "standard" }).format(
-        value,
-      );
+    : (value > 99_999 ? compactNumberFormat : standardNumberFormat).format(value);
 }
 export function formatDecimal(value?: number) {
   return value === undefined
     ? "—"
-    : new Intl.NumberFormat("en", { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
+    : (value < 10 ? decimalOneFormat : decimalZeroFormat).format(value);
 }
 export function formatCompactAxis(value: number | string) {
-  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(
-    Number(value),
-  );
+  return compactAxisFormat.format(Number(value));
 }
 export function formatMetricTimestamp(value: string, range: MetricsRangePreset, detailed: boolean) {
   const date = new Date(value);
@@ -632,12 +649,7 @@ export function formatListDuration(value?: number) {
 export function formatCost(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
   if (value > 0 && value < 0.0001) return "<$0.0001";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: value < 0.01 ? 4 : 2,
-    maximumFractionDigits: value < 0.01 ? 6 : 4,
-  }).format(value);
+  return (value < 0.01 ? smallUsdFormat : standardUsdFormat).format(value);
 }
 export function formatTimestamp(value: string) {
   return formatTableTimestamp(value);
