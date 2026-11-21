@@ -49,19 +49,54 @@ const server = serve({ fetch: app.fetch, port: config.API_PORT }, (info) => {
   logger.info({ port: info.port }, "Anvia Lens API started");
 });
 
-async function shutdown(signal: string): Promise<void> {
+const shutdownTimeoutMs = 15_000;
+let shutdownPromise: Promise<void> | undefined;
+
+async function runShutdown(signal: string): Promise<void> {
   logger.info({ signal }, "shutting down");
-  server.close();
+  // Drain in-flight HTTP requests before disconnecting databases and queues.
+  await Promise.race([
+    new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      if ("closeIdleConnections" in server) server.closeIdleConnections();
+    }),
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        logger.warn({ timeoutMs: shutdownTimeoutMs }, "HTTP server drain timed out");
+        if ("closeAllConnections" in server) server.closeAllConnections();
+        resolve();
+      }, shutdownTimeoutMs);
+      timer.unref();
+    }),
+  ]);
   redis.disconnect();
   systemHealthRedis.disconnect();
-  await queues.close();
-  await systemHealthQueues.close();
-  await Promise.all([clickhouse.close(), postgres.close()]);
+  const results = await Promise.allSettled([
+    queues.close(),
+    systemHealthQueues.close(),
+    clickhouse.close(),
+    postgres.close(),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.error({ err: result.reason }, "API shutdown close failed");
+    }
+  }
+}
+
+function shutdown(signal: string): Promise<void> {
+  shutdownPromise ??= runShutdown(signal);
+  return shutdownPromise;
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    void shutdown(signal).then(() => process.exit(0));
+    void shutdown(signal)
+      .then(() => process.exit(0))
+      .catch((err: unknown) => {
+        logger.error({ err, signal }, "API shutdown failed");
+        process.exit(1);
+      });
   });
 }
 

@@ -17,10 +17,10 @@ import {
   updateAlertChannel,
   updateAlertRule,
 } from "@lens/db";
-import { deliverAlert, renderAlertMessage } from "@lens/notifications";
+import { AlertDeliveryError, deliverAlert, renderAlertMessage } from "@lens/notifications";
 import { Hono } from "hono";
 import { canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
+import { apiError, isUuidParam, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { loadAlertIncidentDetail } from "./services.js";
 
@@ -66,17 +66,14 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
         const access = await accessFor(c, deps);
         if (!access) return apiError(c, 404, "not_found", "Project not found");
         if (!canManage(access.role)) return adminRequired(c);
+        const ruleId = c.req.param("ruleId");
+        if (!isUuidParam(ruleId)) return apiError(c, 404, "not_found", "Alert rule not found");
         const parsed = c.req.valid("json");
         if (!(await gateExists(deps, access.project.id, parsed))) {
           return apiError(c, 400, "invalid_gate", "Quality gate not found");
         }
         try {
-          const rule = await updateAlertRule(
-            deps.postgres.db,
-            access.project.id,
-            c.req.param("ruleId"),
-            parsed,
-          );
+          const rule = await updateAlertRule(deps.postgres.db, access.project.id, ruleId, parsed);
           if (!rule) return apiError(c, 404, "not_found", "Alert rule not found");
           queueEvaluation(deps, access.project.id);
           return c.json(rule);
@@ -89,11 +86,9 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
       if (!canManage(access.role)) return adminRequired(c);
-      const deleted = await deleteAlertRule(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("ruleId"),
-      );
+      const ruleId = c.req.param("ruleId");
+      if (!isUuidParam(ruleId)) return apiError(c, 404, "not_found", "Alert rule not found");
+      const deleted = await deleteAlertRule(deps.postgres.db, access.project.id, ruleId);
       return deleted ? c.body(null, 204) : apiError(c, 404, "not_found", "Alert rule not found");
     })
     .get("/:projectId/alert-channels", async (c) => {
@@ -132,12 +127,16 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
         const access = await accessFor(c, deps);
         if (!access) return apiError(c, 404, "not_found", "Project not found");
         if (!canManage(access.role)) return adminRequired(c);
+        const channelId = c.req.param("channelId");
+        if (!isUuidParam(channelId)) {
+          return apiError(c, 404, "not_found", "Alert channel not found");
+        }
         const parsed = c.req.valid("json");
         try {
           const channel = await updateAlertChannel(
             deps.postgres.db,
             access.project.id,
-            c.req.param("channelId"),
+            channelId,
             parsed,
           );
           if (!channel) return apiError(c, 404, "not_found", "Alert channel not found");
@@ -151,21 +150,25 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
       if (!canManage(access.role)) return adminRequired(c);
-      const deleted = await deleteAlertChannel(
-        deps.postgres.db,
-        access.project.id,
-        c.req.param("channelId"),
-      );
+      const channelId = c.req.param("channelId");
+      if (!isUuidParam(channelId)) {
+        return apiError(c, 404, "not_found", "Alert channel not found");
+      }
+      const deleted = await deleteAlertChannel(deps.postgres.db, access.project.id, channelId);
       return deleted ? c.body(null, 204) : apiError(c, 404, "not_found", "Alert channel not found");
     })
     .post("/:projectId/alert-channels/:channelId/test", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
       if (!canManage(access.role)) return adminRequired(c);
+      const channelId = c.req.param("channelId");
+      if (!isUuidParam(channelId)) {
+        return apiError(c, 404, "not_found", "Alert channel not found");
+      }
       const channel = await getAlertChannelWithConfig(
         deps.postgres.db,
         access.project.id,
-        c.req.param("channelId"),
+        channelId,
       );
       if (!channel) return apiError(c, 404, "not_found", "Alert channel not found");
       const message = renderAlertMessage({
@@ -181,11 +184,14 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
         await deliverAlert(channel, message, { event: "alert.test", projectId: access.project.id });
         return c.json({ ok: true });
       } catch (error) {
+        if (!(error instanceof AlertDeliveryError)) {
+          deps.logger.warn({ err: error, channelId }, "unexpected alert channel test failure");
+        }
         return apiError(
           c,
           502,
           "delivery_failed",
-          error instanceof Error ? error.message : "Delivery failed",
+          error instanceof AlertDeliveryError ? error.message : "Delivery failed",
         );
       }
     })
@@ -219,11 +225,11 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
     .get("/:projectId/alerts/:incidentId", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
-      const detail = await loadAlertIncidentDetail(
-        deps,
-        access.project.id,
-        c.req.param("incidentId"),
-      );
+      const incidentId = c.req.param("incidentId");
+      if (!isUuidParam(incidentId)) {
+        return apiError(c, 404, "not_found", "Alert incident not found");
+      }
+      const detail = await loadAlertIncidentDetail(deps, access.project.id, incidentId);
       return detail === undefined
         ? apiError(c, 404, "not_found", "Alert incident not found")
         : c.json(detail);
@@ -231,10 +237,14 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
     .post("/:projectId/alerts/:incidentId/acknowledge", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
+      const incidentId = c.req.param("incidentId");
+      if (!isUuidParam(incidentId)) {
+        return apiError(c, 404, "not_found", "Alert incident not found");
+      }
       const incident = await acknowledgeAlertIncident(
         deps.postgres.db,
         access.project.id,
-        c.req.param("incidentId"),
+        incidentId,
         requiredSession(c).user.id,
       );
       return incident
@@ -244,10 +254,14 @@ export const createAlertsRouter = (deps: ApiDependencies) =>
     .post("/:projectId/alerts/:incidentId/resolve", async (c) => {
       const access = await accessFor(c, deps);
       if (!access) return apiError(c, 404, "not_found", "Project not found");
+      const incidentId = c.req.param("incidentId");
+      if (!isUuidParam(incidentId)) {
+        return apiError(c, 404, "not_found", "Alert incident not found");
+      }
       const incident = await resolveAlertIncident(
         deps.postgres.db,
         access.project.id,
-        c.req.param("incidentId"),
+        incidentId,
         requiredSession(c).user.id,
       );
       return incident

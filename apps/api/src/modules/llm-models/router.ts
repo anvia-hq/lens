@@ -1,8 +1,8 @@
 import { costRecalculation, jobOutbox, jobOutboxValues, llmModelPrice } from "@lens/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
-import { appMembership } from "../../utils/access.js";
-import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
+import { appMembership, canManage } from "../../utils/access.js";
+import { apiError, isUuidParam, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { modelPriceSchema, recalculationSchema, updateModelPriceSchema } from "./schema.js";
 import {
@@ -36,6 +36,9 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
         const session = requiredSession(c);
         const app = await membership(deps, session.user.id);
         if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+        if (!canManage(app.membership.role)) {
+          return apiError(c, 403, "forbidden", "Admin access is required");
+        }
         const parsed = c.req.valid("json");
         const active = await deps.postgres.db
           .select({ id: costRecalculation.id })
@@ -103,6 +106,9 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
     .post("/", jsonInput(modelPriceSchema, "invalid_price", "Invalid model price"), async (c) => {
       const app = await membership(deps, requiredSession(c).user.id);
       if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      if (!canManage(app.membership.role)) {
+        return apiError(c, 403, "forbidden", "Admin access is required");
+      }
       const parsed = c.req.valid("json");
       try {
         const [created] = await deps.postgres.db
@@ -127,13 +133,18 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
       async (c) => {
         const app = await membership(deps, requiredSession(c).user.id);
         if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+        if (!canManage(app.membership.role)) {
+          return apiError(c, 403, "forbidden", "Admin access is required");
+        }
+        const modelId = c.req.param("modelId");
+        if (!isUuidParam(modelId)) return apiError(c, 404, "not_found", "Model price not found");
         const parsed = c.req.valid("json");
         const [updated] = await deps.postgres.db
           .update(llmModelPrice)
           .set({ ...priceValues(parsed), updatedAt: new Date() })
           .where(
             and(
-              eq(llmModelPrice.id, c.req.param("modelId")),
+              eq(llmModelPrice.id, modelId),
               eq(llmModelPrice.organizationId, app.organization.id),
             ),
           )
@@ -145,13 +156,15 @@ export const createLlmModelsRouter = (deps: ApiDependencies) =>
     .delete("/:modelId", async (c) => {
       const app = await membership(deps, requiredSession(c).user.id);
       if (app === undefined) return apiError(c, 403, "forbidden", "Membership is required");
+      if (!canManage(app.membership.role)) {
+        return apiError(c, 403, "forbidden", "Admin access is required");
+      }
+      const modelId = c.req.param("modelId");
+      if (!isUuidParam(modelId)) return apiError(c, 404, "not_found", "Model price not found");
       const [deleted] = await deps.postgres.db
         .delete(llmModelPrice)
         .where(
-          and(
-            eq(llmModelPrice.id, c.req.param("modelId")),
-            eq(llmModelPrice.organizationId, app.organization.id),
-          ),
+          and(eq(llmModelPrice.id, modelId), eq(llmModelPrice.organizationId, app.organization.id)),
         )
         .returning({ id: llmModelPrice.id });
       if (deleted === undefined) return apiError(c, 404, "not_found", "Model price not found");

@@ -2,7 +2,7 @@ import { jobOutbox, jobOutboxValues, project, projectApiKey } from "@lens/db";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { appMembership, canManage, requireProjectAccess } from "../../utils/access.js";
-import { apiError, jsonInput, requiredSession } from "../../utils/http.js";
+import { apiError, isPgUniqueViolation, jsonInput, requiredSession } from "../../utils/http.js";
 import type { ApiDependencies, AppEnv } from "../../utils/types.js";
 import { createProjectSchema, projectSettingsSchema } from "./schema.js";
 import { projectFromRow } from "./services.js";
@@ -32,14 +32,22 @@ export const createProjectsRouter = (deps: ApiDependencies) =>
         if (!canManage(app.membership.role)) {
           return apiError(c, 403, "forbidden", "Admin access is required");
         }
-        const [created] = await deps.postgres.db
-          .insert(project)
-          .values({
-            organizationId: app.organization.id,
-            name: parsed.name,
-            slug: parsed.slug,
-          })
-          .returning();
+        let created: typeof project.$inferSelect | undefined;
+        try {
+          [created] = await deps.postgres.db
+            .insert(project)
+            .values({
+              organizationId: app.organization.id,
+              name: parsed.name,
+              slug: parsed.slug,
+            })
+            .returning();
+        } catch (error) {
+          if (isPgUniqueViolation(error)) {
+            return apiError(c, 409, "duplicate_project", "A project with this slug already exists");
+          }
+          throw error;
+        }
         if (created === undefined) {
           return apiError(c, 500, "create_failed", "Project was not created");
         }

@@ -48,14 +48,25 @@ export const createIngestionRouter = (deps: ApiDependencies, metrics: ApiMetrics
       void recordIngestionRejection(deps.redis, "auth");
       return apiError(c, 401, "unauthorized", "Invalid or revoked ingestion key");
     }
-    if (
-      !(await withinFixedWindowRateLimit(
+    let withinLimit: boolean;
+    try {
+      withinLimit = await withinFixedWindowRateLimit(
         deps.redis,
         "ingestion",
         key.project.id,
         deps.config.OTLP_RATE_LIMIT_PER_MINUTE,
-      ))
-    ) {
+      );
+    } catch (error) {
+      metrics.rejected.inc({ reason: "queue_unavailable" });
+      void recordIngestionRejection(deps.redis, "queue_unavailable");
+      deps.logger.warn(
+        { err: error, projectId: key.project.id },
+        "ingestion rate limiter unavailable",
+      );
+      c.header("Retry-After", "5");
+      return apiError(c, 503, "ingestion_unavailable", "Telemetry ingestion is unavailable");
+    }
+    if (!withinLimit) {
       metrics.rejected.inc({ reason: "rate_limit" });
       void recordIngestionRejection(deps.redis, "rate_limit");
       c.header("Retry-After", "60");
