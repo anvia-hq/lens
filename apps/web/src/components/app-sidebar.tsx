@@ -29,13 +29,15 @@ import {
   Terminal as TerminalSquare,
   Users,
 } from "@mynaui/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { authClient } from "../lib/auth";
+import { signOutAndClearCache } from "../lib/auth";
 import { useActiveAlertCount } from "../modules/observability/hooks/use-alerts";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
 
 export function AppSidebar({ user }: { user: AuthenticatedUser }) {
+  const queryClient = useQueryClient();
   const { project } = useProject();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectRoot = `/${project.id}`;
@@ -205,7 +207,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
             variant="ghost"
             size="icon-sm"
             aria-label="Sign out"
-            onClick={() => authClient.signOut()}
+            onClick={() => void signOutAndClearCache(queryClient)}
           >
             <LogOut />
           </Button>

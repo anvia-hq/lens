@@ -55,9 +55,10 @@ function ChartContainer({
 }) {
   const uniqueId = React.useId();
   const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`;
+  const contextValue = React.useMemo(() => ({ config }), [config]);
 
   return (
-    <ChartContext.Provider value={{ config }}>
+    <ChartContext.Provider value={contextValue}>
       <div
         data-slot="chart"
         data-chart={chartId}
@@ -76,34 +77,35 @@ function ChartContainer({
   );
 }
 
+const CSS_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const SAFE_CSS_COLOR_PATTERN = /^[#a-zA-Z0-9(),.%/_ -]+$/;
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme ?? config.color);
 
-  if (!colorConfig.length) {
+  if (!colorConfig.length || !CSS_IDENTIFIER_PATTERN.test(id)) {
     return null;
   }
 
-  return (
-    <style
-      // CSS is generated from developer-owned chart configuration, never request data.
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ?? itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+  const css = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const declarations = colorConfig
+        .flatMap(([key, itemConfig]) => {
+          if (!CSS_IDENTIFIER_PATTERN.test(key)) return [];
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ?? itemConfig.color;
+          if (!color || !SAFE_CSS_COLOR_PATTERN.test(color)) return [];
+          return [`  --color-${key}: ${color};`];
+        })
+        .join("\n");
+      return declarations.length > 0 ? `${prefix} [data-chart="${id}"] {\n${declarations}\n}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  if (!css) return null;
+
+  return <style>{css}</style>;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;

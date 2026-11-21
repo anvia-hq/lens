@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@lens/ui/components/breadcrumb";
+import { SidebarTrigger } from "@lens/ui/components/sidebar";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
 import { defaultUserColumns } from "../modules/observability/types";
 import { useProject } from "../modules/projects/hooks/use-project";
@@ -51,6 +52,7 @@ export function AppHeader() {
   const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
+      <SidebarTrigger className="md:hidden" />
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap">
           <BreadcrumbItem className="min-w-0">

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { SidebarProvider } from "@lens/ui/components/sidebar";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -43,9 +44,11 @@ function renderHeader(pathname: string, params: Record<string, string> = {}) {
   mocks.pathname = pathname;
   mocks.params = params;
   return render(
-    <ProjectContext.Provider value={{ project, projects: [project] }}>
-      <AppHeader />
-    </ProjectContext.Provider>,
+    <SidebarProvider>
+      <ProjectContext.Provider value={{ project, projects: [project] }}>
+        <AppHeader />
+      </ProjectContext.Provider>
+    </SidebarProvider>,
   );
 }
 

@@ -19,12 +19,14 @@ import {
   Microchip as Robot,
   Users,
 } from "@mynaui/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { authClient } from "../lib/auth";
+import { signOutAndClearCache } from "../lib/auth";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
 
 export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
+  const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { project } = useProject();
   const canManage = project.role === "owner" || project.role === "admin";
@@ -83,7 +85,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
             variant="ghost"
             size="icon-sm"
             aria-label="Sign out"
-            onClick={() => authClient.signOut()}
+            onClick={() => void signOutAndClearCache(queryClient)}
           >
             <LogOut />
           </Button>

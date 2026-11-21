@@ -12,7 +12,6 @@ import type {
 import { metricsRangePresets, sessionSortFields, traceSortFields } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
-import { type ChartConfig, ChartTooltip, ChartTooltipContent } from "@lens/ui/components/chart";
 import { cn } from "@lens/ui/lib/utils";
 import { ArrowUpDown } from "@mynaui/icons-react";
 import {
@@ -21,7 +20,6 @@ import {
   rowSortingFeature,
   tableFeatures,
 } from "@tanstack/react-table";
-import { XAxis } from "recharts";
 import { CompactValues } from "../components/compact-values";
 import { SessionNameCell } from "../components/session-name-cell";
 import { SessionOpenCell } from "../components/session-open-cell";
@@ -119,22 +117,6 @@ export function validateTracesSearch(search: Record<string, unknown>): TracesSea
   };
 }
 
-export const throughputChartConfig = {
-  traces: { label: "Traces", color: "var(--viz-indigo)" },
-  generations: { label: "Generations", color: "var(--viz-indigo-muted)" },
-  traceErrors: { label: "Errors", color: "var(--viz-neutral)" },
-} satisfies ChartConfig;
-export const tokenChartConfig = {
-  inputTokens: { label: "Input tokens", color: "var(--viz-indigo)" },
-  outputTokens: { label: "Output tokens", color: "var(--viz-neutral)" },
-} satisfies ChartConfig;
-export const latencyChartConfig = {
-  generationDurationP50Ms: { label: "P50", color: "var(--viz-neutral)" },
-  generationDurationP95Ms: { label: "P95", color: "var(--viz-indigo)" },
-} satisfies ChartConfig;
-export const modelChartConfig = {
-  totalTokens: { label: "Total tokens", color: "var(--viz-indigo)" },
-} satisfies ChartConfig;
 export const dataTableFeatures = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
@@ -392,35 +374,6 @@ export function sessionTableColumns(options: {
       cell: ({ row }) => <SessionOpenCell session={row.original} />,
     }),
   ] as Parameters<typeof sessionColumnHelper.columns>[0]);
-}
-
-export function metricsXAxis(range: MetricsRangePreset) {
-  return (
-    <XAxis
-      dataKey="timestamp"
-      tickFormatter={(item) => formatMetricTimestamp(String(item), range, false)}
-      minTickGap={24}
-      tickLine={false}
-      axisLine={false}
-    />
-  );
-}
-
-export function metricsTooltip(range: MetricsRangePreset, duration = false) {
-  return (
-    <ChartTooltip
-      content={
-        <ChartTooltipContent
-          labelFormatter={(_label, payload) =>
-            formatMetricTimestamp(String(payload[0]?.payload?.timestamp ?? ""), range, true)
-          }
-          formatter={(item) =>
-            duration ? formatDuration(Number(item)) : formatNumber(Number(item))
-          }
-        />
-      }
-    />
-  );
 }
 
 export const traceColumnLabels: Record<TraceColumnId, string> = {

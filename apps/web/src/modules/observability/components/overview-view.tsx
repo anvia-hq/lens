@@ -25,18 +25,20 @@ import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { OverviewState } from "../hooks/use-overview";
 import {
-  formatCompactAxis,
-  formatCost,
-  formatDecimal,
-  formatDuration,
-  formatNumber,
-  formatPercent,
   latencyChartConfig,
   metricsTooltip,
   metricsXAxis,
   modelChartConfig,
   throughputChartConfig,
   tokenChartConfig,
+} from "../utils/observability-charts";
+import {
+  formatCompactAxis,
+  formatCost,
+  formatDecimal,
+  formatDuration,
+  formatNumber,
+  formatPercent,
   truncateChartLabel,
 } from "../utils/observability-view";
 import { ComparisonMetricCard } from "./comparison-metric-card";

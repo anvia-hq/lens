@@ -112,7 +112,9 @@ function ChannelTable(props: {
                       disabled={props.testing.isPending}
                       onClick={() => props.onTest(channel.id)}
                     >
-                      {props.testing.variables === channel.id ? "Sending…" : "Send test"}
+                      {props.testing.isPending && props.testing.variables === channel.id
+                        ? "Sending…"
+                        : "Send test"}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => props.onEdit(channel)}>
                       <PencilSimple /> Edit
