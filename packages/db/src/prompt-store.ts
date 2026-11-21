@@ -17,7 +17,7 @@ import {
   promptDeploymentQuerySchema,
   resolvedPromptSchema,
 } from "@lens/contracts";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { LensPostgres } from "./index.js";
 import { prompt, promptLabel, promptLabelEvent, promptVersion } from "./schema.js";
 
@@ -35,7 +35,61 @@ export async function listPrompts(
         : and(eq(prompt.projectId, projectId), isNull(prompt.archivedAt)),
     )
     .orderBy(asc(prompt.name));
-  return Promise.all(rows.map((row) => summarizePrompt(db, row)));
+  if (rows.length === 0) return [];
+  const promptIds = rows.map((row) => row.id);
+  const [versionStats, labelList] = await Promise.all([
+    db
+      .select({
+        promptId: promptVersion.promptId,
+        latestVersion: max(promptVersion.version),
+        versionCount: count(promptVersion.id),
+      })
+      .from(promptVersion)
+      .where(inArray(promptVersion.promptId, promptIds))
+      .groupBy(promptVersion.promptId),
+    db
+      .select({
+        promptId: promptLabel.promptId,
+        label: promptLabel,
+        version: promptVersion.version,
+      })
+      .from(promptLabel)
+      .innerJoin(promptVersion, eq(promptLabel.versionId, promptVersion.id))
+      .where(inArray(promptLabel.promptId, promptIds))
+      .orderBy(asc(promptLabel.label)),
+  ]);
+  const statsByPrompt = new Map(
+    versionStats.map((stat) => [
+      stat.promptId,
+      { latestVersion: Number(stat.latestVersion ?? 0), versionCount: Number(stat.versionCount) },
+    ]),
+  );
+  const labelsByPrompt = new Map<string, PromptLabel[]>();
+  for (const entry of labelList) {
+    const list = labelsByPrompt.get(entry.promptId) ?? [];
+    list.push({
+      label: entry.label.label,
+      version: entry.version,
+      updatedBy: entry.label.updatedBy,
+      updatedAt: entry.label.updatedAt.toISOString(),
+    });
+    labelsByPrompt.set(entry.promptId, list);
+  }
+  return rows.map((row) => {
+    const stats = statsByPrompt.get(row.id) ?? { latestVersion: 0, versionCount: 0 };
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      name: row.name,
+      description: row.description,
+      latestVersion: stats.latestVersion,
+      versionCount: stats.versionCount,
+      labels: labelsByPrompt.get(row.id) ?? [],
+      archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  });
 }
 
 export async function getPrompt(
@@ -371,15 +425,6 @@ async function labelRows(db: LensPostgres, promptId: string): Promise<PromptLabe
     updatedBy: row.label.updatedBy,
     updatedAt: row.label.updatedAt.toISOString(),
   }));
-}
-
-async function summarizePrompt(
-  db: LensPostgres,
-  row: typeof prompt.$inferSelect,
-): Promise<PromptSummary> {
-  const versions = await versionRows(db, row.id);
-  const labels = await labelRows(db, row.id);
-  return summaryFromRow(row, versions, labels);
 }
 
 function summaryFromRow(

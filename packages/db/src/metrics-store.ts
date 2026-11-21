@@ -54,8 +54,8 @@ export async function queryMetrics(
           if(start_time >= {from:DateTime64(3)}, 'current', 'previous') AS period,
           count() AS generations,
           countIf(status = 'error') AS errors,
-          quantileExact(0.5)(duration_nano / 1000000) AS p50,
-          quantileExact(0.95)(duration_nano / 1000000) AS p95,
+          quantileTDigest(0.5)(duration_nano / 1000000) AS p50,
+          quantileTDigest(0.95)(duration_nano / 1000000) AS p95,
           uniqExactIf(ifNull(model, ''), model IS NOT NULL AND model != '') AS active_models
         FROM spans FINAL
         WHERE project_id = {projectId:UUID} AND observation_kind = 'generation'
@@ -82,8 +82,8 @@ export async function queryMetrics(
       client,
       `SELECT
           toStartOfInterval(start_time, ${interval}) AS timestamp,
-          quantileExact(0.5)(duration_nano / 1000000) AS p50,
-          quantileExact(0.95)(duration_nano / 1000000) AS p95
+          quantileTDigest(0.5)(duration_nano / 1000000) AS p50,
+          quantileTDigest(0.95)(duration_nano / 1000000) AS p95
         FROM spans FINAL
         WHERE project_id = {projectId:UUID} AND observation_kind = 'generation'
           AND start_time >= {from:DateTime64(3)} AND start_time <= {to:DateTime64(3)}
@@ -99,7 +99,7 @@ export async function queryMetrics(
           sum(input_tokens) AS input_tokens,
           sum(output_tokens) AS output_tokens,
           sum(total_tokens) AS total_tokens,
-          quantileExact(0.95)(duration_nano / 1000000) AS p95
+          quantileTDigest(0.95)(duration_nano / 1000000) AS p95
         FROM spans FINAL
         WHERE project_id = {projectId:UUID} AND observation_kind = 'generation'
           AND start_time >= {from:DateTime64(3)} AND start_time <= {to:DateTime64(3)}
@@ -114,7 +114,7 @@ export async function queryMetrics(
           sum(generation_count) AS generations,
           countIf(status = 'error') AS errors,
           sum(total_tokens) AS total_tokens,
-          quantileExact(0.95)(duration_ms) AS p95
+          quantileTDigest(0.95)(duration_ms) AS p95
         FROM trace_summaries FINAL
         WHERE project_id = {projectId:UUID}
           AND started_at >= {from:DateTime64(3)} AND started_at <= {to:DateTime64(3)}
@@ -127,7 +127,7 @@ export async function queryMetrics(
           name AS tool_name,
           count() AS calls,
           countIf(status = 'error') AS errors,
-          quantileExact(0.95)(duration_nano / 1000000) AS p95
+          quantileTDigest(0.95)(duration_nano / 1000000) AS p95
         FROM spans FINAL
         WHERE project_id = {projectId:UUID} AND observation_kind = 'tool'
           AND start_time >= {from:DateTime64(3)} AND start_time <= {to:DateTime64(3)}
