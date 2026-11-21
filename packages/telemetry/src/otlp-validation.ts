@@ -18,6 +18,9 @@ export function validateSpan(span: OtlpSpan): string | undefined {
   if (!validSpanId(span.spanId)) {
     return `Invalid span ID for span ${displaySpanName(span.name)}`;
   }
+  if (span.parentSpanId.length > 0 && !SPAN_ID_PATTERN.test(span.parentSpanId)) {
+    return `Invalid parent span ID for span ${span.spanId}`;
+  }
   try {
     const start = BigInt(span.startTimeUnixNano);
     const end = BigInt(span.endTimeUnixNano);

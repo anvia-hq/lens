@@ -227,4 +227,72 @@ describe("OTLP codecs", () => {
       "non-negative safe integer",
     );
   });
+
+  it("rejects deeply nested protobuf and JSON AnyValue payloads", () => {
+    let nestedProto = stringAny("leaf");
+    for (let depth = 0; depth < 70; depth += 1) {
+      nestedProto = messageField(5, message([messageField(1, nestedProto)]));
+    }
+    const span = message([
+      bytesField(1, hexBytes(traceId)),
+      bytesField(2, hexBytes(spanId)),
+      messageField(9, keyValue("deep", nestedProto)),
+    ]);
+    const protoRequest = message([
+      messageField(1, message([messageField(2, message([messageField(2, span)]))])),
+    ]);
+    expect(() => decodeOtlpRequest(protoRequest, "application/x-protobuf")).toThrow(
+      "nesting depth",
+    );
+
+    let nestedJson: Record<string, unknown> = { stringValue: "leaf" };
+    for (let depth = 0; depth < 70; depth += 1) {
+      nestedJson = { arrayValue: { values: [nestedJson] } };
+    }
+    const jsonRequest = new TextEncoder().encode(
+      JSON.stringify({
+        resourceSpans: [
+          {
+            scopeSpans: [
+              {
+                spans: [
+                  {
+                    traceId,
+                    spanId,
+                    attributes: [{ key: "deep", value: nestedJson }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(() => decodeOtlpRequest(jsonRequest, "application/json")).toThrow("nesting depth");
+  });
+
+  it("preserves __proto__ as an own property in protobuf kvlist_value and rejects oversized tags", () => {
+    const listAny = messageField(
+      6,
+      message([messageField(1, keyValue("__proto__", stringAny("safe")))]),
+    );
+    const span = message([
+      bytesField(1, hexBytes(traceId)),
+      bytesField(2, hexBytes(spanId)),
+      messageField(9, keyValue("payload", listAny)),
+    ]);
+    const request = message([
+      messageField(1, message([messageField(2, message([messageField(2, span)]))])),
+    ]);
+    const decoded = decodeOtlpRequest(request, "application/x-protobuf");
+    const payload = decoded.resourceSpans[0]?.scopeSpans[0]?.spans[0]?.attributes[0]
+      ?.value as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(payload, "__proto__")).toBe(true);
+    expect(payload["__proto__"]).toBe("safe");
+
+    // 0x1_0000_0008 (varint > 32-bit tag that would wrap to field 1, wire 0)
+    expect(() =>
+      decodeOtlpRequest(Uint8Array.of(0x88, 0x80, 0x80, 0x80, 0x10), "application/x-protobuf"),
+    ).toThrow("Invalid protobuf tag");
+  });
 });

@@ -328,4 +328,24 @@ describe("trace normalization", () => {
     const second = normalize({}).spans[0]?.ingestVersion;
     expect(BigInt(second ?? 0)).toBeGreaterThan(BigInt(first ?? 0));
   });
+
+  it("rejects malformed parentSpanId and bounds recursive redaction depth", () => {
+    const invalidParent = normalize({}, { parentSpanId: "not-hex" });
+    expect(invalidParent.rejectedSpans).toBe(1);
+    expect(invalidParent.spans).toEqual([]);
+    expect(invalidParent.errors[0]).toContain("Invalid parent span ID");
+
+    let doublyEncoded = JSON.stringify({ password: "secret" });
+    for (let depth = 0; depth < 10; depth += 1) {
+      doublyEncoded = JSON.stringify({ nested: doublyEncoded });
+    }
+    const deeplyNested = normalize({
+      "metadata.payload": { stringValue: doublyEncoded },
+    });
+    expect(deeplyNested.rejectedSpans).toBe(0);
+    expect(deeplyNested.spans).toHaveLength(1);
+    expect(String(deeplyNested.spans[0]?.spanAttributes["metadata.payload"])).not.toContain(
+      "[REDACTED]",
+    );
+  });
 });

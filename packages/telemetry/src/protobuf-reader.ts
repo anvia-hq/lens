@@ -1,9 +1,15 @@
 import type { JsonValue } from "@lens/contracts";
 
+const MAX_PROTOBUF_DEPTH = 64;
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+
 export class ProtobufReader {
   offset = 0;
 
-  constructor(readonly bytes: Uint8Array) {}
+  constructor(
+    readonly bytes: Uint8Array,
+    private readonly depth = 0,
+  ) {}
 
   get done(): boolean {
     return this.offset >= this.bytes.length;
@@ -15,6 +21,7 @@ export class ProtobufReader {
     for (let index = 0; index < 10; index += 1) {
       const byte = this.bytes[this.offset++];
       if (byte === undefined) throw new Error("Unexpected end of protobuf varint");
+      if (index === 9 && byte > 1) throw new Error("Invalid protobuf varint");
       result |= BigInt(byte & 0x7f) << shift;
       if ((byte & 0x80) === 0) return result;
       shift += 7n;
@@ -23,7 +30,9 @@ export class ProtobufReader {
   }
 
   tag(): { field: number; wire: number } {
-    const tag = Number(this.varint());
+    const raw = this.varint();
+    if (raw > 0xffff_ffffn) throw new Error("Invalid protobuf tag");
+    const tag = Number(raw);
     const field = tag >>> 3;
     if (field === 0) throw new Error("Invalid protobuf field number 0");
     return { field, wire: tag & 7 };
@@ -72,11 +81,14 @@ export class ProtobufReader {
   }
 
   string(): string {
-    return new TextDecoder("utf-8", { fatal: true }).decode(this.data());
+    return UTF8_DECODER.decode(this.data());
   }
 
   message<T>(decoder: (reader: ProtobufReader) => T): T {
-    return decoder(new ProtobufReader(this.data()));
+    if (this.depth >= MAX_PROTOBUF_DEPTH) {
+      throw new Error("Protobuf nesting depth exceeds maximum allowed limit");
+    }
+    return decoder(new ProtobufReader(this.data(), this.depth + 1));
   }
 
   skip(wire: number): void {
