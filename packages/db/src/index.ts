@@ -15,7 +15,11 @@ export type PostgresConnection = {
 };
 
 export function createPostgres(config: LensConfig = loadConfig()): PostgresConnection {
-  const sql = postgres(config.POSTGRES_URL, { max: config.POSTGRES_MAX_CONNECTIONS });
+  const sql = postgres(config.POSTGRES_URL, {
+    max: config.POSTGRES_MAX_CONNECTIONS,
+    connect_timeout: 10,
+    idle_timeout: 30,
+  });
   return {
     db: drizzle(sql, { schema }),
     sql,

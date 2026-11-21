@@ -213,7 +213,7 @@ function responseForQuery(query: string, populated: boolean): unknown[] {
   if (query.includes("observation_kind = 'tool'")) {
     return [{ tool_name: "search", calls: 10, errors: 2, p95: 420 }];
   }
-  if (query.includes("max(ingested_at)")) {
+  if (query.includes("maxOrNull(ingested_at)")) {
     return [{ last_event_at: "2026-08-05 12:00:00.000" }];
   }
   return [];

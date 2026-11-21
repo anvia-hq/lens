@@ -27,7 +27,7 @@ export async function queryIngestionThroughput(
         countIf(ingested_at >= {from1h:DateTime64(3)}) AS spans_last_hour,
         count() AS spans_last_24h,
         uniqExact(project_id) AS active_projects_24h,
-        max(ingested_at) AS last_event_at
+        maxOrNull(ingested_at) AS last_event_at
       FROM spans
       WHERE ingested_at >= {from24h:DateTime64(3)}
     `,
@@ -56,7 +56,7 @@ export async function queryProjectLastEventAt(
   const from30d = new Date(now.getTime() - 30 * 24 * 3_600_000);
   const result = await client.query({
     query: `
-      SELECT max(ingested_at) AS last_event_at
+      SELECT maxOrNull(ingested_at) AS last_event_at
       FROM spans
       WHERE project_id = {projectId:UUID} AND ingested_at >= {from:DateTime64(3)}
     `,
