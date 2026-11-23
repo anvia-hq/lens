@@ -30,7 +30,6 @@ import {
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  ArrowUpDown,
   ChevronDown,
   FlaskConical as Flask,
   Search,
@@ -58,6 +57,7 @@ import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
 import { TableTimestamp } from "./table-timestamp";
+import { SortHeaderButton } from "./sort-header-button";
 
 const columnLabels: Record<EvaluationResultColumnId, string> = {
   timestamp: "Time",
@@ -221,20 +221,12 @@ function EvaluationResultExplorerTable(props: {
                       }
                     >
                       {field ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="-ml-3"
+                        <SortHeaderButton
+                          label={columnLabels[column]}
+                          active={props.filters.sort === field}
+                          order={props.filters.order}
                           onClick={() => sort(field)}
-                          aria-label={`Sort by ${columnLabels[column]}${
-                            props.filters.sort === field ? `, currently ${props.filters.order}` : ""
-                          }`}
-                        >
-                          {columnLabels[column]}
-                          <ArrowUpDown
-                            className={cn(props.filters.sort === field && "text-primary")}
-                          />
-                        </Button>
+                        />
                       ) : (
                         columnLabels[column]
                       )}

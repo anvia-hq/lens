@@ -14,9 +14,6 @@ import type {
 } from "@lens/contracts";
 import { metricsRangePresets, sessionSortFields, traceSortFields } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
-import { Button } from "@lens/ui/components/button";
-import { cn } from "@lens/ui/lib/utils";
-import { ArrowUpDown } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import {
   createColumnHelper,
@@ -49,6 +46,7 @@ import {
   type TracesSearch,
   traceColumnIds,
 } from "../types";
+import { SortHeaderButton } from "../components/sort-header-button";
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
   return { range: parseMetricsRange(search.range) };
@@ -145,16 +143,12 @@ export function traceTableColumns(options: {
 }) {
   const header = (label: string, sort: TraceSortField) => () =>
     options.onSort ? (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3"
+      <SortHeaderButton
+        label={label}
+        active={options.sort === sort}
+        order={options.order}
         onClick={() => options.onSort?.(sort)}
-        aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
-      >
-        {label}
-        <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
-      </Button>
+      />
     ) : (
       label
     );
@@ -338,16 +332,12 @@ export function runTableColumns(options: {
 }) {
   const header = (label: string, sort: RunSortField) => () =>
     options.onSort ? (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3"
+      <SortHeaderButton
+        label={label}
+        active={options.sort === sort}
+        order={options.order}
         onClick={() => options.onSort?.(sort)}
-        aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
-      >
-        {label}
-        <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
-      </Button>
+      />
     ) : (
       label
     );
@@ -524,16 +514,12 @@ export function sessionTableColumns(options: {
   onSort: (sort: SessionSortField) => void;
 }) {
   const header = (label: string, sort: SessionSortField) => () => (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-3"
+    <SortHeaderButton
+      label={label}
+      active={options.sort === sort}
+      order={options.order}
       onClick={() => options.onSort(sort)}
-      aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
-    >
-      {label}
-      <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
-    </Button>
+    />
   );
   const columnsById = {
     startedAt: sessionColumnHelper.accessor("startedAt", {

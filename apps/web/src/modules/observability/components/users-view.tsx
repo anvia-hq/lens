@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowUpDown, ChevronDown, Search, Users } from "@mynaui/icons-react";
+import { ChevronDown, Search, Users } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
@@ -44,6 +44,7 @@ import {
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { UserRangeSelector } from "./user-range-selector";
+import { SortHeaderButton } from "./sort-header-button";
 
 const labels: Record<UserColumnId, string> = {
   userId: "User",
@@ -157,17 +158,12 @@ export function UsersView({ state }: { state: UsersState }) {
                           : undefined
                       }
                     >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="-ml-3"
+                      <SortHeaderButton
+                        label={labels[column]}
+                        active={filters.sort === sortFields[column]}
+                        order={filters.order}
                         onClick={() => changeSort(sortFields[column])}
-                      >
-                        {labels[column]}
-                        <ArrowUpDown
-                          className={cn(filters.sort === sortFields[column] && "text-primary")}
-                        />
-                      </Button>
+                      />
                     </TableHead>
                   ))}
                 </TableRow>
