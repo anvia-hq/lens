@@ -57,6 +57,10 @@
   --color-status-success-fill-foreground: var(--status-success-fill-foreground);
   --color-status-success-fill: var(--status-success-fill);
   --color-status-success: var(--status-success);
+  /* Soft badge fills derive from each theme's status color, so they read on light and dark. */
+  --color-status-success-soft: color-mix(in srgb, var(--status-success) 14%, transparent);
+  --color-status-warning-soft: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  --color-status-error-soft: color-mix(in srgb, var(--status-error) 14%, transparent);
   --color-row-active: var(--row-active);
   --color-row-selected: var(--row-selected);
   --color-row-hover: var(--row-hover);
