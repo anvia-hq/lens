@@ -1,6 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { SessionsView } from "../../../modules/observability/components/sessions-view";
-import { useSessions } from "../../../modules/observability/hooks/use-sessions";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { SessionsSearch } from "../../../modules/observability/types";
 import { validateSessionsSearch as normalizeSessionsSearch } from "../../../modules/observability/utils";
 
@@ -10,10 +8,12 @@ export function validateSessionsSearch(search: Record<string, unknown>): Session
 
 export const Route = createFileRoute("/$projectId/sessions/")({
   validateSearch: validateSessionsSearch,
-  component: SessionsPage,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({
+      to: "/$projectId/threads",
+      params: { projectId: params.projectId },
+      search,
+      replace: true,
+    });
+  },
 });
-
-function SessionsPage() {
-  const state = useSessions();
-  return <SessionsView state={state} />;
-}

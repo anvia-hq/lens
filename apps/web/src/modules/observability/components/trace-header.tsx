@@ -63,11 +63,11 @@ export function TraceHeader({
         <HeaderMetric label="Cost" value={formatCost(summary.totalCost)} />
         {summary.sessionId ? (
           <div className="grid min-w-0 gap-1">
-            <dt className="text-xs text-muted-foreground">Session</dt>
+            <dt className="text-xs text-muted-foreground">Thread</dt>
             <dd className="min-w-0">
               <Link
                 className="group flex min-w-0 items-center gap-1.5 text-sm font-medium hover:underline"
-                to="/$projectId/sessions/$sessionId"
+                to="/$projectId/threads/$sessionId"
                 params={{ projectId, sessionId: summary.sessionId }}
               >
                 <span className="truncate font-mono">{summary.sessionId}</span>

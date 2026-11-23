@@ -5,17 +5,29 @@ import { MetadataRow } from "./metadata-row";
 import { MetadataSection } from "./metadata-section";
 import { MetadataValues } from "./metadata-values";
 import { SessionStatusBadge } from "./session-status-badge";
-export function SessionMetadata({ detail }: { detail: SessionDetail }) {
+export function SessionMetadata({
+  detail,
+  embedded = false,
+}: {
+  detail: SessionDetail;
+  embedded?: boolean;
+}) {
   const summary = detail.summary;
   return (
-    <aside className="min-w-0 border-t bg-background lg:overflow-auto lg:border-t-0 lg:border-l">
+    <aside
+      className={
+        embedded
+          ? "min-w-0 bg-background"
+          : "min-w-0 border-t bg-background lg:overflow-auto lg:border-t-0 lg:border-l"
+      }
+    >
       <div className="grid gap-6 p-4">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-observation-agent text-observation-foreground">
             <MessagesSquare className="size-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Session details</p>
+            <p className="text-xs font-medium text-muted-foreground">Thread details</p>
             <h1 className="break-all font-mono text-sm font-semibold tracking-tight">
               {summary.sessionId}
             </h1>

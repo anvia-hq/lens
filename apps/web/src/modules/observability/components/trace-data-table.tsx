@@ -27,6 +27,8 @@ export function TraceDataTable(props: {
   onTraceSelectionChange?: (traceId: string, selected: boolean) => void;
   onVisibleSelectionChange?: (traceIds: string[], selected: boolean) => void;
   onDelete?: (traceId: string) => void;
+  activeTraceId?: string;
+  onPeekTrace?: (traceId: string) => void;
 }) {
   const { project } = useObservabilityProject();
   const columns = useMemo(
@@ -87,11 +89,19 @@ export function TraceDataTable(props: {
         <TableBody>
           {table.getRowModel().rows.map((row) => {
             const selected = props.selectedTraceIds?.includes(row.original.traceId) ?? false;
+            const active = props.activeTraceId === row.original.traceId;
             const selectionLimitReached = (props.selectedTraceIds?.length ?? 0) >= 100;
             return (
-              <TableRow key={row.id} data-state={selected ? "selected" : undefined}>
+              <TableRow
+                key={row.id}
+                data-state={selected || active ? "selected" : undefined}
+                className={props.onPeekTrace ? "cursor-pointer" : undefined}
+                onClick={
+                  props.onPeekTrace ? () => props.onPeekTrace?.(row.original.traceId) : undefined
+                }
+              >
                 {selectable ? (
-                  <TableCell className="w-10">
+                  <TableCell className="w-10" onClick={(event) => event.stopPropagation()}>
                     <Checkbox
                       aria-label={`Select ${row.original.name}`}
                       aria-disabled={!selected && selectionLimitReached}
@@ -111,8 +121,17 @@ export function TraceDataTable(props: {
                 {row.getAllCells().map((cell) => {
                   const content = <table.FlexRender cell={cell} />;
                   return (
-                    <TableCell key={cell.id}>
-                      {cell.column.id === "trace" || cell.column.id === "open" ? (
+                    <TableCell
+                      key={cell.id}
+                      onClick={
+                        cell.column.id === "trace" || cell.column.id === "open"
+                          ? (event) => event.stopPropagation()
+                          : undefined
+                      }
+                    >
+                      {cell.column.id === "trace" ||
+                      cell.column.id === "open" ||
+                      props.onPeekTrace ? (
                         content
                       ) : (
                         <Link
@@ -128,7 +147,7 @@ export function TraceDataTable(props: {
                   );
                 })}
                 {props.onDelete ? (
-                  <TableCell className="w-10">
+                  <TableCell className="w-10" onClick={(event) => event.stopPropagation()}>
                     <Button
                       size="icon-sm"
                       variant="ghost"

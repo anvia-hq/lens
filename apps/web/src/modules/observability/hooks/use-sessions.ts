@@ -21,7 +21,7 @@ export function useSessions() {
   const setFilters = useCallback(
     (changes: Partial<SessionsSearch>, resetPage = true) => {
       void navigate({
-        to: "/$projectId/sessions",
+        to: "/$projectId/threads",
         params: { projectId: project.id },
         search: { ...filters, ...changes, page: resetPage ? 1 : (changes.page ?? filters.page) },
         replace: true,

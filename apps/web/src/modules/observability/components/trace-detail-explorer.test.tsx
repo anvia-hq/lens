@@ -406,6 +406,55 @@ describe("trace detail controls", () => {
     expect(screen.getByRole("region", { name: "Trace spans" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Selected span data" })).toBeTruthy();
   });
+
+  it("renders single-trace trajectory steps and switches to tree view", () => {
+    const onSelectSpan = vi.fn();
+    const onViewChange = vi.fn();
+    const root = {
+      ...span({ spanId: "root", name: "agent.run", observationKind: "agent" }),
+      inputPreview: "Find ticket TICKET-1001",
+      outputPreview: "Checkout regression confirmed.",
+    };
+    const tool = {
+      ...span({
+        spanId: "tool-1",
+        parentSpanId: "root",
+        name: "get_ticket",
+        observationKind: "tool",
+        startTimeUnixNano: nano(20),
+        endTimeUnixNano: nano(60),
+        durationNano: durationNano(40),
+      }),
+      inputPreview: '{"id":"TICKET-1001"}',
+      outputPreview: '{"severity":"high"}',
+    };
+    const subject = detail([root, tool]);
+    subject.summary.sessionId = null;
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <TraceDetailExplorer
+          detail={subject}
+          projectId={subject.summary.projectId}
+          selectedSpan={root}
+          selectedSpanId="root"
+          view="trajectory"
+          onSelectSpan={onSelectSpan}
+          onViewChange={onViewChange}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Find ticket TICKET-1001")).toBeTruthy();
+    expect(screen.getByText("get_ticket")).toBeTruthy();
+    expect(screen.getByText("Checkout regression confirmed.")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("get_ticket"));
+    expect(onSelectSpan).toHaveBeenCalledWith("tool-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Tree view" }));
+    expect(onViewChange).toHaveBeenCalledWith("tree");
+  });
 });
 
 function detail(spans: SpanDetail[]): TraceDetail {

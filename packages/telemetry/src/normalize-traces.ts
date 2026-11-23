@@ -126,8 +126,11 @@ export function normalizeOtlpRequest(
             stringAttribute(spanAttributes, "anvia.trace.user_id"),
           sessionId:
             stringAttribute(spanAttributes, "session.id") ??
+            stringAttribute(spanAttributes, "thread.id") ??
             stringAttribute(spanAttributes, "langfuse.session.id") ??
-            stringAttribute(spanAttributes, "anvia.trace.session_id"),
+            stringAttribute(spanAttributes, "langsmith.trace.thread_id") ??
+            stringAttribute(spanAttributes, "anvia.trace.session_id") ??
+            stringAttribute(spanAttributes, "anvia.trace.thread_id"),
           tags: firstStringArrayAttribute(spanAttributes, [
             "langfuse.trace.tags",
             "anvia.trace.tags",

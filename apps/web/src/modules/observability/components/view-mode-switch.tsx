@@ -1,5 +1,6 @@
 import { cn } from "@lens/ui/lib/utils";
 import {
+  Activity,
   GitMerge as FlowArrow,
   ChartBar as GanttChartSquare,
   GitBranch as ListTree,
@@ -13,6 +14,7 @@ export function ViewModeSwitch(props: {
   onChange: (view: TraceSpanView) => void;
 }) {
   const modes = [
+    ["trajectory", Activity],
     ["tree", ListTree],
     ["timeline", GanttChartSquare],
     ...(props.allowGraph === false ? [] : [["graph", FlowArrow] as const]),

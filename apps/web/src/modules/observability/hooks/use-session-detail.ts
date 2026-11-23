@@ -7,7 +7,7 @@ import { useObservabilityProject } from "./use-observability-project";
 
 export function useSessionDetail() {
   const { project } = useObservabilityProject();
-  const { sessionId } = useParams({ from: "/$projectId/sessions/$sessionId" });
+  const { sessionId } = useParams({ from: "/$projectId/threads/$sessionId" });
   const navigate = useNavigate();
   const deletions = useDataDeletions(project.id, "session");
   const session = useInfiniteQuery({
@@ -51,7 +51,7 @@ export function useSessionDetail() {
     deletions.create.mutate([sessionId], {
       onSuccess: () =>
         void navigate({
-          to: "/$projectId/sessions",
+          to: "/$projectId/threads",
           params: { projectId: project.id },
           search: { range: "24h" },
         }),

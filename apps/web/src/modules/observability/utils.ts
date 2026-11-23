@@ -5,8 +5,11 @@ import type {
   EvaluationSortField,
   EvaluationSource,
   MetricsRangePreset,
+  ObservationKind,
+  RunSortField,
   SessionSortField,
   SessionStatus,
+  SpanStatus,
   TraceSortField,
   TraceStatus,
   UserSortField,
@@ -18,7 +21,10 @@ import {
   evaluationSortFields,
   evaluationSources,
   metricsRangePresets,
+  observationKinds,
+  runSortFields,
   sessionSortFields,
+  spanStatuses,
   traceSortFields,
   userSortFields,
 } from "@lens/contracts";
@@ -26,6 +32,7 @@ import {
   type AlertsSearch,
   defaultEvaluationResultColumns,
   defaultEvaluationRunColumns,
+  defaultRunColumns,
   defaultSessionColumns,
   defaultTraceColumns,
   defaultUserColumns,
@@ -46,8 +53,12 @@ import {
   type RefreshInterval,
   type ResolvedEvaluationResultsSearch,
   type ResolvedEvaluationRunsSearch,
+  type ResolvedRunsSearch,
   type ResolvedSessionsSearch,
   type ResolvedTracesSearch,
+  type RunColumnId,
+  type RunsSearch,
+  runColumnIds,
   type SessionColumnId,
   type SessionsSearch,
   sessionColumnIds,
@@ -209,8 +220,51 @@ export function validateOverviewSearch(search: Record<string, unknown>): Overvie
 
 export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
   return {
-    view: search.view === "timeline" || search.view === "graph" ? search.view : undefined,
+    view:
+      search.view === "trajectory" ||
+      search.view === "tree" ||
+      search.view === "timeline" ||
+      search.view === "graph"
+        ? search.view
+        : undefined,
     span: optionalSearchValue(search.span),
+  };
+}
+
+export function validateRunsSearch(search: Record<string, unknown>): RunsSearch {
+  return {
+    range: parseMetricsRange(search.range),
+    observationKinds: searchValues(search.observationKinds ?? search.observationKind).filter(
+      (value): value is ObservationKind => observationKinds.includes(value as ObservationKind),
+    ),
+    statuses: searchValues(search.statuses ?? search.status).filter((value): value is SpanStatus =>
+      spanStatuses.includes(value as SpanStatus),
+    ),
+    services: searchValues(search.services ?? search.service),
+    names: searchValues(search.names ?? search.name),
+    models: searchValues(search.models ?? search.model),
+    environments: searchValues(search.environments ?? search.environment),
+    releases: searchValues(search.releases ?? search.release),
+    versions: searchValues(search.versions ?? search.version),
+    serviceVersions: searchValues(search.serviceVersions ?? search.serviceVersion),
+    tags: searchValues(search.tags ?? search.tag),
+    userId: optionalSearchValue(search.userId),
+    sessionId: optionalSearchValue(search.sessionId),
+    traceId: optionalSearchValue(search.traceId),
+    search: optionalSearchValue(search.search),
+    minDurationMs: optionalNonNegativeNumber(search.minDurationMs),
+    maxDurationMs: optionalNonNegativeNumber(search.maxDurationMs),
+    minTotalTokens: optionalNonNegativeNumber(search.minTotalTokens),
+    maxTotalTokens: optionalNonNegativeNumber(search.maxTotalTokens),
+    minTotalCost: optionalNonNegativeNumber(search.minTotalCost),
+    maxTotalCost: optionalNonNegativeNumber(search.maxTotalCost),
+    sort: runSortFields.includes(search.sort as RunSortField)
+      ? (search.sort as RunSortField)
+      : "startedAt",
+    order: search.order === "asc" ? "asc" : "desc",
+    page: positiveInteger(search.page, 1),
+    pageSize: search.pageSize === 25 || search.pageSize === 100 ? search.pageSize : 50,
+    columns: validRunColumns(search.columns),
   };
 }
 
@@ -328,6 +382,36 @@ export function validateUserDetailSearch(search: Record<string, unknown>): UserD
     sort,
     order: search.order === "asc" ? "asc" : "desc",
   };
+}
+
+export function runActiveFilterCount(filters: ResolvedRunsSearch): number {
+  const facets = [
+    filters.observationKinds,
+    filters.statuses,
+    filters.services,
+    filters.names,
+    filters.models,
+    filters.environments,
+    filters.releases,
+    filters.versions,
+    filters.serviceVersions,
+    filters.tags,
+  ];
+  return (
+    facets.filter((values) => (values?.length ?? 0) > 0).length +
+    [
+      filters.userId,
+      filters.sessionId,
+      filters.traceId,
+      filters.search,
+      filters.minDurationMs,
+      filters.maxDurationMs,
+      filters.minTotalTokens,
+      filters.maxTotalTokens,
+      filters.minTotalCost,
+      filters.maxTotalCost,
+    ].filter((value) => value !== undefined).length
+  );
 }
 
 export function traceActiveFilterCount(filters: ResolvedTracesSearch): number {
@@ -488,6 +572,13 @@ function positiveInteger(value: unknown, fallback: number): number {
 
 function isTraceSortField(value: unknown): value is TraceSortField {
   return traceSortFields.includes(value as TraceSortField);
+}
+
+function validRunColumns(value: unknown): RunColumnId[] {
+  const selected = new Set(searchValues(value));
+  if (selected.size === 0) return defaultRunColumns;
+  selected.add("name");
+  return runColumnIds.filter((column) => selected.has(column));
 }
 
 function validTraceColumns(value: unknown): TraceColumnId[] {

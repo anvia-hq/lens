@@ -85,7 +85,7 @@ export function useTraceDetail() {
     void navigate({
       to: "/$projectId/traces/$traceId",
       params: { projectId: project.id, traceId },
-      search: { ...search, view: view === "tree" ? undefined : view },
+      search: { ...search, view: view === "trajectory" ? undefined : view },
     });
   };
 

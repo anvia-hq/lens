@@ -42,7 +42,7 @@ function TraceDetailPage() {
       selectedSpanError={selectedSpan.error}
       selectedSpanId={selectedSpanId}
       selectedSpanLoading={selectedSpan.isLoading}
-      view={search.view ?? "tree"}
+      view={search.view ?? "trajectory"}
       onSelectSpan={selectSpan}
       onRetrySelectedSpan={() => void selectedSpan.refetch()}
       onViewChange={changeView}

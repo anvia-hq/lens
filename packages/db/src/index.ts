@@ -86,6 +86,8 @@ export {
   getTraceSummary,
   getUser,
   insertSpans,
+  listRunFacets,
+  listRuns,
   listSessionFacets,
   listSessions,
   listTraceFacets,

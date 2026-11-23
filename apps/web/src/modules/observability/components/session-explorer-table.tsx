@@ -81,8 +81,8 @@ export function SessionExplorerTable(props: {
           <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="h-8 pl-8"
-            aria-label="Search sessions"
-            placeholder="Search session or user ID"
+            aria-label="Search threads"
+            placeholder="Search thread or user ID"
             value={props.searchDraft}
             onChange={(event) => props.onSearchChange(event.target.value)}
           />
@@ -166,14 +166,14 @@ export function SessionExplorerTable(props: {
         ) : (
           <EmptyState
             icon={<MessagesSquare />}
-            title="No sessions found"
-            text="Try another filter or send traces containing a session ID."
+            title="No threads found"
+            text="Try another filter or send traces containing a session or thread ID."
           />
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
         <span className="text-muted-foreground">
-          {props.data ? `${formatNumber(props.data.total)} sessions` : "Loading sessions"}
+          {props.data ? `${formatNumber(props.data.total)} threads` : "Loading threads"}
         </span>
         <div className="flex items-center gap-3">
           <NativeSelect

@@ -10,10 +10,13 @@ import type {
   SessionStatus,
   SessionSummary,
   SessionTurnPayload,
+  SpanStatus,
+  TraceSpanSummary,
   TraceSummary,
 } from "@lens/contracts";
 import { encodeCursor } from "./cursor.js";
-import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
+import { extractPayloadPreview } from "./payload-preview.js";
+import { clickHouseToNano, type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import {
   clickHouseDateTime9Param,
   clickHouseDateTimeParam,
@@ -53,7 +56,17 @@ type SessionConversationRow = {
   parent_span_id: string;
   name: string;
   observation_kind: ObservationKind;
+  status?: SpanStatus;
+  status_message?: string;
   start_time: string;
+  end_time?: string;
+  duration_nano?: string | number;
+  service_name?: string;
+  model?: string | null;
+  input_tokens?: string | number;
+  output_tokens?: string | number;
+  total_tokens?: string | number;
+  total_cost?: string | number | null;
   input: string | null;
   output: string | null;
 };
@@ -231,9 +244,10 @@ export async function getSession(
   return {
     summary: sessionSummaryFromRow(summaryRow),
     traces,
-    turns: traces
-      .map((trace) => sessionTurn(trace, rowsByTrace.get(trace.traceId) ?? []))
-      .filter((turn) => turn.prompt !== null || turn.response !== null),
+    turns:
+      options.includeTurns === false
+        ? []
+        : traces.map((trace) => sessionTurn(trace, rowsByTrace.get(trace.traceId) ?? [])),
     nextCursor:
       hasMore && lastTrace !== undefined
         ? encodeCursor(lastTrace.startedAt, lastTrace.traceId)
@@ -350,16 +364,20 @@ async function readSessionConversationRows(
 ): Promise<SessionConversationRow[]> {
   if (traceIds.length === 0) return [];
   const result = await client.query({
-    query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, start_time, input, output
+    query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, status,
+                   status_message, start_time, end_time, toString(duration_nano) AS duration_nano,
+                   service_name, model, input_tokens, output_tokens, total_tokens, total_cost,
+                   input, output
             FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id IN {traceIds:Array(String)}
-              AND (input IS NOT NULL OR output IS NOT NULL)
             ORDER BY trace_id ASC, start_time ASC, span_id ASC`,
     query_params: { projectId, traceIds },
     format: "JSONEachRow",
   });
   return result.json<SessionConversationRow>();
 }
+
+const MAX_SESSION_TURN_PREVIEW_SPANS = 200;
 
 function sessionTurn(
   trace: TraceSummary,
@@ -383,6 +401,39 @@ function sessionTurn(
     trace,
     prompt: conversationPayload(promptRow, "input"),
     response: conversationPayload(responseRow, "output"),
+    spans: rows.map((row, index) => sessionSpanSummaryFromRow(row, trace, index)),
+  };
+}
+
+function sessionSpanSummaryFromRow(
+  row: SessionConversationRow,
+  trace: TraceSummary,
+  index: number,
+): TraceSpanSummary {
+  const includePreview = index < MAX_SESSION_TURN_PREVIEW_SPANS;
+  const startNano = clickHouseToNano(row.start_time);
+  const endNano = row.end_time ? clickHouseToNano(row.end_time) : startNano;
+  return {
+    traceId: row.trace_id,
+    spanId: row.span_id,
+    parentSpanId: row.parent_span_id || null,
+    name: row.name,
+    observationKind: row.observation_kind,
+    status: row.status ?? "unset",
+    statusMessage: row.status_message ?? "",
+    startTimeUnixNano: startNano,
+    endTimeUnixNano: endNano,
+    durationNano: String(row.duration_nano ?? "0"),
+    serviceName: row.service_name ?? trace.serviceName,
+    model: row.model ?? null,
+    inputTokens: numeric(row.input_tokens),
+    outputTokens: numeric(row.output_tokens),
+    totalTokens: numeric(row.total_tokens),
+    totalCost: nullableNumeric(row.total_cost),
+    hasInput: row.input !== null,
+    hasOutput: row.output !== null,
+    inputPreview: includePreview ? extractPayloadPreview(row.input, "input", 1_024) : null,
+    outputPreview: includePreview ? extractPayloadPreview(row.output, "output", 1_024) : null,
   };
 }
 

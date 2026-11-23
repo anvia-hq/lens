@@ -22,6 +22,8 @@ export type TraceSummary = {
   sessionId: string | null;
   tags: string[];
   model: string | null;
+  inputPreview?: string | null;
+  outputPreview?: string | null;
   environment: string;
   release: string | null;
   version: string | null;

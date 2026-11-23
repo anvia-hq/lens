@@ -40,13 +40,24 @@ describe("AppSidebar prompt management navigation", () => {
       </QueryClientProvider>,
     );
 
+    const observabilityGroup = screen
+      .getByText("Observability")
+      .closest('[data-slot="sidebar-group"]');
     const promptGroup = screen
       .getByText("Prompt Management")
       .closest('[data-slot="sidebar-group"]');
     const evaluationGroup = screen.getByText("Evaluations").closest('[data-slot="sidebar-group"]');
 
+    expect(observabilityGroup).not.toBeNull();
     expect(promptGroup).not.toBeNull();
     expect(evaluationGroup).not.toBeNull();
+    expect(within(observabilityGroup as HTMLElement).getByText("Traces")).toBeTruthy();
+    expect(within(observabilityGroup as HTMLElement).getByText("Runs")).toBeTruthy();
+    expect(within(observabilityGroup as HTMLElement).getByText("Threads")).toBeTruthy();
+    expect(screen.getByText("Runs").closest("a")?.dataset.route).toBe("/$projectId/runs");
+    expect(screen.getByText("Threads").closest("a")?.dataset.route).toBe("/$projectId/threads");
+    expect(within(evaluationGroup as HTMLElement).getByText("Experiments")).toBeTruthy();
+    expect(within(evaluationGroup as HTMLElement).queryByText("Runs")).toBeNull();
     expect(within(promptGroup as HTMLElement).getByText("Prompts")).toBeTruthy();
     expect(within(evaluationGroup as HTMLElement).queryByText("Prompts")).toBeNull();
     expect(screen.getByText("Prompts").closest("a")?.dataset.route).toBe("/$projectId/prompts");

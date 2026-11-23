@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 
 import type { SessionDetail } from "@lens/contracts";
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   extractSessionMessageText,
   formatCost,
@@ -12,6 +14,10 @@ import {
   shortId,
 } from "../utils/session";
 import { SessionConversation } from "./session-conversation";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, to }: { children?: ReactNode; to: string }) => <a href={to}>{children}</a>,
+}));
 
 afterEach(cleanup);
 
@@ -72,13 +78,13 @@ describe("session conversation", () => {
     expect(shortId("1234567890abcdef")).toBe("123456…cdef");
   });
 
-  it("renders a clear empty conversation state without a card wrapper", () => {
+  it("renders a clear empty trajectory state and thread details", () => {
     render(<SessionConversation detail={emptySession()} projectId="project-1" />);
     expect(screen.getByRole("heading", { name: "session-1" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Conversation" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Thread" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Overview" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Usage" })).toBeTruthy();
-    expect(screen.getByText("No conversation payloads captured")).toBeTruthy();
+    expect(screen.getByText("No trajectory data captured")).toBeTruthy();
   });
 
   it("keeps successful session status outcome-only when child spans failed", () => {
@@ -88,7 +94,113 @@ describe("session conversation", () => {
     expect(screen.getByText("Success")).toBeTruthy();
     expect(screen.queryByText(/recovered/i)).toBeNull();
   });
+
+  it("renders inline tool steps in Trajectory mode and switches to Traces tree mode", () => {
+    const detail = populatedSession();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SessionConversation detail={detail} projectId="project-1" />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Check ticket TICKET-1001")).toBeTruthy();
+    expect(screen.getByText("get_ticket")).toBeTruthy();
+    expect(screen.getByText("Checkout is blocked until reload.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Traces" }));
+    expect(screen.getByRole("tree", { name: "Spans for ticket-triage" })).toBeTruthy();
+    expect(screen.getByText("agent.run")).toBeTruthy();
+    expect(screen.getByText("get_ticket")).toBeTruthy();
+  });
 });
+
+function populatedSession(): SessionDetail {
+  const base = emptySession();
+  const trace = {
+    projectId: "project-1",
+    traceId: "a".repeat(32),
+    name: "ticket-triage",
+    serviceName: "support",
+    status: "ok" as const,
+    startedAt: "2026-08-05T00:00:00.000Z",
+    endedAt: "2026-08-05T00:00:01.000Z",
+    durationMs: 1_000,
+    spanCount: 2,
+    generationCount: 1,
+    toolCount: 1,
+    errorCount: 0,
+    userId: "user-1",
+    sessionId: "session-1",
+    tags: [],
+    model: "gpt-4.1",
+    environment: "production",
+    release: null,
+    version: null,
+    serviceVersion: null,
+    inputTokens: 10,
+    outputTokens: 5,
+    totalTokens: 15,
+    inputCost: 0.01,
+    outputCost: 0.02,
+    totalCost: 0.03,
+    lastSeenAt: "2026-08-05T00:00:01.000Z",
+  };
+  return {
+    ...base,
+    traces: [trace],
+    turns: [
+      {
+        trace,
+        prompt: {
+          spanId: "1".repeat(16),
+          spanName: "agent.run",
+          observationKind: "agent",
+          value: { prompt: "Check ticket TICKET-1001" },
+        },
+        response: {
+          spanId: "1".repeat(16),
+          spanName: "agent.run",
+          observationKind: "agent",
+          value: { response: "Checkout is blocked until reload." },
+        },
+        spans: [
+          {
+            traceId: trace.traceId,
+            spanId: "1".repeat(16),
+            parentSpanId: null,
+            name: "agent.run",
+            observationKind: "agent",
+            status: "ok",
+            startTimeUnixNano: "1791890199000000000",
+            endTimeUnixNano: "1791890200000000000",
+            durationNano: "1000000000",
+            serviceName: "support",
+            model: null,
+            totalTokens: 0,
+            totalCost: null,
+          },
+          {
+            traceId: trace.traceId,
+            spanId: "2".repeat(16),
+            parentSpanId: "1".repeat(16),
+            name: "get_ticket",
+            observationKind: "tool",
+            status: "ok",
+            startTimeUnixNano: "1791890199200000000",
+            endTimeUnixNano: "1791890199500000000",
+            durationNano: "300000000",
+            serviceName: "support",
+            model: null,
+            totalTokens: 0,
+            totalCost: null,
+            inputPreview: '{"id":"TICKET-1001"}',
+            outputPreview: '{"severity":"high"}',
+          },
+        ],
+      },
+    ],
+  };
+}
 
 function emptySession(): SessionDetail {
   return {

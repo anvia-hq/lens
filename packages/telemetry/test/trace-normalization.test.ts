@@ -348,4 +348,40 @@ describe("trace normalization", () => {
       "[REDACTED]",
     );
   });
+
+  it("extracts fallback outputs for text-only runs, child agents, pipelines, and thread IDs", () => {
+    const textRun = normalize({
+      "anvia.run.prompt": { stringValue: '{"prompt":"Hello"}' },
+      "anvia.run.text": { stringValue: "Plain text answer" },
+      "anvia.trace.thread_id": { stringValue: "thread-99" },
+    });
+    expect(textRun.spans[0]).toMatchObject({
+      observationKind: "agent",
+      input: { prompt: "Hello" },
+      output: "Plain text answer",
+      sessionId: "thread-99",
+    });
+
+    const childAgent = normalize({
+      "anvia.child_agent.id": { stringValue: "researcher" },
+      "anvia.child_agent.text": { stringValue: "Summary ready" },
+    });
+    expect(childAgent.spans[0]).toMatchObject({
+      observationKind: "agent",
+      output: "Summary ready",
+    });
+
+    const pipelineStage = normalize({
+      "anvia.pipeline.stage.id": { stringValue: "enrich" },
+      "anvia.pipeline.stage.input": { stringValue: '{"ticketId":"1001"}' },
+      "anvia.pipeline.stage.output": { stringValue: '{"severity":"high"}' },
+      "langsmith.trace.thread_id": { stringValue: "ls-thread-1" },
+    });
+    expect(pipelineStage.spans[0]).toMatchObject({
+      observationKind: "chain",
+      input: { ticketId: "1001" },
+      output: { severity: "high" },
+      sessionId: "ls-thread-1",
+    });
+  });
 });

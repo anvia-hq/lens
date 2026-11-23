@@ -14,9 +14,11 @@ import { LiveBadge } from "./live-badge";
 import { RangeSelector } from "./range-selector";
 import { TraceExplorerTable } from "./trace-explorer-table";
 import { TraceFilterPanel } from "./trace-filter-panel";
+import { TracePeekDrawer } from "./trace-peek-drawer";
 
 export function TracesView({ state }: { state: TracesState }) {
   const [deleting, setDeleting] = useState<string[]>([]);
+  const [peekedTraceId, setPeekedTraceId] = useState<string | null>(null);
   const {
     activeFilterCount,
     clearFilters,
@@ -63,6 +65,8 @@ export function TracesView({ state }: { state: TracesState }) {
       onVisibleSelectionChange={toggleVisibleTraceSelection}
       canManage={state.project.role === "owner" || state.project.role === "admin"}
       onDelete={setDeleting}
+      activeTraceId={peekedTraceId ?? undefined}
+      onPeekTrace={setPeekedTraceId}
       actions={
         <>
           <RangeSelector value={filters.range} onChange={(value) => setFilters({ range: value })} />
@@ -141,6 +145,12 @@ export function TracesView({ state }: { state: TracesState }) {
             },
           })
         }
+      />
+      <TracePeekDrawer
+        projectId={state.project.id}
+        traces={data?.items ?? []}
+        selectedTraceId={peekedTraceId}
+        onSelectTrace={setPeekedTraceId}
       />
     </main>
   );

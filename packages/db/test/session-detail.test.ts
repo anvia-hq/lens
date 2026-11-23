@@ -120,6 +120,21 @@ describe("session queries", () => {
           spanId: "root",
           value: { response: "Open account settings." },
         }),
+        spans: [
+          expect.objectContaining({
+            spanId: "root",
+            observationKind: "agent",
+            inputPreview: "How can I reset my password?",
+            outputPreview: "Open account settings.",
+          }),
+          expect.objectContaining({
+            spanId: "tool",
+            parentSpanId: "root",
+            observationKind: "tool",
+            inputPreview: "password",
+            outputPreview: "internal result",
+          }),
+        ],
       }),
     ]);
     expect(detail?.summary).toMatchObject({
@@ -133,7 +148,7 @@ describe("session queries", () => {
     const payloadCall = query.mock.calls.find(([options]) =>
       options.query.includes("SELECT trace_id, span_id"),
     );
-    expect(payloadCall?.[0].query).toContain("input IS NOT NULL OR output IS NOT NULL");
+    expect(payloadCall?.[0].query).not.toContain("input IS NOT NULL OR output IS NOT NULL");
   });
 
   it("keeps the exact aggregate while cursor-paging chronological traces", async () => {

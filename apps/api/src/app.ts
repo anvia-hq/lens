@@ -26,6 +26,7 @@ import { createPublicPromptsRouter } from "./modules/prompts/public-router.js";
 import { createPromptsRouter } from "./modules/prompts/router.js";
 import { createPublicQualityGatesRouter } from "./modules/quality-gates/public-router.js";
 import { createQualityGatesRouter } from "./modules/quality-gates/router.js";
+import { createRunsRouter } from "./modules/runs/router.js";
 import { createSessionsRouter } from "./modules/sessions/router.js";
 import { createSystemHealthRouter } from "./modules/system/health-router.js";
 import { createSystemRouter } from "./modules/system/router.js";
@@ -107,6 +108,7 @@ export function createApp(deps: ApiDependencies) {
     .route("/api/v1/projects", createAlertsRouter(deps))
     .route("/api/v1/projects", createDataDeletionsRouter(deps))
     .route("/api/v1/projects", createTracesRouter(deps))
+    .route("/api/v1/projects", createRunsRouter(deps))
     .route("/api/v1/projects", createSessionsRouter(deps))
     .route("/api/v1/projects", createUsersRouter(deps))
     .route("/api/v1/projects", createMetricsRouter(deps))
