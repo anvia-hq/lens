@@ -11,10 +11,10 @@ export function Page(props: {
   children: ReactNode;
 }) {
   return (
-    <main className={cn("flex w-full flex-1 flex-col gap-6 p-4 md:p-6", props.className)}>
+    <main className={cn("flex w-full flex-1 flex-col gap-4 p-3 md:p-4", props.className)}>
       <header
         className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
+          "flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between",
           props.headerClassName,
         )}
       >
@@ -24,8 +24,8 @@ export function Page(props: {
               {props.eyebrow}
             </p>
           ) : null}
-          <h1 className="font-heading text-2xl font-medium tracking-tight">{props.title}</h1>
-          <p className="text-sm text-muted-foreground">{props.description}</p>
+          <h1 className="font-heading text-xl font-medium tracking-tight">{props.title}</h1>
+          <p className="text-base text-muted-foreground">{props.description}</p>
         </div>
         {props.action}
       </header>

@@ -28,7 +28,7 @@ export function SessionMetadata({
           </span>
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground">Thread details</p>
-            <h1 className="break-all font-mono text-sm font-semibold tracking-tight">
+            <h1 className="break-all font-mono text-base font-semibold tracking-tight">
               {summary.sessionId}
             </h1>
           </div>

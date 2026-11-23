@@ -67,7 +67,7 @@ export function TraceGraphNode(props: {
         <span className="block truncate text-xs font-semibold" title={props.node.label}>
           {props.node.label}
         </span>
-        <span className="mt-1 flex min-w-0 flex-wrap gap-x-2 truncate font-mono text-[10px] text-muted-foreground">
+        <span className="mt-1 flex min-w-0 flex-wrap gap-x-2 truncate font-mono text-xs text-muted-foreground">
           {metrics.map((metric) => (
             <span key={metric}>{metric}</span>
           ))}

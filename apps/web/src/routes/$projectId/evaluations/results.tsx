@@ -3,6 +3,7 @@ import { EvaluationsView } from "../../../modules/observability/components/evalu
 import { useEvaluations } from "../../../modules/observability/hooks/use-evaluations";
 import type { EvaluationResultsSearch } from "../../../modules/observability/types";
 import { validateEvaluationResultsSearch as normalizeEvaluationResultsSearch } from "../../../modules/observability/utils";
+import { restoreSavedFilters } from "../../../modules/observability/utils/saved-filters";
 
 export function validateEvaluationResultsSearch(
   search: Record<string, unknown>,
@@ -12,6 +13,7 @@ export function validateEvaluationResultsSearch(
 
 export const Route = createFileRoute("/$projectId/evaluations/results")({
   validateSearch: validateEvaluationResultsSearch,
+  beforeLoad: restoreSavedFilters("evaluation-results", "/$projectId/evaluations/results"),
   component: EvaluationResultsPage,
 });
 

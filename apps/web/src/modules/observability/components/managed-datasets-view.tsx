@@ -155,7 +155,7 @@ export function ManagedDatasetsView({ state }: { state: EvaluationDatasetsState 
           />
         )}
       </div>
-      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-sm text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-base text-muted-foreground">
         <span>
           {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
         </span>
@@ -214,7 +214,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
               <span className="sr-only">Back to datasets</span>
             </Button>
             <div className="grid min-w-0 gap-1">
-              <h1 className="text-lg font-semibold tracking-tight">{dataset.name}</h1>
+              <h1 className="font-heading text-xl font-medium tracking-tight">{dataset.name}</h1>
               <p className="text-xs text-muted-foreground">
                 {dataset.description ?? "No description"}
               </p>
@@ -253,7 +253,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
       ) : null}
       <ScrollArea className="min-h-0 flex-1">
         {state.version.isLoading ? (
-          <div className="p-4 text-sm text-muted-foreground">Loading version…</div>
+          <div className="p-4 text-base text-muted-foreground">Loading version…</div>
         ) : version ? (
           <ManagedVersion
             state={state}
@@ -264,7 +264,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
             onImport={() => setImportOpen(true)}
           />
         ) : (
-          <div className="p-4 text-sm text-muted-foreground">This dataset has no versions.</div>
+          <div className="p-4 text-base text-muted-foreground">This dataset has no versions.</div>
         )}
       </ScrollArea>
       <VersionDialog
@@ -339,7 +339,7 @@ function ManagedVersion(props: {
       <div className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-2">
           <Badge variant="outline">{version.status}</Badge>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             {version.caseCount} cases
             {version.publishedAt ? ` · published ${formatTimestamp(version.publishedAt)}` : ""}
           </span>
@@ -426,13 +426,13 @@ function ManagedVersion(props: {
           </TableBody>
         </Table>
       ) : (
-        <div className="border-t px-4 py-8 text-sm text-muted-foreground">
+        <div className="border-t px-4 py-8 text-base text-muted-foreground">
           This draft has no cases yet.
         </div>
       )}
       {state.linkedRuns.data?.runs.length ? (
         <div className="border-t p-4">
-          <h3 className="mb-3 text-sm font-semibold">Associated runs</h3>
+          <h3 className="mb-3 text-base font-semibold">Associated runs</h3>
           <div className="flex flex-wrap gap-2">
             {state.linkedRuns.data.runs.map((run) => (
               <Button
@@ -572,7 +572,7 @@ function CaseDialog(props: {
           <DialogTitle>{props.item === "new" ? "Add case" : "Edit case"}</DialogTitle>
           <DialogDescription>Inputs and expected values may be any JSON value.</DialogDescription>
         </DialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="text-base text-destructive">{error}</p> : null}
         <div className="grid max-h-[65vh] gap-3 overflow-y-auto p-1">
           <Field>
             <FieldLabel>Case ID</FieldLabel>
@@ -656,7 +656,7 @@ function ImportDialog(props: {
             One case object per line. Existing case IDs are updated atomically.
           </DialogDescription>
         </DialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="text-base text-destructive">{error}</p> : null}
         <Textarea
           className="min-h-72 font-mono text-xs"
           value={source}

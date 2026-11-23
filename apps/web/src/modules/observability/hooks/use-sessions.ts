@@ -7,13 +7,18 @@ import type { RefreshInterval, ResolvedSessionsSearch, SessionsSearch } from "..
 import { refreshMilliseconds, sessionActiveFilterCount, timeRangeForPreset } from "../utils";
 import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
+import { isBoolean, useStoredState } from "./use-stored-state";
 
 export function useSessions() {
   const { project } = useObservabilityProject();
   const navigate = useNavigate();
   const filters = useSearch({ strict: false }) as ResolvedSessionsSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useStoredState(
+    "filter-panel-collapsed:sessions",
+    false,
+    isBoolean,
+  );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);

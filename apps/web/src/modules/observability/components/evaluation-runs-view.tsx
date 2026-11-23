@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@lens/ui/components/dropdown-menu";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Pagination,
   PaginationContent,
@@ -32,7 +32,6 @@ import {
 import { cn } from "@lens/ui/lib/utils";
 import {
   ArrowLeftRight as ArrowsLeftRight,
-  ArrowUpDown,
   ChartLine,
   ChevronDown,
   FlaskConical as Flask,
@@ -63,6 +62,7 @@ import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { RangeSelector } from "./range-selector";
 import { TableTimestamp } from "./table-timestamp";
+import { SortHeaderButton } from "./sort-header-button";
 
 const columnLabels: Record<EvaluationRunColumnId, string> = {
   startedAt: "Started",
@@ -296,20 +296,12 @@ function EvaluationRunExplorerTable(props: {
                       }
                     >
                       {field ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="-ml-3"
+                        <SortHeaderButton
+                          label={columnLabels[column]}
+                          active={props.filters.sort === field}
+                          order={props.filters.order}
                           onClick={() => sort(field)}
-                          aria-label={`Sort by ${columnLabels[column]}${
-                            props.filters.sort === field ? `, currently ${props.filters.order}` : ""
-                          }`}
-                        >
-                          {columnLabels[column]}
-                          <ArrowUpDown
-                            className={cn(props.filters.sort === field && "text-primary")}
-                          />
-                        </Button>
+                        />
                       ) : (
                         columnLabels[column]
                       )}
@@ -487,22 +479,21 @@ function ExplorerPagination(props: {
   onChange: (changes: Partial<EvaluationRunsSearch>, resetPage?: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
       <span className="text-muted-foreground">
         {props.data ? `${formatNumber(props.data.total)} ${props.noun}` : `Loading ${props.noun}`}
       </span>
       <div className="flex items-center gap-3">
-        <NativeSelect
+        <SelectField
           aria-label="Rows per page"
           value={String(props.pageSize)}
-          onChange={(event) =>
-            props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
-          }
-        >
-          <NativeSelectOption value="25">25 rows</NativeSelectOption>
-          <NativeSelectOption value="50">50 rows</NativeSelectOption>
-          <NativeSelectOption value="100">100 rows</NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onChange({ pageSize: Number(value) as 25 | 50 | 100 })}
+          options={[
+            { value: "25", label: "25 rows" },
+            { value: "50", label: "50 rows" },
+            { value: "100", label: "100 rows" },
+          ]}
+        />
         <span className="whitespace-nowrap">
           Page {props.page} of {Math.max(1, props.data?.pageCount ?? 1)}
         </span>

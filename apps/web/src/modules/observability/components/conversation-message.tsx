@@ -22,7 +22,7 @@ export function ConversationMessage(props: {
         <span>{props.label}</span>
         {props.payload ? (
           <Link
-            className="ml-auto flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+            className="ml-auto flex min-w-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
             to="/$projectId/traces/$traceId"
             params={{ projectId: props.projectId, traceId: props.traceId }}
             search={{ span: props.payload.spanId }}
@@ -34,11 +34,11 @@ export function ConversationMessage(props: {
         ) : null}
       </div>
       {props.payload ? (
-        <p className="m-0 min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
+        <p className="m-0 min-w-0 whitespace-pre-wrap break-words text-base leading-6">
           {extractSessionMessageText(props.payload.value, props.tone)}
         </p>
       ) : (
-        <p className="m-0 text-sm italic text-muted-foreground">{props.empty}</p>
+        <p className="m-0 text-base italic text-muted-foreground">{props.empty}</p>
       )}
     </section>
   );

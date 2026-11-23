@@ -19,7 +19,7 @@ export function SpanInspectorState(props: {
     return (
       <div className="grid h-full place-items-center p-6 text-center">
         <div className="grid max-w-sm gap-3">
-          <p className="text-sm font-medium">Unable to load span data</p>
+          <p className="text-base font-medium">Unable to load span data</p>
           <p className="text-xs text-muted-foreground">{props.error.message}</p>
           <Button className="mx-auto" size="sm" variant="outline" onClick={props.onRetry}>
             Retry
@@ -30,7 +30,7 @@ export function SpanInspectorState(props: {
   }
   if (props.loading) {
     return (
-      <div className="grid h-full place-items-center text-sm text-muted-foreground">
+      <div className="grid h-full place-items-center text-base text-muted-foreground">
         <span className="flex items-center gap-2">
           <Spinner /> Loading span data
         </span>

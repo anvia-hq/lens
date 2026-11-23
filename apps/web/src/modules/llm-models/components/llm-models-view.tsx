@@ -23,7 +23,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import {
   Table,
@@ -82,7 +82,7 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
       <section className="grid gap-4">
         <div>
           <h2 className="font-medium">Model pricing</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Configured prices override costs reported by telemetry for matching model names.
           </p>
         </div>
@@ -351,15 +351,16 @@ function RecalculationDialog(props: {
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="recalculation-scope">Scope</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="recalculation-scope"
               className="w-full"
               value={scope}
-              onChange={(event) => setScope(event.target.value as "all" | "range")}
-            >
-              <NativeSelectOption value="all">All history</NativeSelectOption>
-              <NativeSelectOption value="range">Date range</NativeSelectOption>
-            </NativeSelect>
+              onValueChange={(value) => setScope(value as "all" | "range")}
+              options={[
+                { value: "all", label: "All history" },
+                { value: "range", label: "Date range" },
+              ]}
+            />
           </Field>
           {scope === "range" ? (
             <Field>
@@ -405,14 +406,14 @@ function RecalculationHistory({ runs }: { runs: CostRecalculation[] }) {
     <section className="grid gap-4">
       <div>
         <h2 className="font-medium">Recent recalculations</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           The ten most recent background pricing runs.
         </p>
       </div>
       <Card className="py-0">
         <CardContent className="px-0">
           {runs.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-4 py-8 text-center text-base text-muted-foreground">
               No recalculations yet.
             </p>
           ) : (

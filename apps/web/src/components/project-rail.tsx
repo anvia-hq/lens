@@ -4,6 +4,7 @@ import { cn } from "@lens/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { useProject } from "../modules/projects/hooks/use-project";
 import { AnviaLensLogo } from "./anvia-lens-logo";
+import { savedFiltersSearch } from "../modules/observability/utils/saved-filters";
 
 export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
   const { project, projects } = useProject();
@@ -11,20 +12,18 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
   return (
     <aside
       aria-label="Projects"
-      className="flex h-svh w-14 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+      className="flex h-svh w-12 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
     >
-      <div className="flex shrink-0 justify-center p-2">
+      <div className="flex shrink-0 justify-center p-1.5">
         <Tooltip>
           <TooltipTrigger
             render={
               <Link
                 aria-label="Projects"
-                className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                 to="/"
               >
-                <span className="grid size-8 place-items-center rounded-md bg-sidebar-logo">
-                  <AnviaLensLogo markClassName="text-sidebar-logo-foreground" />
-                </span>
+                <AnviaLensLogo markClassName="text-primary" />
               </Link>
             }
           />
@@ -34,7 +33,7 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
         </Tooltip>
       </div>
       {logoOnly ? null : (
-        <nav className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto p-2 pt-0">
+        <nav className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto p-1.5 pt-0">
           {projects.map((item) => {
             const active = item.id === project.id;
             return (
@@ -44,12 +43,12 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
                     <Link
                       aria-current={active ? "page" : undefined}
                       aria-label={`Switch to ${item.name}`}
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                       to="/$projectId"
                       params={{ projectId: item.id }}
-                      search={{ range: "24h" }}
+                      search={savedFiltersSearch}
                     >
-                      <Avatar className="size-8 rounded-md after:rounded-md">
+                      <Avatar className="size-6 rounded-md after:rounded-md">
                         <AvatarFallback
                           className={cn(
                             "rounded-md",

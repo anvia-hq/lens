@@ -18,7 +18,7 @@ import {
 } from "@lens/ui/components/card";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import { ArrowRight, Check, Plus, Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
@@ -97,7 +97,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
 
             <div className="overflow-hidden rounded-xl border">
               {keys.isPending ? (
-                <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 px-4 py-6 text-base text-muted-foreground">
                   <Spinner /> Loading ingestion keys
                 </div>
               ) : activeKeys.length ? (
@@ -106,7 +106,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
                     <div className="flex items-center gap-3 px-4 py-3" key={key.id}>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium">{key.name}</span>
+                          <span className="truncate text-base font-medium">{key.name}</span>
                           <span className="text-xs text-muted-foreground">Active</span>
                         </div>
                         <p className="truncate font-mono text-xs text-muted-foreground">
@@ -129,7 +129,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
                 </div>
               ) : (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm font-medium">No ingestion keys</p>
+                  <p className="text-base font-medium">No ingestion keys</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Create a key to connect your first application.
                   </p>
@@ -148,17 +148,18 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <Field className="w-full sm:flex-1">
                 <FieldLabel htmlFor="retention">Retention period</FieldLabel>
-                <NativeSelect
+                <SelectField
                   className="w-full"
                   id="retention"
                   value={retention}
-                  onChange={(event) => setRetention(event.target.value)}
-                >
-                  <NativeSelectOption value="7">7 days</NativeSelectOption>
-                  <NativeSelectOption value="30">30 days</NativeSelectOption>
-                  <NativeSelectOption value="90">90 days</NativeSelectOption>
-                  <NativeSelectOption value="unlimited">Unlimited</NativeSelectOption>
-                </NativeSelect>
+                  onValueChange={(value) => setRetention(value)}
+                  options={[
+                    { value: "7", label: "7 days" },
+                    { value: "30", label: "30 days" },
+                    { value: "90", label: "90 days" },
+                    { value: "unlimited", label: "Unlimited" },
+                  ]}
+                />
                 <FieldDescription>Expired data is removed asynchronously.</FieldDescription>
               </Field>
               <Button

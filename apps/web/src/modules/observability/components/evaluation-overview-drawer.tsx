@@ -60,7 +60,7 @@ export function EvaluationOverviewDrawer(props: {
           <div className="grid gap-4 p-4">
             {props.overview.error ? <ErrorAlert error={props.overview.error} /> : null}
             {!data ? (
-              <div className="grid min-h-64 place-items-center text-sm text-muted-foreground">
+              <div className="grid min-h-64 place-items-center text-base text-muted-foreground">
                 Loading quality overview…
               </div>
             ) : (
@@ -138,7 +138,7 @@ function SummaryCard(props: { label: string; value: string }) {
     <Card size="sm">
       <CardContent className="grid gap-1">
         <span className="text-xs text-muted-foreground">{props.label}</span>
-        <span className="font-heading text-2xl font-medium tabular-nums">{props.value}</span>
+        <span className="font-heading text-xl font-medium tabular-nums">{props.value}</span>
       </CardContent>
     </Card>
   );

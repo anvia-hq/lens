@@ -30,7 +30,7 @@ export function ComparisonMetricCard(props: {
             {props.icon}
           </span>
         </CardAction>
-        <CardTitle className="text-2xl tabular-nums">{props.value}</CardTitle>
+        <CardTitle className="text-xl tabular-nums">{props.value}</CardTitle>
         <p
           className={cn(
             "text-xs tabular-nums text-muted-foreground",

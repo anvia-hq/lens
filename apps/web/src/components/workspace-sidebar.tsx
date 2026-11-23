@@ -43,7 +43,7 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu className="gap-0.5">
               {links.map(({ to, label, icon: Icon }) => (
                 <SidebarMenuItem key={to}>
                   <SidebarMenuButton
@@ -62,12 +62,12 @@ export function WorkspaceSidebar({ user }: { user: AuthenticatedUser }) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarGithubPromo />
-        <div className="flex items-center gap-2 p-2">
-          <Avatar className="size-8">
+        <div className="flex items-center gap-2 p-1">
+          <Avatar className="size-6">
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="grid min-w-0 flex-1">
-            <span className="truncate text-sm font-medium">{user.name}</span>
+            <span className="truncate text-base font-medium">{user.name}</span>
             <span className="truncate text-xs text-muted-foreground">{user.email}</span>
           </div>
           <Button

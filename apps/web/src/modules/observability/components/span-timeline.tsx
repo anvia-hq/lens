@@ -42,7 +42,7 @@ export function SpanTimeline(props: {
       ref={scrollRef}
     >
       <div className="min-w-max" style={{ width: `${240 + TIMELINE_WIDTH}px` }}>
-        <div className="sticky top-0 z-20 grid h-8 grid-cols-[240px_720px] border-b bg-background text-[10px] text-muted-foreground">
+        <div className="sticky top-0 z-20 grid h-8 grid-cols-[240px_720px] border-b bg-background text-xs text-muted-foreground">
           <div className="sticky left-0 z-30 flex items-center border-r bg-background px-3 font-medium uppercase tracking-wide">
             Span
           </div>
@@ -99,19 +99,19 @@ export function SpanTimeline(props: {
                     onClick={() => props.onSelectSpan(row.span.spanId)}
                   >
                     <TreeIndent row={row} collapsed={isCollapsed} />
-                    <span className="min-w-0 flex-1 truncate py-2 pr-1 text-[11px] font-medium">
+                    <span className="min-w-0 flex-1 truncate py-2 pr-1 text-xs font-medium">
                       {row.span.name}
                     </span>
                     {row.provisional ? (
                       <Badge
-                        className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                        className="my-auto h-4 shrink-0 px-1 text-xs leading-none"
                         variant="secondary"
                       >
                         RUNNING
                       </Badge>
                     ) : row.span.status === "error" ? (
                       <Badge
-                        className="my-auto h-4 shrink-0 px-1 text-[9px] leading-none"
+                        className="my-auto h-4 shrink-0 px-1 text-xs leading-none"
                         variant="destructive"
                       >
                         ERROR

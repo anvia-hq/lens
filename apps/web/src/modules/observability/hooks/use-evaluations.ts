@@ -14,13 +14,18 @@ import {
   timeRangeForPreset,
 } from "../utils";
 import { useObservabilityProject } from "./use-observability-project";
+import { isBoolean, useStoredState } from "./use-stored-state";
 
 export function useEvaluations() {
   const { project } = useObservabilityProject();
   const navigate = useNavigate();
   const filters = useSearch({ strict: false }) as ResolvedEvaluationResultsSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useStoredState(
+    "filter-panel-collapsed:evaluation-results",
+    false,
+    isBoolean,
+  );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const setFilters = useCallback(

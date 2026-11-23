@@ -13,7 +13,7 @@ export function SecretReveal(props: { credentials: CreatedProjectApiKey; onClose
           <KeyRound className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold">Your new ingestion key is ready</h3>
+          <h3 className="text-base font-semibold">Your new ingestion key is ready</h3>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
             Copy these environment variables now. The secret key cannot be shown again.
           </p>

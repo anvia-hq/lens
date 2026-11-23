@@ -27,7 +27,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -336,7 +336,7 @@ function SectionHeading(props: { title: string; description: string }) {
   return (
     <div className="grid gap-0.5">
       <h3 className="font-medium">{props.title}</h3>
-      <p className="text-sm text-muted-foreground">{props.description}</p>
+      <p className="text-base text-muted-foreground">{props.description}</p>
     </div>
   );
 }
@@ -353,7 +353,7 @@ function GateRuleEditor(props: {
   return (
     <div className="grid gap-4 rounded-lg border bg-muted/15 p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">Rule {props.index + 1}</span>
+        <span className="text-base font-medium">Rule {props.index + 1}</span>
         <Button
           type="button"
           aria-label={`Remove rule ${props.index + 1}`}
@@ -368,44 +368,36 @@ function GateRuleEditor(props: {
 
       <Field>
         <FieldLabel htmlFor={`${prefix}-type`}>Check</FieldLabel>
-        <NativeSelect
+        <SelectField
           id={`${prefix}-type`}
           value={rule.type}
-          onChange={(event) =>
-            props.onChange(ruleForType(event.target.value as QualityGateRule["type"]))
-          }
-        >
-          <NativeSelectOption value="evaluation_threshold">
-            Metric meets a target
-          </NativeSelectOption>
-          <NativeSelectOption value="evaluation_regression">
-            Metric change stays within a limit
-          </NativeSelectOption>
-          <NativeSelectOption value="operational_regression">
-            Operational metric stays within a limit
-          </NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onChange(ruleForType(value as QualityGateRule["type"]))}
+          options={[
+            { value: "evaluation_threshold", label: "Metric meets a target" },
+            { value: "evaluation_regression", label: "Metric change stays within a limit" },
+            { value: "operational_regression", label: "Operational metric stays within a limit" },
+          ]}
+        />
       </Field>
 
       {rule.type === "operational_regression" ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor={`${prefix}-measure`}>Measure</FieldLabel>
-            <NativeSelect
+            <SelectField
               id={`${prefix}-measure`}
               value={rule.measure}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 props.onChange({
                   ...rule,
-                  measure: event.target.value as "p95_latency_ms" | "average_total_tokens",
+                  measure: value as "p95_latency_ms" | "average_total_tokens",
                 })
               }
-            >
-              <NativeSelectOption value="p95_latency_ms">
-                P95 trace-duration change
-              </NativeSelectOption>
-              <NativeSelectOption value="average_total_tokens">Average tokens</NativeSelectOption>
-            </NativeSelect>
+              options={[
+                { value: "p95_latency_ms", label: "P95 trace-duration change" },
+                { value: "average_total_tokens", label: "Average tokens" },
+              ]}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor={`${prefix}-increase`}>Maximum increase (%)</FieldLabel>
@@ -453,48 +445,48 @@ function EvaluationRuleFields(props: {
         </Field>
         <Field>
           <FieldLabel htmlFor={`${props.prefix}-measure`}>Measure</FieldLabel>
-          <NativeSelect
+          <SelectField
             id={`${props.prefix}-measure`}
             value={rule.measure}
-            onChange={(event) =>
-              props.onChange({
-                ...rule,
-                measure: event.target.value as "pass_rate" | "average_score",
-              })
+            onValueChange={(value) =>
+              props.onChange({ ...rule, measure: value as "pass_rate" | "average_score" })
             }
-          >
-            <NativeSelectOption value="pass_rate">Pass rate</NativeSelectOption>
-            <NativeSelectOption value="average_score">
-              {evidence === undefined ? "Average score" : "Average score (valid judgments)"}
-            </NativeSelectOption>
-          </NativeSelect>
+            options={[
+              { value: "pass_rate", label: "Pass rate" },
+              {
+                value: "average_score",
+                label: evidence === undefined ? "Average score" : "Average score (valid judgments)",
+              },
+            ]}
+          />
         </Field>
       </div>
 
       <Field>
         <FieldLabel htmlFor={`${props.prefix}-evidence`}>Evidence policy</FieldLabel>
-        <NativeSelect
+        <SelectField
           id={`${props.prefix}-evidence`}
           value={evidence === undefined ? "legacy" : "required"}
-          onChange={(event) => {
+          onValueChange={(value) => {
             const { evidence: _evidence, ...legacy } = rule;
             props.onChange(
-              event.target.value === "required" ? { ...rule, evidence: defaultEvidence() } : legacy,
+              value === "required" ? { ...rule, evidence: defaultEvidence() } : legacy,
             );
           }}
-        >
-          <NativeSelectOption value="required">Require valid evidence</NativeSelectOption>
-          <NativeSelectOption value="legacy">Legacy: no evidence limits</NativeSelectOption>
-        </NativeSelect>
+          options={[
+            { value: "required", label: "Require valid evidence" },
+            { value: "legacy", label: "Legacy: no evidence limits" },
+          ]}
+        />
       </Field>
       {evidence === undefined ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           This rule has no per-metric evidence limits. Choose “Require valid evidence” to upgrade
           it.
         </p>
       ) : (
         <div className="grid gap-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Count distinct cases with usable judgments for this metric. Pass and fail both count;
             average score also requires a numeric score. Regression rules check both runs. Exceeding
             either judgment budget returns insufficient data.
@@ -556,16 +548,17 @@ function EvaluationRuleFields(props: {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor={`${props.prefix}-operator`}>Requirement</FieldLabel>
-            <NativeSelect
+            <SelectField
               id={`${props.prefix}-operator`}
               value={rule.operator}
-              onChange={(event) =>
-                props.onChange({ ...rule, operator: event.target.value as "gte" | "lte" })
+              onValueChange={(value) =>
+                props.onChange({ ...rule, operator: value as "gte" | "lte" })
               }
-            >
-              <NativeSelectOption value="gte">At least</NativeSelectOption>
-              <NativeSelectOption value="lte">At most</NativeSelectOption>
-            </NativeSelect>
+              options={[
+                { value: "gte", label: "At least" },
+                { value: "lte", label: "At most" },
+              ]}
+            />
           </Field>
           <RuleValueField
             id={`${props.prefix}-value`}
@@ -581,19 +574,20 @@ function EvaluationRuleFields(props: {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor={`${props.prefix}-direction`}>Allowed change</FieldLabel>
-            <NativeSelect
+            <SelectField
               id={`${props.prefix}-direction`}
               value={rule.direction}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 props.onChange({
                   ...rule,
-                  direction: event.target.value as "decrease" | "increase",
+                  direction: value as "decrease" | "increase",
                 })
               }
-            >
-              <NativeSelectOption value="decrease">Decrease by no more than</NativeSelectOption>
-              <NativeSelectOption value="increase">Increase by no more than</NativeSelectOption>
-            </NativeSelect>
+              options={[
+                { value: "decrease", label: "Decrease by no more than" },
+                { value: "increase", label: "Increase by no more than" },
+              ]}
+            />
           </Field>
           <RuleValueField
             id={`${props.prefix}-change`}

@@ -12,9 +12,9 @@ export function CodeBlock(props: {
     <div className="overflow-hidden rounded-xl border bg-background">
       <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
         <div className="grid min-w-0 gap-0.5">
-          <span className="truncate text-sm font-medium">{props.title}</span>
+          <span className="truncate text-base font-medium">{props.title}</span>
           {props.description ? (
-            <span className="font-mono text-[11px] text-muted-foreground">{props.description}</span>
+            <span className="font-mono text-xs text-muted-foreground">{props.description}</span>
           ) : null}
         </div>
         <Button variant="ghost" size="sm" onClick={props.onCopy}>

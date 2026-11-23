@@ -20,7 +20,7 @@ import {
 import { Checkbox } from "@lens/ui/components/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import { Plus, Trash } from "@mynaui/icons-react";
 import { useState } from "react";
@@ -39,7 +39,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
         description="Workspace-wide Model Context Protocol access for AI assistants"
       >
         <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-3 p-6 text-base text-muted-foreground">
             Owner or admin access is required.
           </CardContent>
         </Card>
@@ -81,16 +81,17 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="mcp-token-expiry">Expiry</FieldLabel>
-                <NativeSelect
+                <SelectField
                   id="mcp-token-expiry"
                   value={state.mcpExpiryDays}
-                  onChange={(event) => state.setMcpExpiryDays(event.target.value)}
-                >
-                  <NativeSelectOption value="never">Never</NativeSelectOption>
-                  <NativeSelectOption value="30">30 days</NativeSelectOption>
-                  <NativeSelectOption value="90">90 days</NativeSelectOption>
-                  <NativeSelectOption value="365">1 year</NativeSelectOption>
-                </NativeSelect>
+                  onValueChange={(value) => state.setMcpExpiryDays(value)}
+                  options={[
+                    { value: "never", label: "Never" },
+                    { value: "30", label: "30 days" },
+                    { value: "90", label: "90 days" },
+                    { value: "365", label: "1 year" },
+                  ]}
+                />
               </Field>
               <Button
                 type="submit"
@@ -126,7 +127,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
 
           <div className="overflow-hidden rounded-xl border">
             {state.mcpTokens.isPending ? (
-              <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 px-4 py-6 text-base text-muted-foreground">
                 <Spinner /> Loading MCP tokens
               </div>
             ) : tokens.length ? (
@@ -137,7 +138,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
                     <div className="flex items-center gap-3 px-4 py-3" key={token.id}>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate text-sm font-medium">{token.name}</span>
+                          <span className="truncate text-base font-medium">{token.name}</span>
                           <span className="text-xs text-muted-foreground">{status}</span>
                           {token.allowRawPayloads ? (
                             <span className="text-xs text-status-warning">Raw payloads</span>
@@ -167,7 +168,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
               </div>
             ) : (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm font-medium">No MCP tokens</p>
+                <p className="text-base font-medium">No MCP tokens</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Create a token to connect a remote MCP client.
                 </p>

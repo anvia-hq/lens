@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@lens/ui/components/dropdown-menu";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Pagination,
   PaginationContent,
@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@lens/ui/components/table";
 import { cn } from "@lens/ui/lib/utils";
-import { ArrowUpDown, ChevronDown, Search, Users } from "@mynaui/icons-react";
+import { ChevronDown, Search, Users } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "../../../components/empty-state";
 import { ErrorAlert } from "../../../components/error-alert";
@@ -44,6 +44,7 @@ import {
 import { LiveBadge } from "./live-badge";
 import { LoadingRows } from "./loading-rows";
 import { UserRangeSelector } from "./user-range-selector";
+import { SortHeaderButton } from "./sort-header-button";
 
 const labels: Record<UserColumnId, string> = {
   userId: "User",
@@ -157,17 +158,12 @@ export function UsersView({ state }: { state: UsersState }) {
                           : undefined
                       }
                     >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="-ml-3"
+                      <SortHeaderButton
+                        label={labels[column]}
+                        active={filters.sort === sortFields[column]}
+                        order={filters.order}
                         onClick={() => changeSort(sortFields[column])}
-                      >
-                        {labels[column]}
-                        <ArrowUpDown
-                          className={cn(filters.sort === sortFields[column] && "text-primary")}
-                        />
-                      </Button>
+                      />
                     </TableHead>
                   ))}
                 </TableRow>
@@ -206,22 +202,21 @@ export function UsersView({ state }: { state: UsersState }) {
           />
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
         <span className="text-muted-foreground">
           {users.data ? `${formatNumber(users.data.total)} users` : "Loading users"}
         </span>
         <div className="flex items-center gap-3">
-          <NativeSelect
+          <SelectField
             aria-label="Rows per page"
             value={String(filters.pageSize)}
-            onChange={(event) =>
-              setFilters({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
-            }
-          >
-            <NativeSelectOption value="25">25 rows</NativeSelectOption>
-            <NativeSelectOption value="50">50 rows</NativeSelectOption>
-            <NativeSelectOption value="100">100 rows</NativeSelectOption>
-          </NativeSelect>
+            onValueChange={(value) => setFilters({ pageSize: Number(value) as 25 | 50 | 100 })}
+            options={[
+              { value: "25", label: "25 rows" },
+              { value: "50", label: "50 rows" },
+              { value: "100", label: "100 rows" },
+            ]}
+          />
           <span className="whitespace-nowrap">
             Page {filters.page} of {Math.max(1, users.data?.pageCount ?? 1)}
           </span>

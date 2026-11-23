@@ -27,7 +27,7 @@ export function SearchResults(props: {
     return (
       <div className="grid h-full place-items-center p-6 text-center">
         <div className="grid gap-3">
-          <span className="text-sm font-medium">No matching spans</span>
+          <span className="text-base font-medium">No matching spans</span>
           <span className="text-xs text-muted-foreground">
             Search by name, kind, service, model, or ID.
           </span>
@@ -65,11 +65,11 @@ export function SearchResults(props: {
                 <ObservationGlyph kind={span.observationKind} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-medium">{span.name}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {span.observationKind} · {span.serviceName}
                   </span>
                 </span>
-                <span className="font-mono text-[11px] text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {formatDuration(spanDurationMs(span))}
                 </span>
               </button>

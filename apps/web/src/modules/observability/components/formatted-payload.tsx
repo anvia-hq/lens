@@ -5,7 +5,7 @@ export function FormattedPayload({ title, value }: { title: string; value: unkno
   const rows = formattedPayloadRows(title, value);
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border px-4 py-4 text-sm text-muted-foreground">Empty value</div>
+      <div className="rounded-lg border px-4 py-4 text-base text-muted-foreground">Empty value</div>
     );
   }
   return (
@@ -17,11 +17,11 @@ export function FormattedPayload({ title, value }: { title: string; value: unkno
         >
           <div className="flex items-center gap-2">
             {row.role ? <RoleBadge role={row.role} /> : null}
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {row.label}
             </span>
           </div>
-          <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">{row.text}</p>
+          <p className="m-0 whitespace-pre-wrap break-words text-base leading-6">{row.text}</p>
         </article>
       ))}
     </div>

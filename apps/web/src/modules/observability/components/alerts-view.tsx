@@ -31,7 +31,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -210,33 +210,28 @@ function IncidentList({ state }: { state: AlertsState }) {
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
-        <NativeSelect
+        <SelectField
           aria-label="Incident status"
           value={state.filters.status}
-          onChange={(event) =>
-            state.setFilters({ status: event.target.value as "active" | "resolved", page: 1 })
+          onValueChange={(value) =>
+            state.setFilters({ status: value as "active" | "resolved", page: 1 })
           }
-        >
-          <NativeSelectOption value="active">Active</NativeSelectOption>
-          <NativeSelectOption value="resolved">Resolved</NativeSelectOption>
-        </NativeSelect>
-        <NativeSelect
+          options={[
+            { value: "active", label: "Active" },
+            { value: "resolved", label: "Resolved" },
+          ]}
+        />
+        <SelectField
           aria-label="Alert type"
           value={state.filters.kind ?? ""}
-          onChange={(event) =>
-            state.setFilters({
-              kind: (event.target.value || undefined) as AlertRuleKind | undefined,
-              page: 1,
-            })
+          onValueChange={(value) =>
+            state.setFilters({ kind: (value || undefined) as AlertRuleKind | undefined, page: 1 })
           }
-        >
-          <NativeSelectOption value="">All types</NativeSelectOption>
-          {alertRuleKinds.map((kind) => (
-            <NativeSelectOption key={kind} value={kind}>
-              {kindLabels[kind]}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
+          options={[
+            { value: "", label: "All types" },
+            ...alertRuleKinds.map((kind) => ({ value: kind, label: kindLabels[kind] })),
+          ]}
+        />
       </div>
       {state.incidents.error ? <ErrorAlert error={state.incidents.error} /> : null}
       {state.incidents.isLoading ? (
@@ -321,7 +316,7 @@ function IncidentList({ state }: { state: AlertsState }) {
         />
       )}
       {(state.incidents.data?.pageCount ?? 0) > 1 ? (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-end gap-2 text-base text-muted-foreground">
           <Button
             size="sm"
             variant="outline"
@@ -483,19 +478,12 @@ function RuleDialog(props: {
           </Field>
           <Field>
             <FieldLabel htmlFor="alert-kind">Trigger</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="alert-kind"
               value={draft.kind}
-              onChange={(event) =>
-                setDraft({ ...draft, kind: event.target.value as AlertRuleKind })
-              }
-            >
-              {alertRuleKinds.map((kind) => (
-                <NativeSelectOption key={kind} value={kind}>
-                  {kindLabels[kind]}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onValueChange={(value) => setDraft({ ...draft, kind: value as AlertRuleKind })}
+              options={alertRuleKinds.map((kind) => ({ value: kind, label: kindLabels[kind] }))}
+            />
             {draft.kind === "trace_p95_latency_ms" ? (
               <FieldDescription>
                 95% of matching traces complete within this duration. Uses full trace duration, not
@@ -521,20 +509,21 @@ function RuleDialog(props: {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="alert-window">Window</FieldLabel>
-                  <NativeSelect
+                  <SelectField
                     id="alert-window"
                     value={draft.windowMinutes}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft({
                         ...draft,
-                        windowMinutes: event.target.value as RuleDraft["windowMinutes"],
+                        windowMinutes: value as RuleDraft["windowMinutes"],
                       })
                     }
-                  >
-                    <NativeSelectOption value="5">5 minutes</NativeSelectOption>
-                    <NativeSelectOption value="15">15 minutes</NativeSelectOption>
-                    <NativeSelectOption value="60">60 minutes</NativeSelectOption>
-                  </NativeSelect>
+                    options={[
+                      { value: "5", label: "5 minutes" },
+                      { value: "15", label: "15 minutes" },
+                      { value: "60", label: "60 minutes" },
+                    ]}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="alert-samples">Minimum samples</FieldLabel>
@@ -557,18 +546,15 @@ function RuleDialog(props: {
           {draft.kind === "failed_quality_gate" ? (
             <Field>
               <FieldLabel htmlFor="alert-gate">Quality gate</FieldLabel>
-              <NativeSelect
+              <SelectField
                 id="alert-gate"
                 value={draft.qualityGateId}
-                onChange={(event) => setDraft({ ...draft, qualityGateId: event.target.value })}
-              >
-                <NativeSelectOption value="">Select a gate</NativeSelectOption>
-                {props.gates.map((gate) => (
-                  <NativeSelectOption key={gate.id} value={gate.id}>
-                    {gate.name}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                onValueChange={(value) => setDraft({ ...draft, qualityGateId: value })}
+                options={[
+                  { value: "", label: "Select a gate" },
+                  ...props.gates.map((gate) => ({ value: gate.id, label: gate.name })),
+                ]}
+              />
             </Field>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -641,7 +627,7 @@ function RuleDialog(props: {
             </Field>
           ) : null}
           {!parsed.success && draft.name ? (
-            <p className="text-sm text-destructive">{parsed.error.issues[0]?.message}</p>
+            <p className="text-base text-destructive">{parsed.error.issues[0]?.message}</p>
           ) : null}
           {props.error ? <ErrorAlert error={props.error} /> : null}
         </form>

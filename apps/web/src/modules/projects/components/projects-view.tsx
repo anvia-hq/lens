@@ -22,7 +22,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -166,20 +166,21 @@ export function ProjectsView({
                     </TableCell>
                     <TableCell>
                       {directory.data?.canManage && item.role !== "owner" ? (
-                        <NativeSelect
+                        <SelectField
                           size="sm"
                           value={item.role}
                           disabled={updateRole.isPending}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             updateRole.mutate({
                               memberId: item.id,
-                              role: event.target.value as "admin" | "member",
+                              role: value as "admin" | "member",
                             })
                           }
-                        >
-                          <NativeSelectOption value="member">Member</NativeSelectOption>
-                          <NativeSelectOption value="admin">Admin</NativeSelectOption>
-                        </NativeSelect>
+                          options={[
+                            { value: "member", label: "Member" },
+                            { value: "admin", label: "Admin" },
+                          ]}
+                        />
                       ) : (
                         <Badge variant="secondary">{item.role}</Badge>
                       )}
@@ -205,13 +206,13 @@ export function ProjectsView({
           {directory.data?.canManage &&
           directory.data.invitations.some((item) => item.status === "pending") ? (
             <CardFooter className="grid gap-2">
-              <p className="text-sm font-medium">Pending invitations</p>
+              <p className="text-base font-medium">Pending invitations</p>
               {directory.data.invitations
                 .filter((item) => item.status === "pending")
                 .map((item) => (
                   <div className="flex w-full items-center gap-3" key={item.id}>
                     <span className="grid min-w-0 flex-1">
-                      <span className="truncate text-sm">{item.email}</span>
+                      <span className="truncate text-base">{item.email}</span>
                       <span className="text-xs text-muted-foreground">
                         {item.role ?? "member"} · expires{" "}
                         {new Date(item.expiresAt).toLocaleDateString()}
@@ -345,15 +346,16 @@ export function ProjectsView({
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="invite-role">Role</FieldLabel>
-                  <NativeSelect
+                  <SelectField
                     id="invite-role"
                     value={inviteRole}
-                    onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
+                    onValueChange={(value) => setInviteRole(value as "admin" | "member")}
                     className="w-full"
-                  >
-                    <NativeSelectOption value="member">Member</NativeSelectOption>
-                    <NativeSelectOption value="admin">Admin</NativeSelectOption>
-                  </NativeSelect>
+                    options={[
+                      { value: "member", label: "Member" },
+                      { value: "admin", label: "Admin" },
+                    ]}
+                  />
                 </Field>
               </FieldGroup>
             </form>

@@ -1,6 +1,6 @@
 import type { SessionSortField, TraceSortField } from "@lens/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Pagination,
   PaginationContent,
@@ -34,9 +34,9 @@ export function UserDetailView({ state }: { state: UserDetailState }) {
       <div className="border-b px-4 py-4 md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="break-all font-mono text-lg font-semibold">{userId}</h1>
+            <h1 className="break-all font-mono text-xl font-medium">{userId}</h1>
             {summary ? (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-base text-muted-foreground">
                 First seen {formatTimestamp(summary.firstSeenAt)} · Last seen{" "}
                 {formatTimestamp(summary.lastSeenAt)}
               </p>
@@ -170,7 +170,7 @@ function MetricCard(props: { label: string; value: string; detail?: string }) {
         <CardTitle className="text-xs text-muted-foreground">{props.label}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="font-heading text-xl font-semibold">{props.value}</div>
+        <div className="font-heading text-xl font-medium tabular-nums">{props.value}</div>
         {props.detail ? (
           <div className="mt-1 text-xs text-muted-foreground">{props.detail}</div>
         ) : null}
@@ -188,24 +188,23 @@ function DetailPagination(props: {
   onChange: (changes: { page?: number; pageSize?: 25 | 50 | 100 }, reset?: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
       <span className="text-muted-foreground">
         {props.total === undefined
           ? `Loading ${props.label}`
           : `${formatNumber(props.total)} ${props.label}`}
       </span>
       <div className="flex items-center gap-3">
-        <NativeSelect
+        <SelectField
           aria-label="Rows per page"
           value={String(props.pageSize)}
-          onChange={(event) =>
-            props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
-          }
-        >
-          <NativeSelectOption value="25">25 rows</NativeSelectOption>
-          <NativeSelectOption value="50">50 rows</NativeSelectOption>
-          <NativeSelectOption value="100">100 rows</NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onChange({ pageSize: Number(value) as 25 | 50 | 100 })}
+          options={[
+            { value: "25", label: "25 rows" },
+            { value: "50", label: "50 rows" },
+            { value: "100", label: "100 rows" },
+          ]}
+        />
         <span className="whitespace-nowrap">
           Page {props.page} of {Math.max(1, props.pageCount)}
         </span>

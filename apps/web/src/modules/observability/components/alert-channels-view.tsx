@@ -17,7 +17,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -189,19 +189,12 @@ export function ChannelDialog(props: {
           </Field>
           <Field>
             <FieldLabel htmlFor="channel-type">Type</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="channel-type"
               value={draft.type}
-              onChange={(event) =>
-                setDraft({ ...draft, type: event.target.value as AlertChannelType })
-              }
-            >
-              {alertChannelTypes.map((type) => (
-                <NativeSelectOption key={type} value={type}>
-                  {typeLabels[type]}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onValueChange={(value) => setDraft({ ...draft, type: value as AlertChannelType })}
+              options={alertChannelTypes.map((type) => ({ value: type, label: typeLabels[type] }))}
+            />
           </Field>
           {draft.type === "slack" || draft.type === "discord" ? (
             <Field>
@@ -281,7 +274,7 @@ export function ChannelDialog(props: {
             </FieldDescription>
           ) : null}
           {!parsed.success && draft.name ? (
-            <p className="text-sm text-destructive">{parsed.error.issues[0]?.message}</p>
+            <p className="text-base text-destructive">{parsed.error.issues[0]?.message}</p>
           ) : null}
           {props.error ? <ErrorAlert error={props.error} /> : null}
         </form>

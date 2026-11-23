@@ -32,7 +32,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
 import {
   Table,
@@ -185,7 +185,7 @@ export function PromptsView({ state }: { state: PromptsState }) {
           />
         )}
       </div>
-      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-sm text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-base text-muted-foreground">
         <span>
           {visible.length} prompt{visible.length === 1 ? "" : "s"}
         </span>
@@ -244,7 +244,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
               <span className="sr-only">Back to prompts</span>
             </Button>
             <div className="grid min-w-0 gap-1">
-              <h1 className="text-lg font-semibold tracking-tight">{prompt.name}</h1>
+              <h1 className="font-heading text-xl font-medium tracking-tight">{prompt.name}</h1>
               <p className="text-xs text-muted-foreground">
                 {prompt.description ?? "No description"}
               </p>
@@ -315,16 +315,16 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
             </TableBody>
           </Table>
         ) : (
-          <div className="px-4 py-8 text-sm text-muted-foreground">
+          <div className="px-4 py-8 text-base text-muted-foreground">
             This prompt has no versions.
           </div>
         )}
         <div className="border-t p-4">
-          <h3 className="mb-3 text-sm font-semibold">Labels</h3>
+          <h3 className="mb-3 text-base font-semibold">Labels</h3>
           {prompt.labels.length ? (
             <div className="grid gap-2">
               {prompt.labels.map((label) => (
-                <div key={label.label} className="flex flex-wrap items-center gap-2 text-sm">
+                <div key={label.label} className="flex flex-wrap items-center gap-2 text-base">
                   <Badge variant={labelVariant(label.label)}>{label.label}</Badge>
                   <span>→ v{label.version}</span>
                   <span className="text-muted-foreground">
@@ -339,11 +339,11 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No labels point at this prompt yet.</p>
+            <p className="text-base text-muted-foreground">No labels point at this prompt yet.</p>
           )}
         </div>
         <div className="border-t p-4">
-          <h3 className="mb-3 text-sm font-semibold">Deployment history</h3>
+          <h3 className="mb-3 text-base font-semibold">Deployment history</h3>
           {state.history.data?.items.length ? (
             <div className="grid gap-2">
               {[...state.history.data.items]
@@ -352,7 +352,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
                     new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
                 )
                 .map((event) => (
-                  <div key={event.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <div key={event.id} className="flex flex-wrap items-center gap-2 text-base">
                     <Badge variant={labelVariant(event.label)}>{event.label}</Badge>
                     <span>
                       v{event.fromVersion ?? "—"} → v{event.toVersion}
@@ -364,7 +364,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
                 ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No label changes yet.</p>
+            <p className="text-base text-muted-foreground">No label changes yet.</p>
           )}
         </div>
       </ScrollArea>
@@ -461,14 +461,15 @@ function PromptContentFields(props: {
     <>
       <Field>
         <FieldLabel>Type</FieldLabel>
-        <NativeSelect
+        <SelectField
           aria-label="Type"
           value={props.type}
-          onChange={(event) => props.onTypeChange(event.target.value as PromptType)}
-        >
-          <NativeSelectOption value="text">Text template</NativeSelectOption>
-          <NativeSelectOption value="chat">Chat messages</NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onTypeChange(value as PromptType)}
+          options={[
+            { value: "text", label: "Text template" },
+            { value: "chat", label: "Chat messages" },
+          ]}
+        />
       </Field>
       {props.type === "text" ? (
         <Field>
@@ -488,31 +489,23 @@ function PromptContentFields(props: {
             const position = index + 1;
             return (
               <div key={row.rowId} className="flex items-start gap-2">
-                <NativeSelect
+                <SelectField
                   aria-label={`Role for message ${position}`}
                   value={row.message.role}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     props.onMessagesChange(
                       props.messages.map((item) =>
                         item.rowId === row.rowId
                           ? {
                               ...item,
-                              message: {
-                                ...item.message,
-                                role: event.target.value as ChatMessageRole,
-                              },
+                              message: { ...item.message, role: value as ChatMessageRole },
                             }
                           : item,
                       ),
                     )
                   }
-                >
-                  {chatMessageRoles.map((role) => (
-                    <NativeSelectOption key={role} value={role}>
-                      {role}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                  options={chatMessageRoles.map((role) => ({ value: role, label: role }))}
+                />
                 <Textarea
                   rows={2}
                   aria-label={`Content for message ${position}`}
@@ -688,7 +681,7 @@ function CreatePromptDialog(props: {
             />
           </Field>
         </div>
-        {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
+        {parseError ? <p className="text-base text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
           <Button disabled={!name.trim() || props.pending} onClick={save}>
             Create prompt
@@ -787,7 +780,7 @@ function CommitVersionDialog(props: {
             />
           </Field>
         </div>
-        {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
+        {parseError ? <p className="text-base text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
           <Button disabled={props.pending} onClick={save}>
             Commit version
@@ -865,15 +858,17 @@ function MoveLabelDialog(props: {
         {props.error ? <ErrorAlert error={props.error} /> : null}
         <Field>
           <FieldLabel>Version</FieldLabel>
-          <NativeSelect value={version} onChange={(event) => setVersion(event.target.value)}>
-            <NativeSelectOption value="">Select a version</NativeSelectOption>
-            {props.versions.map((item) => (
-              <NativeSelectOption key={item.version} value={String(item.version)}>
-                v{item.version}
-                {item.changeMessage ? ` · ${item.changeMessage}` : ""}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <SelectField
+            value={version}
+            onValueChange={setVersion}
+            options={[
+              { value: "", label: "Select a version" },
+              ...props.versions.map((item) => ({
+                value: String(item.version),
+                label: `v${item.version}${item.changeMessage ? ` · ${item.changeMessage}` : ""}`,
+              })),
+            ]}
+          />
         </Field>
         <DialogFooter showCloseButton>
           <Button

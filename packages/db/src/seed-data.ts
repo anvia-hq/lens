@@ -124,14 +124,29 @@ const scenarios: Scenario[] = [
 const models = ["gpt-4.1-mini", "gpt-4.1", "claude-sonnet-4", "gemini-2.5-flash"];
 const customerIds = ["usr_01HZA6Q4", "usr_01J2KF7P", "usr_01J8C9TX", "usr_01JB5MNR"];
 
+/** What other seeds (evaluations) need to know about each seeded trace. */
+export type SeedTraceRef = {
+  traceId: string;
+  traceName: string;
+  serviceName: string;
+  prompt: string;
+  resolution: string;
+  startedAt: string;
+  environment: string;
+  release: string;
+  failed: boolean;
+};
+
 export type SeedTelemetry = {
   spans: NormalizedSpan[];
   traceIds: string[];
+  traces: SeedTraceRef[];
 };
 
 export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTelemetry {
   const spans: NormalizedSpan[] = [];
   const traceIds: string[] = [];
+  const traces: SeedTraceRef[] = [];
   const ingestedAt = now.toISOString();
 
   for (let index = 0; index < TRACE_COUNT; index += 1) {
@@ -394,9 +409,20 @@ export function buildSeedTelemetry(projectId: string, now = new Date()): SeedTel
     });
 
     traceIds.push(traceId);
+    traces.push({
+      traceId,
+      traceName: scenario.traceName,
+      serviceName: scenario.serviceName,
+      prompt: scenario.prompt,
+      resolution: scenario.resolution,
+      startedAt: new Date(startMs).toISOString(),
+      environment,
+      release,
+      failed,
+    });
   }
 
-  return { spans, traceIds };
+  return { spans, traceIds, traces };
 }
 
 function generationCosts(model: string, inputTokens: number, outputTokens: number) {

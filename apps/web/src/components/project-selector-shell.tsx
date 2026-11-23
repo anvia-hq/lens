@@ -22,7 +22,7 @@ export function ProjectSelectorShell({ user }: { user: AuthenticatedUser }) {
       <ProjectRail logoOnly />
       <WorkspaceSidebar user={user} />
       <SidebarInset className="h-svh min-h-0 overflow-y-auto">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
+        <header className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between border-b bg-background px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden" />
             <span className="font-medium">{title}</span>

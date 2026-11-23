@@ -1,5 +1,4 @@
 import type { SessionDetail, SpanDetail } from "@lens/contracts";
-import { Badge } from "@lens/ui/components/badge";
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import {
   ResizableHandle,
@@ -13,21 +12,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { api } from "../../../lib/api";
-import {
-  formatCost,
-  formatDuration,
-  formatNumber,
-  formatTimestamp,
-  shortId,
-} from "../utils/session";
+import { formatNumber } from "../utils/session";
 import { buildSpanForest, flattenSpanForest, toggleCollapsed } from "../utils/trace-detail";
 import { buildTrajectoryTurn } from "../utils/trajectory";
 import { DataDeletionDialog } from "./data-deletion-dialog";
 import { SessionMetadata } from "./session-metadata";
 import { SpanInspectorState } from "./span-inspector-state";
 import { SpanTreeRow } from "./span-tree-row";
-import { StatusPill } from "./status-pill";
-import { TrajectoryView } from "./trajectory-view";
+import { TrajectoryView, TurnHeader } from "./trajectory-view";
 
 type ThreadViewMode = "trajectory" | "traces";
 type RightPanelTab = "details" | "step";
@@ -74,14 +66,13 @@ export function SessionConversation(props: {
 
   const leftPane = (
     <section className="flex h-full min-h-0 min-w-0 flex-col bg-background">
-      <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur md:px-6">
-        <div className="flex items-center gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">Thread</h2>
-            <p className="text-xs text-muted-foreground">
-              {formatNumber(trajectoryTurns.length)}{" "}
-              {trajectoryTurns.length === 1 ? "turn" : "turns"}
-            </p>
+      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base font-semibold">Thread</h2>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatNumber(summary.traceCount)} {summary.traceCount === 1 ? "turn" : "turns"}
+            </span>
           </div>
           <div className="flex h-8 items-center rounded-md border bg-muted/50 p-0.5">
             {(
@@ -106,18 +97,15 @@ export function SessionConversation(props: {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{formatNumber(summary.traceCount)} traces</Badge>
-          {props.onDelete ? (
-            <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash /> Delete
-            </Button>
-          ) : null}
-        </div>
+        {props.onDelete ? (
+          <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash /> Delete
+          </Button>
+        ) : null}
       </header>
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
         {viewMode === "trajectory" ? (
-          <div className="mx-auto w-full min-w-0 max-w-5xl">
+          <div className="min-w-0">
             <TrajectoryView
               mode="thread"
               projectId={props.projectId}
@@ -133,7 +121,7 @@ export function SessionConversation(props: {
         ) : (
           <div className="divide-y">
             {trajectoryTurns.length === 0 ? (
-              <div className="grid min-h-64 place-items-center p-8 text-sm text-muted-foreground">
+              <div className="grid min-h-64 place-items-center p-8 text-base text-muted-foreground">
                 No traces in this thread
               </div>
             ) : (
@@ -141,38 +129,12 @@ export function SessionConversation(props: {
                 const forest = buildSpanForest(turn.allSpans);
                 const rows = flattenSpanForest(forest, collapsed);
                 return (
-                  <section key={turn.trace.traceId} className="px-4 py-4 md:px-6">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Trace {index + 1}
-                          </span>
-                          <StatusPill status={turn.trace.status} />
-                          <span className="truncate text-sm font-medium">{turn.trace.name}</span>
-                        </div>
-                        <p className="font-mono text-[11px] text-muted-foreground">
-                          {formatTimestamp(turn.trace.startedAt)} · {shortId(turn.trace.traceId)} ·{" "}
-                          {formatDuration(turn.trace.durationMs)} ·{" "}
-                          {formatCost(turn.trace.totalCost)}
-                        </p>
-                      </div>
-                      <Link
-                        className={buttonVariants({ variant: "outline", size: "sm" })}
-                        to="/$projectId/traces/$traceId"
-                        params={{ projectId: props.projectId, traceId: turn.trace.traceId }}
-                      >
-                        Open trace <ExternalLink />
-                      </Link>
-                    </div>
+                  <section key={turn.trace.traceId}>
+                    <TurnHeader index={index} projectId={props.projectId} trace={turn.trace} />
                     {rows.length === 0 ? (
-                      <p className="py-2 text-xs text-muted-foreground">No spans captured</p>
+                      <p className="px-4 py-3 text-sm text-muted-foreground">No spans captured</p>
                     ) : (
-                      <div
-                        className="rounded-lg border bg-background py-1"
-                        role="tree"
-                        aria-label={`Spans for ${turn.trace.name}`}
-                      >
+                      <div className="p-2" role="tree" aria-label={`Spans for ${turn.trace.name}`}>
                         {rows.map((row) => (
                           <SpanTreeRow
                             key={row.span.spanId}
@@ -195,8 +157,13 @@ export function SessionConversation(props: {
               })
             )}
             {props.hasMore ? (
-              <div className="flex justify-center p-6">
-                <Button variant="outline" disabled={props.isLoadingMore} onClick={props.onLoadMore}>
+              <div className="flex justify-center p-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={props.isLoadingMore}
+                  onClick={props.onLoadMore}
+                >
                   {props.isLoadingMore ? "Loading more…" : "Load more"}
                 </Button>
               </div>

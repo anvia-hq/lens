@@ -1,27 +1,26 @@
 import { Button, buttonVariants } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import {
-  ChevronDown,
   ChevronRight,
   ExternalLink,
   Message as MessageCircle,
   Microchip as Bot,
   User,
 } from "@mynaui/icons-react";
+import type { TraceSummary } from "@lens/contracts";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
 import { extractStructuredPreviewFields } from "../utils/preview-format";
+import { formatCost, formatDuration, formatNumber, formatTimestamp } from "../utils/session";
 import {
-  formatCost,
-  formatDuration,
-  formatNumber,
-  formatTimestamp,
-  shortId,
-} from "../utils/session";
-import { filterTrajectorySteps, type TrajectoryTurn } from "../utils/trajectory";
+  filterTrajectorySteps,
+  type TrajectoryMessage,
+  type TrajectoryTurn,
+} from "../utils/trajectory";
 import { looksLikeJsonPreview, MarkdownContent } from "./markdown-content";
 import { StatusPill } from "./status-pill";
-import { TrajectoryStepCard } from "./trajectory-step-card";
+import { RailDot, RailIcon, RailRow } from "./trajectory-rail";
+import { TrajectoryStepRow } from "./trajectory-step-row";
 
 type ActiveAnchor = {
   traceId: string;
@@ -29,10 +28,12 @@ type ActiveAnchor = {
   spanId: string;
 };
 
+type Mode = "trace" | "thread";
+
 export function TrajectoryView(props: {
   turns: TrajectoryTurn[];
   projectId: string;
-  mode: "trace" | "thread";
+  mode: Mode;
   search?: string;
   selectedTraceId?: string;
   selectedSpanId?: string;
@@ -46,10 +47,10 @@ export function TrajectoryView(props: {
   if (props.turns.length === 0) {
     return (
       <div className="grid min-h-64 place-items-center p-8 text-center">
-        <div className="grid max-w-sm gap-2">
-          <MessageCircle className="mx-auto size-8 text-muted-foreground" />
-          <span className="text-sm font-medium">No trajectory data captured</span>
-          <span className="text-xs text-muted-foreground">
+        <div className="grid max-w-sm gap-1.5">
+          <MessageCircle className="mx-auto size-6 text-muted-foreground" />
+          <span className="text-base font-medium">No trajectory data captured</span>
+          <span className="text-sm text-muted-foreground">
             Spans and execution payloads will appear here as telemetry arrives.
           </span>
         </div>
@@ -80,8 +81,13 @@ export function TrajectoryView(props: {
       ))}
 
       {props.hasMore ? (
-        <div className="flex justify-center p-6">
-          <Button variant="outline" disabled={props.isLoadingMore} onClick={props.onLoadMore}>
+        <div className="flex justify-center p-4">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={props.isLoadingMore}
+            onClick={props.onLoadMore}
+          >
             {props.isLoadingMore ? "Loading more…" : "Load more"}
           </Button>
         </div>
@@ -90,10 +96,12 @@ export function TrajectoryView(props: {
   );
 }
 
+type RailItem = { key: string; render: (first: boolean, last: boolean) => ReactNode };
+
 function TrajectoryTurnBlock(props: {
   activeAnchor: ActiveAnchor | null;
   index: number;
-  mode: "trace" | "thread";
+  mode: Mode;
   projectId: string;
   search?: string;
   selectedSpanId?: string;
@@ -102,341 +110,283 @@ function TrajectoryTurnBlock(props: {
   onSelectSlot: (traceId: string, slot: ActiveAnchor["slot"], spanId: string) => void;
 }) {
   const { turn } = props;
+  const traceId = turn.trace.traceId;
   const steps = props.search ? filterTrajectorySteps(turn.steps, props.search) : turn.steps;
-  const turnSelected =
-    props.selectedTraceId === undefined || props.selectedTraceId === turn.trace.traceId;
+  const turnSelected = props.selectedTraceId === undefined || props.selectedTraceId === traceId;
   const firstSpanId = turn.allSpans[0]?.spanId;
-  const hasErrorStep = steps.some((step) => step.span.status === "error");
   const [stepsOpen, setStepsOpen] = useState(
-    () => props.mode === "trace" || steps.length <= 4 || hasErrorStep,
+    () =>
+      props.mode === "trace" ||
+      steps.length <= 4 ||
+      steps.some((step) => step.span.status === "error"),
   );
 
-  // Prevent double-highlighting Input & Output simultaneously when both map to the same root span.
+  // Input and output often map to the same root span; only highlight the slot that was clicked.
   const sameRootSpan =
     Boolean(turn.userInput?.spanId) && turn.userInput?.spanId === turn.assistantOutput?.spanId;
   const anchorMatchesTurn =
-    props.activeAnchor?.traceId === turn.trace.traceId &&
-    props.activeAnchor.spanId === props.selectedSpanId;
-
+    props.activeAnchor?.traceId === traceId && props.activeAnchor.spanId === props.selectedSpanId;
   const inputSelected =
     turnSelected &&
     Boolean(turn.userInput?.spanId) &&
     props.selectedSpanId === turn.userInput?.spanId &&
     (!sameRootSpan || !anchorMatchesTurn || props.activeAnchor?.slot === "input");
-
   const outputSelected =
     turnSelected &&
     Boolean(turn.assistantOutput?.spanId) &&
     props.selectedSpanId === turn.assistantOutput?.spanId &&
     (!sameRootSpan || (anchorMatchesTurn && props.activeAnchor?.slot === "output"));
 
-  if (props.mode === "trace") {
-    return (
-      <article className="relative grid min-w-0 grid-cols-1 gap-2 p-2.5">
-        {turn.userInput ? (
-          <CompactTrajectoryNode
-            icon={<User />}
-            label="Input"
-            selected={inputSelected}
-            spanName={turn.userInput.spanName}
-            text={turn.userInput.text}
-            onSelect={() => {
-              const targetSpanId = turn.userInput?.spanId || firstSpanId;
-              if (targetSpanId) props.onSelectSlot(turn.trace.traceId, "input", targetSpanId);
-            }}
-          />
-        ) : null}
+  const selectMessage = (slot: "input" | "output", message: TrajectoryMessage) => () => {
+    const spanId = message.spanId || firstSpanId;
+    if (spanId) props.onSelectSlot(traceId, slot, spanId);
+  };
+  const maxDurationMs = Math.max(0, ...steps.map((step) => step.durationMs));
+  const totalTokens = steps.reduce((sum, step) => sum + step.span.totalTokens, 0);
 
-        {steps.length > 0 ? (
-          <div className="grid min-w-0 grid-cols-1 gap-1.5 pl-3 border-l border-border/70 ml-3">
-            <span className="px-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Steps · {formatNumber(steps.length)}
-            </span>
-            {steps.map((step) => (
-              <TrajectoryStepCard
-                key={step.span.spanId}
-                compact
-                step={step}
-                selected={turnSelected && props.selectedSpanId === step.span.spanId}
-                onSelect={() => props.onSelectSlot(turn.trace.traceId, "step", step.span.spanId)}
-              />
-            ))}
-          </div>
-        ) : props.search?.trim() ? (
-          <p className="px-2 text-xs text-muted-foreground">
-            No execution steps match &ldquo;{props.search}&rdquo;.
-          </p>
-        ) : null}
-
-        {turn.assistantOutput ? (
-          <CompactTrajectoryNode
-            icon={<Bot />}
-            label="Output"
-            selected={outputSelected}
-            spanName={turn.assistantOutput.spanName}
-            text={turn.assistantOutput.text}
-            onSelect={() => {
-              const targetSpanId = turn.assistantOutput?.spanId || firstSpanId;
-              if (targetSpanId) props.onSelectSlot(turn.trace.traceId, "output", targetSpanId);
-            }}
-          />
-        ) : null}
-
-        {!turn.userInput && !turn.assistantOutput && steps.length === 0 ? (
-          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-            No input, output, or step payloads captured for this trace.
-          </div>
-        ) : null}
-      </article>
-    );
-  }
-
-  return (
-    <article className="grid min-w-0 grid-cols-1 gap-3 border-b bg-background px-4 py-4 md:px-6">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Turn {props.index + 1}
-          </span>
-          <StatusPill status={turn.trace.status} />
-          <span className="truncate text-sm font-medium">{turn.trace.name}</span>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {formatTimestamp(turn.trace.startedAt)} · {shortId(turn.trace.traceId)} ·{" "}
-            {formatDuration(turn.trace.durationMs)} · {formatNumber(turn.trace.spanCount)} steps
-            {turn.trace.totalCost !== null ? ` · ${formatCost(turn.trace.totalCost)}` : ""}
-          </span>
-        </div>
-        <Link
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-          to="/$projectId/traces/$traceId"
-          params={{ projectId: props.projectId, traceId: turn.trace.traceId }}
-        >
-          Open trace <ExternalLink />
-        </Link>
-      </div>
-
-      {turn.userInput ? (
-        <ThreadBubble
+  const items: RailItem[] = [];
+  const userInput = turn.userInput;
+  if (userInput) {
+    items.push({
+      key: "input",
+      render: (first, last) => (
+        <MessageRow
+          first={first}
+          last={last}
           icon={<User />}
           label="Input"
+          message={userInput}
+          mode={props.mode}
           selected={inputSelected}
-          spanName={turn.userInput.spanName}
-          text={turn.userInput.text}
-          tone="muted"
-          onSelect={() => {
-            const targetSpanId = turn.userInput?.spanId || firstSpanId;
-            if (targetSpanId) props.onSelectSlot(turn.trace.traceId, "input", targetSpanId);
-          }}
+          onSelect={selectMessage("input", userInput)}
         />
-      ) : null}
-
-      {steps.length > 0 ? (
-        <div className="grid min-w-0 grid-cols-1 gap-1.5">
+      ),
+    });
+  }
+  if (steps.length > 0 && props.mode === "thread") {
+    items.push({
+      key: "steps",
+      render: (first, last) => (
+        <RailRow first={first} last={last && !stepsOpen} marker={<RailDot />}>
           <button
             type="button"
-            className="flex w-fit items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-expanded={stepsOpen}
+            className="flex h-5 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setStepsOpen((open) => !open)}
           >
-            {stepsOpen ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
-            <span>Execution steps ({formatNumber(steps.length)})</span>
+            <span>
+              {formatNumber(steps.length)} {steps.length === 1 ? "step" : "steps"}
+              {totalTokens > 0 ? ` · ${formatNumber(totalTokens)} tok` : ""}
+            </span>
+            <ChevronRight
+              className={cn("size-3.5 transition-transform", stepsOpen && "rotate-90")}
+            />
           </button>
-          {stepsOpen ? (
-            <div className="ml-2 grid min-w-0 grid-cols-1 gap-1.5 border-l border-border/70 pl-3">
-              {steps.map((step) => (
-                <TrajectoryStepCard
-                  key={step.span.spanId}
-                  step={step}
-                  selected={turnSelected && props.selectedSpanId === step.span.spanId}
-                  onSelect={() => props.onSelectSlot(turn.trace.traceId, "step", step.span.spanId)}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : props.search?.trim() ? (
-        <p className="px-1 text-xs text-muted-foreground">
-          No execution steps match &ldquo;{props.search}&rdquo;.
-        </p>
-      ) : null}
-
-      {turn.assistantOutput ? (
-        <ThreadBubble
+        </RailRow>
+      ),
+    });
+  }
+  if (stepsOpen) {
+    for (const step of steps) {
+      items.push({
+        key: step.span.spanId,
+        render: (_first, last) => (
+          <TrajectoryStepRow
+            last={last}
+            maxDurationMs={maxDurationMs}
+            step={step}
+            selected={turnSelected && props.selectedSpanId === step.span.spanId}
+            onSelect={() => props.onSelectSlot(traceId, "step", step.span.spanId)}
+          />
+        ),
+      });
+    }
+  }
+  const assistantOutput = turn.assistantOutput;
+  if (assistantOutput) {
+    items.push({
+      key: "output",
+      render: (first, last) => (
+        <MessageRow
+          first={first}
+          last={last}
           icon={<Bot />}
           label="Output"
+          message={assistantOutput}
+          mode={props.mode}
           selected={outputSelected}
-          spanName={turn.assistantOutput.spanName}
-          text={turn.assistantOutput.text}
-          tone="default"
-          onSelect={() => {
-            const targetSpanId = turn.assistantOutput?.spanId || firstSpanId;
-            if (targetSpanId) props.onSelectSlot(turn.trace.traceId, "output", targetSpanId);
-          }}
+          onSelect={selectMessage("output", assistantOutput)}
         />
-      ) : null}
+      ),
+    });
+  }
 
-      {!turn.userInput && !turn.assistantOutput && steps.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-          No input, output, or step payloads captured for this trace.
-        </div>
+  const body = (
+    <>
+      {items.length > 0 ? (
+        <ol className="@container grid min-w-0 grid-cols-1 p-2">
+          {items.map((item, index) => (
+            <Fragment key={item.key}>
+              {item.render(index === 0, index === items.length - 1)}
+            </Fragment>
+          ))}
+        </ol>
       ) : null}
+      {steps.length === 0 && props.search?.trim() ? (
+        <p className="px-4 pb-3 text-sm text-muted-foreground">
+          No steps match &ldquo;{props.search}&rdquo;.
+        </p>
+      ) : null}
+      {items.length === 0 && !props.search?.trim() ? (
+        <p className="px-4 py-3 text-sm text-muted-foreground">
+          No input, output, or step payloads captured for this trace.
+        </p>
+      ) : null}
+    </>
+  );
+
+  if (props.mode === "trace") return <article className="min-w-0">{body}</article>;
+
+  return (
+    <article className="min-w-0 border-b last:border-b-0">
+      <TurnHeader index={props.index} projectId={props.projectId} trace={turn.trace} />
+      {body}
     </article>
   );
 }
 
-/**
- * Compact, scannable node used in the left TraceNavigator pane.
- * Clamps long prompts to 3 lines and renders structured JSON outputs as crisp key-value rows
- * instead of dumping walls of raw text or minified JSON into the narrow sidebar.
- */
-function CompactTrajectoryNode(props: {
-  icon: React.ReactNode;
-  label: string;
-  selected: boolean;
-  spanName?: string;
-  text: string;
-  onSelect: () => void;
-}) {
-  const structured = extractStructuredPreviewFields(props.text, 3);
+/** Sticky per-turn heading shared by the thread's Trajectory and Traces modes. */
+export function TurnHeader(props: { index: number; projectId: string; trace: TraceSummary }) {
+  const { trace } = props;
   return (
-    <button
-      type="button"
-      className={cn(
-        "grid w-full min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2.5 gap-y-1 rounded-md border px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        props.selected
-          ? "border-border-strong bg-row-active"
-          : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
-      )}
-      onClick={props.onSelect}
-    >
-      <span className="row-span-2 grid size-6 shrink-0 place-items-center rounded bg-background text-muted-foreground ring-1 ring-border/60 [&_svg]:size-3.5">
-        {props.icon}
+    <header className="sticky top-0 z-20 flex h-10 items-center gap-2 border-b border-border/60 bg-background/95 px-4 backdrop-blur">
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        Turn {props.index + 1}
       </span>
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className="shrink-0 text-[11px] font-semibold text-foreground">{props.label}</span>
-        {props.spanName ? (
-          <span className="truncate font-mono text-[10px] text-muted-foreground">
-            {props.spanName}
-          </span>
-        ) : null}
-      </div>
-      <div className="min-w-0 overflow-hidden">
-        {structured ? (
-          <dl className="m-0 grid min-w-0 grid-cols-1 gap-0.5">
-            {structured.map((field) => (
-              <div
-                key={field.key}
-                className="grid min-w-0 grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-2 text-[11px] leading-4"
-              >
-                <dt className="truncate font-mono text-muted-foreground">{field.key}</dt>
-                <dd className="m-0 truncate text-foreground/90">{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <p className="m-0 line-clamp-3 min-w-0 break-words [overflow-wrap:anywhere] text-xs leading-4.5 text-muted-foreground">
-            {props.text}
-          </p>
+      <span className="min-w-0 truncate text-sm font-medium">{trace.name}</span>
+      {trace.status === "error" || trace.status === "running" ? (
+        <StatusPill status={trace.status} />
+      ) : null}
+      <span className="ml-auto hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:inline">
+        {formatTimestamp(trace.startedAt)} · {formatDuration(trace.durationMs)}
+        {trace.totalCost !== null ? ` · ${formatCost(trace.totalCost)}` : ""}
+      </span>
+      <Link
+        aria-label={`Open trace ${trace.name}`}
+        title="Open trace"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "-mr-2 ml-auto sm:ml-0",
         )}
-      </div>
-    </button>
+        to="/$projectId/traces/$traceId"
+        params={{ projectId: props.projectId, traceId: trace.traceId }}
+      >
+        <ExternalLink />
+      </Link>
+    </header>
   );
 }
 
 /**
- * Full-width readable conversation block used in Thread view.
- * Renders Markdown for prose, clean key-value fields for structured JSON,
- * and collapses very long prompts with an inline Show more/less toggle.
+ * Input or output on the rail. In the narrow trace pane text is clamped; in thread view it is
+ * rendered as Markdown with a Show more toggle for long messages.
  */
-function ThreadBubble(props: {
-  icon: React.ReactNode;
+function MessageRow(props: {
+  first: boolean;
+  last: boolean;
+  icon: ReactNode;
   label: string;
+  message: TrajectoryMessage;
+  mode: Mode;
   selected: boolean;
-  spanName?: string;
-  text: string;
-  tone: "muted" | "default";
   onSelect: () => void;
 }) {
-  const structured = extractStructuredPreviewFields(props.text, 6);
-  const isLong = !structured && (props.text.length > 480 || props.text.split("\n").length > 8);
+  return (
+    <RailRow
+      first={props.first}
+      last={props.last}
+      marker={<RailIcon>{props.icon}</RailIcon>}
+      selected={props.selected}
+      onSelect={props.onSelect}
+    >
+      <button
+        type="button"
+        className="flex h-5 min-w-0 max-w-full items-center gap-2 text-left text-xs outline-none focus-visible:underline"
+        title={props.message.spanName}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onSelect();
+        }}
+      >
+        <span className="shrink-0 font-medium text-muted-foreground">{props.label}</span>
+      </button>
+      <MessageBody text={props.message.text} mode={props.mode} />
+    </RailRow>
+  );
+}
+
+function MessageBody(props: { text: string; mode: Mode }) {
+  const compact = props.mode === "trace";
+  const structured = extractStructuredPreviewFields(props.text, compact ? 4 : 8);
+  const isLong =
+    !compact && !structured && (props.text.length > 600 || props.text.split("\n").length > 10);
   const [expanded, setExpanded] = useState(false);
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={cn(
-        "grid w-full min-w-0 max-w-full cursor-pointer grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 overflow-hidden rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        props.selected
-          ? "border-border-strong bg-row-active/70"
-          : props.tone === "muted"
-            ? "border-border/70 bg-muted/20 hover:border-border hover:bg-muted/35"
-            : "border-border/70 bg-card/30 hover:border-border hover:bg-muted/25",
-      )}
-      onClick={props.onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          props.onSelect();
-        }
-      }}
-    >
-      <span className="row-span-2 grid size-7 shrink-0 place-items-center rounded-md bg-background text-muted-foreground ring-1 ring-border/60 [&_svg]:size-3.5">
-        {props.icon}
-      </span>
-      <div className="flex min-w-0 items-center justify-between gap-2 text-xs font-medium">
-        <span className="shrink-0">{props.label}</span>
-        {props.spanName ? (
-          <span className="truncate font-mono text-[10px] text-muted-foreground">
-            {props.spanName}
-          </span>
-        ) : null}
-      </div>
-      <div className="min-w-0 max-w-full overflow-hidden">
-        {structured ? (
-          <dl className="m-0 grid min-w-0 grid-cols-1 divide-y divide-border/40">
-            {structured.map((field) => (
-              <div
-                key={field.key}
-                className="grid min-w-0 grid-cols-[minmax(6rem,0.24fr)_minmax(0,1fr)] gap-3 py-1.5 text-xs leading-5 first:pt-0 last:pb-0"
-              >
-                <dt className="break-all font-mono text-muted-foreground">{field.key}</dt>
-                <dd className="m-0 min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-foreground/95">
-                  {field.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        ) : looksLikeJsonPreview(props.text) ? (
-          <p className="m-0 min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-xs leading-5 text-foreground/90">
-            {props.text}
-          </p>
-        ) : (
-          <div className="relative min-w-0">
-            <div className={cn(isLong && !expanded && "max-h-48 overflow-hidden")}>
-              <MarkdownContent content={props.text} />
-            </div>
-            {isLong && !expanded ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background/95 to-transparent" />
-            ) : null}
-            {isLong ? (
-              <button
-                type="button"
-                className="relative mt-1.5 text-[11px] font-medium text-primary hover:underline"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setExpanded((current) => !current);
-                }}
-              >
-                {expanded ? "Show less" : "Show full message"}
-              </button>
-            ) : null}
+  if (structured) {
+    return (
+      <dl className="m-0 mt-0.5 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-sm">
+        {structured.map((field) => (
+          <div key={field.key} className="contents">
+            <dt className="font-mono text-xs leading-5 text-muted-foreground">{field.key}</dt>
+            <dd
+              className={cn(
+                "m-0 min-w-0 break-words [overflow-wrap:anywhere]",
+                compact ? "truncate" : "whitespace-pre-wrap",
+              )}
+            >
+              {field.value}
+            </dd>
           </div>
+        ))}
+      </dl>
+    );
+  }
+  if (looksLikeJsonPreview(props.text)) {
+    return (
+      <p
+        className={cn(
+          "m-0 mt-0.5 min-w-0 font-mono text-xs leading-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere]",
+          compact && "line-clamp-4",
         )}
+      >
+        {props.text}
+      </p>
+    );
+  }
+  if (compact) {
+    return (
+      <p className="m-0 mt-0.5 line-clamp-4 min-w-0 text-sm break-words [overflow-wrap:anywhere]">
+        {props.text}
+      </p>
+    );
+  }
+  return (
+    <div className="mt-0.5 min-w-0">
+      <div className={cn(isLong && !expanded && "max-h-48 overflow-hidden mask-b-from-60%")}>
+        <MarkdownContent className="text-sm" content={props.text} />
       </div>
+      {isLong ? (
+        <button
+          type="button"
+          className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      ) : null}
     </div>
   );
 }

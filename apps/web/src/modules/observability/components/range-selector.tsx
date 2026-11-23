@@ -17,7 +17,7 @@ export function RangeSelector(props: {
           type="button"
           size="sm"
           variant={props.value === range ? "secondary" : "ghost"}
-          className="h-7 px-2.5"
+          className="h-7 w-11 px-0"
           aria-pressed={props.value === range}
           onClick={() => props.onChange(range)}
         >

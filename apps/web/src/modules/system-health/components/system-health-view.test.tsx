@@ -18,9 +18,7 @@ describe("System Health", () => {
     expect(screen.getByText("Root disk")).toBeTruthy();
     expect(screen.getByText("Docker data")).toBeTruthy();
     expect(screen.getByText("/mnt/docker", { exact: false })).toBeTruthy();
-    expect(screen.getAllByText("Healthy")[0]?.className).toContain(
-      "bg-status-success-fill-foreground",
-    );
+    expect(screen.getAllByText("Healthy")[0]?.className).toContain("bg-status-success-soft");
     expect(document.querySelectorAll(".size-1\\.5.rounded-full")).toHaveLength(0);
     expect(screen.getByText("PostgreSQL")).toBeTruthy();
     expect(screen.getByText("ClickHouse")).toBeTruthy();

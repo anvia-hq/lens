@@ -21,7 +21,7 @@ export function ProjectSetup() {
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <h1 className="font-semibold text-xl tracking-tight">Workspace setup</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
+          <p className="mt-1 text-muted-foreground text-base">
             Create your first project to get started.
           </p>
         </div>

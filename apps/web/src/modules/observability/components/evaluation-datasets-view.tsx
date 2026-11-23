@@ -108,12 +108,12 @@ export function EvaluationDatasetsView({ state }: { state: EvaluationDatasetsSta
             </TableBody>
           </Table>
         ) : (
-          <div className="grid flex-1 place-items-center p-6 text-sm text-muted-foreground">
+          <div className="grid flex-1 place-items-center p-6 text-base text-muted-foreground">
             No named evaluation datasets have been ingested.
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
         <span className="text-muted-foreground">{formatNumber(page.total)} datasets</span>
         <div className="flex items-center gap-3">
           <span className="whitespace-nowrap">
@@ -186,7 +186,7 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
             </Button>
             <div className="grid min-w-0 gap-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight">{detail.name}</h1>
+                <h1 className="font-heading text-xl font-medium tracking-tight">{detail.name}</h1>
                 <Badge variant="outline">{detail.selectedVersion.status}</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -264,14 +264,14 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
                 <PayloadSection title="Expected" value={selectedCase.payload.expected ?? null} />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Payload capture was not enabled for this case.
               </p>
             )}
           </div>
         </div>
         <div className="border-t p-4">
-          <h2 className="mb-3 text-sm font-semibold">Runs</h2>
+          <h2 className="mb-3 text-base font-semibold">Runs</h2>
           <div className="flex flex-wrap gap-2">
             {detail.runs.map((run) => (
               <Button

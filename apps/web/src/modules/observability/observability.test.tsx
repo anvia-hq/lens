@@ -454,15 +454,15 @@ describe("overview controls", () => {
   it("uses opaque borderless colors for status badges", () => {
     const { rerender } = render(<StatusBadge status="ok" />);
     expect(screen.getByText("Success").className).toContain("border-0");
-    expect(screen.getByText("Success").className).toContain("bg-status-success-fill-foreground");
+    expect(screen.getByText("Success").className).toContain("bg-status-success-soft");
 
     rerender(<StatusBadge status="error" />);
     expect(screen.getByText("Error").className).toContain("border-0");
-    expect(screen.getByText("Error").className).toContain("bg-status-error-fill-foreground");
+    expect(screen.getByText("Error").className).toContain("bg-status-error-soft");
 
     rerender(<StatusBadge status="running" />);
     expect(screen.getByText("Running").className).toContain("border-0");
-    expect(screen.getByText("Running").className).toContain("bg-status-warning-fill");
+    expect(screen.getByText("Running").className).toContain("bg-status-warning-soft");
   });
 
   it("renders previous-period context on metric cards", () => {

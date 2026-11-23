@@ -9,7 +9,7 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { Field, FieldLabel } from "@lens/ui/components/field";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -32,7 +32,6 @@ import { ErrorAlert } from "../../../components/error-alert";
 import { Page } from "../../../components/page";
 import type { EvaluationCompareState } from "../hooks/use-evaluation-workspace";
 import { formatDuration, formatNumber, formatTimestamp, shortId } from "../utils/trace-detail";
-import { EvaluationRunStatusBadge } from "./evaluation-run-status-badge";
 import { EvaluationStatusBadge } from "./evaluation-status-badge";
 import { SemanticStatusBadge } from "./status-badge";
 
@@ -69,7 +68,7 @@ export function EvaluationCompareView({ state }: { state: EvaluationCompareState
       <Card size="sm">
         <CardContent className="grid gap-3 md:grid-cols-3">
           <RunSelect
-            label="Candidate"
+            label="Run to check"
             value={state.filters.candidateRunId}
             runs={allRuns}
             onChange={(candidateRunId) =>
@@ -78,25 +77,22 @@ export function EvaluationCompareView({ state }: { state: EvaluationCompareState
           />
           <RunSelect
             disabled={!candidate}
-            label="Baseline"
+            label="Compare against"
             value={state.filters.baselineRunId}
             runs={baselineRuns}
             onChange={(baselineRunId) => state.setFilters({ baselineRunId })}
           />
           <Field>
             <FieldLabel>Quality gate</FieldLabel>
-            <NativeSelect
+            <SelectField
               disabled={!candidate}
               value={state.filters.gateId ?? ""}
-              onChange={(event) => state.setFilters({ gateId: event.target.value || undefined })}
-            >
-              <NativeSelectOption value="">No gate</NativeSelectOption>
-              {compatibleGates.map((gate) => (
-                <NativeSelectOption key={gate.id} value={gate.id}>
-                  {gate.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onValueChange={(value) => state.setFilters({ gateId: value || undefined })}
+              options={[
+                { value: "", label: "No gate" },
+                ...compatibleGates.map((gate) => ({ value: gate.id, label: gate.name })),
+              ]}
+            />
           </Field>
         </CardContent>
       </Card>
@@ -105,20 +101,13 @@ export function EvaluationCompareView({ state }: { state: EvaluationCompareState
       {state.comparison.error ? <ErrorAlert error={state.comparison.error} /> : null}
 
       {!state.filters.candidateRunId || !state.filters.baselineRunId ? (
-        <>
-          {candidate ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <RunIdentityCard label="Candidate" run={candidate} projectId={state.project.id} />
-            </div>
-          ) : null}
-          <EmptyState
-            icon={<Flask />}
-            title={candidate ? "Choose a baseline run" : "Choose a candidate run"}
-            text="Runs must be completed and use the same suite and environment."
-          />
-        </>
+        <EmptyState
+          icon={<Flask />}
+          title={candidate ? "Choose a run to compare against" : "Choose a run to check"}
+          text="Both runs must use the same suite and environment."
+        />
       ) : !comparison ? (
-        <div className="text-sm text-muted-foreground">Loading comparison…</div>
+        <div className="text-base text-muted-foreground">Loading comparison…</div>
       ) : (
         <ComparisonResults comparison={comparison} projectId={state.project.id} />
       )}
@@ -142,44 +131,9 @@ function ComparisonResults(props: {
   const comparison = props.comparison;
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RunIdentityCard label="Candidate" run={comparison.candidate} projectId={props.projectId} />
-        <RunIdentityCard label="Baseline" run={comparison.baseline} projectId={props.projectId} />
-      </div>
-
-      {comparison.warnings.length ? (
-        <div className="grid gap-2">
-          {comparison.warnings.map((warning) => (
-            <div
-              className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-sm"
-              key={warning}
-            >
-              <WarningCircle className="mt-0.5 size-4 shrink-0 text-status-warning" />
-              {warning}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <DeltaCard label="Pass rate" value={comparison.passRate} kind="passRate" />
-        <DeltaCard
-          label="P95 trace-duration change"
-          value={comparison.p95LatencyMs}
-          kind="duration"
-        />
-        <DeltaCard label="Average tokens" value={comparison.averageTotalTokens} kind="number" />
-      </div>
-
-      {comparison.gate ? <GateVerdict evaluation={comparison.gate} /> : null}
-
+      <ComparisonSummary comparison={comparison} projectId={props.projectId} />
+      {comparison.gate ? <GateChecks evaluation={comparison.gate} /> : null}
       <MetricComparisonTable metrics={comparison.metrics} />
-      {comparison.caseChangesTruncated ? (
-        <p className="text-sm text-muted-foreground">
-          Showing the first {comparison.caseChanges.length} changed case/metric pairs. Counts
-          include all changes.
-        </p>
-      ) : null}
       <CaseChanges
         changes={comparison.caseChanges}
         counts={comparison.caseChangeCounts}
@@ -199,92 +153,95 @@ function RunSelect(props: {
   return (
     <Field>
       <FieldLabel>{props.label}</FieldLabel>
-      <NativeSelect
+      <SelectField
         disabled={props.disabled}
         value={props.value ?? ""}
-        onChange={(event) => props.onChange(event.target.value || undefined)}
-      >
-        <NativeSelectOption value="">Select a run</NativeSelectOption>
-        {props.runs.map((run) => (
-          <NativeSelectOption key={run.id} value={run.id}>
-            {run.release ?? "Unreleased"} · {run.suiteName} · {formatTimestamp(run.startedAt)}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+        onValueChange={(value) => props.onChange(value || undefined)}
+        options={[
+          { value: "", label: "Select a run" },
+          ...props.runs.map((run) => ({
+            value: run.id,
+            label: `${run.release ?? "Unreleased"} · ${run.suiteName} · ${formatTimestamp(run.startedAt)}`,
+          })),
+        ]}
+      />
     </Field>
   );
 }
 
-function RunIdentityCard(props: {
-  label: "Candidate" | "Baseline";
-  run: EvaluationRunSummary;
+/**
+ * One card that answers "is the candidate better?": the gate verdict (when a gate is chosen),
+ * what differs between the two runs, and the headline numbers as baseline → candidate.
+ */
+function ComparisonSummary(props: {
+  comparison: NonNullable<EvaluationCompareState["comparison"]["data"]>;
   projectId: string;
 }) {
-  const run = props.run;
-  const candidate = props.label === "Candidate";
+  const { baseline, candidate, gate } = props.comparison;
+  const differences = runDifferences(baseline, candidate);
+  // Backend warnings that the differences above already explain are dropped.
+  const otherWarnings = props.comparison.warnings.filter(
+    (warning) => !/different (datasets|dataset versions|prompts|prompt versions)/i.test(warning),
+  );
   return (
-    <Card size="sm" className="relative">
-      <div
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b to-transparent",
-          candidate
-            ? "from-status-success/20 via-status-success/5"
-            : "from-muted-foreground/15 via-muted-foreground/5",
-        )}
-      />
-      <span
-        className={cn(
-          "absolute top-4 right-4 z-10 font-heading text-base font-semibold",
-          candidate ? "text-status-success" : "text-muted-foreground",
-        )}
-      >
-        {props.label}
-      </span>
-      <CardHeader className="relative pr-32">
-        <div className="grid gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>{run.release ?? "Unreleased"}</CardTitle>
-            <EvaluationRunStatusBadge status={run.status} />
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              render={
-                <Link
-                  to="/$projectId/evaluations/runs/$runId"
-                  params={{ projectId: props.projectId, runId: run.id }}
-                />
-              }
-            >
-              <ArrowSquareOut />
-              <span className="sr-only">Open {props.label.toLocaleLowerCase()} run</span>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {run.suiteName} · {formatTimestamp(run.startedAt)}
+    <Card size="sm">
+      <CardContent className="grid gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {gate ? <EvaluationStatusBadge status={gate.verdict} /> : null}
+          <p className="text-base font-medium">
+            {candidate.release ?? "Unreleased"}
+            <span className="font-normal text-muted-foreground"> compared with </span>
+            {baseline.release ?? "Unreleased"}
           </p>
+          <p className="text-sm text-muted-foreground">
+            {candidate.suiteName}
+            {candidate.datasetName ? ` · ${candidate.datasetName}` : ""} · {candidate.environment}
+          </p>
+          <div className="ml-auto flex items-center gap-1">
+            <RunLink label="Baseline run" projectId={props.projectId} run={baseline} />
+            <RunLink label="Candidate run" projectId={props.projectId} run={candidate} />
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="relative grid gap-3">
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline">{run.environment}</Badge>
-          <Badge variant="outline">{run.serviceName}</Badge>
-          {run.datasetName ? (
-            <Badge variant="secondary">
-              {run.datasetName}
-              {run.datasetVersion ? `@${run.datasetVersion}` : ""}
-            </Badge>
-          ) : null}
-        </div>
-        <dl className="grid grid-cols-3 gap-3 border-t pt-3">
-          <IdentityMetric
-            label="Pass rate"
-            value={run.results > 0 ? `${(run.passRate * 100).toFixed(1)}%` : "—"}
+        {differences.length || otherWarnings.length ? (
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {differences.map((difference) => (
+              <li key={difference.label} className="flex items-center gap-1.5">
+                <WarningCircle className="size-3.5 text-status-warning" />
+                {difference.label}
+                <span className="text-foreground tabular-nums">
+                  {difference.baseline} → {difference.candidate}
+                </span>
+              </li>
+            ))}
+            {otherWarnings.map((warning) => (
+              <li key={warning} className="flex items-center gap-1.5">
+                <WarningCircle className="size-3.5 text-status-warning" />
+                {warning}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3 lg:grid-cols-4">
+          <SummaryStat label="Pass rate" value={props.comparison.passRate} kind="passRate" />
+          <SummaryStat
+            label="Evaluated cases"
+            value={{
+              baseline: baseline.evaluatedCases,
+              candidate: candidate.evaluatedCases,
+              delta: candidate.evaluatedCases - baseline.evaluatedCases,
+              percentChange: null,
+            }}
+            kind="count"
           />
-          <IdentityMetric label="Cases" value={formatNumber(run.evaluatedCases)} />
-          <IdentityMetric
-            label="Trace coverage"
-            value={`${(run.traceCoverage * 100).toFixed(1)}%`}
+          <SummaryStat
+            label="P95 trace duration"
+            value={props.comparison.p95LatencyMs}
+            kind="duration"
+          />
+          <SummaryStat
+            label="Average tokens"
+            value={props.comparison.averageTotalTokens}
+            kind="tokens"
           />
         </dl>
       </CardContent>
@@ -292,13 +249,96 @@ function RunIdentityCard(props: {
   );
 }
 
-function IdentityMetric(props: { label: string; value: string }) {
+function runDifferences(baseline: EvaluationRunSummary, candidate: EvaluationRunSummary) {
+  const pairs: Array<[string, string | null, string | null]> = [
+    ["Dataset", baseline.datasetName, candidate.datasetName],
+    ["Dataset version", baseline.datasetVersion, candidate.datasetVersion],
+    ["Prompt", baseline.promptName, candidate.promptName],
+    ["Prompt version", baseline.promptVersion, candidate.promptVersion],
+  ];
+  return pairs
+    .filter(([, left, right]) => left !== right)
+    .map(([label, left, right]) => ({
+      label,
+      baseline: left ?? "none",
+      candidate: right ?? "none",
+    }));
+}
+
+function RunLink(props: { label: string; projectId: string; run: EvaluationRunSummary }) {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      nativeButton={false}
+      render={
+        <Link
+          to="/$projectId/evaluations/runs/$runId"
+          params={{ projectId: props.projectId, runId: props.run.id }}
+        />
+      }
+    >
+      {props.label}
+      <ArrowSquareOut />
+    </Button>
+  );
+}
+
+type StatKind = "passRate" | "count" | "duration" | "tokens";
+
+function SummaryStat(props: { label: string; value: ComparisonValue; kind: StatKind }) {
+  // Lower latency and fewer tokens are improvements; more cases and a higher pass rate are too.
+  const higherIsBetter = props.kind === "passRate" || props.kind === "count";
   return (
     <div className="grid gap-0.5">
       <dt className="text-xs text-muted-foreground">{props.label}</dt>
-      <dd className="font-medium tabular-nums">{props.value}</dd>
+      <dd className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
+        <span className="text-sm text-muted-foreground">
+          {formatStat(props.value.baseline, props.kind)} →
+        </span>
+        <span className="text-xl font-medium">{formatStat(props.value.candidate, props.kind)}</span>
+        <DeltaText value={props.value} kind={props.kind} higherIsBetter={higherIsBetter} />
+      </dd>
     </div>
   );
+}
+
+function DeltaText(props: { value: ComparisonValue; kind: StatKind; higherIsBetter: boolean }) {
+  const tone = comparisonDeltaTone(props.value, props.higherIsBetter);
+  const delta = props.value.delta;
+  if (delta === null) return null;
+  const text =
+    delta === 0
+      ? "no change"
+      : props.kind === "passRate"
+        ? formatSigned(delta * 100, 1, " pp")
+        : props.kind === "duration"
+          ? `${delta > 0 ? "+" : "−"}${formatDuration(Math.abs(delta))}`
+          : formatSigned(delta, 0);
+  const percent =
+    delta !== 0 && props.kind !== "passRate" && props.value.percentChange !== null
+      ? ` (${formatSigned(props.value.percentChange, 1, "%")})`
+      : "";
+  return (
+    <span
+      className={cn(
+        "text-xs font-medium",
+        tone === "positive" && "text-status-success",
+        tone === "negative" && "text-destructive",
+        tone === "neutral" && "text-muted-foreground",
+      )}
+    >
+      {text}
+      {percent}
+    </span>
+  );
+}
+
+function formatStat(value: number | null, kind: StatKind) {
+  if (value === null) return "—";
+  if (kind === "passRate") return `${(value * 100).toFixed(1)}%`;
+  if (kind === "duration") return formatDuration(value);
+  return formatNumber(Math.round(value));
 }
 
 export function comparisonDeltaTone(
@@ -308,52 +348,6 @@ export function comparisonDeltaTone(
   if (value.delta === null || value.delta === 0) return "neutral";
   const improved = higherIsBetter ? value.delta > 0 : value.delta < 0;
   return improved ? "positive" : "negative";
-}
-
-function DeltaCard(props: {
-  label: string;
-  value: ComparisonValue;
-  kind: "passRate" | "duration" | "number";
-}) {
-  const higherIsBetter = props.kind === "passRate";
-  const tone = comparisonDeltaTone(props.value, higherIsBetter);
-  const format = (value: number | null) => {
-    if (value === null) return "—";
-    if (props.kind === "passRate") return `${(value * 100).toFixed(1)}%`;
-    if (props.kind === "duration") return formatDuration(value);
-    return formatNumber(value);
-  };
-  const delta =
-    props.value.delta === null
-      ? "—"
-      : props.kind === "passRate"
-        ? formatSigned(props.value.delta * 100, 1, " pp")
-        : props.kind === "duration"
-          ? `${props.value.delta > 0 ? "+" : props.value.delta < 0 ? "−" : ""}${formatDuration(Math.abs(props.value.delta))}`
-          : formatSigned(props.value.delta, 1);
-  const percentChange =
-    props.kind !== "passRate" && props.value.percentChange !== null
-      ? ` · ${formatSigned(props.value.percentChange, 1, "%")}`
-      : "";
-  return (
-    <Card size="sm">
-      <CardContent className="grid gap-1">
-        <p className="text-xs text-muted-foreground">{props.label}</p>
-        <p className="text-xl font-semibold tabular-nums">{format(props.value.candidate)}</p>
-        <p className="text-xs text-muted-foreground">Baseline {format(props.value.baseline)}</p>
-        <p
-          className={cn(
-            "text-xs font-medium tabular-nums text-muted-foreground",
-            tone === "positive" && "text-status-success",
-            tone === "negative" && "text-destructive",
-          )}
-        >
-          Δ {delta}
-          {percentChange}
-        </p>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function sortMetricComparisons(metrics: EvaluationMetricComparison[]) {
@@ -371,52 +365,75 @@ export function sortMetricComparisons(metrics: EvaluationMetricComparison[]) {
 
 function MetricComparisonTable({ metrics }: { metrics: EvaluationMetricComparison[] }) {
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>Metric comparison</CardTitle>
-      </CardHeader>
+    <Card size="sm" className="gap-0 overflow-hidden py-0">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="pl-4">Metric</TableHead>
-            <TableHead>Candidate pass</TableHead>
-            <TableHead>Baseline pass</TableHead>
-            <TableHead>Pass Δ</TableHead>
-            <TableHead>Candidate average</TableHead>
-            <TableHead>Baseline average</TableHead>
-            <TableHead className="pr-4">Score Δ</TableHead>
+            <TableHead className="pl-3">Metric</TableHead>
+            <TableHead>Pass rate</TableHead>
+            <TableHead className="pr-3">Average score</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortMetricComparisons(metrics).map((metric) => (
             <TableRow key={metric.metricName}>
-              <TableCell className="pl-4 font-medium">{metric.metricName}</TableCell>
-              <TableCell>{formatPassRate(metric.candidate?.passRate)}</TableCell>
-              <TableCell>{formatPassRate(metric.baseline?.passRate)}</TableCell>
-              <TableCell
-                className={cn(
-                  metric.passRateDelta !== null &&
-                    metric.passRateDelta > 0 &&
-                    "text-status-success",
-                  metric.passRateDelta !== null && metric.passRateDelta < 0 && "text-destructive",
-                )}
-              >
-                {metric.passRateDelta === null
-                  ? "—"
-                  : formatSigned(metric.passRateDelta * 100, 1, " pp")}
+              <TableCell className="pl-3 font-medium">{metric.metricName}</TableCell>
+              <TableCell>
+                <ChangeCell
+                  baseline={formatPassRate(metric.baseline?.passRate)}
+                  candidate={formatPassRate(metric.candidate?.passRate)}
+                  delta={metric.passRateDelta}
+                  deltaText={
+                    metric.passRateDelta === null
+                      ? null
+                      : formatSigned(metric.passRateDelta * 100, 1, " pp")
+                  }
+                />
               </TableCell>
-              <TableCell>{formatScore(metric.candidate?.averageNumericValue)}</TableCell>
-              <TableCell>{formatScore(metric.baseline?.averageNumericValue)}</TableCell>
-              <TableCell className="pr-4">
-                {metric.averageScoreDelta === null
-                  ? "—"
-                  : formatSigned(metric.averageScoreDelta, 3)}
+              <TableCell className="pr-3">
+                <ChangeCell
+                  baseline={formatScore(metric.baseline?.averageNumericValue)}
+                  candidate={formatScore(metric.candidate?.averageNumericValue)}
+                  delta={metric.averageScoreDelta}
+                  deltaText={
+                    metric.averageScoreDelta === null
+                      ? null
+                      : formatSigned(metric.averageScoreDelta, 3)
+                  }
+                />
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </Card>
+  );
+}
+
+function ChangeCell(props: {
+  baseline: string;
+  candidate: string;
+  delta: number | null;
+  deltaText: string | null;
+}) {
+  if (props.baseline === "—" && props.candidate === "—") {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <span className="flex items-baseline gap-2 tabular-nums">
+      <span className="text-muted-foreground">{props.baseline} →</span>
+      <span className="font-medium">{props.candidate}</span>
+      {props.deltaText !== null && props.delta !== null && props.delta !== 0 ? (
+        <span
+          className={cn(
+            "text-xs font-medium",
+            props.delta > 0 ? "text-status-success" : "text-destructive",
+          )}
+        >
+          {props.deltaText}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -439,7 +456,7 @@ function CaseChanges(props: {
     { value: "all", label: "All", count: totalChanges },
   ];
   return (
-    <Card className="overflow-hidden">
+    <Card size="sm" className="gap-0 overflow-hidden pb-0">
       <Tabs value={tab} onValueChange={(value) => setTab(value as ChangeTab)} className="gap-0">
         <CardHeader className="border-b">
           <CardTitle>Changed cases</CardTitle>
@@ -463,47 +480,43 @@ function CaseChanges(props: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="pl-4">Case</TableHead>
+                    <TableHead className="pl-3">Case</TableHead>
                     <TableHead>Metric</TableHead>
                     <TableHead>Change</TableHead>
-                    <TableHead>Candidate</TableHead>
                     <TableHead>Baseline</TableHead>
-                    <TableHead>Candidate trace</TableHead>
-                    <TableHead className="pr-4">Baseline trace</TableHead>
+                    <TableHead className="pr-3">Candidate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.map((change) => (
                     <TableRow key={`${change.caseId}-${change.metricName}`}>
-                      <TableCell className="pl-4 font-medium">{change.caseId}</TableCell>
+                      <TableCell className="pl-3 font-medium">{change.caseId}</TableCell>
                       <TableCell>{change.metricName}</TableCell>
                       <TableCell>
                         <ChangeBadge classification={change.classification} />
                       </TableCell>
                       <TableCell>
                         <OutcomeValue
-                          outcome={change.candidateOutcome}
-                          value={change.candidateValue}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <OutcomeValue
                           outcome={change.baselineOutcome}
                           value={change.baselineValue}
+                          traceId={change.baselineTraceId}
+                          projectId={props.projectId}
                         />
                       </TableCell>
-                      <TableCell>
-                        <TraceLink projectId={props.projectId} traceId={change.candidateTraceId} />
-                      </TableCell>
-                      <TableCell className="pr-4">
-                        <TraceLink projectId={props.projectId} traceId={change.baselineTraceId} />
+                      <TableCell className="pr-3">
+                        <OutcomeValue
+                          outcome={change.candidateOutcome}
+                          value={change.candidateValue}
+                          traceId={change.candidateTraceId}
+                          projectId={props.projectId}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : tab === item.value ? (
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              <CardContent className="py-10 text-center text-base text-muted-foreground">
                 {item.count > 0 && totalChanges > props.changes.length
                   ? `No ${item.label.toLocaleLowerCase()} are included in the first ${formatNumber(props.changes.length)} changes.`
                   : item.value === "regressions"
@@ -549,54 +562,97 @@ function ChangeBadge({
 function OutcomeValue(props: {
   outcome: EvaluationCaseChange["candidateOutcome"];
   value: EvaluationCaseChange["candidateValue"];
+  traceId: string | null;
+  projectId: string;
 }) {
   if (props.outcome === null) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="flex items-center gap-2">
       <EvaluationStatusBadge status={props.outcome} />
-      <span className="max-w-32 truncate font-mono" title={String(props.value ?? "—")}>
+      <span className="max-w-32 truncate tabular-nums" title={String(props.value ?? "—")}>
         {String(props.value ?? "—")}
       </span>
+      {props.traceId ? (
+        <Link
+          className="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline"
+          to="/$projectId/traces/$traceId"
+          params={{ projectId: props.projectId, traceId: props.traceId }}
+          title="Open trace"
+        >
+          {shortId(props.traceId)}
+        </Link>
+      ) : null}
     </div>
   );
 }
 
-function TraceLink(props: { projectId: string; traceId: string | null }) {
-  if (!props.traceId) return <span className="text-muted-foreground">—</span>;
+function GateChecks({ evaluation }: { evaluation: QualityGateEvaluation }) {
   return (
-    <Link
-      className="font-mono text-primary hover:underline"
-      to="/$projectId/traces/$traceId"
-      params={{ projectId: props.projectId, traceId: props.traceId }}
-    >
-      {shortId(props.traceId)}
-    </Link>
+    <Card size="sm" className="gap-0 overflow-hidden pb-0">
+      <CardHeader className="flex items-center gap-2 border-b">
+        <CardTitle>{evaluation.gate.name}</CardTitle>
+        <EvaluationStatusBadge status={evaluation.verdict} />
+      </CardHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-3">Check</TableHead>
+            <TableHead>Baseline</TableHead>
+            <TableHead>Candidate</TableHead>
+            <TableHead className="pr-3 text-right">Result</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {evaluation.rules.map((result) => (
+            <TableRow key={`${JSON.stringify(result.rule)}-${result.message}`}>
+              <TableCell className="pl-3" title={result.message}>
+                {describeGateRule(result.rule)}
+              </TableCell>
+              <TableCell className="tabular-nums text-muted-foreground">
+                {formatGateValue(result.rule, result.baselineValue)}
+              </TableCell>
+              <TableCell className="tabular-nums font-medium">
+                {formatGateValue(result.rule, result.candidateValue)}
+              </TableCell>
+              <TableCell className="pr-3 text-right">
+                <EvaluationStatusBadge status={result.verdict} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
-function GateVerdict({ evaluation }: { evaluation: QualityGateEvaluation }) {
-  return (
-    <Card size="sm">
-      <CardHeader className="flex-row items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <CardTitle>{evaluation.gate.name}</CardTitle>
-          <p className="text-xs text-muted-foreground">Quality gate verdict</p>
-        </div>
-        <EvaluationStatusBadge status={evaluation.verdict} />
-      </CardHeader>
-      <CardContent className="grid gap-2">
-        {evaluation.rules.map((result) => (
-          <div
-            className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2"
-            key={`${JSON.stringify(result.rule)}-${result.message}`}
-          >
-            <p className="text-sm">{result.message}</p>
-            <EvaluationStatusBadge status={result.verdict} />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+type GateRule = QualityGateEvaluation["rules"][number]["rule"];
+
+/** Plain-language form of a gate rule, e.g. "safety_refusal pass rate ≥ 95%". */
+export function describeGateRule(rule: GateRule): string {
+  if (rule.type === "minimum_case_count")
+    return `At least ${formatNumber(rule.value)} evaluated cases`;
+  if (rule.type === "operational_regression") {
+    const measure = rule.measure === "p95_latency_ms" ? "P95 trace duration" : "Average tokens";
+    return `${measure} rises at most ${rule.maxIncreasePercent}%`;
+  }
+  const measure = rule.measure === "pass_rate" ? "pass rate" : "average score";
+  const format = (value: number) =>
+    rule.measure === "pass_rate" ? `${Math.round(value * 1000) / 10}%` : String(value);
+  if (rule.type === "evaluation_threshold") {
+    return `${rule.metricName} ${measure} ${rule.operator === "gte" ? "≥" : "≤"} ${format(rule.value)}`;
+  }
+  return `${rule.metricName} ${measure} ${rule.direction === "decrease" ? "drops" : "rises"} at most ${rule.measure === "pass_rate" ? `${Math.round(rule.maxAbsoluteChange * 1000) / 10} pp` : rule.maxAbsoluteChange}`;
+}
+
+function formatGateValue(rule: GateRule, value: number | null): string {
+  if (value === null) return "—";
+  if (rule.type === "minimum_case_count") return formatNumber(value);
+  if (rule.type === "operational_regression") {
+    return rule.measure === "p95_latency_ms"
+      ? formatDuration(value)
+      : formatNumber(Math.round(value));
+  }
+  return rule.measure === "pass_rate" ? `${(value * 100).toFixed(1)}%` : value.toFixed(3);
 }
 
 function formatPassRate(value: number | null | undefined) {
