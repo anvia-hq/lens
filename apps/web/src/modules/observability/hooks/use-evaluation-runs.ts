@@ -13,13 +13,18 @@ import type { EvaluationRunsSearch, RefreshInterval, ResolvedEvaluationRunsSearc
 import { evaluationRunActiveFilterCount, refreshMilliseconds, timeRangeForPreset } from "../utils";
 import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
+import { isBoolean, useStoredState } from "./use-stored-state";
 
 export function useEvaluationRuns() {
   const { project } = useObservabilityProject();
   const filters = useSearch({ strict: false }) as ResolvedEvaluationRunsSearch;
   const navigate = useNavigate();
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useStoredState(
+    "filter-panel-collapsed:evaluation-runs",
+    false,
+    isBoolean,
+  );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");

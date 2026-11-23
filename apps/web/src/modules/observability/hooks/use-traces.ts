@@ -7,13 +7,18 @@ import type { RefreshInterval, ResolvedTracesSearch, TracesSearch } from "../typ
 import { refreshMilliseconds, timeRangeForPreset, traceActiveFilterCount } from "../utils";
 import { useDataDeletions } from "./use-data-deletions";
 import { useObservabilityProject } from "./use-observability-project";
+import { isBoolean, useStoredState } from "./use-stored-state";
 
 export function useTraces() {
   const { project } = useObservabilityProject();
   const navigate = useNavigate();
   const filters = useSearch({ strict: false }) as ResolvedTracesSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useStoredState(
+    "filter-panel-collapsed:traces",
+    false,
+    isBoolean,
+  );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [selectedTraceIds, setSelectedTraceIds] = useState<string[]>([]);

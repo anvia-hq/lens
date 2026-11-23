@@ -6,13 +6,18 @@ import { api, queryString } from "../../../lib/api";
 import type { RefreshInterval, ResolvedRunsSearch, RunsSearch } from "../types";
 import { refreshMilliseconds, runActiveFilterCount, timeRangeForPreset } from "../utils";
 import { useObservabilityProject } from "./use-observability-project";
+import { isBoolean, useStoredState } from "./use-stored-state";
 
 export function useRuns() {
   const { project } = useObservabilityProject();
   const navigate = useNavigate();
   const filters = useSearch({ strict: false }) as ResolvedRunsSearch;
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>("5s");
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false);
+  const [filterPanelCollapsed, setFilterPanelCollapsed] = useStoredState(
+    "filter-panel-collapsed:runs",
+    false,
+    isBoolean,
+  );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
   const [peekedRun, setPeekedRun] = useState<{ traceId: string; spanId: string } | null>(null);
