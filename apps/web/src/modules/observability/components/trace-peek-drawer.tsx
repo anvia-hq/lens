@@ -7,6 +7,8 @@ import {
 } from "@lens/ui/components/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@lens/ui/components/sheet";
 import { Spinner } from "@lens/ui/components/spinner";
+import { useIsMobile } from "@lens/ui/hooks/use-mobile";
+import { cn } from "@lens/ui/lib/utils";
 import { ArrowDown, ArrowUp, ExternalLink } from "@mynaui/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -31,6 +33,7 @@ export function TracePeekDrawer(props: {
   onSelectTrace: (traceId: string | null) => void;
 }) {
   const open = props.selectedTraceId !== null;
+  const stacked = useIsMobile();
   const currentIndex = props.selectedTraceId
     ? props.traces.findIndex((item) => item.traceId === props.selectedTraceId)
     : -1;
@@ -100,8 +103,8 @@ export function TracePeekDrawer(props: {
         className="flex w-[min(72rem,95vw)] max-w-none flex-col gap-0 p-0 sm:max-w-none"
       >
         <SheetTitle className="sr-only">Trace preview</SheetTitle>
-        <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 pr-12">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b pr-12 pl-3 sm:px-4 sm:pr-12">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Button
               variant="outline"
               size="icon-sm"
@@ -127,10 +130,14 @@ export function TracePeekDrawer(props: {
               <ArrowDown />
             </Button>
             {detail ? (
-              <div className="ml-1 flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-semibold">{detail.summary.name}</span>
-                <StatusPill status={detail.summary.status} />
-                <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
+              <div className="ml-1 flex min-w-0 flex-1 items-center gap-2">
+                <span className="min-w-0 truncate text-base font-semibold">
+                  {detail.summary.name}
+                </span>
+                <span className="shrink-0">
+                  <StatusPill status={detail.summary.status} />
+                </span>
+                <span className="hidden shrink-0 whitespace-nowrap font-mono text-xs text-muted-foreground sm:inline">
                   {formatDuration(detail.summary.durationMs)} ·{" "}
                   {formatNumber(detail.summary.totalTokens)} tok ·{" "}
                   {formatCost(detail.summary.totalCost)}
@@ -140,12 +147,14 @@ export function TracePeekDrawer(props: {
           </div>
           {props.selectedTraceId ? (
             <Link
-              className={buttonVariants({ variant: "outline", size: "sm" })}
+              aria-label="Open full page"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
               to="/$projectId/traces/$traceId"
               params={{ projectId: props.projectId, traceId: props.selectedTraceId }}
               search={{ view, span: resolvedSpan?.spanId }}
             >
-              Open full page <ExternalLink />
+              <span className="hidden sm:inline">Open full page</span>
+              <ExternalLink />
             </Link>
           ) : null}
         </div>
@@ -157,8 +166,16 @@ export function TracePeekDrawer(props: {
               </span>
             </div>
           ) : detail ? (
-            <ResizablePanelGroup orientation="horizontal" className="min-h-0 overflow-hidden">
-              <ResizablePanel defaultSize="46" minSize="30" className="min-h-0 overflow-hidden">
+            <ResizablePanelGroup
+              key={stacked ? "stacked" : "split"}
+              orientation={stacked ? "vertical" : "horizontal"}
+              className="min-h-0 overflow-hidden"
+            >
+              <ResizablePanel
+                defaultSize={stacked ? "40" : "46"}
+                minSize="25"
+                className="min-h-0 overflow-hidden"
+              >
                 <TraceNavigator
                   allowGraph={false}
                   collapsed={collapsed}
@@ -175,7 +192,11 @@ export function TracePeekDrawer(props: {
                 />
               </ResizablePanel>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize="54" minSize="35" className="min-h-0 overflow-hidden">
+              <ResizablePanel
+                defaultSize={stacked ? "60" : "54"}
+                minSize="35"
+                className="min-h-0 overflow-hidden"
+              >
                 <SpanInspectorState
                   error={span.error}
                   loading={span.isLoading}

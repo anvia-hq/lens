@@ -113,7 +113,7 @@ export function SpanPayloadSection(props: {
 
   return (
     <section className="min-w-0 overflow-hidden rounded-lg border bg-card/40">
-      <header className="flex min-w-0 items-center justify-between gap-3 border-b bg-muted/30 px-3 py-1.5">
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b bg-muted/30 px-3 py-1.5">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {props.title}
         </h3>
@@ -348,9 +348,13 @@ function StructuredRow(props: { label: string; value: unknown; depth: number }) 
   const nested = Array.isArray(props.value) || isRecord(props.value);
   if (!nested) {
     return (
-      <div className="grid min-w-0 grid-cols-[minmax(6.5rem,0.28fr)_minmax(0,1fr)] gap-3 py-2 text-xs leading-5">
-        <span className="break-all font-mono text-muted-foreground">{props.label}</span>
-        <PrimitiveValue value={props.value} />
+      <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 py-2 text-xs leading-5">
+        <span className="w-26 shrink-0 break-all font-mono text-muted-foreground">
+          {props.label}
+        </span>
+        <div className="min-w-40 flex-1">
+          <PrimitiveValue value={props.value} />
+        </div>
       </div>
     );
   }
