@@ -346,8 +346,9 @@ export function OverviewView({ state }: { state: OverviewState }) {
             </OverviewChartCard>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-5">
-            <ModelBreakdownCard metrics={value} projectId={project.id} range={search.range} />
+          <ModelBreakdownCard metrics={value} projectId={project.id} range={search.range} />
+
+          <div className="grid gap-4 xl:grid-cols-2">
             <ServiceBreakdownCard metrics={value} projectId={project.id} range={search.range} />
             <ToolHealthCard metrics={value} />
           </div>
