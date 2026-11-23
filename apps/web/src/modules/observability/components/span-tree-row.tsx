@@ -39,7 +39,7 @@ export function SpanTreeRow(props: {
       >
         <TreeIndent row={props.row} collapsed={props.collapsed} />
         <span className="grid min-w-0 flex-1 content-center py-1.5 pr-2">
-          <span className="truncate text-xs font-medium text-current" title={span.name}>
+          <span className="truncate text-sm font-medium text-current" title={span.name}>
             {span.name}
           </span>
           <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
