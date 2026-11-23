@@ -51,7 +51,7 @@ export function TraceDetailExplorer(props: {
     if (isMobile) setMobileTab("data");
   };
   return (
-    <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <TraceHeader
         actions={
           <TraceReviewPanel
@@ -66,7 +66,7 @@ export function TraceDetailExplorer(props: {
         canDelete={props.onDelete !== undefined}
         onDelete={() => setDeleteOpen(true)}
       />
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {isMobile ? (
           <MobileTraceLayout
             activeTab={mobileTab}
@@ -90,7 +90,7 @@ export function TraceDetailExplorer(props: {
           />
         ) : (
           <ResizablePanelGroup
-            className="min-h-0 overflow-hidden"
+            className="min-h-0 min-w-0 overflow-hidden"
             id="trace-detail-layout"
             orientation="horizontal"
             defaultLayout={layout}

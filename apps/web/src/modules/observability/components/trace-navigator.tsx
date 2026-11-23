@@ -66,7 +66,10 @@ export function TraceNavigator(props: {
   });
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Trace spans">
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-col bg-background"
+      aria-label="Trace spans"
+    >
       <div className="flex shrink-0 items-center gap-1 border-b p-1.5">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -97,9 +100,9 @@ export function TraceNavigator(props: {
           />
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {props.view === "trajectory" ? (
-          <div className="h-full overflow-auto overscroll-contain">
+          <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain">
             <TrajectoryView
               mode="trace"
               projectId={props.projectId ?? props.detail.summary.projectId}

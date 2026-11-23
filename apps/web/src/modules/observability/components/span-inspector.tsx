@@ -53,19 +53,22 @@ export function SpanInspector(props: { span: SpanDetail }) {
     [span],
   );
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Selected span data">
-      <header className="shrink-0 border-b px-4 py-2.5">
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background"
+      aria-label="Selected span data"
+    >
+      <header className="shrink-0 min-w-0 border-b px-4 py-2.5">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <ObservationGlyph kind={span.observationKind} status={span.status} size="medium" />
             <h2 className="truncate text-sm font-semibold tracking-tight">{span.name}</h2>
             <StatusPill status={span.status} />
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="min-w-0 truncate text-[11px] text-muted-foreground">
             {span.observationKind} · {formatNanoTimestamp(span.startTimeUnixNano)}
           </span>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
           <MetricPill
             icon={<Clock3 />}
             label="Duration"
@@ -79,17 +82,17 @@ export function SpanInspector(props: { span: SpanDetail }) {
           <MetricPill icon={<Database />} label="Cost" value={formatCost(span.totalCost)} />
           {span.model ? <MetricPill icon={<Sparkles />} label="Model" value={span.model} /> : null}
           <MetricPill icon={<Activity />} label="Service" value={span.serviceName} />
-          <div className="ml-auto flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted-foreground">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted-foreground sm:ml-auto">
             <span title={span.spanId}>Span {shortId(span.spanId)}</span>
             {span.parentSpanId ? (
               <span title={span.parentSpanId}>Parent {shortId(span.parentSpanId)}</span>
             ) : null}
-            {span.scopeName ? <span>Scope {span.scopeName}</span> : null}
+            {span.scopeName ? <span className="truncate">Scope {span.scopeName}</span> : null}
           </div>
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <div className="grid content-start gap-4 p-4">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="grid min-w-0 grid-cols-1 content-start gap-4 p-4">
           <SpanPayloadSection field="input" title="Input" value={span.input} />
           <SpanPayloadSection field="output" title="Output" value={span.output} />
           {span.status === "error" || span.statusMessage ? (

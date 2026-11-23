@@ -49,7 +49,7 @@ export function AuthenticatedApp({ user }: { user: AuthenticatedUser }) {
         <SidebarProvider className="h-svh min-h-0 overflow-hidden">
           <ProjectRail />
           <AppSidebar user={user} />
-          <SidebarInset className="h-svh min-h-0 overflow-y-auto">
+          <SidebarInset className="h-svh min-h-0 min-w-0 overflow-x-hidden overflow-y-auto">
             <AppHeader />
             <Outlet />
           </SidebarInset>
