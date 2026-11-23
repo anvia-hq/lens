@@ -10,17 +10,13 @@ import { ProjectRail } from "./project-rail";
 
 type MockLinkProps = ComponentProps<"a"> & {
   params?: { projectId: string };
-  search?: { range: string };
+  search?: Record<string, never>;
   to: string;
 };
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ params, search, to, ...props }: MockLinkProps) =>
-    to === "/" ? (
-      <a href="/" {...props} />
-    ) : (
-      <a href={`/${params?.projectId}?range=${search?.range}`} {...props} />
-    ),
+  Link: ({ params, search: _search, to, ...props }: MockLinkProps) =>
+    to === "/" ? <a href="/" {...props} /> : <a href={`/${params?.projectId}`} {...props} />,
 }));
 
 afterEach(cleanup);
@@ -63,8 +59,8 @@ describe("ProjectRail", () => {
     const alpha = screen.getByRole("link", { name: "Switch to Alpha" });
     const beta = screen.getByRole("link", { name: "Switch to Beta" });
 
-    expect(alpha.getAttribute("href")).toBe("/project-alpha?range=24h");
-    expect(beta.getAttribute("href")).toBe("/project-beta?range=24h");
+    expect(alpha.getAttribute("href")).toBe("/project-alpha");
+    expect(beta.getAttribute("href")).toBe("/project-beta");
     expect(alpha.getAttribute("aria-current")).toBe("page");
     expect(beta.hasAttribute("aria-current")).toBe(false);
     expect(screen.getByText("A")).toBeTruthy();

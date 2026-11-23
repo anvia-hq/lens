@@ -8,7 +8,7 @@ import {
 } from "@lens/ui/components/breadcrumb";
 import { SidebarTrigger } from "@lens/ui/components/sidebar";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
-import { defaultUserColumns } from "../modules/observability/types";
+import { savedFiltersSearch } from "../modules/observability/utils/saved-filters";
 import { useProject } from "../modules/projects/hooks/use-project";
 import { shortId } from "../utils/format";
 import { ModeToggle } from "./mode-toggle";
@@ -64,7 +64,7 @@ export function AppHeader() {
                 <Link
                   to="/$projectId"
                   params={{ projectId: project.id }}
-                  search={{ range: "24h" }}
+                  search={savedFiltersSearch}
                 />
               }
             >
@@ -90,44 +90,37 @@ export function AppHeader() {
                       <Link
                         to="/$projectId/evaluations/runs"
                         params={{ projectId: project.id }}
-                        search={{ range: "24h" }}
+                        search={savedFiltersSearch}
                       />
                     ) : section === "traces" ? (
                       <Link
                         to="/$projectId/traces"
                         params={{ projectId: project.id }}
-                        search={{ range: "24h" }}
+                        search={savedFiltersSearch}
                       />
                     ) : section === "runs" ? (
                       <Link
                         to="/$projectId/runs"
                         params={{ projectId: project.id }}
-                        search={{ range: "24h" }}
+                        search={savedFiltersSearch}
                       />
                     ) : section === "threads" || section === "sessions" ? (
                       <Link
                         to="/$projectId/threads"
                         params={{ projectId: project.id }}
-                        search={{ range: "24h" }}
+                        search={savedFiltersSearch}
                       />
                     ) : section === "alerts" ? (
                       <Link
                         to="/$projectId/alerts"
                         params={{ projectId: project.id }}
-                        search={{ tab: "incidents", status: "active", page: 1 }}
+                        search={savedFiltersSearch}
                       />
                     ) : (
                       <Link
                         to="/$projectId/users"
                         params={{ projectId: project.id }}
-                        search={{
-                          range: "all",
-                          sort: "lastSeenAt",
-                          order: "desc",
-                          page: 1,
-                          pageSize: 50,
-                          columns: defaultUserColumns,
-                        }}
+                        search={savedFiltersSearch}
                       />
                     )
                   }

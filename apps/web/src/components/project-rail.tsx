@@ -4,6 +4,7 @@ import { cn } from "@lens/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { useProject } from "../modules/projects/hooks/use-project";
 import { AnviaLensLogo } from "./anvia-lens-logo";
+import { savedFiltersSearch } from "../modules/observability/utils/saved-filters";
 
 export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
   const { project, projects } = useProject();
@@ -45,7 +46,7 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                       to="/$projectId"
                       params={{ projectId: item.id }}
-                      search={{ range: "24h" }}
+                      search={savedFiltersSearch}
                     >
                       <Avatar className="size-6 rounded-md after:rounded-md">
                         <AvatarFallback

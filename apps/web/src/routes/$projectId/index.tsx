@@ -3,6 +3,7 @@ import { OverviewView } from "../../modules/observability/components/overview-vi
 import { useOverview } from "../../modules/observability/hooks/use-overview";
 import type { OverviewSearch } from "../../modules/observability/types";
 import { validateOverviewSearch as normalizeOverviewSearch } from "../../modules/observability/utils";
+import { restoreSavedFilters } from "../../modules/observability/utils/saved-filters";
 
 export function validateOverviewSearch(search: Record<string, unknown>): OverviewSearch {
   return normalizeOverviewSearch(search);
@@ -10,6 +11,7 @@ export function validateOverviewSearch(search: Record<string, unknown>): Overvie
 
 export const Route = createFileRoute("/$projectId/")({
   validateSearch: validateOverviewSearch,
+  beforeLoad: restoreSavedFilters("overview", "/$projectId/"),
   component: OverviewPage,
 });
 
