@@ -12,6 +12,7 @@ import {
 } from "../utils/span-payload";
 import { isRecord, rawTraceJson } from "../utils/trace-detail";
 import { LARGE_PAYLOAD_PREVIEW_CHARACTERS, LargePayloadBlock } from "./large-payload-block";
+import { looksLikeJsonPreview, MarkdownContent } from "./markdown-content";
 import { RawJsonBlock } from "./raw-json-block";
 import { RoleBadge } from "./role-badge";
 
@@ -158,30 +159,36 @@ function ReadableMessages(props: {
   additional: unknown;
 }) {
   return (
-    <div className="grid min-w-0 divide-y divide-border/50 px-3.5 py-1">
+    <div className="grid min-w-0 grid-cols-1 divide-y divide-border/50 px-3.5 py-1">
       {props.messages.map((message) => (
         <article
-          className="grid min-w-0 grid-cols-[minmax(6.5rem,0.22fr)_minmax(0,1fr)] gap-3 py-2.5"
+          className="grid min-w-0 grid-cols-[minmax(5.5rem,0.18fr)_minmax(0,1fr)] gap-3 py-2.5"
           key={message.key}
         >
           <div className="pt-0.5">
             <RoleBadge role={message.role} />
           </div>
-          <div className="grid min-w-0 gap-2.5">
+          <div className="grid min-w-0 grid-cols-1 gap-2.5">
             {message.reasoning ? (
-              <div className="grid gap-1 rounded-md border bg-muted/20 px-3 py-2">
+              <div className="grid min-w-0 grid-cols-1 gap-1 rounded-md border bg-muted/20 px-3 py-2">
                 <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Reasoning
                 </span>
-                <p className="m-0 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
-                  {message.reasoning}
-                </p>
+                <MarkdownContent
+                  compact
+                  content={message.reasoning}
+                  className="text-muted-foreground"
+                />
               </div>
             ) : null}
             {message.content ? (
-              <p className="m-0 whitespace-pre-wrap break-words text-xs leading-5">
-                {message.content}
-              </p>
+              looksLikeJsonPreview(message.content) ? (
+                <p className="m-0 min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-xs leading-5">
+                  {message.content}
+                </p>
+              ) : (
+                <MarkdownContent compact content={message.content} />
+              )
             ) : !message.reasoning && message.toolCalls.length === 0 ? (
               <span className="text-xs italic text-muted-foreground">No text content</span>
             ) : null}
@@ -192,11 +199,11 @@ function ReadableMessages(props: {
         </article>
       ))}
       {props.tools.length > 0 ? (
-        <section className="py-2.5">
+        <section className="min-w-0 py-2.5">
           <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             Available tools · {props.tools.length}
           </p>
-          <div className="grid gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2">
             {props.tools.map((tool) => (
               <ToolDisclosure key={tool.key} tool={tool} label="Definition" />
             ))}
@@ -204,12 +211,12 @@ function ReadableMessages(props: {
         </section>
       ) : null}
       {props.additional !== undefined ? (
-        <details className="group/additional py-2.5">
+        <details className="group/additional min-w-0 py-2.5">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
             <CaretRight className="size-3 transition-transform group-open/additional:rotate-90" />
             Additional fields
           </summary>
-          <div className="mt-2 rounded-md border bg-muted/20">
+          <div className="mt-2 min-w-0 overflow-hidden rounded-md border bg-muted/20">
             <StructuredPayload value={props.additional} />
           </div>
         </details>
@@ -273,7 +280,7 @@ function MetadataTable({ value }: { value: unknown }) {
                 <dt className="break-all font-mono text-muted-foreground" title={entry.path}>
                   {entry.path || entry.label}
                 </dt>
-                <dd className="m-0 whitespace-pre-wrap break-words font-mono">
+                <dd className="m-0 min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">
                   {compactPayloadValue(entry.value)}
                 </dd>
               </div>
@@ -288,7 +295,10 @@ function MetadataTable({ value }: { value: unknown }) {
 }
 
 function StructuredPayload({ compact, value }: { compact?: boolean; value: unknown }) {
-  const containerClass = cn("grid divide-y divide-border/40", !compact && "px-3.5 py-1");
+  const containerClass = cn(
+    "grid min-w-0 grid-cols-1 divide-y divide-border/40",
+    !compact && "px-3.5 py-1",
+  );
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return (
@@ -382,7 +392,7 @@ function PrimitiveValue({ value }: { value: unknown }) {
   return (
     <span
       className={cn(
-        "min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-5",
+        "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-xs leading-5",
         (value === null || value === undefined) && "text-syntax-comment",
         typeof value === "string" && "text-syntax-string",
         typeof value === "number" && "text-syntax-number",

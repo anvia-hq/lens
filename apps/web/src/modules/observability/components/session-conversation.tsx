@@ -115,9 +115,9 @@ export function SessionConversation(props: {
           ) : null}
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
         {viewMode === "trajectory" ? (
-          <div className="mx-auto w-full max-w-5xl">
+          <div className="mx-auto w-full min-w-0 max-w-5xl">
             <TrajectoryView
               mode="thread"
               projectId={props.projectId}
@@ -208,7 +208,7 @@ export function SessionConversation(props: {
   );
 
   const rightPane = (
-    <div className="flex h-full min-h-0 flex-col border-t bg-background lg:border-t-0 lg:border-l">
+    <div className="flex h-full min-h-0 min-w-0 flex-col border-t bg-background lg:border-t-0 lg:border-l">
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3">
         <div className="flex h-8 items-center rounded-md border bg-muted/50 p-0.5">
           {(
@@ -242,7 +242,7 @@ export function SessionConversation(props: {
           </Link>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
         {rightTab === "step" && selectedSpan ? (
           <ThreadStepInspector
             projectId={props.projectId}
@@ -268,12 +268,15 @@ export function SessionConversation(props: {
           {rightPane}
         </div>
       ) : (
-        <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 overflow-hidden">
-          <ResizablePanel defaultSize="62" minSize="40" className="min-h-0 overflow-hidden">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="min-h-0 min-w-0 flex-1 overflow-hidden"
+        >
+          <ResizablePanel defaultSize="62" minSize="40" className="min-h-0 min-w-0 overflow-hidden">
             {leftPane}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize="38" minSize="26" className="min-h-0 overflow-hidden">
+          <ResizablePanel defaultSize="38" minSize="26" className="min-h-0 min-w-0 overflow-hidden">
             {rightPane}
           </ResizablePanel>
         </ResizablePanelGroup>

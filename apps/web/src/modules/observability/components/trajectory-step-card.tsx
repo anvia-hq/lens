@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from "@mynaui/icons-react";
 import { useState } from "react";
 import { formatCost, formatDuration, formatNumber } from "../utils/trace-detail";
 import type { TrajectoryStep } from "../utils/trajectory";
+import { looksLikeJsonPreview, MarkdownContent } from "./markdown-content";
 import { ObservationGlyph } from "./observation-glyph";
 
 export function TrajectoryStepCard(props: {
@@ -19,7 +20,7 @@ export function TrajectoryStepCard(props: {
   return (
     <div
       className={cn(
-        "rounded-lg border transition-colors",
+        "min-w-0 max-w-full overflow-hidden rounded-lg border transition-colors",
         props.selected
           ? "border-primary bg-row-active/60"
           : span.status === "error"
@@ -28,7 +29,7 @@ export function TrajectoryStepCard(props: {
       )}
       style={depth > 0 ? { marginLeft: `${Math.min(depth, 4) * 16}px` } : undefined}
     >
-      <div className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+      <div className="flex min-w-0 max-w-full items-center gap-2 px-2.5 py-2">
         {hasPreviewContent ? (
           <button
             type="button"
@@ -51,16 +52,16 @@ export function TrajectoryStepCard(props: {
         )}
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left"
           onClick={props.onSelect}
         >
           <ObservationGlyph kind={span.observationKind} status={span.status} />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <span className="truncate text-xs font-medium text-foreground" title={span.name}>
                 {span.name}
               </span>
-              <Badge variant="outline" className="h-4 px-1 text-[10px] capitalize">
+              <Badge variant="outline" className="h-4 shrink-0 px-1 text-[10px] capitalize">
                 {span.observationKind}
               </Badge>
               {span.model ? (
@@ -69,7 +70,7 @@ export function TrajectoryStepCard(props: {
                 </span>
               ) : null}
               {span.status === "error" ? (
-                <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                <Badge variant="destructive" className="h-4 shrink-0 px-1 text-[10px]">
                   Error
                 </Badge>
               ) : null}
@@ -89,37 +90,38 @@ export function TrajectoryStepCard(props: {
       </div>
       {expanded && hasPreviewContent ? (
         <div
-          className="grid gap-2 border-t px-3 py-2 text-xs"
+          className="grid min-w-0 grid-cols-1 gap-2 border-t px-3 py-2 text-xs"
           onClick={props.onSelect}
           role="presentation"
         >
           {span.statusMessage ? (
-            <div className="rounded bg-destructive/10 px-2.5 py-1.5 text-destructive">
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] rounded bg-destructive/10 px-2.5 py-1.5 text-destructive">
               {span.statusMessage}
             </div>
           ) : null}
-          {span.inputPreview ? (
-            <div className="grid gap-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Input
-              </span>
-              <p className="m-0 line-clamp-4 whitespace-pre-wrap break-words font-mono text-[11px] text-foreground/90">
-                {span.inputPreview}
-              </p>
-            </div>
-          ) : null}
+          {span.inputPreview ? <StepPreviewField label="Input" value={span.inputPreview} /> : null}
           {span.outputPreview ? (
-            <div className="grid gap-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Output
-              </span>
-              <p className="m-0 line-clamp-4 whitespace-pre-wrap break-words font-mono text-[11px] text-foreground/90">
-                {span.outputPreview}
-              </p>
-            </div>
+            <StepPreviewField label="Output" value={span.outputPreview} />
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StepPreviewField(props: { label: string; value: string }) {
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {props.label}
+      </span>
+      {looksLikeJsonPreview(props.value) ? (
+        <p className="m-0 min-w-0 line-clamp-5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-[11px] leading-5 text-foreground/90">
+          {props.value}
+        </p>
+      ) : (
+        <MarkdownContent compact content={props.value} />
+      )}
     </div>
   );
 }
