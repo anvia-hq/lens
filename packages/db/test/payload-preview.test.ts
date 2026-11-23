@@ -37,4 +37,25 @@ describe("extractPayloadPreview", () => {
       '{"ticketId":"TICKET-1001","includeComments":true}',
     );
   });
+
+  it("skips empty reasoning blocks and formats tool-call parts cleanly", () => {
+    const reasoningAndText = JSON.stringify([
+      { type: "reasoning", text: "", id: "rs_123" },
+      { type: "text", text: "Final synthesized answer." },
+    ]);
+    expect(extractPayloadPreview(reasoningAndText, "output")).toBe("Final synthesized answer.");
+
+    const emptyReasoningOnly = JSON.stringify([{ type: "reasoning", text: "", id: "rs_123" }]);
+    expect(extractPayloadPreview(emptyReasoningOnly, "output")).toBe("Reasoning");
+
+    const toolCall = JSON.stringify({
+      type: "tool-call",
+      toolCallId: "fc_123",
+      toolName: "tavily_search",
+      input: { query: "Iran US war IHSG" },
+    });
+    expect(extractPayloadPreview(toolCall, "output")).toBe(
+      "tavily_search(query: Iran US war IHSG)",
+    );
+  });
 });
