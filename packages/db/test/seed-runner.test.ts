@@ -3,13 +3,13 @@ import { loadConfig } from "@lens/config";
 import { hashPassword } from "better-auth/crypto";
 import { getTableName } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { account } from "../src/schema.js";
+import { account, managedDataset } from "../src/schema.js";
 import { runSeed } from "../src/seed-runner.js";
 
 type RecordedInsert = {
   table: string;
   values: Record<string, unknown>;
-  conflict: "nothing" | "update";
+  conflict: "nothing" | "update" | "none";
   set?: Record<string, unknown>;
 };
 
@@ -24,36 +24,52 @@ let apiKeyRows: {
 // Indirect the mocked insertSpans so tests can inject a failure after the
 // Postgres transaction commits.
 let mockInsertSpans: () => Promise<void> = async () => {};
+let managedDatasetRows: { id: string }[] = [];
+const evaluationInserts = { runs: 0, results: 0 };
 
 vi.mock("../src/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../src/index.js")>();
-  const tx = {
-    insert: (table: object) => ({
-      values: (values: Record<string, unknown>) => ({
-        onConflictDoNothing: () => {
-          recorded.push({ table: getTableName(table as never), values, conflict: "nothing" });
-          return Promise.resolve();
-        },
-        onConflictDoUpdate: (options: { set: Record<string, unknown> }) => {
-          recorded.push({
-            table: getTableName(table as never),
-            values,
-            conflict: "update",
-            set: options.set,
-          });
-          return Promise.resolve();
-        },
+  const select = () => ({
+    from: (table: object) => ({
+      where: () => ({
+        limit: async () =>
+          table === account
+            ? accountRows
+            : table === managedDataset
+              ? managedDatasetRows
+              : apiKeyRows,
       }),
+    }),
+  });
+  const tx = {
+    select,
+    // values() records the insert at once; an onConflict* call then refines that record. The
+    // result is a real promise so plain inserts can be awaited directly.
+    insert: (table: object) => ({
+      values: (values: Record<string, unknown>) => {
+        const entry: RecordedInsert = {
+          table: getTableName(table as never),
+          values,
+          conflict: "none",
+        };
+        recorded.push(entry);
+        return Object.assign(Promise.resolve(), {
+          returning: async () => [{ id: `${entry.table}-id` }],
+          onConflictDoNothing: () => {
+            entry.conflict = "nothing";
+            return Promise.resolve();
+          },
+          onConflictDoUpdate: (options: { set: Record<string, unknown> }) => {
+            entry.conflict = "update";
+            entry.set = options.set;
+            return Promise.resolve();
+          },
+        });
+      },
     }),
   };
   const db = {
-    select: () => ({
-      from: (table: object) => ({
-        where: () => ({
-          limit: async () => (table === account ? accountRows : apiKeyRows),
-        }),
-      }),
-    }),
+    select,
     transaction: async (callback: (tx: unknown) => Promise<void>) => callback(tx),
   };
   return {
@@ -62,6 +78,12 @@ vi.mock("../src/index.js", async (importOriginal) => {
     createClickHouse: () => ({ command: async () => {}, close: async () => {} }),
     insertSpans: (...args: unknown[]) => mockInsertSpans(...(args as [])),
     materializeTrace: async () => {},
+    insertEvaluationRuns: async (_client: unknown, runs: unknown[]) => {
+      evaluationInserts.runs += runs.length;
+    },
+    insertEvaluations: async (_client: unknown, results: unknown[]) => {
+      evaluationInserts.results += results.length;
+    },
     queryMetrics: async () => ({ current: { traces: 1, spans: 2, errors: 0 } }),
   };
 });
@@ -81,6 +103,9 @@ beforeEach(() => {
   accountRows = [];
   apiKeyRows = [];
   mockInsertSpans = async () => {};
+  managedDatasetRows = [];
+  evaluationInserts.runs = 0;
+  evaluationInserts.results = 0;
   delete process.env.LENS_ALLOW_SEED;
   delete process.env.LENS_SEED_DEMO_PASSWORD;
   delete process.env.LENS_SEED_DEMO_SECRET_KEY;
@@ -303,5 +328,25 @@ describe("demo seed credentials", () => {
     expect(printed).not.toContain("LensDemo2026!");
     expect(printed).not.toContain("pk-lens-demo-production-agents");
     expect(printed).not.toContain("4Yp9Xq7Wm2Ns8Kd5Rt3Vh6Bj1Lc0ZaEeFuGiPoUyQ");
+  });
+});
+
+describe("demo seed evaluations", () => {
+  it("seeds experiment runs, upserts quality gates and creates the managed dataset once", async () => {
+    await runSeed(testConfig());
+
+    expect(evaluationInserts.runs).toBeGreaterThan(0);
+    expect(evaluationInserts.results).toBeGreaterThan(evaluationInserts.runs);
+    const gates = recorded.filter((entry) => entry.table === "quality_gates");
+    expect(gates.length).toBeGreaterThan(0);
+    expect(gates.every((entry) => entry.conflict === "update")).toBe(true);
+    expect(recorded.filter((entry) => entry.table === "managed_datasets")).toHaveLength(1);
+    expect(recorded.filter((entry) => entry.table === "managed_dataset_versions")).toHaveLength(2);
+
+    // An existing dataset (possibly edited in the app) is left untouched on a re-run.
+    recorded.length = 0;
+    managedDatasetRows = [{ id: "existing-dataset" }];
+    await runSeed(testConfig());
+    expect(recorded.some((entry) => entry.table.startsWith("managed_dataset"))).toBe(false);
   });
 });

@@ -1,21 +1,28 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { type LensConfig, loadConfig } from "@lens/config";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   account,
   createClickHouse,
   createPostgres,
+  insertEvaluationRuns,
+  insertEvaluations,
   insertSpans,
+  managedDataset,
+  managedDatasetCase,
+  managedDatasetVersion,
   materializeTrace,
   member,
   organization,
   project,
   projectApiKey,
+  qualityGate,
   queryMetrics,
   user,
 } from "./index.js";
 import { buildSeedTelemetry } from "./seed-data.js";
+import { buildSeedEvaluations, seedManagedDataset, seedQualityGates } from "./seed-evaluations.js";
 
 const DEMO_USER_ID = "seed-user-demo";
 const TEAMMATE_USER_ID = "seed-user-maya";
@@ -297,7 +304,7 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
       }
     }
 
-    for (const table of ["spans", "trace_summaries"]) {
+    for (const table of ["spans", "trace_summaries", "evaluation_results", "evaluation_runs"]) {
       await clickhouse.command({
         query: `ALTER TABLE ${table} DELETE WHERE project_id = {projectId:UUID} SETTINGS mutations_sync = 2`,
         query_params: { projectId: PROJECT_ID },
@@ -309,6 +316,11 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     for (const traceId of telemetry.traceIds) {
       await materializeTrace(clickhouse, PROJECT_ID, traceId);
     }
+
+    const evaluations = buildSeedEvaluations(PROJECT_ID, telemetry.traces, now);
+    await insertEvaluationRuns(clickhouse, evaluations.runs);
+    await insertEvaluations(clickhouse, evaluations.results);
+    await seedEvaluationConfig(postgres.db, now);
 
     const metrics = await queryMetrics(clickhouse, PROJECT_ID, "24h", now);
 
@@ -323,6 +335,9 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     console.log(
       `  Seeded:        ${metrics.current.traces} traces, ${metrics.current.spans} spans, ${metrics.current.errors} errors`,
     );
+    console.log(
+      `  Evaluations:   ${evaluations.runs.length} experiment runs, ${evaluations.results.length} results, ${seedQualityGates.length} quality gates`,
+    );
 
     return {
       email: DEMO_EMAIL,
@@ -334,4 +349,81 @@ export async function runSeed(config: LensConfig = loadConfig()): Promise<SeedCr
     await postgres.close();
     await clickhouse.close();
   }
+}
+
+/**
+ * Quality gates are upserted by name so re-runs pick up rule changes. The managed dataset is
+ * created only when missing, so edits made in the app survive a re-seed.
+ */
+async function seedEvaluationConfig(
+  db: ReturnType<typeof createPostgres>["db"],
+  now: Date,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    for (const gate of seedQualityGates) {
+      await tx
+        .insert(qualityGate)
+        .values({ projectId: PROJECT_ID, ...gate, createdAt: now, updatedAt: now })
+        .onConflictDoUpdate({
+          target: [qualityGate.projectId, qualityGate.name],
+          set: {
+            suiteName: gate.suiteName,
+            environment: gate.environment,
+            minimumCaseCount: gate.minimumCaseCount,
+            rules: gate.rules,
+            updatedAt: now,
+          },
+        });
+    }
+
+    const existing = await tx
+      .select({ id: managedDataset.id })
+      .from(managedDataset)
+      .where(
+        and(
+          eq(managedDataset.projectId, PROJECT_ID),
+          sql`lower(${managedDataset.name}) = lower(${seedManagedDataset.name})`,
+        ),
+      )
+      .limit(1);
+    if (existing.length > 0) return;
+
+    const [dataset] = await tx
+      .insert(managedDataset)
+      .values({
+        projectId: PROJECT_ID,
+        name: seedManagedDataset.name,
+        description: seedManagedDataset.description,
+        metadata: { owner: "support" },
+        createdBy: DEMO_USER_ID,
+      })
+      .returning({ id: managedDataset.id });
+    if (!dataset) return;
+    for (const [index, entry] of seedManagedDataset.versions.entries()) {
+      const createdAt = new Date(
+        now.getTime() - (seedManagedDataset.versions.length - index) * 7 * 86_400_000,
+      );
+      const [version] = await tx
+        .insert(managedDatasetVersion)
+        .values({
+          datasetId: dataset.id,
+          version: entry.version,
+          status: entry.status,
+          createdBy: index === 0 ? DEMO_USER_ID : TEAMMATE_USER_ID,
+          createdAt,
+          updatedAt: createdAt,
+          publishedAt: entry.status === "published" ? createdAt : null,
+        })
+        .returning({ id: managedDatasetVersion.id });
+      if (!version) continue;
+      await tx.insert(managedDatasetCase).values(
+        entry.cases.map((item, position) => ({
+          versionId: version.id,
+          caseId: item.id,
+          position,
+          item,
+        })),
+      );
+    }
+  });
 }
