@@ -410,7 +410,7 @@ function ResultPagination(props: {
   onChange: (changes: Partial<EvaluationResultsSearch>, resetPage?: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
       <span className="text-muted-foreground">
         {props.data ? `${formatNumber(props.data.total)} results` : "Loading results"}
       </span>

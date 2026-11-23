@@ -94,7 +94,7 @@ export function ConnectContent({ state }: { state: ConnectState }) {
           </CardContent>
         </Card>
 
-        <p className="px-1 text-sm text-muted-foreground">
+        <p className="px-1 text-base text-muted-foreground">
           Start your application after setup. The first trace should appear within a few seconds.
         </p>
       </div>

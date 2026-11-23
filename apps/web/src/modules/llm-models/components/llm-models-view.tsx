@@ -82,7 +82,7 @@ export function LlmModelsView({ state }: { state: LlmModelsState }) {
       <section className="grid gap-4">
         <div>
           <h2 className="font-medium">Model pricing</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Configured prices override costs reported by telemetry for matching model names.
           </p>
         </div>
@@ -405,14 +405,14 @@ function RecalculationHistory({ runs }: { runs: CostRecalculation[] }) {
     <section className="grid gap-4">
       <div>
         <h2 className="font-medium">Recent recalculations</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           The ten most recent background pricing runs.
         </p>
       </div>
       <Card className="py-0">
         <CardContent className="px-0">
           {runs.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-4 py-8 text-center text-base text-muted-foreground">
               No recalculations yet.
             </p>
           ) : (

@@ -26,7 +26,7 @@ export function MarkdownContent(props: { content: string; className?: string; co
     <div
       className={cn(
         "grid min-w-0 grid-cols-1 break-words [overflow-wrap:anywhere]",
-        props.compact ? "gap-1.5 text-xs leading-5" : "gap-2 text-[13px] leading-5",
+        props.compact ? "gap-1.5 text-xs leading-5" : "gap-2 text-base leading-5",
         props.className,
       )}
     >
@@ -187,7 +187,7 @@ function renderBlock(block: Block, key: number, compact: boolean): ReactNode {
         block.level <= 2
           ? compact
             ? "text-xs font-semibold text-foreground"
-            : "text-sm font-semibold text-foreground"
+            : "text-base font-semibold text-foreground"
           : "text-xs font-semibold text-foreground";
       return (
         <p key={key} className={cn("m-0", sizeClass)}>
@@ -199,11 +199,11 @@ function renderBlock(block: Block, key: number, compact: boolean): ReactNode {
       return (
         <div key={key} className="min-w-0 max-w-full overflow-hidden rounded-md border bg-muted/40">
           {block.language ? (
-            <div className="border-b px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+            <div className="border-b px-2.5 py-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">
               {block.language}
             </div>
           ) : null}
-          <pre className="m-0 max-h-96 overflow-auto p-2.5 font-mono text-[11px] leading-5 text-foreground">
+          <pre className="m-0 max-h-96 overflow-auto p-2.5 font-mono text-xs leading-5 text-foreground">
             <code>{block.content}</code>
           </pre>
         </div>
@@ -311,7 +311,7 @@ function renderInline(text: string): ReactNode {
       nodes.push(
         <code
           key={tokenKey++}
-          className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] text-foreground"
+          className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground"
         >
           {token.slice(1, -1)}
         </code>,

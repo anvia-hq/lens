@@ -42,7 +42,7 @@ export function SpanTreeRow(props: {
           <span className="truncate text-xs font-medium text-current" title={span.name}>
             {span.name}
           </span>
-          <span className="flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
+          <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <span>{formatDuration(spanDurationMs(span))}</span>
             {span.totalTokens > 0 ? <span>{formatNumber(span.totalTokens)} tok</span> : null}
             {span.totalCost !== null ? <span>{formatCost(span.totalCost)}</span> : null}
@@ -50,14 +50,14 @@ export function SpanTreeRow(props: {
         </span>
         {props.row.provisional ? (
           <Badge
-            className="my-auto mr-1 h-4 shrink-0 px-1 text-[9px] leading-none"
+            className="my-auto mr-1 h-4 shrink-0 px-1 text-xs leading-none"
             variant="secondary"
           >
             RUNNING
           </Badge>
         ) : span.status === "error" ? (
           <Badge
-            className="my-auto mr-1 h-4 shrink-0 px-1 text-[9px] leading-none"
+            className="my-auto mr-1 h-4 shrink-0 px-1 text-xs leading-none"
             variant="destructive"
           >
             ERROR

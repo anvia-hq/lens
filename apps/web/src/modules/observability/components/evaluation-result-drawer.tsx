@@ -32,7 +32,7 @@ export function EvaluationResultDrawer(props: {
             <SheetHeader className="border-b pr-12">
               <div className="flex flex-wrap items-center gap-2">
                 <EvaluationStatusBadge status={result.outcome} />
-                <span className="font-mono text-sm text-muted-foreground">
+                <span className="font-mono text-base text-muted-foreground">
                   {formatEvaluationResultValue(result)}
                 </span>
               </div>
@@ -125,7 +125,7 @@ export function EvaluationResultDrawer(props: {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
                       {payloadStatusMessage(result.payloadStatus)}
                     </div>
                   )}
@@ -174,7 +174,7 @@ function DetailField(props: { label: string; children: ReactNode }) {
   return (
     <div className="grid min-w-0 gap-1">
       <span className="text-xs text-muted-foreground">{props.label}</span>
-      <span className="min-w-0 break-words text-sm font-medium">{props.children}</span>
+      <span className="min-w-0 break-words text-base font-medium">{props.children}</span>
     </div>
   );
 }

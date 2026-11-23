@@ -34,12 +34,12 @@ export function TraceRankingCard(props: {
                 to="/$projectId/traces/$traceId"
                 params={{ projectId: props.projectId, traceId: trace.traceId }}
               >
-                <span className="w-3 shrink-0 text-right font-mono text-[0.7rem] text-muted-foreground tabular-nums">
+                <span className="w-3 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-medium">{trace.name}</span>
-                  <span className="block truncate text-[0.7rem] text-muted-foreground">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {trace.model ?? trace.serviceName} · {relativeTime(trace.startedAt)}
                   </span>
                 </span>
@@ -57,7 +57,7 @@ export function TraceRankingCard(props: {
                 </span>
                 <span className="w-14 shrink-0 text-right font-mono text-xs tabular-nums">
                   {formatNumber(trace.totalTokens)}
-                  <span className="ml-1 font-sans text-[0.7rem] text-muted-foreground">tok</span>
+                  <span className="ml-1 font-sans text-xs text-muted-foreground">tok</span>
                 </span>
                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/row:translate-x-0.5" />
               </Link>

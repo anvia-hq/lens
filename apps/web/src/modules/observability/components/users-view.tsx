@@ -206,7 +206,7 @@ export function UsersView({ state }: { state: UsersState }) {
           />
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
         <span className="text-muted-foreground">
           {users.data ? `${formatNumber(users.data.total)} users` : "Loading users"}
         </span>

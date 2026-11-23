@@ -395,7 +395,7 @@ function StaleTelemetryBanner({ lastEventAt }: { lastEventAt: string | null }) {
   const age = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
   return (
     <Card className="border-status-warning">
-      <CardContent className="flex items-center gap-3 p-4 text-sm">
+      <CardContent className="flex items-center gap-3 p-4 text-base">
         <AlertCircle className="size-5 shrink-0 text-status-warning" />
         <span>
           No telemetry has arrived for this project in the last {age}. Ingestion may be blocked —

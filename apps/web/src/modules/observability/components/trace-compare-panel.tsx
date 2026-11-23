@@ -51,21 +51,21 @@ export function TraceComparePanel(props: { detail: TraceDetail; projectId: strin
           />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-sm font-semibold" title={summary.name}>
+              <h2 className="truncate text-base font-semibold" title={summary.name}>
                 {summary.name}
               </h2>
               <StatusPill status={summary.status} />
             </div>
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
               <span>{formatTimestamp(summary.startedAt)}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono" title={summary.traceId}>
                 {shortId(summary.traceId)}
               </span>
-              <Badge className="h-5 px-1.5 text-[10px]" variant="outline">
+              <Badge className="h-5 px-1.5 text-xs" variant="outline">
                 {summary.environment}
               </Badge>
-              <Badge className="h-5 max-w-44 truncate px-1.5 text-[10px]" variant="outline">
+              <Badge className="h-5 max-w-44 truncate px-1.5 text-xs" variant="outline">
                 {summary.serviceName}
               </Badge>
             </div>

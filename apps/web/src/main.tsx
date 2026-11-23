@@ -23,7 +23,7 @@ function RouterErrorFallback({ error, reset }: { error: unknown; reset: () => vo
       <AlertCircle className="size-8 text-destructive" />
       <div className="space-y-1">
         <h1 className="text-base font-semibold">Something went wrong</h1>
-        <p className="max-w-md text-sm text-muted-foreground">{message}</p>
+        <p className="max-w-md text-base text-muted-foreground">{message}</p>
       </div>
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={reset}>

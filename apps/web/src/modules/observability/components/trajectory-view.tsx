@@ -48,7 +48,7 @@ export function TrajectoryView(props: {
       <div className="grid min-h-64 place-items-center p-8 text-center">
         <div className="grid max-w-sm gap-2">
           <MessageCircle className="mx-auto size-8 text-muted-foreground" />
-          <span className="text-sm font-medium">No trajectory data captured</span>
+          <span className="text-base font-medium">No trajectory data captured</span>
           <span className="text-xs text-muted-foreground">
             Spans and execution payloads will appear here as telemetry arrives.
           </span>
@@ -149,7 +149,7 @@ function TrajectoryTurnBlock(props: {
 
         {steps.length > 0 ? (
           <div className="grid min-w-0 grid-cols-1 gap-1.5 pl-3 border-l border-border/70 ml-3">
-            <span className="px-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Steps · {formatNumber(steps.length)}
             </span>
             {steps.map((step) => (
@@ -199,8 +199,8 @@ function TrajectoryTurnBlock(props: {
             Turn {props.index + 1}
           </span>
           <StatusPill status={turn.trace.status} />
-          <span className="truncate text-sm font-medium">{turn.trace.name}</span>
-          <span className="font-mono text-[11px] text-muted-foreground">
+          <span className="truncate text-base font-medium">{turn.trace.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">
             {formatTimestamp(turn.trace.startedAt)} · {shortId(turn.trace.traceId)} ·{" "}
             {formatDuration(turn.trace.durationMs)} · {formatNumber(turn.trace.spanCount)} steps
             {turn.trace.totalCost !== null ? ` · ${formatCost(turn.trace.totalCost)}` : ""}
@@ -234,7 +234,7 @@ function TrajectoryTurnBlock(props: {
         <div className="grid min-w-0 grid-cols-1 gap-1.5">
           <button
             type="button"
-            className="flex w-fit items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex w-fit items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={() => setStepsOpen((open) => !open)}
           >
             {stepsOpen ? (
@@ -316,11 +316,9 @@ function CompactTrajectoryNode(props: {
         {props.icon}
       </span>
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className="shrink-0 text-[11px] font-semibold text-foreground">{props.label}</span>
+        <span className="shrink-0 text-xs font-semibold text-foreground">{props.label}</span>
         {props.spanName ? (
-          <span className="truncate font-mono text-[10px] text-muted-foreground">
-            {props.spanName}
-          </span>
+          <span className="truncate font-mono text-xs text-muted-foreground">{props.spanName}</span>
         ) : null}
       </div>
       <div className="min-w-0 overflow-hidden">
@@ -329,7 +327,7 @@ function CompactTrajectoryNode(props: {
             {structured.map((field) => (
               <div
                 key={field.key}
-                className="grid min-w-0 grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-2 text-[11px] leading-4"
+                className="grid min-w-0 grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-2 text-xs leading-4"
               >
                 <dt className="truncate font-mono text-muted-foreground">{field.key}</dt>
                 <dd className="m-0 truncate text-foreground/90">{field.value}</dd>
@@ -390,9 +388,7 @@ function ThreadBubble(props: {
       <div className="flex min-w-0 items-center justify-between gap-2 text-xs font-medium">
         <span className="shrink-0">{props.label}</span>
         {props.spanName ? (
-          <span className="truncate font-mono text-[10px] text-muted-foreground">
-            {props.spanName}
-          </span>
+          <span className="truncate font-mono text-xs text-muted-foreground">{props.spanName}</span>
         ) : null}
       </div>
       <div className="min-w-0 max-w-full overflow-hidden">
@@ -425,7 +421,7 @@ function ThreadBubble(props: {
             {isLong ? (
               <button
                 type="button"
-                className="relative mt-1.5 text-[11px] font-medium text-primary hover:underline"
+                className="relative mt-1.5 text-xs font-medium text-primary hover:underline"
                 onClick={(event) => {
                   event.stopPropagation();
                   setExpanded((current) => !current);

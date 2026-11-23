@@ -321,7 +321,7 @@ function IncidentList({ state }: { state: AlertsState }) {
         />
       )}
       {(state.incidents.data?.pageCount ?? 0) > 1 ? (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-end gap-2 text-base text-muted-foreground">
           <Button
             size="sm"
             variant="outline"
@@ -641,7 +641,7 @@ function RuleDialog(props: {
             </Field>
           ) : null}
           {!parsed.success && draft.name ? (
-            <p className="text-sm text-destructive">{parsed.error.issues[0]?.message}</p>
+            <p className="text-base text-destructive">{parsed.error.issues[0]?.message}</p>
           ) : null}
           {props.error ? <ErrorAlert error={props.error} /> : null}
         </form>

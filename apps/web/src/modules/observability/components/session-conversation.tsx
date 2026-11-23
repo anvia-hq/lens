@@ -77,7 +77,7 @@ export function SessionConversation(props: {
       <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur md:px-6">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Thread</h2>
+            <h2 className="text-base font-semibold">Thread</h2>
             <p className="text-xs text-muted-foreground">
               {formatNumber(trajectoryTurns.length)}{" "}
               {trajectoryTurns.length === 1 ? "turn" : "turns"}
@@ -133,7 +133,7 @@ export function SessionConversation(props: {
         ) : (
           <div className="divide-y">
             {trajectoryTurns.length === 0 ? (
-              <div className="grid min-h-64 place-items-center p-8 text-sm text-muted-foreground">
+              <div className="grid min-h-64 place-items-center p-8 text-base text-muted-foreground">
                 No traces in this thread
               </div>
             ) : (
@@ -149,9 +149,9 @@ export function SessionConversation(props: {
                             Trace {index + 1}
                           </span>
                           <StatusPill status={turn.trace.status} />
-                          <span className="truncate text-sm font-medium">{turn.trace.name}</span>
+                          <span className="truncate text-base font-medium">{turn.trace.name}</span>
                         </div>
-                        <p className="font-mono text-[11px] text-muted-foreground">
+                        <p className="font-mono text-xs text-muted-foreground">
                           {formatTimestamp(turn.trace.startedAt)} · {shortId(turn.trace.traceId)} ·{" "}
                           {formatDuration(turn.trace.durationMs)} ·{" "}
                           {formatCost(turn.trace.totalCost)}

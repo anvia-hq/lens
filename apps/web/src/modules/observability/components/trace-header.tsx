@@ -33,7 +33,7 @@ export function TraceHeader({
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <ObservationGlyph kind={detail.spans[0]?.observationKind ?? "span"} size="medium" />
-          <h1 className="truncate text-sm font-semibold tracking-tight">{summary.name}</h1>
+          <h1 className="truncate text-base font-semibold tracking-tight">{summary.name}</h1>
           <StatusPill status={summary.status} />
           <span className="hidden text-xs text-muted-foreground sm:inline">
             {formatTimestamp(summary.startedAt)}
@@ -88,26 +88,26 @@ export function TraceHeader({
         </dl>
 
         <div className="flex flex-wrap items-center gap-1">
-          <Badge className="h-5 px-1.5 text-[11px]" variant="outline">
+          <Badge className="h-5 px-1.5 text-xs" variant="outline">
             {summary.environment}
           </Badge>
-          <Badge className="h-5 px-1.5 text-[11px]" variant="outline">
+          <Badge className="h-5 px-1.5 text-xs" variant="outline">
             {summary.serviceName}
             {summary.serviceVersion ? `@${summary.serviceVersion}` : ""}
           </Badge>
           {summary.release ? (
-            <Badge className="h-5 px-1.5 text-[11px]" variant="secondary">
+            <Badge className="h-5 px-1.5 text-xs" variant="secondary">
               Release {summary.release}
             </Badge>
           ) : null}
           {summary.version ? (
-            <Badge className="h-5 px-1.5 text-[11px]" variant="secondary">
+            <Badge className="h-5 px-1.5 text-xs" variant="secondary">
               Version {summary.version}
             </Badge>
           ) : null}
           {summary.userId ? (
             <Badge
-              className="h-5 max-w-44 px-1.5 text-[11px]"
+              className="h-5 max-w-44 px-1.5 text-xs"
               variant="outline"
               title={`User ${summary.userId}`}
             >
@@ -115,7 +115,7 @@ export function TraceHeader({
             </Badge>
           ) : null}
           {summary.tags.map((tag) => (
-            <Badge key={tag} className="h-5 px-1.5 text-[11px]" variant="outline">
+            <Badge key={tag} className="h-5 px-1.5 text-xs" variant="outline">
               {tag}
             </Badge>
           ))}
@@ -134,7 +134,7 @@ export function TraceHeader({
           {detail.evaluations.map((evaluation) => (
             <Badge
               key={evaluation.id}
-              className="h-5 px-1.5 text-[11px]"
+              className="h-5 px-1.5 text-xs"
               variant="outline"
               title={evaluation.explanation ?? undefined}
             >

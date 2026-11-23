@@ -151,7 +151,7 @@ export function TracePeekDrawer(props: {
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {trace.isLoading ? (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            <div className="grid h-full place-items-center text-base text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Spinner /> Loading trace
               </span>
@@ -186,7 +186,7 @@ export function TracePeekDrawer(props: {
               </ResizablePanel>
             </ResizablePanelGroup>
           ) : (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            <div className="grid h-full place-items-center text-base text-muted-foreground">
               Trace not found
             </div>
           )}

@@ -151,7 +151,7 @@ export function AlertIncidentView({ state }: { state: AlertIncidentState }) {
           <CardHeader className="flex-row items-center justify-between gap-3">
             <div>
               <CardTitle>Evidence</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-base text-muted-foreground">
                 Traces captured when this incident was evaluated.
               </p>
             </div>
@@ -222,7 +222,7 @@ export function ContributorAnalysis({
     <Card>
       <CardHeader>
         <CardTitle>Likely contributors</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Baseline {formatTime(analysis.baselineFrom)}–{formatTime(analysis.baselineTo)} compared
           with breach {formatTime(analysis.breachFrom)}–{formatTime(analysis.breachTo)}. These are
           deterministic investigation hints, not proof of causation.
@@ -242,7 +242,7 @@ export function ContributorAnalysis({
                     <span className="truncate font-medium">{hint.value}</span>
                     {hint.isNew ? <Badge variant="secondary">New in breach</Badge> : null}
                   </div>
-                  <p className="text-sm">
+                  <p className="text-base">
                     {hint.metric === "errorRate" ? "Error rate" : "P95 duration"} ·{" "}
                     {hint.isNew ? "overall baseline" : "baseline"}{" "}
                     <span className="font-medium">
@@ -330,12 +330,12 @@ function SignalChart({ detail }: { detail: AlertIncidentDetail }) {
     <Card>
       <CardHeader>
         <CardTitle>Signal history</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           {formatTime(signal.from)} to {formatTime(signal.to)} · {signal.bucketMinutes}-minute
           buckets
         </p>
         {detail.incident.kind === "trace_p95_latency_ms" ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Each point is the P95 of full trace durations in that bucket, not TTFT.
           </p>
         ) : null}
@@ -561,7 +561,7 @@ function RuleCard({ detail }: { detail: AlertIncidentDetail }) {
       <CardHeader>
         <CardTitle>Rule context</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
+      <CardContent className="grid gap-3 text-base">
         <Fact label="Trigger" value={kindLabels[detail.incident.kind]} />
         {rule ? (
           <>
@@ -589,7 +589,7 @@ function DeliveriesCard({ deliveries }: { deliveries: AlertDelivery[] }) {
       <CardHeader>
         <CardTitle>Deliveries</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
+      <CardContent className="grid gap-3 text-base">
         {deliveries.map((delivery) => (
           <div key={delivery.id} className="grid gap-0.5">
             <div className="flex items-center gap-2">
@@ -788,12 +788,12 @@ function PromoteEvidenceDialog(props: {
           </DialogDescription>
         </DialogHeader>
         <div className="grid max-h-[70vh] gap-4 overflow-y-auto px-6 py-5">
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-base text-destructive">{error}</p> : null}
           {details.isLoading || datasets.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading traces and datasets…</p>
+            <p className="text-base text-muted-foreground">Loading traces and datasets…</p>
           ) : null}
           {!details.isLoading && drafts.length < props.traceIds.length ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {props.traceIds.length - drafts.length} selected{" "}
               {props.traceIds.length - drafts.length === 1 ? "trace was" : "traces were"} excluded
               because its input is no longer available.

@@ -366,7 +366,7 @@ export default function TraceGraph(props: {
         </Button>
       </div>
       {!layout ? (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center text-sm text-muted-foreground">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-base text-muted-foreground">
           Laying out graph…
         </div>
       ) : null}
@@ -383,7 +383,7 @@ function GraphMessage(props: { icon: ReactNode; title: string; text: string; act
     <div className="grid h-full place-items-center p-6 text-center">
       <div className="grid max-w-sm justify-items-center gap-2 text-muted-foreground">
         <span className="[&_svg]:size-6">{props.icon}</span>
-        <h3 className="text-sm font-semibold text-foreground">{props.title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{props.title}</h3>
         <p className="text-xs leading-relaxed">{props.text}</p>
         {props.action ? <div className="mt-1">{props.action}</div> : null}
       </div>

@@ -156,13 +156,13 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
         </dl>
       </header>
       {selectedCaseMissing ? (
-        <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">
+        <p className="shrink-0 border-b px-4 py-2 text-base text-muted-foreground" role="status">
           Selected case {state.search.case} is not on this result page. It may be on another page or
           no longer available. Choose a page or case to continue.
         </p>
       ) : null}
       {detail.resultsPage && (detail.resultsPage.pageCount > 1 || detail.resultsPage.page > 1) ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 text-sm">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 text-base">
           <p className="text-muted-foreground">
             Results page {detail.resultsPage.page} of {detail.resultsPage.pageCount}. Case
             summaries, search, and filters apply to this page only; a case can span pages.
@@ -230,7 +230,7 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
               {selected ? (
                 <CaseInspector item={selected} projectId={state.project.id} />
               ) : (
-                <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                <div className="grid h-full place-items-center text-base text-muted-foreground">
                   {selectedCaseMissing
                     ? "Select a case from this page to inspect it."
                     : "This result page has no evaluation cases."}
@@ -373,7 +373,7 @@ function RunNavigation(props: {
               </TableBody>
             </Table>
           ) : (
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            <CardContent className="py-8 text-center text-base text-muted-foreground">
               {props.detail.cases.length
                 ? "No cases match the current filters."
                 : "This run has no evaluation results."}
@@ -475,7 +475,7 @@ function RunDetails({ detail }: { detail: EvaluationRunDetail }) {
           {rows.map(([label, value]) => (
             <div className="grid gap-0.5" key={label}>
               <dt className="text-xs text-muted-foreground">{label}</dt>
-              <dd className={cn("text-sm", label === "Run ID" && "break-all font-mono text-xs")}>
+              <dd className={cn("text-base", label === "Run ID" && "break-all font-mono text-xs")}>
                 {value}
               </dd>
             </div>
@@ -548,7 +548,7 @@ function CaseInspector(props: {
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-6 p-4 md:p-6">
           <section className="grid gap-3">
-            <h3 className="text-sm font-semibold">Metric results</h3>
+            <h3 className="text-base font-semibold">Metric results</h3>
             {item.results.length ? (
               item.results
                 .toSorted(
@@ -557,10 +557,10 @@ function CaseInspector(props: {
                 .map((result) => (
                   <Card key={result.id} size="sm">
                     <CardHeader className="flex-row items-center justify-between gap-3">
-                      <CardTitle className="text-sm">{result.metricName}</CardTitle>
+                      <CardTitle className="text-base">{result.metricName}</CardTitle>
                       <EvaluationStatusBadge status={result.outcome} />
                     </CardHeader>
-                    <CardContent className="grid gap-2 text-sm">
+                    <CardContent className="grid gap-2 text-base">
                       <div>
                         <span className="text-muted-foreground">Value:</span>{" "}
                         {result.numericValue ?? result.categoricalValue ?? "—"}
@@ -572,22 +572,22 @@ function CaseInspector(props: {
                   </Card>
                 ))
             ) : (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
                 This case has no metric results.
               </div>
             )}
           </section>
           {!item.payloadConsistent ? (
-            <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-sm">
+            <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-base">
               Metrics in this case reported inconsistent payloads.
             </div>
           ) : null}
           <section className="grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold">Payload</h3>
+              <h3 className="text-base font-semibold">Payload</h3>
             </div>
             {input === undefined ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
                 {payloadStatusMessage(item.payloadStatus)}
               </div>
             ) : (
@@ -600,7 +600,7 @@ function CaseInspector(props: {
                 <PayloadSection title="Input" value={input} />
                 <PayloadSection title="Expected" value={expected ?? null} />
                 {item.payload === null ? (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
                     Target output was not captured for this run.
                   </div>
                 ) : (

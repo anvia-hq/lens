@@ -28,7 +28,7 @@ export function Th({ className, ...props }: ComponentProps<typeof TableHead>) {
   return (
     <TableHead
       className={cn(
-        "h-7 text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase first:pl-(--card-spacing) last:pr-(--card-spacing)",
+        "h-7 text-xs font-medium tracking-wide text-muted-foreground uppercase first:pl-(--card-spacing) last:pr-(--card-spacing)",
         className,
       )}
       {...props}

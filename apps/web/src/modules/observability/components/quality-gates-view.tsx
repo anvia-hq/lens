@@ -336,7 +336,7 @@ function SectionHeading(props: { title: string; description: string }) {
   return (
     <div className="grid gap-0.5">
       <h3 className="font-medium">{props.title}</h3>
-      <p className="text-sm text-muted-foreground">{props.description}</p>
+      <p className="text-base text-muted-foreground">{props.description}</p>
     </div>
   );
 }
@@ -353,7 +353,7 @@ function GateRuleEditor(props: {
   return (
     <div className="grid gap-4 rounded-lg border bg-muted/15 p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">Rule {props.index + 1}</span>
+        <span className="text-base font-medium">Rule {props.index + 1}</span>
         <Button
           type="button"
           aria-label={`Remove rule ${props.index + 1}`}
@@ -488,13 +488,13 @@ function EvaluationRuleFields(props: {
         </NativeSelect>
       </Field>
       {evidence === undefined ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           This rule has no per-metric evidence limits. Choose “Require valid evidence” to upgrade
           it.
         </p>
       ) : (
         <div className="grid gap-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Count distinct cases with usable judgments for this metric. Pass and fail both count;
             average score also requires a numeric score. Regression rules check both runs. Exceeding
             either judgment budget returns insufficient data.

@@ -42,7 +42,7 @@ export function SystemHealthView({ state }: { state: SystemHealthState }) {
         description="Machine and service capacity for this Lens installation"
       >
         <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-3 p-6 text-base text-muted-foreground">
             <AlertCircle className="size-5" /> Owner or admin access is required.
           </CardContent>
         </Card>
@@ -73,7 +73,7 @@ export function SystemHealthView({ state }: { state: SystemHealthState }) {
       {state.health.isError ? <ErrorAlert error={state.health.error} /> : null}
       {!value && state.health.isLoading ? (
         <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-3 p-6 text-base text-muted-foreground">
             <Activity className="size-5 animate-pulse" /> Checking system health…
           </CardContent>
         </Card>
@@ -165,7 +165,7 @@ function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
         </div>
       ) : (
         <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-3 p-6 text-base text-muted-foreground">
             <AlertCircle className="size-5" />
             {machine.message ?? "Machine metrics are unavailable"}
           </CardContent>
@@ -215,7 +215,7 @@ function ServicesSection({ value }: { value: SystemHealth }) {
     <section className="grid gap-4">
       <div>
         <h2 className="font-medium">Lens services</h2>
-        <p className="text-sm text-muted-foreground">Dependencies and background processing</p>
+        <p className="text-base text-muted-foreground">Dependencies and background processing</p>
       </div>
       <Card className="py-0">
         <Table>
@@ -269,7 +269,7 @@ function IngestionSection({ ingestion }: { ingestion: SystemHealth["ingestion"] 
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-medium">Ingestion pipeline</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Telemetry acceptance, queue depth, and rejected requests
           </p>
         </div>
@@ -277,7 +277,7 @@ function IngestionSection({ ingestion }: { ingestion: SystemHealth["ingestion"] 
       </div>
       {ingestion.message ? (
         <Card>
-          <CardContent className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-2 p-4 text-base text-muted-foreground">
             {ingestion.status === "healthy" ? null : <AlertCircle className="size-4 shrink-0" />}
             {ingestion.message}
           </CardContent>
@@ -353,12 +353,12 @@ function IngestionSection({ ingestion }: { ingestion: SystemHealth["ingestion"] 
       </div>
       <Card className="py-0">
         <CardHeader className="pt-4">
-          <CardTitle className="text-sm">Rejected requests (last 24h)</CardTitle>
+          <CardTitle className="text-base">Rejected requests (last 24h)</CardTitle>
           <CardDescription>Per reason, across all ingestion endpoints</CardDescription>
         </CardHeader>
         <CardContent className="pb-4">
           {ingestion.rejected.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No rejected ingestion requests.</p>
+            <p className="text-base text-muted-foreground">No rejected ingestion requests.</p>
           ) : (
             <div className="grid gap-2">
               {ingestion.rejected.map((entry) => (
@@ -388,13 +388,13 @@ function QueuesSection({ value }: { value: SystemHealth }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-medium">Queues</h2>
-          <p className="text-sm text-muted-foreground">Current BullMQ job counts</p>
+          <p className="text-base text-muted-foreground">Current BullMQ job counts</p>
         </div>
         <StatusBadge status={value.queueStatus.status} />
       </div>
       {value.queues.length === 0 ? (
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
+          <CardContent className="p-6 text-base text-muted-foreground">
             {value.queueStatus.message ?? "No queue metrics available"}
           </CardContent>
         </Card>

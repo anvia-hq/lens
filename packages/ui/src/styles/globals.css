@@ -100,6 +100,8 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-sans: system-ui, sans-serif;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
 }
 
 :root {
@@ -312,6 +314,6 @@
     background-color: var(--scrollbar-thumb-hover);
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-base text-foreground;
   }
 }

@@ -34,7 +34,7 @@ export function TraceCompareView({ state }: { state: TraceCompareState }) {
     <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-3">
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold">Compare traces</h1>
+          <h1 className="truncate text-base font-semibold">Compare traces</h1>
           <p className="text-xs text-muted-foreground">{state.traceIds.length} traces selected</p>
         </div>
         <Link
@@ -74,7 +74,7 @@ export function TraceCompareView({ state }: { state: TraceCompareState }) {
               ) : (
                 <div className="grid justify-items-center gap-3 text-muted-foreground">
                   <Activity className="animate-pulse" />
-                  <p className="text-sm">Loading trace</p>
+                  <p className="text-base">Loading trace</p>
                 </div>
               )}
             </section>

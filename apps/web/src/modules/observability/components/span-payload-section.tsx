@@ -95,7 +95,7 @@ export function SpanPayloadSection(props: {
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {props.title}
           </h3>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span className="ml-auto font-mono text-xs uppercase tracking-wide text-muted-foreground">
             {tooLarge ? "Large payload" : `${flattenStructuredEntries(props.value).length} fields`}
           </span>
         </summary>
@@ -139,7 +139,7 @@ function PayloadModeSwitch(props: {
         <button
           aria-pressed={props.value === option.id}
           className={cn(
-            "h-5 rounded px-2 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors",
+            "h-5 rounded px-2 font-mono text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors",
             props.value === option.id && "bg-muted text-foreground",
           )}
           key={option.id}
@@ -171,7 +171,7 @@ function ReadableMessages(props: {
           <div className="grid min-w-0 grid-cols-1 gap-2.5">
             {message.reasoning ? (
               <div className="grid min-w-0 grid-cols-1 gap-1 rounded-md border bg-muted/20 px-3 py-2">
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Reasoning
                 </span>
                 <MarkdownContent
@@ -200,7 +200,7 @@ function ReadableMessages(props: {
       ))}
       {props.tools.length > 0 ? (
         <section className="min-w-0 py-2.5">
-          <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Available tools · {props.tools.length}
           </p>
           <div className="grid min-w-0 grid-cols-1 gap-2">
@@ -229,7 +229,7 @@ function ToolDisclosure(props: { tool: SpanPayloadTool; label: string }) {
   return (
     <details className="rounded-md border bg-muted/20 px-3 py-1.5">
       <summary className="cursor-pointer list-none py-0.5 text-xs [&::-webkit-details-marker]:hidden">
-        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
           {props.label}
         </span>{" "}
         <span className="font-semibold">{props.tool.name}</span>
@@ -364,7 +364,7 @@ function StructuredRow(props: { label: string; value: unknown; depth: number }) 
       <summary className="flex cursor-pointer list-none items-center gap-2 font-mono text-xs leading-5 [&::-webkit-details-marker]:hidden">
         <CaretRight className="size-3 text-muted-foreground transition-transform group-open/row:rotate-90" />
         <span>{props.label}</span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {Array.isArray(props.value) ? `${entries.length} items` : `${entries.length} fields`}
         </span>
       </summary>

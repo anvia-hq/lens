@@ -30,7 +30,7 @@ export function MobileTraceLayout(props: {
         {(["trajectory", "tree", "timeline", "graph", "data"] as const).map((tab) => (
           <button
             className={cn(
-              "h-8 shrink-0 rounded-md px-3 text-sm font-medium capitalize text-muted-foreground",
+              "h-8 shrink-0 rounded-md px-3 text-base font-medium capitalize text-muted-foreground",
               props.activeTab === tab && "bg-muted text-foreground",
             )}
             key={tab}

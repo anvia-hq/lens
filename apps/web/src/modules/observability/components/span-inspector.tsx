@@ -61,10 +61,10 @@ export function SpanInspector(props: { span: SpanDetail }) {
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <ObservationGlyph kind={span.observationKind} status={span.status} size="medium" />
-            <h2 className="truncate text-sm font-semibold tracking-tight">{span.name}</h2>
+            <h2 className="truncate text-base font-semibold tracking-tight">{span.name}</h2>
             <StatusPill status={span.status} />
           </div>
-          <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
             {span.observationKind} · {formatNanoTimestamp(span.startTimeUnixNano)}
           </span>
         </div>
@@ -82,7 +82,7 @@ export function SpanInspector(props: { span: SpanDetail }) {
           <MetricPill icon={<Database />} label="Cost" value={formatCost(span.totalCost)} />
           {span.model ? <MetricPill icon={<Sparkles />} label="Model" value={span.model} /> : null}
           <MetricPill icon={<Activity />} label="Service" value={span.serviceName} />
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted-foreground sm:ml-auto">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-xs text-muted-foreground sm:ml-auto">
             <span title={span.spanId}>Span {shortId(span.spanId)}</span>
             {span.parentSpanId ? (
               <span title={span.parentSpanId}>Parent {shortId(span.parentSpanId)}</span>

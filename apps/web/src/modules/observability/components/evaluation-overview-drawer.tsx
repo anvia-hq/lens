@@ -60,7 +60,7 @@ export function EvaluationOverviewDrawer(props: {
           <div className="grid gap-4 p-4">
             {props.overview.error ? <ErrorAlert error={props.overview.error} /> : null}
             {!data ? (
-              <div className="grid min-h-64 place-items-center text-sm text-muted-foreground">
+              <div className="grid min-h-64 place-items-center text-base text-muted-foreground">
                 Loading quality overview…
               </div>
             ) : (

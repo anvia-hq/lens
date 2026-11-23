@@ -115,7 +115,7 @@ export function TraceNavigator(props: {
         ) : props.view === "graph" ? (
           <Suspense
             fallback={
-              <div className="grid h-full place-items-center text-sm text-muted-foreground">
+              <div className="grid h-full place-items-center text-base text-muted-foreground">
                 Loading graph…
               </div>
             }
@@ -135,7 +135,7 @@ export function TraceNavigator(props: {
             onClear={() => props.onSearchChange("")}
           />
         ) : rows.length === 0 ? (
-          <div className="grid h-full place-items-center p-6 text-sm text-muted-foreground">
+          <div className="grid h-full place-items-center p-6 text-base text-muted-foreground">
             No spans captured
           </div>
         ) : props.view === "timeline" ? (

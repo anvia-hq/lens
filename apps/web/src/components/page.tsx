@@ -25,7 +25,7 @@ export function Page(props: {
             </p>
           ) : null}
           <h1 className="font-heading text-xl font-medium tracking-tight">{props.title}</h1>
-          <p className="text-sm text-muted-foreground">{props.description}</p>
+          <p className="text-base text-muted-foreground">{props.description}</p>
         </div>
         {props.action}
       </header>

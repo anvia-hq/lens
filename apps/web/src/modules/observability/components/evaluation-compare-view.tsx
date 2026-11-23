@@ -118,7 +118,7 @@ export function EvaluationCompareView({ state }: { state: EvaluationCompareState
           />
         </>
       ) : !comparison ? (
-        <div className="text-sm text-muted-foreground">Loading comparison…</div>
+        <div className="text-base text-muted-foreground">Loading comparison…</div>
       ) : (
         <ComparisonResults comparison={comparison} projectId={state.project.id} />
       )}
@@ -151,7 +151,7 @@ function ComparisonResults(props: {
         <div className="grid gap-2">
           {comparison.warnings.map((warning) => (
             <div
-              className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-sm"
+              className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-base"
               key={warning}
             >
               <WarningCircle className="mt-0.5 size-4 shrink-0 text-status-warning" />
@@ -175,7 +175,7 @@ function ComparisonResults(props: {
 
       <MetricComparisonTable metrics={comparison.metrics} />
       {comparison.caseChangesTruncated ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Showing the first {comparison.caseChanges.length} changed case/metric pairs. Counts
           include all changes.
         </p>
@@ -503,7 +503,7 @@ function CaseChanges(props: {
                 </TableBody>
               </Table>
             ) : tab === item.value ? (
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              <CardContent className="py-10 text-center text-base text-muted-foreground">
                 {item.count > 0 && totalChanges > props.changes.length
                   ? `No ${item.label.toLocaleLowerCase()} are included in the first ${formatNumber(props.changes.length)} changes.`
                   : item.value === "regressions"
@@ -590,7 +590,7 @@ function GateVerdict({ evaluation }: { evaluation: QualityGateEvaluation }) {
             className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2"
             key={`${JSON.stringify(result.rule)}-${result.message}`}
           >
-            <p className="text-sm">{result.message}</p>
+            <p className="text-base">{result.message}</p>
             <EvaluationStatusBadge status={result.verdict} />
           </div>
         ))}

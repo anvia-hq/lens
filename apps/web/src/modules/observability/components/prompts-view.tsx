@@ -185,7 +185,7 @@ export function PromptsView({ state }: { state: PromptsState }) {
           />
         )}
       </div>
-      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-sm text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-between border-t px-3 py-2 text-base text-muted-foreground">
         <span>
           {visible.length} prompt{visible.length === 1 ? "" : "s"}
         </span>
@@ -315,16 +315,16 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
             </TableBody>
           </Table>
         ) : (
-          <div className="px-4 py-8 text-sm text-muted-foreground">
+          <div className="px-4 py-8 text-base text-muted-foreground">
             This prompt has no versions.
           </div>
         )}
         <div className="border-t p-4">
-          <h3 className="mb-3 text-sm font-semibold">Labels</h3>
+          <h3 className="mb-3 text-base font-semibold">Labels</h3>
           {prompt.labels.length ? (
             <div className="grid gap-2">
               {prompt.labels.map((label) => (
-                <div key={label.label} className="flex flex-wrap items-center gap-2 text-sm">
+                <div key={label.label} className="flex flex-wrap items-center gap-2 text-base">
                   <Badge variant={labelVariant(label.label)}>{label.label}</Badge>
                   <span>→ v{label.version}</span>
                   <span className="text-muted-foreground">
@@ -339,11 +339,11 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No labels point at this prompt yet.</p>
+            <p className="text-base text-muted-foreground">No labels point at this prompt yet.</p>
           )}
         </div>
         <div className="border-t p-4">
-          <h3 className="mb-3 text-sm font-semibold">Deployment history</h3>
+          <h3 className="mb-3 text-base font-semibold">Deployment history</h3>
           {state.history.data?.items.length ? (
             <div className="grid gap-2">
               {[...state.history.data.items]
@@ -352,7 +352,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
                     new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
                 )
                 .map((event) => (
-                  <div key={event.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <div key={event.id} className="flex flex-wrap items-center gap-2 text-base">
                     <Badge variant={labelVariant(event.label)}>{event.label}</Badge>
                     <span>
                       v{event.fromVersion ?? "—"} → v{event.toVersion}
@@ -364,7 +364,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
                 ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No label changes yet.</p>
+            <p className="text-base text-muted-foreground">No label changes yet.</p>
           )}
         </div>
       </ScrollArea>
@@ -688,7 +688,7 @@ function CreatePromptDialog(props: {
             />
           </Field>
         </div>
-        {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
+        {parseError ? <p className="text-base text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
           <Button disabled={!name.trim() || props.pending} onClick={save}>
             Create prompt
@@ -787,7 +787,7 @@ function CommitVersionDialog(props: {
             />
           </Field>
         </div>
-        {parseError ? <p className="text-sm text-destructive">{parseError}</p> : null}
+        {parseError ? <p className="text-base text-destructive">{parseError}</p> : null}
         <DialogFooter showCloseButton>
           <Button disabled={props.pending} onClick={save}>
             Commit version

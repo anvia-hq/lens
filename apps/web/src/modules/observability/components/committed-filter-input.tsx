@@ -9,7 +9,7 @@ export function CommittedFilterInput(props: {
 }) {
   const id = useId();
   return (
-    <div className="grid gap-1.5 text-xs font-medium">
+    <div className="grid gap-1.5 text-sm font-medium">
       <label htmlFor={id}>{props.label}</label>
       <Input
         id={id}

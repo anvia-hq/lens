@@ -8,7 +8,7 @@ export function FullPageMessage(props: { icon: ReactNode; text: string; containe
     >
       <div className="grid justify-items-center gap-3 text-muted-foreground">
         <span className="animate-pulse">{props.icon}</span>
-        <p className="text-sm">{props.text}</p>
+        <p className="text-base">{props.text}</p>
       </div>
     </div>
   );

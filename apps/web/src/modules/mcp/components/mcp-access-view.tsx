@@ -39,7 +39,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
         description="Workspace-wide Model Context Protocol access for AI assistants"
       >
         <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+          <CardContent className="flex items-center gap-3 p-6 text-base text-muted-foreground">
             Owner or admin access is required.
           </CardContent>
         </Card>
@@ -126,7 +126,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
 
           <div className="overflow-hidden rounded-xl border">
             {state.mcpTokens.isPending ? (
-              <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 px-4 py-6 text-base text-muted-foreground">
                 <Spinner /> Loading MCP tokens
               </div>
             ) : tokens.length ? (
@@ -137,7 +137,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
                     <div className="flex items-center gap-3 px-4 py-3" key={token.id}>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate text-sm font-medium">{token.name}</span>
+                          <span className="truncate text-base font-medium">{token.name}</span>
                           <span className="text-xs text-muted-foreground">{status}</span>
                           {token.allowRawPayloads ? (
                             <span className="text-xs text-status-warning">Raw payloads</span>
@@ -167,7 +167,7 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
               </div>
             ) : (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm font-medium">No MCP tokens</p>
+                <p className="text-base font-medium">No MCP tokens</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Create a token to connect a remote MCP client.
                 </p>

@@ -205,13 +205,13 @@ export function ProjectsView({
           {directory.data?.canManage &&
           directory.data.invitations.some((item) => item.status === "pending") ? (
             <CardFooter className="grid gap-2">
-              <p className="text-sm font-medium">Pending invitations</p>
+              <p className="text-base font-medium">Pending invitations</p>
               {directory.data.invitations
                 .filter((item) => item.status === "pending")
                 .map((item) => (
                   <div className="flex w-full items-center gap-3" key={item.id}>
                     <span className="grid min-w-0 flex-1">
-                      <span className="truncate text-sm">{item.email}</span>
+                      <span className="truncate text-base">{item.email}</span>
                       <span className="text-xs text-muted-foreground">
                         {item.role ?? "member"} · expires{" "}
                         {new Date(item.expiresAt).toLocaleDateString()}

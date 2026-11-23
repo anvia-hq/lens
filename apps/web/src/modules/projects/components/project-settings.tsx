@@ -97,7 +97,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
 
             <div className="overflow-hidden rounded-xl border">
               {keys.isPending ? (
-                <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 px-4 py-6 text-base text-muted-foreground">
                   <Spinner /> Loading ingestion keys
                 </div>
               ) : activeKeys.length ? (
@@ -106,7 +106,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
                     <div className="flex items-center gap-3 px-4 py-3" key={key.id}>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium">{key.name}</span>
+                          <span className="truncate text-base font-medium">{key.name}</span>
                           <span className="text-xs text-muted-foreground">Active</span>
                         </div>
                         <p className="truncate font-mono text-xs text-muted-foreground">
@@ -129,7 +129,7 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
                 </div>
               ) : (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm font-medium">No ingestion keys</p>
+                  <p className="text-base font-medium">No ingestion keys</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Create a key to connect your first application.
                   </p>

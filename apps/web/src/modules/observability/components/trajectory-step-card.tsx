@@ -64,26 +64,26 @@ export function TrajectoryStepCard(props: {
                 {span.name}
               </span>
               {!props.compact ? (
-                <Badge variant="outline" className="h-4 shrink-0 px-1 text-[10px] capitalize">
+                <Badge variant="outline" className="h-4 shrink-0 px-1 text-xs capitalize">
                   {span.observationKind}
                 </Badge>
               ) : null}
               {span.model ? (
-                <span className="truncate font-mono text-[10px] text-muted-foreground">
+                <span className="truncate font-mono text-xs text-muted-foreground">
                   {span.model}
                 </span>
               ) : null}
               {span.status === "error" ? (
-                <Badge variant="destructive" className="h-4 shrink-0 px-1 text-[10px]">
+                <Badge variant="destructive" className="h-4 shrink-0 px-1 text-xs">
                   Error
                 </Badge>
               ) : null}
             </div>
             {oneLineSummary ? (
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{oneLineSummary}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{oneLineSummary}</p>
             ) : null}
           </div>
-          <div className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-2 font-mono text-xs tabular-nums text-muted-foreground">
             <span>{formatDuration(durationMs)}</span>
             {span.totalTokens > 0 ? <span>{formatNumber(span.totalTokens)} tok</span> : null}
             {!props.compact && span.totalCost !== null ? (
@@ -118,7 +118,7 @@ function StepPreviewField(props: { label: string; value: string }) {
   const formattedLine = formatStepOneLine(props.value);
   return (
     <div className="grid min-w-0 grid-cols-1 gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {props.label}
       </span>
       {structured ? (
@@ -126,7 +126,7 @@ function StepPreviewField(props: { label: string; value: string }) {
           {structured.map((field) => (
             <div
               key={field.key}
-              className="grid min-w-0 grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-2 text-[11px] leading-4"
+              className="grid min-w-0 grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-2 text-xs leading-4"
             >
               <dt className="truncate font-mono text-muted-foreground">{field.key}</dt>
               <dd className="m-0 line-clamp-2 min-w-0 break-words [overflow-wrap:anywhere] text-foreground/90">
@@ -136,7 +136,7 @@ function StepPreviewField(props: { label: string; value: string }) {
           ))}
         </dl>
       ) : looksLikeJsonPreview(props.value) ? (
-        <p className="m-0 min-w-0 line-clamp-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-[11px] leading-5 text-foreground/90">
+        <p className="m-0 min-w-0 line-clamp-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-xs leading-5 text-foreground/90">
           {formattedLine}
         </p>
       ) : (

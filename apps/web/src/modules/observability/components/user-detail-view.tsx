@@ -36,7 +36,7 @@ export function UserDetailView({ state }: { state: UserDetailState }) {
           <div className="min-w-0">
             <h1 className="break-all font-mono text-lg font-semibold">{userId}</h1>
             {summary ? (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-base text-muted-foreground">
                 First seen {formatTimestamp(summary.firstSeenAt)} · Last seen{" "}
                 {formatTimestamp(summary.lastSeenAt)}
               </p>
@@ -188,7 +188,7 @@ function DetailPagination(props: {
   onChange: (changes: { page?: number; pageSize?: 25 | 50 | 100 }, reset?: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-base">
       <span className="text-muted-foreground">
         {props.total === undefined
           ? `Loading ${props.label}`

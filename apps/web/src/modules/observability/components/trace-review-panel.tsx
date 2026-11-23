@@ -98,7 +98,7 @@ export function TraceReviewPanel(props: {
           ) : null}
         </div>
       ) : (
-        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-3 py-2 text-sm">
+        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-3 py-2 text-base">
           <span className="font-medium">Human review</span>
           {current ? (
             <>
@@ -167,7 +167,7 @@ export function TraceReviewPanel(props: {
               onChange={(event) => setExplanation(event.target.value)}
             />
           </Field>
-          {save.error ? <p className="text-sm text-destructive">{save.error.message}</p> : null}
+          {save.error ? <p className="text-base text-destructive">{save.error.message}</p> : null}
           <DialogFooter showCloseButton>
             <Button
               disabled={save.isPending}
@@ -276,15 +276,15 @@ function PromoteTraceButton(props: {
               Add this trace as a case in an existing managed dataset draft.
             </DialogDescription>
           </DialogHeader>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-base text-destructive">{error}</p> : null}
           {datasets.isLoading || rootSpan.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading trace and datasets…</p>
+            <p className="text-base text-muted-foreground">Loading trace and datasets…</p>
           ) : rootSpan.isError ? (
-            <p className="text-sm text-destructive">Unable to load the trace input.</p>
+            <p className="text-base text-destructive">Unable to load the trace input.</p>
           ) : !original ? (
-            <p className="text-sm text-muted-foreground">The root span has no captured input.</p>
+            <p className="text-base text-muted-foreground">The root span has no captured input.</p>
           ) : drafts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               No dataset has an open draft. Create one in{" "}
               <Link
                 className="text-primary hover:underline"

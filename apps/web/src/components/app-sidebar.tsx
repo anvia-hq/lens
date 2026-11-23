@@ -196,7 +196,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="grid min-w-0 flex-1 group-data-collapsible-icon:hidden">
-            <span className="truncate text-sm font-medium">{user.name}</span>
+            <span className="truncate text-base font-medium">{user.name}</span>
             <span className="truncate text-xs text-muted-foreground">{user.email}</span>
           </div>
           <Button
