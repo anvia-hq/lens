@@ -14,20 +14,148 @@ import type {
   TraceStatus,
   UserSortField,
 } from "@lens/contracts";
-import {
-  alertRuleKinds,
-  evaluationOutcomes,
-  evaluationRunSortFields,
-  evaluationSortFields,
-  evaluationSources,
-  metricsRangePresets,
-  observationKinds,
-  runSortFields,
-  sessionSortFields,
-  spanStatuses,
-  traceSortFields,
-  userSortFields,
-} from "@lens/contracts";
+
+function unionValues<T extends string>(values: Record<T, true>): readonly T[] {
+  return Object.keys(values) as T[];
+}
+
+const alertRuleKinds = unionValues<AlertRuleKind>({
+  trace_error_rate: true,
+  trace_p95_latency_ms: true,
+  tool_error_rate: true,
+  failed_human_review: true,
+  failed_quality_gate: true,
+});
+const evaluationOutcomes = unionValues<EvaluationOutcome>({
+  pass: true,
+  fail: true,
+  invalid: true,
+  unknown: true,
+});
+const evaluationRunSortFields = unionValues<EvaluationRunSortField>({
+  startedAt: true,
+  suiteName: true,
+  status: true,
+  release: true,
+  environment: true,
+  evaluatedCases: true,
+  results: true,
+  passRate: true,
+  durationMs: true,
+  p95LatencyMs: true,
+  averageTotalTokens: true,
+  traceCoverage: true,
+});
+const evaluationSortFields = unionValues<EvaluationSortField>({
+  timestamp: true,
+  suiteName: true,
+  caseId: true,
+  metricName: true,
+  outcome: true,
+  numericValue: true,
+  environment: true,
+  release: true,
+});
+const evaluationSources = unionValues<EvaluationSource>({
+  telemetry: true,
+  human: true,
+  end_user: true,
+});
+const metricsRangePresets = unionValues<MetricsRangePreset>({
+  "24h": true,
+  "7d": true,
+  "30d": true,
+});
+const observationKinds = unionValues<ObservationKind>({
+  span: true,
+  generation: true,
+  event: true,
+  embedding: true,
+  agent: true,
+  tool: true,
+  chain: true,
+  retriever: true,
+  evaluator: true,
+  guardrail: true,
+});
+const runSortFields = unionValues<RunSortField>({
+  startedAt: true,
+  endedAt: true,
+  name: true,
+  observationKind: true,
+  status: true,
+  durationMs: true,
+  serviceName: true,
+  model: true,
+  environment: true,
+  release: true,
+  version: true,
+  serviceVersion: true,
+  userId: true,
+  sessionId: true,
+  traceId: true,
+  inputTokens: true,
+  outputTokens: true,
+  totalTokens: true,
+  inputCost: true,
+  outputCost: true,
+  totalCost: true,
+});
+const sessionSortFields = unionValues<SessionSortField>({
+  startedAt: true,
+  endedAt: true,
+  sessionId: true,
+  userId: true,
+  status: true,
+  durationMs: true,
+  traceCount: true,
+  errorCount: true,
+  spanCount: true,
+  totalTokens: true,
+  totalCost: true,
+  lastSeenAt: true,
+});
+const spanStatuses = unionValues<SpanStatus>({
+  unset: true,
+  ok: true,
+  error: true,
+});
+const traceSortFields = unionValues<TraceSortField>({
+  startedAt: true,
+  endedAt: true,
+  name: true,
+  traceId: true,
+  serviceName: true,
+  status: true,
+  durationMs: true,
+  spanCount: true,
+  generationCount: true,
+  toolCount: true,
+  userId: true,
+  sessionId: true,
+  model: true,
+  environment: true,
+  release: true,
+  version: true,
+  serviceVersion: true,
+  inputTokens: true,
+  outputTokens: true,
+  totalTokens: true,
+  inputCost: true,
+  outputCost: true,
+  totalCost: true,
+});
+const userSortFields = unionValues<UserSortField>({
+  userId: true,
+  firstSeenAt: true,
+  lastSeenAt: true,
+  traceCount: true,
+  sessionCount: true,
+  errorCount: true,
+  errorRate: true,
+  totalTokens: true,
+  totalCost: true,
+});
 import {
   type AlertsSearch,
   defaultEvaluationResultColumns,

@@ -31,6 +31,7 @@ import { buildSpanForest, traceReview, traceReviewDatasetCase } from "../utils/t
 export function TraceReviewPanel(props: {
   canManage: boolean;
   detail: TraceDetail;
+  inline?: boolean;
   projectId: string;
 }) {
   const queryClient = useQueryClient();
@@ -65,28 +66,70 @@ export function TraceReviewPanel(props: {
 
   return (
     <>
-      <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-3 py-2 text-sm">
-        <span className="font-medium">Human review</span>
-        {current ? (
-          <>
-            <Badge variant={current.outcome === "fail" ? "destructive" : "secondary"}>
-              {current.outcome === "fail" ? "Fail" : "Pass"}
+      {props.inline ? (
+        <div className="flex shrink-0 items-center gap-1.5 text-xs">
+          {current ? (
+            <Badge
+              variant={current.outcome === "fail" ? "destructive" : "secondary"}
+              title={
+                [current.reviewer?.name ?? "Unknown reviewer", current.explanation]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
+              }
+            >
+              Review: {current.outcome === "fail" ? "Fail" : "Pass"}
             </Badge>
-            <span className="truncate text-muted-foreground">
-              {current.reviewer?.name ?? "Unknown reviewer"}
-              {current.explanation ? ` · ${current.explanation}` : ""}
-            </span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">Not reviewed</span>
-        )}
-        <Button className="ml-auto" size="sm" variant="outline" onClick={() => setReviewOpen(true)}>
-          {current ? "Edit review" : "Review trace"}
-        </Button>
-        {props.canManage && current?.outcome === "fail" ? (
-          <PromoteTraceButton detail={props.detail} projectId={props.projectId} review={current} />
-        ) : null}
-      </div>
+          ) : null}
+          <Button
+            className="h-7 px-2.5 text-xs"
+            size="sm"
+            variant="outline"
+            onClick={() => setReviewOpen(true)}
+          >
+            {current ? "Edit review" : "Review trace"}
+          </Button>
+          {props.canManage && current?.outcome === "fail" ? (
+            <PromoteTraceButton
+              compact
+              detail={props.detail}
+              projectId={props.projectId}
+              review={current}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-3 py-2 text-sm">
+          <span className="font-medium">Human review</span>
+          {current ? (
+            <>
+              <Badge variant={current.outcome === "fail" ? "destructive" : "secondary"}>
+                {current.outcome === "fail" ? "Fail" : "Pass"}
+              </Badge>
+              <span className="truncate text-muted-foreground">
+                {current.reviewer?.name ?? "Unknown reviewer"}
+                {current.explanation ? ` · ${current.explanation}` : ""}
+              </span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Not reviewed</span>
+          )}
+          <Button
+            className="ml-auto"
+            size="sm"
+            variant="outline"
+            onClick={() => setReviewOpen(true)}
+          >
+            {current ? "Edit review" : "Review trace"}
+          </Button>
+          {props.canManage && current?.outcome === "fail" ? (
+            <PromoteTraceButton
+              detail={props.detail}
+              projectId={props.projectId}
+              review={current}
+            />
+          ) : null}
+        </div>
+      )}
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent>
@@ -140,6 +183,7 @@ export function TraceReviewPanel(props: {
 }
 
 function PromoteTraceButton(props: {
+  compact?: boolean;
   detail: TraceDetail;
   projectId: string;
   review: EvaluationResult;
@@ -216,7 +260,12 @@ function PromoteTraceButton(props: {
 
   return (
     <>
-      <Button size="sm" disabled={!root} onClick={() => setOpen(true)}>
+      <Button
+        className={props.compact ? "h-7 px-2.5 text-xs" : undefined}
+        size="sm"
+        disabled={!root}
+        onClick={() => setOpen(true)}
+      >
         Promote to dataset
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

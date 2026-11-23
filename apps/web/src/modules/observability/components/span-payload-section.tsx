@@ -69,9 +69,11 @@ export function SpanPayloadSection(props: {
     props.value === null || props.value === undefined ? (
       <EmptyPayload />
     ) : tooLarge && serialized !== undefined ? (
-      <LargePayloadBlock json={serialized} title={props.title} />
+      <div className="p-3.5">
+        <LargePayloadBlock json={serialized} title={props.title} />
+      </div>
     ) : mode === "raw" ? (
-      <RawJsonBlock title={props.title} value={props.value} />
+      <RawJsonBlock embedded title={props.title} value={props.value} />
     ) : mode === "table" ? (
       <MetadataTable value={props.value} />
     ) : mode === "readable" && analysis?.hasMessages ? (
@@ -86,16 +88,22 @@ export function SpanPayloadSection(props: {
 
   if (props.field === "metadata") {
     return (
-      <details className="group grid min-w-0 gap-3">
-        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+      <details className="group min-w-0 overflow-hidden rounded-lg border bg-card/40">
+        <summary className="flex cursor-pointer list-none items-center gap-2 bg-muted/30 px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-open:border-b [&::-webkit-details-marker]:hidden">
           <CaretRight className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
-          <h3 className="text-sm font-semibold">{props.title}</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {props.title}
+          </h3>
           <span className="ml-auto font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
             {tooLarge ? "Large payload" : `${flattenStructuredEntries(props.value).length} fields`}
           </span>
         </summary>
-        <div className="grid gap-3 pl-5">
-          <PayloadModeSwitch options={options} value={mode} onChange={setPreferredMode} />
+        <div className="grid min-w-0">
+          {options.length >= 2 ? (
+            <div className="flex items-center justify-end border-b px-3 py-1.5">
+              <PayloadModeSwitch options={options} value={mode} onChange={setPreferredMode} />
+            </div>
+          ) : null}
           {content}
         </div>
       </details>
@@ -103,14 +111,14 @@ export function SpanPayloadSection(props: {
   }
 
   return (
-    <section className="grid min-w-0 gap-3">
-      <header className="flex min-w-0 items-center gap-3">
-        <h3 className="text-sm font-semibold">{props.title}</h3>
-        <div className="ml-auto">
-          <PayloadModeSwitch options={options} value={mode} onChange={setPreferredMode} />
-        </div>
+    <section className="min-w-0 overflow-hidden rounded-lg border bg-card/40">
+      <header className="flex min-w-0 items-center justify-between gap-3 border-b bg-muted/30 px-3 py-1.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {props.title}
+        </h3>
+        <PayloadModeSwitch options={options} value={mode} onChange={setPreferredMode} />
       </header>
-      {content}
+      <div className="min-w-0">{content}</div>
     </section>
   );
 }
@@ -123,14 +131,14 @@ function PayloadModeSwitch(props: {
   if (props.options.length < 2) return null;
   return (
     <fieldset
-      className="flex h-7 shrink-0 items-center rounded-md border p-0.5"
+      className="flex h-6 shrink-0 items-center rounded-md border bg-background p-0.5"
       aria-label="Field view"
     >
       {props.options.map((option) => (
         <button
           aria-pressed={props.value === option.id}
           className={cn(
-            "h-5 rounded px-2 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground",
+            "h-5 rounded px-2 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors",
             props.value === option.id && "bg-muted text-foreground",
           )}
           key={option.id}
@@ -150,44 +158,42 @@ function ReadableMessages(props: {
   additional: unknown;
 }) {
   return (
-    <div className="grid min-w-0 gap-5">
-      <div className="grid gap-5">
-        {props.messages.map((message) => (
-          <article
-            className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] gap-3"
-            key={message.key}
-          >
-            <div className="pt-0.5">
-              <RoleBadge role={message.role} />
-            </div>
-            <div className="grid min-w-0 gap-3">
-              {message.reasoning ? (
-                <div className="grid gap-1 border-l-2 border-muted-foreground/40 pl-3">
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Reasoning
-                  </span>
-                  <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">
-                    {message.reasoning}
-                  </p>
-                </div>
-              ) : null}
-              {message.content ? (
-                <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">
-                  {message.content}
+    <div className="grid min-w-0 divide-y divide-border/50 px-3.5 py-1">
+      {props.messages.map((message) => (
+        <article
+          className="grid min-w-0 grid-cols-[minmax(6.5rem,0.22fr)_minmax(0,1fr)] gap-3 py-2.5"
+          key={message.key}
+        >
+          <div className="pt-0.5">
+            <RoleBadge role={message.role} />
+          </div>
+          <div className="grid min-w-0 gap-2.5">
+            {message.reasoning ? (
+              <div className="grid gap-1 rounded-md border bg-muted/20 px-3 py-2">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Reasoning
+                </span>
+                <p className="m-0 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
+                  {message.reasoning}
                 </p>
-              ) : !message.reasoning && message.toolCalls.length === 0 ? (
-                <span className="text-sm italic text-muted-foreground">No text content</span>
-              ) : null}
-              {message.toolCalls.map((tool) => (
-                <ToolDisclosure key={tool.key} tool={tool} label="Tool call" />
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
+              </div>
+            ) : null}
+            {message.content ? (
+              <p className="m-0 whitespace-pre-wrap break-words text-xs leading-5">
+                {message.content}
+              </p>
+            ) : !message.reasoning && message.toolCalls.length === 0 ? (
+              <span className="text-xs italic text-muted-foreground">No text content</span>
+            ) : null}
+            {message.toolCalls.map((tool) => (
+              <ToolDisclosure key={tool.key} tool={tool} label="Tool call" />
+            ))}
+          </div>
+        </article>
+      ))}
       {props.tools.length > 0 ? (
-        <section>
-          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <section className="py-2.5">
+          <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             Available tools · {props.tools.length}
           </p>
           <div className="grid gap-2">
@@ -198,12 +204,12 @@ function ReadableMessages(props: {
         </section>
       ) : null}
       {props.additional !== undefined ? (
-        <details className="group/additional">
+        <details className="group/additional py-2.5">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
             <CaretRight className="size-3 transition-transform group-open/additional:rotate-90" />
             Additional fields
           </summary>
-          <div className="mt-3 border-l pl-4">
+          <div className="mt-2 rounded-md border bg-muted/20">
             <StructuredPayload value={props.additional} />
           </div>
         </details>
@@ -214,8 +220,8 @@ function ReadableMessages(props: {
 
 function ToolDisclosure(props: { tool: SpanPayloadTool; label: string }) {
   return (
-    <details className="border-l-2 border-primary/40 pl-3">
-      <summary className="cursor-pointer list-none py-1 text-xs [&::-webkit-details-marker]:hidden">
+    <details className="rounded-md border bg-muted/20 px-3 py-1.5">
+      <summary className="cursor-pointer list-none py-0.5 text-xs [&::-webkit-details-marker]:hidden">
         <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
           {props.label}
         </span>{" "}
@@ -224,8 +230,8 @@ function ToolDisclosure(props: { tool: SpanPayloadTool; label: string }) {
           <span className="ml-2 text-muted-foreground">{props.tool.description}</span>
         ) : null}
       </summary>
-      <div className="py-2">
-        <StructuredPayload value={props.tool.value} />
+      <div className="mt-1.5 border-t pt-1">
+        <StructuredPayload compact value={props.tool.value} />
       </div>
     </details>
   );
@@ -244,7 +250,7 @@ function MetadataTable({ value }: { value: unknown }) {
       )
     : entries;
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 p-3">
       <label className="relative block" htmlFor={searchId}>
         <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -258,10 +264,10 @@ function MetadataTable({ value }: { value: unknown }) {
       </label>
       <div className="min-w-0 overflow-hidden">
         {visible.length > 0 ? (
-          <dl className="grid gap-1">
+          <dl className="grid divide-y divide-border/40">
             {visible.map((entry) => (
               <div
-                className="grid min-w-0 grid-cols-[minmax(8rem,0.42fr)_minmax(0,1fr)] gap-4 py-2 text-xs"
+                className="grid min-w-0 grid-cols-[minmax(8rem,0.34fr)_minmax(0,1fr)] gap-3 py-2 text-xs leading-5"
                 key={entry.path}
               >
                 <dt className="break-all font-mono text-muted-foreground" title={entry.path}>
@@ -274,18 +280,25 @@ function MetadataTable({ value }: { value: unknown }) {
             ))}
           </dl>
         ) : (
-          <p className="py-6 text-center text-sm text-muted-foreground">No matching fields</p>
+          <p className="py-5 text-center text-xs text-muted-foreground">No matching fields</p>
         )}
       </div>
     </div>
   );
 }
 
-function StructuredPayload({ value }: { value: unknown }) {
+function StructuredPayload({ compact, value }: { compact?: boolean; value: unknown }) {
+  const containerClass = cn("grid divide-y divide-border/40", !compact && "px-3.5 py-1");
   if (Array.isArray(value)) {
-    if (value.length === 0) return <PrimitiveValue value={value} />;
+    if (value.length === 0) {
+      return (
+        <div className={cn(!compact && "px-3.5 py-2.5")}>
+          <PrimitiveValue value={value} />
+        </div>
+      );
+    }
     return (
-      <div className="grid gap-1">
+      <div className={containerClass}>
         {value.map((item, index) => (
           <StructuredRow
             key={structuredValueKey(item, index)}
@@ -299,23 +312,33 @@ function StructuredPayload({ value }: { value: unknown }) {
   }
   if (isRecord(value)) {
     const entries = Object.entries(value);
-    if (entries.length === 0) return <PrimitiveValue value={value} />;
+    if (entries.length === 0) {
+      return (
+        <div className={cn(!compact && "px-3.5 py-2.5")}>
+          <PrimitiveValue value={value} />
+        </div>
+      );
+    }
     return (
-      <div className="grid gap-1">
+      <div className={containerClass}>
         {entries.map(([key, item]) => (
           <StructuredRow key={key} label={key} value={item} depth={0} />
         ))}
       </div>
     );
   }
-  return <PrimitiveValue value={value} />;
+  return (
+    <div className={cn(!compact && "px-3.5 py-2.5")}>
+      <PrimitiveValue value={value} />
+    </div>
+  );
 }
 
 function StructuredRow(props: { label: string; value: unknown; depth: number }) {
   const nested = Array.isArray(props.value) || isRecord(props.value);
   if (!nested) {
     return (
-      <div className="grid min-w-0 grid-cols-[minmax(7rem,0.34fr)_minmax(0,1fr)] gap-4 py-2 text-xs">
+      <div className="grid min-w-0 grid-cols-[minmax(6.5rem,0.28fr)_minmax(0,1fr)] gap-3 py-2 text-xs leading-5">
         <span className="break-all font-mono text-muted-foreground">{props.label}</span>
         <PrimitiveValue value={props.value} />
       </div>
@@ -328,14 +351,14 @@ function StructuredRow(props: { label: string; value: unknown; depth: number }) 
       : [];
   return (
     <details open={props.depth < 1} className="group/row py-2">
-      <summary className="flex cursor-pointer list-none items-center gap-2 font-mono text-xs [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 font-mono text-xs leading-5 [&::-webkit-details-marker]:hidden">
         <CaretRight className="size-3 text-muted-foreground transition-transform group-open/row:rotate-90" />
         <span>{props.label}</span>
         <span className="text-[10px] text-muted-foreground">
           {Array.isArray(props.value) ? `${entries.length} items` : `${entries.length} fields`}
         </span>
       </summary>
-      <div className="ml-1.5 mt-2 grid gap-1 border-l pl-4">
+      <div className="ml-1.5 mt-1.5 grid divide-y divide-border/30 border-l pl-3.5">
         {entries.length > 0 ? (
           entries.map(([key, item]) => (
             <StructuredRow
@@ -346,7 +369,9 @@ function StructuredRow(props: { label: string; value: unknown; depth: number }) 
             />
           ))
         ) : (
-          <PrimitiveValue value={props.value} />
+          <div className="py-1">
+            <PrimitiveValue value={props.value} />
+          </div>
         )}
       </div>
     </details>
@@ -357,7 +382,7 @@ function PrimitiveValue({ value }: { value: unknown }) {
   return (
     <span
       className={cn(
-        "min-w-0 whitespace-pre-wrap break-words font-mono text-xs",
+        "min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-5",
         (value === null || value === undefined) && "text-syntax-comment",
         typeof value === "string" && "text-syntax-string",
         typeof value === "number" && "text-syntax-number",
@@ -371,9 +396,7 @@ function PrimitiveValue({ value }: { value: unknown }) {
 
 function EmptyPayload() {
   return (
-    <div className="border-y border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-      No data captured
-    </div>
+    <div className="px-3.5 py-5 text-center text-xs text-muted-foreground">No data captured</div>
   );
 }
 

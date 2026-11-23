@@ -21,7 +21,6 @@ import {
   Database,
   FlaskConical as Flask,
   Target as Gauge,
-  Github as GithubLogo,
   Home as House,
   LayersTwo,
   Logout as LogOut,
@@ -36,6 +35,7 @@ import { signOutAndClearCache } from "../lib/auth";
 import { useActiveAlertCount } from "../modules/observability/hooks/use-alerts";
 import { useProject } from "../modules/projects/hooks/use-project";
 import type { AuthenticatedUser } from "../types";
+import { SidebarGithubPromo } from "./github-star-banner";
 
 export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   const queryClient = useQueryClient();
@@ -190,18 +190,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <a
-          className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-promo p-3 transition-colors hover:border-border-strong hover:bg-sidebar-hover hover:text-sidebar-accent-foreground"
-          href="https://github.com/anvia-hq/lens"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <GithubLogo className="size-5 shrink-0" />
-          <span className="grid min-w-0">
-            <span className="truncate text-xs font-medium">Enjoying Anvia Lens?</span>
-            <span className="truncate text-xs text-muted-foreground">Star us on GitHub</span>
-          </span>
-        </a>
+        <SidebarGithubPromo />
         <div className="flex items-center gap-2 p-2">
           <Avatar className="size-8">
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
