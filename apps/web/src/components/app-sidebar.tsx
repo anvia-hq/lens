@@ -150,7 +150,7 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
       | typeof promptManagementLinks
       | typeof managementLinks,
   ) => (
-    <SidebarMenu className="gap-1">
+    <SidebarMenu className="gap-0.5">
       {links.map(({ to, path, label, icon: Icon, badge }) => {
         const active = path === projectRoot ? pathname === path : pathname.startsWith(path);
         return (
@@ -171,28 +171,28 @@ export function AppSidebar({ user }: { user: AuthenticatedUser }) {
   );
   return (
     <Sidebar className="h-svh min-h-0 shrink-0 border-r border-sidebar-border" collapsible="none">
-      <SidebarContent>
-        <SidebarGroup className="py-1">
+      <SidebarContent className="gap-2 p-1.5">
+        <SidebarGroup className="p-0">
           <SidebarGroupLabel>Observability</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(observabilityLinks)}</SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="py-1">
+        <SidebarGroup className="p-0">
           <SidebarGroupLabel>Evaluations</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(evaluationLinks)}</SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="py-1">
+        <SidebarGroup className="p-0">
           <SidebarGroupLabel>Prompt Management</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(promptManagementLinks)}</SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="py-1">
+        <SidebarGroup className="p-0">
           <SidebarGroupLabel>Management</SidebarGroupLabel>
           <SidebarGroupContent>{renderLinks(managementLinks)}</SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <SidebarGithubPromo />
-        <div className="flex items-center gap-2 p-2">
-          <Avatar className="size-8">
+        <div className="flex items-center gap-2 p-1">
+          <Avatar className="size-6">
             <AvatarFallback>{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="grid min-w-0 flex-1 group-data-collapsible-icon:hidden">
