@@ -151,7 +151,7 @@
   --control-thumb: var(--white);
   --control-hover: var(--zinc-200);
   --control-active: var(--zinc-200);
-  --row-hover: transparent;
+  --row-hover: color-mix(in srgb, var(--zinc-200) 55%, transparent);
   --row-selected: var(--zinc-200);
   --row-active: color-mix(in srgb, var(--viz-indigo) 16%, var(--background));
   --bubble-tinted: var(--zinc-100);
@@ -244,6 +244,7 @@
 
   --control-hover: var(--zinc-900);
   --control-active: var(--zinc-900);
+  --row-hover: color-mix(in srgb, var(--zinc-900) 70%, transparent);
   --row-selected: var(--zinc-900);
   --bubble-tinted: var(--zinc-800);
   --bubble-tinted-hover: var(--zinc-700);
