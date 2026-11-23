@@ -10,8 +10,6 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-logo: "Geist Mono Variable", monospace;
-  --color-sidebar-logo-foreground: var(--sidebar-logo-foreground);
-  --color-sidebar-logo: var(--sidebar-logo);
   --color-sidebar-promo: var(--sidebar-promo);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -200,8 +198,6 @@
 
   --radius: 0.5rem;
   --sidebar: var(--background);
-  --sidebar-logo: var(--black);
-  --sidebar-logo-foreground: var(--white);
   --sidebar-foreground: var(--zinc-600);
   --sidebar-primary: var(--zinc-900);
   --sidebar-primary-foreground: var(--zinc-50);
@@ -277,8 +273,6 @@
   --syntax-comment: #56606a;
 
   --sidebar: var(--background);
-  --sidebar-logo: var(--white);
-  --sidebar-logo-foreground: var(--black);
   --sidebar-foreground: var(--zinc-400);
   --sidebar-primary: var(--white);
   --sidebar-primary-foreground: var(--zinc-950);

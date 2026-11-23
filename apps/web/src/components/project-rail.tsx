@@ -22,9 +22,7 @@ export function ProjectRail({ logoOnly = false }: { logoOnly?: boolean }) {
                 className="flex size-8 shrink-0 items-center justify-center rounded-lg outline-hidden transition-colors hover:bg-sidebar-hover focus-visible:bg-sidebar-active"
                 to="/"
               >
-                <span className="grid size-6 place-items-center rounded-md bg-sidebar-logo">
-                  <AnviaLensLogo markClassName="text-sidebar-logo-foreground" />
-                </span>
+                <AnviaLensLogo markClassName="text-primary" />
               </Link>
             }
           />
