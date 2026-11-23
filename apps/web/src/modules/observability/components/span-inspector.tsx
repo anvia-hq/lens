@@ -12,11 +12,11 @@ import {
   formatDuration,
   formatNanoTimestamp,
   formatNumber,
+  shortId,
   spanDurationMs,
 } from "../utils/trace-detail";
 import { MetricPill } from "./metric-pill";
 import { ObservationGlyph } from "./observation-glyph";
-import { SectionTitle } from "./section-title";
 import { SpanPayloadSection } from "./span-payload-section";
 import { StatusPill } from "./status-pill";
 
@@ -54,22 +54,18 @@ export function SpanInspector(props: { span: SpanDetail }) {
   );
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Selected span data">
-      <header className="shrink-0 border-b px-4 py-4 md:px-6">
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <ObservationGlyph kind={span.observationKind} status={span.status} size="large" />
-            <div className="grid min-w-0 gap-1">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="truncate text-xl font-semibold tracking-tight">{span.name}</h2>
-                <StatusPill status={span.status} />
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {span.observationKind} · {formatNanoTimestamp(span.startTimeUnixNano)}
-              </span>
-            </div>
+      <header className="shrink-0 border-b px-4 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <ObservationGlyph kind={span.observationKind} status={span.status} size="medium" />
+            <h2 className="truncate text-sm font-semibold tracking-tight">{span.name}</h2>
+            <StatusPill status={span.status} />
           </div>
+          <span className="text-[11px] text-muted-foreground">
+            {span.observationKind} · {formatNanoTimestamp(span.startTimeUnixNano)}
+          </span>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <MetricPill
             icon={<Clock3 />}
             label="Duration"
@@ -83,23 +79,27 @@ export function SpanInspector(props: { span: SpanDetail }) {
           <MetricPill icon={<Database />} label="Cost" value={formatCost(span.totalCost)} />
           {span.model ? <MetricPill icon={<Sparkles />} label="Model" value={span.model} /> : null}
           <MetricPill icon={<Activity />} label="Service" value={span.serviceName} />
-        </div>
-        <div className="mt-3 flex min-w-0 flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-muted-foreground">
-          <span title={span.spanId}>Span {span.spanId}</span>
-          {span.parentSpanId ? (
-            <span title={span.parentSpanId}>Parent {span.parentSpanId}</span>
-          ) : null}
-          {span.scopeName ? <span>Scope {span.scopeName}</span> : null}
+          <div className="ml-auto flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted-foreground">
+            <span title={span.spanId}>Span {shortId(span.spanId)}</span>
+            {span.parentSpanId ? (
+              <span title={span.parentSpanId}>Parent {shortId(span.parentSpanId)}</span>
+            ) : null}
+            {span.scopeName ? <span>Scope {span.scopeName}</span> : null}
+          </div>
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <div className="grid content-start gap-8 p-4 md:p-6">
+        <div className="grid content-start gap-4 p-4">
           <SpanPayloadSection field="input" title="Input" value={span.input} />
           <SpanPayloadSection field="output" title="Output" value={span.output} />
           {span.status === "error" || span.statusMessage ? (
-            <section className="grid gap-2">
-              <SectionTitle title="Error" />
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5">
+              <header className="flex min-w-0 items-center border-b border-destructive/20 bg-destructive/10 px-3 py-1.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-destructive">
+                  Error
+                </h3>
+              </header>
+              <div className="px-3.5 py-3 text-xs leading-5 text-destructive">
                 {span.statusMessage || "This span finished with an error."}
               </div>
             </section>

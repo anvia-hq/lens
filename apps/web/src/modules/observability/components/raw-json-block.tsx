@@ -4,11 +4,19 @@ import { Check, Copy } from "@mynaui/icons-react";
 import { useState } from "react";
 import { jsonSyntaxTokens, rawTraceJson } from "../utils/trace-detail";
 
-export function RawJsonBlock({ title, value }: { title: string; value: unknown }) {
+export function RawJsonBlock({
+  embedded,
+  title,
+  value,
+}: {
+  embedded?: boolean;
+  title: string;
+  value: unknown;
+}) {
   const json = rawTraceJson(value);
   const [copied, setCopied] = useState(false);
   return (
-    <div className="relative min-w-0 rounded-lg border bg-muted/20">
+    <div className={cn("relative min-w-0", !embedded && "rounded-lg border bg-muted/20")}>
       <Button
         aria-label={`Copy ${title} JSON`}
         className="absolute right-2 top-2 z-10"
@@ -24,7 +32,7 @@ export function RawJsonBlock({ title, value }: { title: string; value: unknown }
       >
         {copied ? <Check /> : <Copy />}
       </Button>
-      <pre className="max-h-[32rem] overflow-auto p-4 pr-12 font-mono text-xs leading-5 text-syntax-base">
+      <pre className="max-h-[32rem] overflow-auto p-3.5 pr-12 font-mono text-xs leading-5 text-syntax-base">
         {jsonSyntaxTokens(json).map((token) => (
           <span
             className={cn(
