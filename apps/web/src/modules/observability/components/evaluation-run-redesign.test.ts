@@ -8,6 +8,7 @@ import type {
 import { describe, expect, it } from "vitest";
 import {
   comparisonDeltaTone,
+  describeGateRule,
   filterCaseChanges,
   includeFallbackCandidate,
   sortMetricComparisons,
@@ -154,3 +155,36 @@ function metricComparison(
     averageScoreDelta: null,
   };
 }
+
+describe("quality gate rule wording", () => {
+  it("describes each rule type in plain language", () => {
+    expect(describeGateRule({ type: "minimum_case_count", value: 10 })).toBe(
+      "At least 10 evaluated cases",
+    );
+    expect(
+      describeGateRule({
+        type: "evaluation_threshold",
+        metricName: "safety_refusal",
+        measure: "pass_rate",
+        operator: "gte",
+        value: 0.95,
+      }),
+    ).toBe("safety_refusal pass rate ≥ 95%");
+    expect(
+      describeGateRule({
+        type: "evaluation_regression",
+        metricName: "faithfulness",
+        measure: "average_score",
+        direction: "decrease",
+        maxAbsoluteChange: 0.05,
+      }),
+    ).toBe("faithfulness average score drops at most 0.05");
+    expect(
+      describeGateRule({
+        type: "operational_regression",
+        measure: "p95_latency_ms",
+        maxIncreasePercent: 20,
+      }),
+    ).toBe("P95 trace duration rises at most 20%");
+  });
+});
