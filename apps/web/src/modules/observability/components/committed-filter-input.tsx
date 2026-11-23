@@ -12,6 +12,7 @@ export function CommittedFilterInput(props: {
     <div className="grid gap-1.5 text-sm font-medium">
       <label htmlFor={id}>{props.label}</label>
       <Input
+        className="text-sm"
         id={id}
         key={props.value ?? ""}
         defaultValue={props.value ?? ""}
