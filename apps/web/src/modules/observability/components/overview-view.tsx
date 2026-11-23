@@ -366,6 +366,7 @@ export function OverviewView({ state }: { state: OverviewState }) {
               traces={value.recentErrors}
               projectId={project.id}
               emptyText="No failed traces in this window."
+              tone="error"
             />
           </div>
         </>
