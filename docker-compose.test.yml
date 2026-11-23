@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: lens
       POSTGRES_PASSWORD: lens
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lens -d lens"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U lens -d lens"]
       interval: 1s
       timeout: 3s
       retries: 30
@@ -23,7 +23,11 @@ services:
       CLICKHOUSE_PASSWORD: lens
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      test:
+        [
+          "CMD-SHELL",
+          'host=$$(hostname -i | awk ''{print $$1}''); case "$$host" in *:*) url="http://[$$host]:8123/ping";; *) url="http://$$host:8123/ping";; esac; wget --spider -q "$$url" && clickhouse-client --host "$$host" --user lens --password "$$CLICKHOUSE_PASSWORD" --database lens --query ''SELECT 1''',
+        ]
       interval: 1s
       timeout: 3s
       retries: 60
