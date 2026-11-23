@@ -28,7 +28,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -801,14 +801,17 @@ function PromoteEvidenceDialog(props: {
           ) : null}
           <Field>
             <FieldLabel>Dataset draft</FieldLabel>
-            <NativeSelect value={datasetId} onChange={(event) => setDatasetId(event.target.value)}>
-              <NativeSelectOption value="">Select a dataset</NativeSelectOption>
-              {datasetDrafts.map((dataset) => (
-                <NativeSelectOption key={dataset.id} value={dataset.id}>
-                  {dataset.name} · {dataset.draft?.version}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <SelectField
+              value={datasetId}
+              onValueChange={setDatasetId}
+              options={[
+                { value: "", label: "Select a dataset" },
+                ...datasetDrafts.map((dataset) => ({
+                  value: dataset.id,
+                  label: `${dataset.name} · ${dataset.draft?.version ?? ""}`,
+                })),
+              ]}
+            />
             {!datasets.isLoading && !datasetDrafts.length ? (
               <FieldDescription>No managed dataset has an open draft.</FieldDescription>
             ) : null}
@@ -816,16 +819,14 @@ function PromoteEvidenceDialog(props: {
           {drafts.length > 1 ? (
             <Field>
               <FieldLabel>Case</FieldLabel>
-              <NativeSelect
+              <SelectField
                 value={activeTraceId}
-                onChange={(event) => setActiveTraceId(event.target.value)}
-              >
-                {drafts.map((draft, index) => (
-                  <NativeSelectOption key={draft.traceId} value={draft.traceId}>
-                    Case {index + 1} · {draft.traceId.slice(0, 12)}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                onValueChange={setActiveTraceId}
+                options={drafts.map((draft, index) => ({
+                  value: draft.traceId,
+                  label: `Case ${index + 1} · ${draft.traceId.slice(0, 12)}`,
+                }))}
+              />
             </Field>
           ) : null}
           {active ? (

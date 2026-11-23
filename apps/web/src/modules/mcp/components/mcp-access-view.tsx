@@ -20,7 +20,7 @@ import {
 import { Checkbox } from "@lens/ui/components/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import { Plus, Trash } from "@mynaui/icons-react";
 import { useState } from "react";
@@ -81,16 +81,17 @@ export function McpAccessView({ state }: { state: McpAccessState }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="mcp-token-expiry">Expiry</FieldLabel>
-                <NativeSelect
+                <SelectField
                   id="mcp-token-expiry"
                   value={state.mcpExpiryDays}
-                  onChange={(event) => state.setMcpExpiryDays(event.target.value)}
-                >
-                  <NativeSelectOption value="never">Never</NativeSelectOption>
-                  <NativeSelectOption value="30">30 days</NativeSelectOption>
-                  <NativeSelectOption value="90">90 days</NativeSelectOption>
-                  <NativeSelectOption value="365">1 year</NativeSelectOption>
-                </NativeSelect>
+                  onValueChange={(value) => state.setMcpExpiryDays(value)}
+                  options={[
+                    { value: "never", label: "Never" },
+                    { value: "30", label: "30 days" },
+                    { value: "90", label: "90 days" },
+                    { value: "365", label: "1 year" },
+                  ]}
+                />
               </Field>
               <Button
                 type="submit"

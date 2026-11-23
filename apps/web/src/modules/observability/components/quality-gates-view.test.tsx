@@ -8,6 +8,18 @@ import { QualityGatesView } from "./quality-gates-view";
 
 afterEach(cleanup);
 
+async function choose(label: string, option: string) {
+  const trigger = screen.getByLabelText(label);
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+  fireEvent.mouseDown(trigger);
+  fireEvent.click(trigger);
+  const item = await screen.findByRole("option", { name: option });
+  fireEvent.pointerDown(item, { button: 0, pointerType: "mouse" });
+  fireEvent.pointerUp(item, { button: 0, pointerType: "mouse" });
+  fireEvent.mouseUp(item);
+  fireEvent.click(item);
+}
+
 describe("QualityGatesView", () => {
   it("keeps rule controls stable and displays pass rates as percentages", () => {
     const update = vi.fn();
@@ -40,13 +52,15 @@ describe("QualityGatesView", () => {
     });
   });
 
-  it("explicitly upgrades legacy rules with independently editable evidence limits", () => {
+  it("explicitly upgrades legacy rules with independently editable evidence limits", async () => {
     const update = vi.fn();
     render(<QualityGatesView state={qualityGatesState({ update })} />);
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    expect((screen.getByLabelText("Evidence policy") as HTMLSelectElement).value).toBe("legacy");
-    fireEvent.change(screen.getByLabelText("Evidence policy"), { target: { value: "required" } });
-    fireEvent.change(screen.getByLabelText("Measure"), { target: { value: "average_score" } });
+    expect(screen.getByLabelText("Evidence policy").textContent).toContain(
+      "Legacy: no evidence limits",
+    );
+    await choose("Evidence policy", "Require valid evidence");
+    await choose("Measure", "Average score (valid judgments)");
     expect(
       screen.getByText(/gate averages finite scores from pass\/fail judgments only/),
     ).toBeTruthy();
@@ -76,7 +90,9 @@ describe("QualityGatesView", () => {
   it("defaults new metric rules to valid evidence with zero unusable judgments", () => {
     render(<QualityGatesView state={qualityGatesState({})} />);
     fireEvent.click(screen.getByRole("button", { name: "New gate" }));
-    expect((screen.getByLabelText("Evidence policy") as HTMLSelectElement).value).toBe("required");
+    expect(screen.getByLabelText("Evidence policy").textContent).toContain(
+      "Require valid evidence",
+    );
     expect(
       (screen.getByLabelText("Minimum valid cases for this metric") as HTMLInputElement).value,
     ).toBe("1");

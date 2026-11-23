@@ -179,9 +179,60 @@ function SelectScrollDownButton({
   );
 }
 
+type SelectFieldOption = { value: string; label: React.ReactNode };
+
+/**
+ * Single-value select built from the primitives above. `options` is also handed to the root as
+ * `items`, which is what lets the trigger show an option's label instead of its raw value.
+ */
+function SelectField({
+  id,
+  value,
+  onValueChange,
+  options,
+  size,
+  className,
+  disabled,
+  placeholder,
+  "aria-label": ariaLabel,
+}: {
+  id?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: SelectFieldOption[];
+  size?: "sm" | "default";
+  className?: string;
+  disabled?: boolean;
+  placeholder?: string;
+  "aria-label"?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next !== null) onValueChange(next);
+      }}
+      items={options}
+      disabled={disabled}
+    >
+      <SelectTrigger id={id} aria-label={ariaLabel} size={size} className={className}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent alignItemWithTrigger={false}>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export {
   Select,
   SelectContent,
+  SelectField,
   SelectGroup,
   SelectItem,
   SelectLabel,

@@ -9,7 +9,7 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { Field, FieldLabel } from "@lens/ui/components/field";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Table,
   TableBody,
@@ -85,18 +85,15 @@ export function EvaluationCompareView({ state }: { state: EvaluationCompareState
           />
           <Field>
             <FieldLabel>Quality gate</FieldLabel>
-            <NativeSelect
+            <SelectField
               disabled={!candidate}
               value={state.filters.gateId ?? ""}
-              onChange={(event) => state.setFilters({ gateId: event.target.value || undefined })}
-            >
-              <NativeSelectOption value="">No gate</NativeSelectOption>
-              {compatibleGates.map((gate) => (
-                <NativeSelectOption key={gate.id} value={gate.id}>
-                  {gate.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onValueChange={(value) => state.setFilters({ gateId: value || undefined })}
+              options={[
+                { value: "", label: "No gate" },
+                ...compatibleGates.map((gate) => ({ value: gate.id, label: gate.name })),
+              ]}
+            />
           </Field>
         </CardContent>
       </Card>
@@ -199,18 +196,18 @@ function RunSelect(props: {
   return (
     <Field>
       <FieldLabel>{props.label}</FieldLabel>
-      <NativeSelect
+      <SelectField
         disabled={props.disabled}
         value={props.value ?? ""}
-        onChange={(event) => props.onChange(event.target.value || undefined)}
-      >
-        <NativeSelectOption value="">Select a run</NativeSelectOption>
-        {props.runs.map((run) => (
-          <NativeSelectOption key={run.id} value={run.id}>
-            {run.release ?? "Unreleased"} · {run.suiteName} · {formatTimestamp(run.startedAt)}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+        onValueChange={(value) => props.onChange(value || undefined)}
+        options={[
+          { value: "", label: "Select a run" },
+          ...props.runs.map((run) => ({
+            value: run.id,
+            label: `${run.release ?? "Unreleased"} · ${run.suiteName} · ${formatTimestamp(run.startedAt)}`,
+          })),
+        ]}
+      />
     </Field>
   );
 }

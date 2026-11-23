@@ -18,7 +18,7 @@ import {
 } from "@lens/ui/components/card";
 import { Field, FieldDescription, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import { ArrowRight, Check, Plus, Trash } from "@mynaui/icons-react";
 import { Link } from "@tanstack/react-router";
@@ -148,17 +148,18 @@ export function ProjectSettings({ state }: { state: ProjectSettingsState }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <Field className="w-full sm:flex-1">
                 <FieldLabel htmlFor="retention">Retention period</FieldLabel>
-                <NativeSelect
+                <SelectField
                   className="w-full"
                   id="retention"
                   value={retention}
-                  onChange={(event) => setRetention(event.target.value)}
-                >
-                  <NativeSelectOption value="7">7 days</NativeSelectOption>
-                  <NativeSelectOption value="30">30 days</NativeSelectOption>
-                  <NativeSelectOption value="90">90 days</NativeSelectOption>
-                  <NativeSelectOption value="unlimited">Unlimited</NativeSelectOption>
-                </NativeSelect>
+                  onValueChange={(value) => setRetention(value)}
+                  options={[
+                    { value: "7", label: "7 days" },
+                    { value: "30", label: "30 days" },
+                    { value: "90", label: "90 days" },
+                    { value: "unlimited", label: "Unlimited" },
+                  ]}
+                />
                 <FieldDescription>Expired data is removed asynchronously.</FieldDescription>
               </Field>
               <Button

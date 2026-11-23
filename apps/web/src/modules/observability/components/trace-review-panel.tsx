@@ -20,6 +20,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
+import { SelectField } from "@lens/ui/components/select";
 import { Textarea } from "@lens/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -300,17 +301,15 @@ function PromoteTraceButton(props: {
             <div className="grid max-h-[60vh] gap-3 overflow-y-auto p-1 sm:grid-cols-2">
               <Field className="sm:col-span-2">
                 <FieldLabel>Dataset draft</FieldLabel>
-                <select
-                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                <SelectField
+                  className="w-full"
                   value={datasetId}
-                  onChange={(event) => setDatasetId(event.target.value)}
-                >
-                  {drafts.map((dataset) => (
-                    <option key={dataset.id} value={dataset.id}>
-                      {dataset.name} · {dataset.draft?.version}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setDatasetId}
+                  options={drafts.map((dataset) => ({
+                    value: dataset.id,
+                    label: `${dataset.name} · ${dataset.draft?.version ?? ""}`,
+                  }))}
+                />
               </Field>
               <Field className="sm:col-span-2">
                 <FieldLabel>Case ID</FieldLabel>

@@ -23,7 +23,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldGroup, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { Spinner } from "@lens/ui/components/spinner";
 import {
   Table,
@@ -351,15 +351,16 @@ function RecalculationDialog(props: {
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="recalculation-scope">Scope</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="recalculation-scope"
               className="w-full"
               value={scope}
-              onChange={(event) => setScope(event.target.value as "all" | "range")}
-            >
-              <NativeSelectOption value="all">All history</NativeSelectOption>
-              <NativeSelectOption value="range">Date range</NativeSelectOption>
-            </NativeSelect>
+              onValueChange={(value) => setScope(value as "all" | "range")}
+              options={[
+                { value: "all", label: "All history" },
+                { value: "range", label: "Date range" },
+              ]}
+            />
           </Field>
           {scope === "range" ? (
             <Field>

@@ -32,7 +32,7 @@ import {
 } from "@lens/ui/components/dialog";
 import { Field, FieldLabel } from "@lens/ui/components/field";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import { ScrollArea } from "@lens/ui/components/scroll-area";
 import {
   Table,
@@ -461,14 +461,15 @@ function PromptContentFields(props: {
     <>
       <Field>
         <FieldLabel>Type</FieldLabel>
-        <NativeSelect
+        <SelectField
           aria-label="Type"
           value={props.type}
-          onChange={(event) => props.onTypeChange(event.target.value as PromptType)}
-        >
-          <NativeSelectOption value="text">Text template</NativeSelectOption>
-          <NativeSelectOption value="chat">Chat messages</NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onTypeChange(value as PromptType)}
+          options={[
+            { value: "text", label: "Text template" },
+            { value: "chat", label: "Chat messages" },
+          ]}
+        />
       </Field>
       {props.type === "text" ? (
         <Field>
@@ -488,7 +489,7 @@ function PromptContentFields(props: {
             const position = index + 1;
             return (
               <div key={row.rowId} className="flex items-start gap-2">
-                <NativeSelect
+                <SelectField
                   aria-label={`Role for message ${position}`}
                   value={row.message.role}
                   onChange={(event) =>
@@ -506,13 +507,8 @@ function PromptContentFields(props: {
                       ),
                     )
                   }
-                >
-                  {chatMessageRoles.map((role) => (
-                    <NativeSelectOption key={role} value={role}>
-                      {role}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                  options={chatMessageRoles.map((role) => ({ value: role, label: role }))}
+                />
                 <Textarea
                   rows={2}
                   aria-label={`Content for message ${position}`}
@@ -865,15 +861,17 @@ function MoveLabelDialog(props: {
         {props.error ? <ErrorAlert error={props.error} /> : null}
         <Field>
           <FieldLabel>Version</FieldLabel>
-          <NativeSelect value={version} onChange={(event) => setVersion(event.target.value)}>
-            <NativeSelectOption value="">Select a version</NativeSelectOption>
-            {props.versions.map((item) => (
-              <NativeSelectOption key={item.version} value={String(item.version)}>
-                v{item.version}
-                {item.changeMessage ? ` · ${item.changeMessage}` : ""}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <SelectField
+            value={version}
+            onValueChange={setVersion}
+            options={[
+              { value: "", label: "Select a version" },
+              ...props.versions.map((item) => ({
+                value: String(item.version),
+                label: `v${item.version}${item.changeMessage ? ` · ${item.changeMessage}` : ""}`,
+              })),
+            ]}
+          />
         </Field>
         <DialogFooter showCloseButton>
           <Button

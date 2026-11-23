@@ -7,7 +7,7 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lens/ui/components/card";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -310,18 +310,19 @@ function RunNavigation(props: {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <NativeSelect
+          <SelectField
             className="h-8 w-36"
             aria-label="Filter case outcome"
             value={outcome}
-            onChange={(event) => setOutcome(event.target.value as EvaluationOutcome | "all")}
-          >
-            <NativeSelectOption value="all">All outcomes</NativeSelectOption>
-            <NativeSelectOption value="fail">Failed</NativeSelectOption>
-            <NativeSelectOption value="invalid">Invalid</NativeSelectOption>
-            <NativeSelectOption value="unknown">Unknown</NativeSelectOption>
-            <NativeSelectOption value="pass">Passed</NativeSelectOption>
-          </NativeSelect>
+            onValueChange={(value) => setOutcome(value as EvaluationOutcome | "all")}
+            options={[
+              { value: "all", label: "All outcomes" },
+              { value: "fail", label: "Failed" },
+              { value: "invalid", label: "Invalid" },
+              { value: "unknown", label: "Unknown" },
+              { value: "pass", label: "Passed" },
+            ]}
+          />
         </div>
         <Card className="overflow-hidden">
           {visibleCases.length ? (

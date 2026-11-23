@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@lens/ui/components/dropdown-menu";
 import { Input } from "@lens/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@lens/ui/components/native-select";
+import { SelectField } from "@lens/ui/components/select";
 import {
   Pagination,
   PaginationContent,
@@ -492,17 +492,16 @@ function ExplorerPagination(props: {
         {props.data ? `${formatNumber(props.data.total)} ${props.noun}` : `Loading ${props.noun}`}
       </span>
       <div className="flex items-center gap-3">
-        <NativeSelect
+        <SelectField
           aria-label="Rows per page"
           value={String(props.pageSize)}
-          onChange={(event) =>
-            props.onChange({ pageSize: Number(event.target.value) as 25 | 50 | 100 })
-          }
-        >
-          <NativeSelectOption value="25">25 rows</NativeSelectOption>
-          <NativeSelectOption value="50">50 rows</NativeSelectOption>
-          <NativeSelectOption value="100">100 rows</NativeSelectOption>
-        </NativeSelect>
+          onValueChange={(value) => props.onChange({ pageSize: Number(value) as 25 | 50 | 100 })}
+          options={[
+            { value: "25", label: "25 rows" },
+            { value: "50", label: "50 rows" },
+            { value: "100", label: "100 rows" },
+          ]}
+        />
         <span className="whitespace-nowrap">
           Page {props.page} of {Math.max(1, props.data?.pageCount ?? 1)}
         </span>
