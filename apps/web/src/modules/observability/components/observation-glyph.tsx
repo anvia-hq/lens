@@ -5,7 +5,7 @@ import { observationIcon } from "../utils/observation-icon";
 export function ObservationGlyph(props: {
   kind: ObservationKind;
   status?: TraceStatus;
-  size?: "small" | "large";
+  size?: "small" | "medium" | "large";
 }) {
   const Icon = observationIcon(props.kind);
   const tone =
@@ -17,6 +17,7 @@ export function ObservationGlyph(props: {
       className={cn(
         "relative z-10 grid size-4 shrink-0 place-items-center rounded-sm [&_svg]:size-2.5",
         tone,
+        props.size === "medium" && "size-6 rounded-md [&_svg]:size-3.5",
         props.size === "large" && "size-9 rounded-lg [&_svg]:size-4",
       )}
     >

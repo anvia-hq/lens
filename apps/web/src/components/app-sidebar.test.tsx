@@ -2,10 +2,11 @@
 
 import { SidebarProvider } from "@lens/ui/components/sidebar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppSidebar } from "./app-sidebar";
+import { GITHUB_PROMO_DISMISSED_KEY } from "./github-star-banner";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children?: ReactNode; to: string }) => (
@@ -27,6 +28,10 @@ vi.mock("../modules/observability/hooks/use-alerts", () => ({
 vi.mock("../modules/projects/hooks/use-project", () => ({
   useProject: () => ({ project: { id: "project-alpha" } }),
 }));
+
+beforeEach(() => {
+  window.localStorage.removeItem(GITHUB_PROMO_DISMISSED_KEY);
+});
 
 afterEach(cleanup);
 
@@ -61,5 +66,30 @@ describe("AppSidebar prompt management navigation", () => {
     expect(within(promptGroup as HTMLElement).getByText("Prompts")).toBeTruthy();
     expect(within(evaluationGroup as HTMLElement).queryByText("Prompts")).toBeNull();
     expect(screen.getByText("Prompts").closest("a")?.dataset.route).toBe("/$projectId/prompts");
+  });
+
+  it("lets the user dismiss the GitHub star promo and remembers the dismissal", () => {
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SidebarProvider>
+          <AppSidebar user={{ name: "Ada", email: "ada@example.com" }} />
+        </SidebarProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Enjoying Anvia Lens?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss GitHub star prompt" }));
+    expect(screen.queryByText("Enjoying Anvia Lens?")).toBeNull();
+    expect(window.localStorage.getItem(GITHUB_PROMO_DISMISSED_KEY)).toBe("1");
+
+    unmount();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SidebarProvider>
+          <AppSidebar user={{ name: "Ada", email: "ada@example.com" }} />
+        </SidebarProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByText("Enjoying Anvia Lens?")).toBeNull();
   });
 });
