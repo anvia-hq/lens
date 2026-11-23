@@ -101,7 +101,9 @@ function MachineSection({ machine }: { machine: SystemHealth["machine"] }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-medium">Machine resources</h2>
-          <p className="text-sm text-muted-foreground">Live values from the Linux host collector</p>
+          <p className="text-base text-muted-foreground">
+            Live values from the Linux host collector
+          </p>
         </div>
         <StatusBadge status={machine.status} />
       </div>
@@ -362,7 +364,10 @@ function IngestionSection({ ingestion }: { ingestion: SystemHealth["ingestion"] 
           ) : (
             <div className="grid gap-2">
               {ingestion.rejected.map((entry) => (
-                <div key={entry.reason} className="flex items-center justify-between gap-3 text-sm">
+                <div
+                  key={entry.reason}
+                  className="flex items-center justify-between gap-3 text-base"
+                >
                   <span className="font-mono text-xs">{entry.reason}</span>
                   <span className="tabular-nums">{entry.count.toLocaleString()}</span>
                 </div>
@@ -502,7 +507,7 @@ function ResourceCard({
           {status === "healthy" ? null : <StatusBadge status={status} compact />}
         </div>
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
+        <CardTitle className="text-xl tabular-nums">{value}</CardTitle>
       </CardHeader>
       <CardContent className="mt-auto grid gap-2">
         <div className="h-1.5">

@@ -34,7 +34,7 @@ export function UserDetailView({ state }: { state: UserDetailState }) {
       <div className="border-b px-4 py-4 md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="break-all font-mono text-lg font-semibold">{userId}</h1>
+            <h1 className="break-all font-mono text-xl font-medium">{userId}</h1>
             {summary ? (
               <p className="mt-1 text-base text-muted-foreground">
                 First seen {formatTimestamp(summary.firstSeenAt)} · Last seen{" "}
@@ -170,7 +170,7 @@ function MetricCard(props: { label: string; value: string; detail?: string }) {
         <CardTitle className="text-xs text-muted-foreground">{props.label}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="font-heading text-xl font-semibold">{props.value}</div>
+        <div className="font-heading text-xl font-medium tabular-nums">{props.value}</div>
         {props.detail ? (
           <div className="mt-1 text-xs text-muted-foreground">{props.detail}</div>
         ) : null}

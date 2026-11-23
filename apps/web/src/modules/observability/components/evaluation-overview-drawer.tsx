@@ -138,7 +138,7 @@ function SummaryCard(props: { label: string; value: string }) {
     <Card size="sm">
       <CardContent className="grid gap-1">
         <span className="text-xs text-muted-foreground">{props.label}</span>
-        <span className="font-heading text-2xl font-medium tabular-nums">{props.value}</span>
+        <span className="font-heading text-xl font-medium tabular-nums">{props.value}</span>
       </CardContent>
     </Card>
   );

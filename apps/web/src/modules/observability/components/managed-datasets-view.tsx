@@ -214,7 +214,7 @@ export function ManagedDatasetDetailView({ state }: { state: ManagedDatasetDetai
               <span className="sr-only">Back to datasets</span>
             </Button>
             <div className="grid min-w-0 gap-1">
-              <h1 className="text-lg font-semibold tracking-tight">{dataset.name}</h1>
+              <h1 className="font-heading text-xl font-medium tracking-tight">{dataset.name}</h1>
               <p className="text-xs text-muted-foreground">
                 {dataset.description ?? "No description"}
               </p>

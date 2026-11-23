@@ -244,7 +244,7 @@ export function PromptDetailView({ state }: { state: PromptDetailState }) {
               <span className="sr-only">Back to prompts</span>
             </Button>
             <div className="grid min-w-0 gap-1">
-              <h1 className="text-lg font-semibold tracking-tight">{prompt.name}</h1>
+              <h1 className="font-heading text-xl font-medium tracking-tight">{prompt.name}</h1>
               <p className="text-xs text-muted-foreground">
                 {prompt.description ?? "No description"}
               </p>
@@ -492,16 +492,13 @@ function PromptContentFields(props: {
                 <SelectField
                   aria-label={`Role for message ${position}`}
                   value={row.message.role}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     props.onMessagesChange(
                       props.messages.map((item) =>
                         item.rowId === row.rowId
                           ? {
                               ...item,
-                              message: {
-                                ...item.message,
-                                role: event.target.value as ChatMessageRole,
-                              },
+                              message: { ...item.message, role: value as ChatMessageRole },
                             }
                           : item,
                       ),

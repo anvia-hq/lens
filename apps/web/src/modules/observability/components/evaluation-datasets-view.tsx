@@ -186,7 +186,7 @@ export function ObservedDatasetDetailView({ state }: { state: ObservedDatasetDet
             </Button>
             <div className="grid min-w-0 gap-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight">{detail.name}</h1>
+                <h1 className="font-heading text-xl font-medium tracking-tight">{detail.name}</h1>
                 <Badge variant="outline">{detail.selectedVersion.status}</Badge>
               </div>
               <p className="text-xs text-muted-foreground">

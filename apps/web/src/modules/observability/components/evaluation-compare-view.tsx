@@ -232,7 +232,7 @@ function RunIdentityCard(props: {
       />
       <span
         className={cn(
-          "absolute top-4 right-4 z-10 font-heading text-base font-semibold",
+          "absolute top-4 right-4 z-10 font-heading text-base font-medium",
           candidate ? "text-status-success" : "text-muted-foreground",
         )}
       >
@@ -336,7 +336,7 @@ function DeltaCard(props: {
     <Card size="sm">
       <CardContent className="grid gap-1">
         <p className="text-xs text-muted-foreground">{props.label}</p>
-        <p className="text-xl font-semibold tabular-nums">{format(props.value.candidate)}</p>
+        <p className="text-xl font-medium tabular-nums">{format(props.value.candidate)}</p>
         <p className="text-xs text-muted-foreground">Baseline {format(props.value.baseline)}</p>
         <p
           className={cn(

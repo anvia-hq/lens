@@ -79,7 +79,9 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
             </Button>
             <div className="grid min-w-0 gap-1">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="truncate text-lg font-semibold tracking-tight">{run.suiteName}</h1>
+                <h1 className="truncate font-heading text-xl font-medium tracking-tight">
+                  {run.suiteName}
+                </h1>
                 <EvaluationRunStatusBadge status={run.status} />
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
