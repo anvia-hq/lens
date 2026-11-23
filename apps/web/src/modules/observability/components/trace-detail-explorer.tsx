@@ -70,6 +70,7 @@ export function TraceDetailExplorer(props: {
             collapsed={collapsed}
             detail={props.detail}
             forest={forest}
+            projectId={props.projectId}
             search={search}
             selectedSpan={props.selectedSpan}
             selectedSpanError={props.selectedSpanError}
@@ -110,6 +111,7 @@ export function TraceDetailExplorer(props: {
                 collapsed={collapsed}
                 detail={props.detail}
                 forest={forest}
+                projectId={props.projectId}
                 search={search}
                 selectedSpanId={props.selectedSpanId}
                 view={props.view}

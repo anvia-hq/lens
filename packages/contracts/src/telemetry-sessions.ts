@@ -1,5 +1,5 @@
 import type { FacetValue, JsonValue } from "./shared.js";
-import type { ObservationKind } from "./telemetry-spans.js";
+import type { ObservationKind, TraceSpanSummary } from "./telemetry-spans.js";
 import type { TraceSummary } from "./telemetry-traces.js";
 
 export const sessionStatuses = ["running", "success", "error"] as const;
@@ -41,6 +41,7 @@ export type SessionTurn = {
   trace: TraceSummary;
   prompt: SessionTurnPayload | null;
   response: SessionTurnPayload | null;
+  spans?: TraceSpanSummary[];
 };
 
 export type SessionDetail = {

@@ -6,10 +6,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { lazy, Suspense, useMemo, useRef } from "react";
 import type { SpanTreeNode, TraceSpanView } from "../types";
 import { flattenSpanForest, searchTraceSpans, toggleCollapsed } from "../utils/trace-detail";
+import { buildTrajectoryTurn } from "../utils/trajectory";
 import { observeVirtualElementRect } from "../utils/virtualization";
 import { SearchResults } from "./search-results";
 import { SpanTimeline } from "./span-timeline";
 import { SpanTreeRow } from "./span-tree-row";
+import { TrajectoryView } from "./trajectory-view";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 const TraceGraph = lazy(() => import("./trace-graph"));
@@ -18,6 +20,7 @@ export function TraceNavigator(props: {
   collapsed: Set<string>;
   detail: TraceDetail;
   forest: SpanTreeNode[];
+  projectId?: string;
   allowGraph?: boolean;
   hideModeSwitch?: boolean;
   search: string;
@@ -28,6 +31,10 @@ export function TraceNavigator(props: {
   onSelectSpan: (id: string) => void;
   onViewChange: (view: TraceSpanView) => void;
 }) {
+  const trajectoryTurn = useMemo(
+    () => buildTrajectoryTurn({ trace: props.detail.summary, spans: props.detail.spans }),
+    [props.detail.spans, props.detail.summary],
+  );
   const rows = useMemo(
     () => flattenSpanForest(props.forest, props.collapsed),
     [props.collapsed, props.forest],
@@ -71,7 +78,7 @@ export function TraceNavigator(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
           />
         </div>
-        {props.view === "graph" ? null : (
+        {props.view === "graph" || props.view === "trajectory" ? null : (
           <Button
             aria-label={everythingCollapsed ? "Expand all spans" : "Collapse all spans"}
             title={everythingCollapsed ? "Expand all" : "Collapse all"}
@@ -91,7 +98,18 @@ export function TraceNavigator(props: {
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
-        {props.view === "graph" ? (
+        {props.view === "trajectory" ? (
+          <div className="h-full overflow-auto overscroll-contain">
+            <TrajectoryView
+              mode="trace"
+              projectId={props.projectId ?? props.detail.summary.projectId}
+              search={props.search}
+              selectedSpanId={props.selectedSpanId}
+              turns={[trajectoryTurn]}
+              onSelectSpan={(_traceId, spanId) => props.onSelectSpan(spanId)}
+            />
+          </div>
+        ) : props.view === "graph" ? (
           <Suspense
             fallback={
               <div className="grid h-full place-items-center text-sm text-muted-foreground">

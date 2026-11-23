@@ -53,6 +53,37 @@ describe("trace table selection", () => {
     expect(traceHeader?.getAttribute("aria-sort")).toBe("ascending");
     expect(startedHeader?.getAttribute("aria-sort")).toBeNull();
   });
+
+  it("renders input/output previews and triggers onPeekTrace on row click without firing on checkbox", () => {
+    const onPeekTrace = vi.fn();
+    const onTraceSelectionChange = vi.fn();
+    render(
+      <ProjectContext.Provider value={{ project, projects: [project] }}>
+        <TraceDataTable
+          traces={[
+            {
+              ...trace(),
+              inputPreview: "Investigate checkout failure",
+              outputPreview: "Fixed autocomplete state sync",
+            },
+          ]}
+          selectedTraceIds={[]}
+          onTraceSelectionChange={onTraceSelectionChange}
+          onPeekTrace={onPeekTrace}
+        />
+      </ProjectContext.Provider>,
+    );
+
+    expect(screen.getByText("Investigate checkout failure")).toBeTruthy();
+    expect(screen.getByText("Fixed autocomplete state sync")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select support-agent" }));
+    expect(onTraceSelectionChange).toHaveBeenCalledWith("trace-5", true);
+    expect(onPeekTrace).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Investigate checkout failure"));
+    expect(onPeekTrace).toHaveBeenCalledWith("trace-5");
+  });
 });
 
 const project: ProjectWithRole = {

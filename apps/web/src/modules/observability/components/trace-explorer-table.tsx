@@ -59,6 +59,8 @@ export function TraceExplorerTable(props: {
   onVisibleSelectionChange?: (traceIds: string[], selected: boolean) => void;
   onDelete?: (ids: string[]) => void;
   canManage?: boolean;
+  activeTraceId?: string;
+  onPeekTrace?: (traceId: string) => void;
   actions?: ReactNode;
 }) {
   const sort = (field: TraceSortField) =>
@@ -171,6 +173,8 @@ export function TraceExplorerTable(props: {
             onTraceSelectionChange={props.onTraceSelectionChange}
             onVisibleSelectionChange={props.onVisibleSelectionChange}
             onDelete={props.canManage ? (traceId) => props.onDelete?.([traceId]) : undefined}
+            activeTraceId={props.activeTraceId}
+            onPeekTrace={props.onPeekTrace}
           />
         ) : (
           <EmptyState

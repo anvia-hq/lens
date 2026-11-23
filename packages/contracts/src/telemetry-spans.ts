@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jobSchemaVersion } from "./job-schema.js";
+import type { FacetValue } from "./shared.js";
 
 export const observationKinds = [
   "span",
@@ -102,4 +103,107 @@ export type TraceSpanSummary = Pick<
   | "model"
   | "totalTokens"
   | "totalCost"
->;
+> & {
+  statusMessage?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  inputPreview?: string | null;
+  outputPreview?: string | null;
+  hasInput?: boolean;
+  hasOutput?: boolean;
+};
+
+export type RunListItem = {
+  projectId: string;
+  traceId: string;
+  spanId: string;
+  parentSpanId: string | null;
+  name: string;
+  traceName: string | null;
+  observationKind: ObservationKind;
+  status: SpanStatus;
+  statusMessage: string;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  serviceName: string;
+  model: string | null;
+  environment: string;
+  release: string | null;
+  version: string | null;
+  serviceVersion: string | null;
+  userId: string | null;
+  sessionId: string | null;
+  tags: string[];
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  inputCost: number | null;
+  outputCost: number | null;
+  totalCost: number | null;
+  inputPreview: string | null;
+  outputPreview: string | null;
+};
+
+export type RunFilters = {
+  from?: string;
+  to?: string;
+  observationKinds?: ObservationKind[];
+  statuses?: SpanStatus[];
+  services?: string[];
+  names?: string[];
+  models?: string[];
+  environments?: string[];
+  releases?: string[];
+  versions?: string[];
+  serviceVersions?: string[];
+  tags?: string[];
+  userId?: string;
+  sessionId?: string;
+  traceId?: string;
+  search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+};
+
+export const runSortFields = [
+  "startedAt",
+  "endedAt",
+  "name",
+  "observationKind",
+  "status",
+  "durationMs",
+  "serviceName",
+  "model",
+  "environment",
+  "release",
+  "version",
+  "serviceVersion",
+  "userId",
+  "sessionId",
+  "traceId",
+  "inputTokens",
+  "outputTokens",
+  "totalTokens",
+  "inputCost",
+  "outputCost",
+  "totalCost",
+] as const;
+export type RunSortField = (typeof runSortFields)[number];
+
+export type RunFacets = {
+  observationKind: FacetValue[];
+  status: FacetValue[];
+  service: FacetValue[];
+  name: FacetValue[];
+  model: FacetValue[];
+  environment: FacetValue[];
+  release: FacetValue[];
+  version: FacetValue[];
+  serviceVersion: FacetValue[];
+  tag: FacetValue[];
+};

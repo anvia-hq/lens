@@ -7,7 +7,7 @@ export function SessionNameCell({ session }: { session: SessionSummary }) {
   return (
     <Link
       className="font-mono font-medium hover:underline"
-      to="/$projectId/sessions/$sessionId"
+      to="/$projectId/threads/$sessionId"
       params={{ projectId: project.id, sessionId: session.sessionId }}
     >
       {session.sessionId}

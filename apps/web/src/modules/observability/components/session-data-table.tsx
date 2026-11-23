@@ -118,9 +118,9 @@ export function SessionDataTable(props: {
                     ) : (
                       <Link
                         className="-m-2 block p-2 text-inherit"
-                        to="/$projectId/sessions/$sessionId"
+                        to="/$projectId/threads/$sessionId"
                         params={{ projectId: project.id, sessionId: row.original.sessionId }}
-                        aria-label={`Open session ${row.original.sessionId}`}
+                        aria-label={`Open thread ${row.original.sessionId}`}
                       >
                         {content}
                       </Link>

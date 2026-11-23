@@ -5,8 +5,11 @@ import type {
   EvaluationSortField,
   EvaluationSource,
   MetricsRangePreset,
+  ObservationKind,
+  RunSortField,
   SessionSortField,
   SessionStatus,
+  SpanStatus,
   TraceSortField,
   TraceSpanSummary,
   TraceStatus,
@@ -20,7 +23,7 @@ export type AlertsSearch = {
   page: number;
 };
 
-export type TraceSpanView = "tree" | "timeline" | "graph";
+export type TraceSpanView = "trajectory" | "tree" | "timeline" | "graph";
 export type TracePayloadView = "formatted" | "json";
 
 export type SpanTreeNode = {
@@ -208,6 +211,8 @@ export const traceColumnIds = [
   "startedAt",
   "trace",
   "status",
+  "inputPreview",
+  "outputPreview",
   "review",
   "durationMs",
   "totalCost",
@@ -238,15 +243,95 @@ export const defaultTraceColumns: TraceColumnId[] = [
   "startedAt",
   "trace",
   "status",
-  "review",
+  "inputPreview",
+  "outputPreview",
   "durationMs",
   "totalCost",
   "model",
   "totalTokens",
   "environment",
-  "userId",
   "sessionId",
 ];
+
+export const runColumnIds = [
+  "startedAt",
+  "observationKind",
+  "name",
+  "status",
+  "inputPreview",
+  "outputPreview",
+  "durationMs",
+  "model",
+  "totalTokens",
+  "totalCost",
+  "serviceName",
+  "environment",
+  "traceId",
+  "userId",
+  "sessionId",
+  "inputTokens",
+  "outputTokens",
+  "inputCost",
+  "outputCost",
+  "release",
+  "version",
+  "serviceVersion",
+  "tags",
+  "endedAt",
+] as const;
+
+export type RunColumnId = (typeof runColumnIds)[number];
+
+export const defaultRunColumns: RunColumnId[] = [
+  "startedAt",
+  "observationKind",
+  "name",
+  "status",
+  "inputPreview",
+  "outputPreview",
+  "durationMs",
+  "model",
+  "totalTokens",
+  "totalCost",
+  "traceId",
+];
+
+export type RunsSearch = {
+  range: MetricsRangePreset;
+  observationKinds?: ObservationKind[];
+  statuses?: SpanStatus[];
+  services?: string[];
+  names?: string[];
+  models?: string[];
+  environments?: string[];
+  releases?: string[];
+  versions?: string[];
+  serviceVersions?: string[];
+  tags?: string[];
+  userId?: string;
+  sessionId?: string;
+  traceId?: string;
+  search?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  minTotalTokens?: number;
+  maxTotalTokens?: number;
+  minTotalCost?: number;
+  maxTotalCost?: number;
+  sort?: RunSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  columns?: RunColumnId[];
+};
+
+export type ResolvedRunsSearch = RunsSearch & {
+  sort: RunSortField;
+  order: "asc" | "desc";
+  page: number;
+  pageSize: 25 | 50 | 100;
+  columns: RunColumnId[];
+};
 
 export type TracesSearch = {
   range: MetricsRangePreset;

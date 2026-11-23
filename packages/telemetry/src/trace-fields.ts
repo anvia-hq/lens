@@ -14,6 +14,9 @@ export function classifySpan(
   if (hasPrefix(attributes, "anvia.run.") || hasPrefix(attributes, "anvia.child_agent.")) {
     return "agent";
   }
+  if (hasPrefix(attributes, "anvia.pipeline.")) {
+    return "chain";
+  }
   const operation = stringAttribute(attributes, "gen_ai.operation.name")?.toLowerCase();
   if (operation?.includes("tool")) return "tool";
   if (operation !== undefined || hasPrefix(attributes, "gen_ai.request.")) return "generation";
@@ -120,7 +123,13 @@ export function extractedInput(
         ]
       : kind === "tool"
         ? ["langfuse.observation.input", "langfuse.trace.input", "anvia.tool.args"]
-        : ["langfuse.observation.input", "langfuse.trace.input", "anvia.run.prompt"];
+        : [
+            "langfuse.observation.input",
+            "langfuse.trace.input",
+            "anvia.run.prompt",
+            "anvia.pipeline.stage.input",
+            "anvia.pipeline.input",
+          ];
   return firstPayload(attributes, keys);
 }
 
@@ -139,7 +148,16 @@ export function extractedOutput(
         ]
       : kind === "tool"
         ? ["langfuse.observation.output", "langfuse.trace.output", "anvia.tool.result"]
-        : ["langfuse.observation.output", "langfuse.trace.output", "anvia.run.output"];
+        : [
+            "langfuse.observation.output",
+            "langfuse.trace.output",
+            "anvia.run.output",
+            "anvia.run.text",
+            "anvia.child_agent.output",
+            "anvia.child_agent.text",
+            "anvia.pipeline.stage.output",
+            "anvia.pipeline.output",
+          ];
   return firstPayload(attributes, keys);
 }
 

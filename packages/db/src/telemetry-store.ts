@@ -16,9 +16,11 @@ import type {
   TraceSummary,
 } from "@lens/contracts";
 import { listEvaluationsForTrace, listHumanReviewOutcomes } from "./evaluation-store.js";
-import { type SummaryRow, summaryFromRow } from "./trace-summary.js";
+import { extractPayloadPreview } from "./payload-preview.js";
+import { clickHouseToNano, type SummaryRow, summaryFromRow } from "./trace-summary.js";
 import { clickHouseDateTimeParam, ensureIso, nullableNumeric, numeric } from "./values.js";
 
+export { listRunFacets, listRuns } from "./run-store.js";
 export { getSession, listSessionFacets, listSessions } from "./session-store.js";
 export { type SummaryRow, summaryFromRow } from "./trace-summary.js";
 export { getUser, listUsers } from "./user-store.js";
@@ -74,14 +76,22 @@ type TraceSpanSummaryRow = Pick<
   | "name"
   | "observation_kind"
   | "status"
+  | "status_message"
   | "start_time"
   | "end_time"
   | "duration_nano"
   | "service_name"
   | "model"
+  | "input_tokens"
+  | "output_tokens"
   | "total_tokens"
   | "total_cost"
->;
+> & {
+  has_input: number | string;
+  has_output: number | string;
+  input_snippet: string | null;
+  output_snippet: string | null;
+};
 
 export async function insertSpans(
   client: ClickHouseClient,
@@ -171,9 +181,9 @@ export async function materializeTrace(
             (
               project_id, trace_id, name, service_name, status, started_at, ended_at, duration_ms,
               span_count, generation_count, tool_count, error_count, user_id, session_id, tags,
-              model, environment, release, version, service_version, input_tokens, output_tokens,
-              total_tokens, input_cost, output_cost, total_cost, last_seen_at, expires_at,
-              summary_version
+              model, input_preview, output_preview, environment, release, version, service_version,
+              input_tokens, output_tokens, total_tokens, input_cost, output_cost, total_cost,
+              last_seen_at, expires_at, summary_version
             )
             SELECT
               span.project_id,
@@ -192,6 +202,36 @@ export async function materializeTrace(
               ${representativeNullable("span.session_id")} AS session_id,
               ${orderedTags} AS tags,
               ${firstNonNull("span.model")} AS model,
+              nullIf(
+                substringUTF8(
+                  multiIf(
+                    countIf(span.parent_span_id = '' AND span.input IS NOT NULL) > 0,
+                      argMinIf(ifNull(span.input, ''), ${order}, span.parent_span_id = '' AND span.input IS NOT NULL),
+                    countIf(span.input IS NOT NULL) > 0,
+                      argMinIf(ifNull(span.input, ''), ${order}, span.input IS NOT NULL),
+                    ''
+                  ),
+                  1,
+                  2048
+                ),
+                ''
+              ) AS input_preview,
+              nullIf(
+                substringUTF8(
+                  multiIf(
+                    countIf(span.parent_span_id = '' AND span.output IS NOT NULL) > 0,
+                      argMaxIf(ifNull(span.output, ''), ${order}, span.parent_span_id = '' AND span.output IS NOT NULL),
+                    countIf(span.output IS NOT NULL AND span.observation_kind NOT IN ('tool', 'event')) > 0,
+                      argMaxIf(ifNull(span.output, ''), ${order}, span.output IS NOT NULL AND span.observation_kind NOT IN ('tool', 'event')),
+                    countIf(span.output IS NOT NULL) > 0,
+                      argMaxIf(ifNull(span.output, ''), ${order}, span.output IS NOT NULL),
+                    ''
+                  ),
+                  1,
+                  2048
+                ),
+                ''
+              ) AS output_preview,
               if(empty(${representative("span.environment")}), 'default', ${representative("span.environment")}) AS environment,
               ${representativeNullable("span.release")} AS release,
               ${representativeNullable("span.version")} AS version,
@@ -647,8 +687,12 @@ async function readTraceSpanSummaryRows(
     spanLimit === undefined ? undefined : Math.max(1, Math.min(1_000, Math.trunc(spanLimit)));
   const result = await client.query({
     query: `SELECT trace_id, span_id, parent_span_id, name, observation_kind, status,
-                   start_time, end_time, toString(duration_nano) AS duration_nano,
-                   service_name, model, total_tokens, total_cost
+                   status_message, start_time, end_time, toString(duration_nano) AS duration_nano,
+                   service_name, model, input_tokens, output_tokens, total_tokens, total_cost,
+                   input IS NOT NULL AS has_input,
+                   output IS NOT NULL AS has_output,
+                   if(input IS NULL, NULL, substringUTF8(input, 1, 4096)) AS input_snippet,
+                   if(output IS NULL, NULL, substringUTF8(output, 1, 4096)) AS output_snippet
             FROM spans FINAL
             WHERE project_id = {projectId:UUID} AND trace_id = {traceId:String}
             ORDER BY start_time ASC, span_id ASC${limit === undefined ? "" : "\n            LIMIT {spanLimit:UInt16}"}`,
@@ -658,7 +702,10 @@ async function readTraceSpanSummaryRows(
   return result.json<TraceSpanSummaryRow>();
 }
 
-function traceSpanSummaryFromRow(row: TraceSpanSummaryRow): TraceSpanSummary {
+const MAX_TRAJECTORY_PREVIEW_SPANS = 500;
+
+function traceSpanSummaryFromRow(row: TraceSpanSummaryRow, index: number): TraceSpanSummary {
+  const includePreview = index < MAX_TRAJECTORY_PREVIEW_SPANS;
   return {
     traceId: row.trace_id,
     spanId: row.span_id,
@@ -666,13 +713,22 @@ function traceSpanSummaryFromRow(row: TraceSpanSummaryRow): TraceSpanSummary {
     name: row.name,
     observationKind: row.observation_kind,
     status: row.status,
+    statusMessage: row.status_message,
     startTimeUnixNano: clickHouseToNano(row.start_time),
     endTimeUnixNano: clickHouseToNano(row.end_time),
     durationNano: String(row.duration_nano),
     serviceName: row.service_name,
     model: row.model,
+    inputTokens: numeric(row.input_tokens),
+    outputTokens: numeric(row.output_tokens),
     totalTokens: numeric(row.total_tokens),
     totalCost: nullableNumeric(row.total_cost),
+    hasInput: numeric(row.has_input) > 0,
+    hasOutput: numeric(row.has_output) > 0,
+    inputPreview: includePreview ? extractPayloadPreview(row.input_snippet, "input", 1_024) : null,
+    outputPreview: includePreview
+      ? extractPayloadPreview(row.output_snippet, "output", 1_024)
+      : null,
   };
 }
 
@@ -744,11 +800,4 @@ function nanoToClickHouse(value: string): string {
   const nanos = (nanoseconds % 1_000_000_000n).toString().padStart(9, "0");
   const base = new Date(Number(milliseconds)).toISOString().slice(0, 19).replace("T", " ");
   return `${base}.${nanos}`;
-}
-
-function clickHouseToNano(value: string): string {
-  const normalized = value.replace(" ", "T");
-  const [whole = normalized, fraction = "0"] = normalized.split(".");
-  const seconds = BigInt(Math.floor(Date.parse(`${whole}Z`) / 1_000));
-  return (seconds * 1_000_000_000n + BigInt(fraction.padEnd(9, "0").slice(0, 9))).toString();
 }

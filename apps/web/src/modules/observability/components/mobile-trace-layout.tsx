@@ -9,6 +9,7 @@ export function MobileTraceLayout(props: {
   collapsed: Set<string>;
   detail: TraceDetail;
   forest: SpanTreeNode[];
+  projectId?: string;
   search: string;
   selectedSpan?: SpanDetail;
   selectedSpanError?: Error | null;
@@ -22,11 +23,14 @@ export function MobileTraceLayout(props: {
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2" role="tablist">
-        {(["tree", "timeline", "graph", "data"] as const).map((tab) => (
+      <div
+        className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b px-2"
+        role="tablist"
+      >
+        {(["trajectory", "tree", "timeline", "graph", "data"] as const).map((tab) => (
           <button
             className={cn(
-              "h-8 rounded-md px-3 text-sm font-medium capitalize text-muted-foreground",
+              "h-8 shrink-0 rounded-md px-3 text-sm font-medium capitalize text-muted-foreground",
               props.activeTab === tab && "bg-muted text-foreground",
             )}
             key={tab}
@@ -54,6 +58,7 @@ export function MobileTraceLayout(props: {
             detail={props.detail}
             forest={props.forest}
             hideModeSwitch
+            projectId={props.projectId}
             search={props.search}
             selectedSpanId={props.selectedSpanId}
             view={props.activeTab}

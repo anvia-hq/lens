@@ -1,5 +1,8 @@
 import type {
   MetricsRangePreset,
+  RunFacets,
+  RunListItem,
+  RunSortField,
   SessionFacets,
   SessionSortField,
   SessionStatus,
@@ -14,6 +17,7 @@ import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
 import { cn } from "@lens/ui/lib/utils";
 import { ArrowUpDown } from "@mynaui/icons-react";
+import { Link } from "@tanstack/react-router";
 import {
   createColumnHelper,
   createSortedRowModel,
@@ -21,6 +25,7 @@ import {
   tableFeatures,
 } from "@tanstack/react-table";
 import { CompactValues } from "../components/compact-values";
+import { ObservationGlyph } from "../components/observation-glyph";
 import { SessionNameCell } from "../components/session-name-cell";
 import { SessionOpenCell } from "../components/session-open-cell";
 import { SessionStatusBadge } from "../components/session-status-badge";
@@ -35,6 +40,7 @@ import {
   type RefreshInterval,
   type ResolvedSessionsSearch,
   type ResolvedTracesSearch,
+  type RunColumnId,
   type SessionColumnId,
   type SessionsSearch,
   sessionColumnIds,
@@ -50,7 +56,13 @@ export function validateOverviewSearch(search: Record<string, unknown>): Overvie
 
 export function validateTraceDetailSearch(search: Record<string, unknown>): TraceDetailSearch {
   return {
-    view: search.view === "timeline" || search.view === "graph" ? search.view : undefined,
+    view:
+      search.view === "trajectory" ||
+      search.view === "tree" ||
+      search.view === "timeline" ||
+      search.view === "graph"
+        ? search.view
+        : undefined,
     span: optionalSearchValue(search.span),
   };
 }
@@ -122,6 +134,7 @@ export const dataTableFeatures = tableFeatures({
   sortedRowModel: createSortedRowModel(),
 });
 export const traceColumnHelper = createColumnHelper<typeof dataTableFeatures, TraceSummary>();
+export const runColumnHelper = createColumnHelper<typeof dataTableFeatures, RunListItem>();
 export const sessionColumnHelper = createColumnHelper<typeof dataTableFeatures, SessionSummary>();
 
 export function traceTableColumns(options: {
@@ -158,6 +171,34 @@ export function traceTableColumns(options: {
     status: traceColumnHelper.accessor("status", {
       header: header("Status", "status"),
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    }),
+    inputPreview: traceColumnHelper.accessor("inputPreview", {
+      header: () => "Input",
+      cell: ({ row }) =>
+        row.original.inputPreview ? (
+          <span
+            className="block max-w-64 truncate text-xs text-muted-foreground"
+            title={row.original.inputPreview}
+          >
+            {row.original.inputPreview}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    }),
+    outputPreview: traceColumnHelper.accessor("outputPreview", {
+      header: () => "Output",
+      cell: ({ row }) =>
+        row.original.outputPreview ? (
+          <span
+            className="block max-w-64 truncate text-xs text-muted-foreground"
+            title={row.original.outputPreview}
+          >
+            {row.original.outputPreview}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     }),
     review: traceColumnHelper.accessor("reviewOutcome", {
       header: "Review",
@@ -204,7 +245,7 @@ export function traceTableColumns(options: {
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
     }),
     sessionId: traceColumnHelper.accessor("sessionId", {
-      header: header("Session", "sessionId"),
+      header: header("Thread", "sessionId"),
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.sessionId ?? "—"}</span>,
     }),
     serviceName: traceColumnHelper.accessor("serviceName", {
@@ -288,6 +329,194 @@ export function traceTableColumns(options: {
   ] as Parameters<typeof traceColumnHelper.columns>[0]);
 }
 
+export function runTableColumns(options: {
+  projectId: string;
+  visible: RunColumnId[];
+  sort?: RunSortField;
+  order?: "asc" | "desc";
+  onSort?: (sort: RunSortField) => void;
+}) {
+  const header = (label: string, sort: RunSortField) => () =>
+    options.onSort ? (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => options.onSort?.(sort)}
+        aria-label={`Sort by ${label}${options.sort === sort ? `, currently ${options.order}` : ""}`}
+      >
+        {label}
+        <ArrowUpDown className={cn(options.sort === sort && "text-primary")} />
+      </Button>
+    ) : (
+      label
+    );
+  const columnsById = {
+    startedAt: runColumnHelper.accessor("startedAt", {
+      header: header("Started", "startedAt"),
+      cell: ({ row }) => <TableTimestamp value={row.original.startedAt} />,
+    }),
+    observationKind: runColumnHelper.accessor("observationKind", {
+      header: header("Type", "observationKind"),
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <ObservationGlyph kind={row.original.observationKind} status={row.original.status} />
+          <span className="text-xs capitalize">{row.original.observationKind}</span>
+        </span>
+      ),
+    }),
+    name: runColumnHelper.accessor("name", {
+      header: header("Name", "name"),
+      cell: ({ row }) => (
+        <span className="block max-w-56 truncate font-medium" title={row.original.name}>
+          {row.original.name}
+        </span>
+      ),
+    }),
+    status: runColumnHelper.accessor("status", {
+      header: header("Status", "status"),
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    }),
+    inputPreview: runColumnHelper.accessor("inputPreview", {
+      header: () => "Input",
+      cell: ({ row }) =>
+        row.original.inputPreview ? (
+          <span
+            className="block max-w-64 truncate text-xs text-muted-foreground"
+            title={row.original.inputPreview}
+          >
+            {row.original.inputPreview}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    }),
+    outputPreview: runColumnHelper.accessor("outputPreview", {
+      header: () => "Output",
+      cell: ({ row }) =>
+        row.original.outputPreview ? (
+          <span
+            className="block max-w-64 truncate text-xs text-muted-foreground"
+            title={row.original.outputPreview}
+          >
+            {row.original.outputPreview}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    }),
+    durationMs: runColumnHelper.accessor("durationMs", {
+      header: header("Duration", "durationMs"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatListDuration(row.original.durationMs)}</span>
+      ),
+    }),
+    model: runColumnHelper.accessor("model", {
+      header: header("Model", "model"),
+      cell: ({ row }) => row.original.model ?? "—",
+    }),
+    totalTokens: runColumnHelper.accessor("totalTokens", {
+      header: header("Tokens", "totalTokens"),
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-mono text-xs">
+          {formatNumber(row.original.totalTokens)}
+          <span className="text-muted-foreground">
+            {` · ${formatNumber(row.original.inputTokens)} in · ${formatNumber(row.original.outputTokens)} out`}
+          </span>
+        </span>
+      ),
+    }),
+    totalCost: runColumnHelper.accessor("totalCost", {
+      header: header("Cost", "totalCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.totalCost)}</span>,
+    }),
+    serviceName: runColumnHelper.accessor("serviceName", {
+      header: header("Service", "serviceName"),
+    }),
+    environment: runColumnHelper.accessor("environment", {
+      header: header("Environment", "environment"),
+      cell: ({ row }) => <Badge variant="secondary">{row.original.environment}</Badge>,
+    }),
+    traceId: runColumnHelper.accessor("traceId", {
+      header: header("Trace", "traceId"),
+      cell: ({ row }) => (
+        <Link
+          className="whitespace-nowrap font-mono text-xs text-primary hover:underline"
+          to="/$projectId/traces/$traceId"
+          params={{ projectId: options.projectId, traceId: row.original.traceId }}
+          search={{ span: row.original.spanId }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {shortId(row.original.traceId)}
+        </Link>
+      ),
+    }),
+    userId: runColumnHelper.accessor("userId", {
+      header: header("User", "userId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.userId ?? "—"}</span>,
+    }),
+    sessionId: runColumnHelper.accessor("sessionId", {
+      header: header("Thread", "sessionId"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.sessionId ?? "—"}</span>,
+    }),
+    inputTokens: runColumnHelper.accessor("inputTokens", {
+      header: header("Input tokens", "inputTokens"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatNumber(row.original.inputTokens)}</span>
+      ),
+    }),
+    outputTokens: runColumnHelper.accessor("outputTokens", {
+      header: header("Output tokens", "outputTokens"),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatNumber(row.original.outputTokens)}</span>
+      ),
+    }),
+    inputCost: runColumnHelper.accessor("inputCost", {
+      header: header("Input cost", "inputCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.inputCost)}</span>,
+    }),
+    outputCost: runColumnHelper.accessor("outputCost", {
+      header: header("Output cost", "outputCost"),
+      cell: ({ row }) => <span className="font-mono">{formatCost(row.original.outputCost)}</span>,
+    }),
+    release: runColumnHelper.accessor("release", {
+      header: header("Release", "release"),
+      cell: ({ row }) => row.original.release ?? "—",
+    }),
+    version: runColumnHelper.accessor("version", {
+      header: header("Version", "version"),
+      cell: ({ row }) => row.original.version ?? "—",
+    }),
+    serviceVersion: runColumnHelper.accessor("serviceVersion", {
+      header: header("Service version", "serviceVersion"),
+      cell: ({ row }) => row.original.serviceVersion ?? "—",
+    }),
+    tags: runColumnHelper.accessor("tags", {
+      header: () => "Tags",
+      cell: ({ row }) => (
+        <div className="flex max-w-72 flex-wrap gap-1 whitespace-normal">
+          {row.original.tags.length === 0
+            ? "—"
+            : row.original.tags.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+        </div>
+      ),
+    }),
+    endedAt: runColumnHelper.accessor("endedAt", {
+      header: header("Ended", "endedAt"),
+      cell: ({ row }) => relativeTime(row.original.endedAt),
+    }),
+  };
+  return runColumnHelper.columns(
+    options.visible.map((column) => columnsById[column]) as Parameters<
+      typeof runColumnHelper.columns
+    >[0],
+  );
+}
+
 export function sessionTableColumns(options: {
   visible: SessionColumnId[];
   sort: SessionSortField;
@@ -313,7 +542,7 @@ export function sessionTableColumns(options: {
     }),
     session: sessionColumnHelper.accessor("sessionId", {
       id: "session",
-      header: header("Session", "sessionId"),
+      header: header("Thread", "sessionId"),
       cell: ({ row }) => <SessionNameCell session={row.original} />,
     }),
     status: sessionColumnHelper.accessor("status", {
@@ -380,6 +609,8 @@ export const traceColumnLabels: Record<TraceColumnId, string> = {
   startedAt: "Started",
   trace: "Trace",
   status: "Status",
+  inputPreview: "Input",
+  outputPreview: "Output",
   review: "Review",
   durationMs: "Duration",
   totalCost: "Total cost",
@@ -387,7 +618,7 @@ export const traceColumnLabels: Record<TraceColumnId, string> = {
   totalTokens: "Total tokens",
   environment: "Environment",
   userId: "User",
-  sessionId: "Session",
+  sessionId: "Thread",
   serviceName: "Service",
   release: "Release",
   version: "Trace version",
@@ -403,6 +634,62 @@ export const traceColumnLabels: Record<TraceColumnId, string> = {
   endedAt: "Ended",
   traceId: "Trace ID",
 };
+
+export const runColumnLabels: Record<RunColumnId, string> = {
+  startedAt: "Started",
+  observationKind: "Type",
+  name: "Name",
+  status: "Status",
+  inputPreview: "Input",
+  outputPreview: "Output",
+  durationMs: "Duration",
+  model: "Model",
+  totalTokens: "Total tokens",
+  totalCost: "Total cost",
+  serviceName: "Service",
+  environment: "Environment",
+  traceId: "Trace",
+  userId: "User",
+  sessionId: "Thread",
+  inputTokens: "Input tokens",
+  outputTokens: "Output tokens",
+  inputCost: "Input cost",
+  outputCost: "Output cost",
+  release: "Release",
+  version: "Version",
+  serviceVersion: "Service version",
+  tags: "Tags",
+  endedAt: "Ended",
+};
+
+export type RunFacetFilterField =
+  | "observationKinds"
+  | "statuses"
+  | "services"
+  | "names"
+  | "models"
+  | "environments"
+  | "releases"
+  | "versions"
+  | "serviceVersions"
+  | "tags";
+
+export const runFacetSections: Array<{
+  id: keyof RunFacets;
+  field: RunFacetFilterField;
+  label: string;
+}> = [
+  { id: "observationKind", field: "observationKinds", label: "Type" },
+  { id: "status", field: "statuses", label: "Status" },
+  { id: "model", field: "models", label: "Model" },
+  { id: "name", field: "names", label: "Run name" },
+  { id: "service", field: "services", label: "Service" },
+  { id: "environment", field: "environments", label: "Environment" },
+  { id: "release", field: "releases", label: "Release" },
+  { id: "version", field: "versions", label: "Version" },
+  { id: "serviceVersion", field: "serviceVersions", label: "Service version" },
+  { id: "tag", field: "tags", label: "Tags" },
+];
 
 export type TraceFacetFilterField =
   | "statuses"
@@ -462,7 +749,7 @@ export function _traceActiveFilterCount(filters: ResolvedTracesSearch): number {
 
 export const sessionColumnLabels: Record<SessionColumnId, string> = {
   startedAt: "Started",
-  session: "Session",
+  session: "Thread",
   status: "Status",
   userId: "User",
   traceCount: "Traces",

@@ -1,28 +1,11 @@
-import { Danger as AlertCircle, ChatMessages as MessagesSquare } from "@mynaui/icons-react";
-import { createFileRoute } from "@tanstack/react-router";
-import { FullPageMessage } from "../../../components/full-page-message";
-import { SessionConversation } from "../../../modules/observability/components/session-conversation";
-import { useSessionDetail } from "../../../modules/observability/hooks/use-session-detail";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/$projectId/sessions/$sessionId")({
-  component: SessionDetailPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/$projectId/threads/$sessionId",
+      params: { projectId: params.projectId, sessionId: params.sessionId },
+      replace: true,
+    });
+  },
 });
-
-function SessionDetailPage() {
-  const { deleteSession, deletionPending, detail, project, session } = useSessionDetail();
-  if (session.isLoading)
-    return <FullPageMessage icon={<MessagesSquare />} text="Loading session" contained />;
-  if (detail === undefined)
-    return <FullPageMessage icon={<AlertCircle />} text="Session not found" contained />;
-  return (
-    <SessionConversation
-      detail={detail}
-      projectId={project.id}
-      hasMore={session.hasNextPage}
-      isLoadingMore={session.isFetchingNextPage}
-      onLoadMore={() => void session.fetchNextPage()}
-      onDelete={project.role === "owner" || project.role === "admin" ? deleteSession : undefined}
-      deletionPending={deletionPending}
-    />
-  );
-}

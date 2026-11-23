@@ -54,7 +54,7 @@ function renderHeader(pathname: string, params: Record<string, string> = {}) {
 
 describe("AppHeader evaluation breadcrumbs", () => {
   it.each([
-    ["runs", "Runs"],
+    ["runs", "Experiments"],
     ["datasets", "Datasets"],
     ["results", "Results"],
     ["compare", "Compare"],
@@ -71,7 +71,7 @@ describe("AppHeader evaluation breadcrumbs", () => {
       runId: "run-123456789",
     });
 
-    expect(screen.getByText("Runs").closest("a")?.dataset.route).toBe(
+    expect(screen.getByText("Experiments").closest("a")?.dataset.route).toBe(
       "/$projectId/evaluations/runs",
     );
     expect(screen.getByText("run-12…6789")).toBeTruthy();
@@ -105,5 +105,17 @@ describe("AppHeader prompt management breadcrumbs", () => {
 
     expect(screen.getByText("Prompt Management")).toBeTruthy();
     expect(screen.queryByText("Evaluations")).toBeNull();
+  });
+});
+
+describe("AppHeader observability breadcrumbs", () => {
+  it("identifies Runs and Threads top-level pages and thread detail links", () => {
+    const runsView = renderHeader("/project-alpha/runs");
+    expect(screen.getByText("Runs")).toBeTruthy();
+    runsView.unmount();
+
+    renderHeader("/project-alpha/threads/thread-42", { sessionId: "thread-42" });
+    expect(screen.getByText("Threads").closest("a")?.dataset.route).toBe("/$projectId/threads");
+    expect(screen.getByText("thread-42")).toBeTruthy();
   });
 });

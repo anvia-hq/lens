@@ -32,22 +32,24 @@ export function AppHeader() {
           ? "Compare"
           : evaluationPage === "gates"
             ? "Quality gates"
-            : "Runs"
+            : "Experiments"
     : section === "traces"
       ? "Traces"
-      : section === "sessions"
-        ? "Sessions"
-        : section === "users"
-          ? "Users"
-          : section === "alerts"
-            ? "Alerts"
-            : section === "prompts"
-              ? "Prompt Management"
-              : section === "connect"
-                ? "Connect"
-                : section === "settings"
-                  ? "Project settings"
-                  : "Overview";
+      : section === "runs"
+        ? "Runs"
+        : section === "threads" || section === "sessions"
+          ? "Threads"
+          : section === "users"
+            ? "Users"
+            : section === "alerts"
+              ? "Alerts"
+              : section === "prompts"
+                ? "Prompt Management"
+                : section === "connect"
+                  ? "Connect"
+                  : section === "settings"
+                    ? "Project settings"
+                    : "Overview";
   const detailId = relativePath[isEvaluations ? 2 : 1];
   const detailLabel = section === "traces" && detailId === "compare" ? "Compare traces" : detailId;
   return (
@@ -96,9 +98,15 @@ export function AppHeader() {
                         params={{ projectId: project.id }}
                         search={{ range: "24h" }}
                       />
-                    ) : section === "sessions" ? (
+                    ) : section === "runs" ? (
                       <Link
-                        to="/$projectId/sessions"
+                        to="/$projectId/runs"
+                        params={{ projectId: project.id }}
+                        search={{ range: "24h" }}
+                      />
+                    ) : section === "threads" || section === "sessions" ? (
+                      <Link
+                        to="/$projectId/threads"
                         params={{ projectId: project.id }}
                         search={{ range: "24h" }}
                       />

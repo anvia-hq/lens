@@ -9,9 +9,9 @@ export function SessionOpenCell({ session }: { session: SessionSummary }) {
   return (
     <Link
       className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-      to="/$projectId/sessions/$sessionId"
+      to="/$projectId/threads/$sessionId"
       params={{ projectId: project.id, sessionId: session.sessionId }}
-      aria-label={`Open session ${session.sessionId}`}
+      aria-label={`Open thread ${session.sessionId}`}
     >
       <ChevronRight />
     </Link>

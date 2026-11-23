@@ -1,4 +1,5 @@
 import type { TraceStatus, TraceSummary } from "@lens/contracts";
+import { extractPayloadPreview } from "./payload-preview.js";
 import { ensureIso, nullableNumeric, numeric } from "./values.js";
 
 export type SummaryRow = {
@@ -18,6 +19,8 @@ export type SummaryRow = {
   session_id: string | null;
   tags: string[];
   model: string | null;
+  input_preview?: string | null;
+  output_preview?: string | null;
   environment: string;
   release: string | null;
   version: string | null;
@@ -49,6 +52,8 @@ export function summaryFromRow(row: SummaryRow): TraceSummary {
     sessionId: row.session_id,
     tags: row.tags,
     model: row.model,
+    inputPreview: extractPayloadPreview(row.input_preview, "input", 240),
+    outputPreview: extractPayloadPreview(row.output_preview, "output", 240),
     environment: row.environment || "default",
     release: row.release,
     version: row.version,
@@ -61,4 +66,11 @@ export function summaryFromRow(row: SummaryRow): TraceSummary {
     totalCost: nullableNumeric(row.total_cost),
     lastSeenAt: ensureIso(row.last_seen_at),
   };
+}
+
+export function clickHouseToNano(value: string): string {
+  const normalized = value.replace(" ", "T");
+  const [whole = normalized, fraction = "0"] = normalized.split(".");
+  const seconds = BigInt(Math.floor(Date.parse(`${whole}Z`) / 1_000));
+  return (seconds * 1_000_000_000n + BigInt(fraction.padEnd(9, "0").slice(0, 9))).toString();
 }
