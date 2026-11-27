@@ -249,4 +249,116 @@ describe("evaluation normalization", () => {
     expect(result.evaluations).toHaveLength(1);
     expect(result.evaluations[0]?.metricName).toBe("ok");
   });
+
+  it("extracts multi-trial, cache, and judge metric attributes and separates fallback IDs per trial", () => {
+    const traceTrial1 = "11111111111111111111111111111111";
+    const traceTrial2 = "22222222222222222222222222222222";
+    const request = decodeRecords([
+      {
+        timeUnixNano: "1786089600000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "contains" }),
+          attribute("anvia.eval.outcome", { stringValue: "pass" }),
+          attribute("anvia.eval.suite.name", { stringValue: "multi-trial" }),
+          attribute("anvia.eval.case.id", { stringValue: "case-1" }),
+          attribute("anvia.eval.trial", { intValue: "1" }),
+          attribute("anvia.eval.trial_count", { intValue: "3" }),
+          attribute("anvia.eval.cached", { boolValue: true }),
+          attribute("anvia.eval.target.trace_id", { stringValue: traceTrial1 }),
+        ],
+      },
+      {
+        timeUnixNano: "1786089600000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "contains" }),
+          attribute("anvia.eval.outcome", { stringValue: "pass" }),
+          attribute("anvia.eval.suite.name", { stringValue: "multi-trial" }),
+          attribute("anvia.eval.case.id", { stringValue: "case-1" }),
+          attribute("anvia.eval.trial", { intValue: "2" }),
+          attribute("anvia.eval.trial_count", { intValue: "3" }),
+          attribute("anvia.eval.cached", { boolValue: false }),
+          attribute("anvia.eval.target.trace_id", { stringValue: traceTrial1 }),
+        ],
+      },
+      {
+        timeUnixNano: "1786089600000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "faithfulness" }),
+          attribute("anvia.eval.outcome", { stringValue: "fail" }),
+          attribute("anvia.eval.suite.name", { stringValue: "multi-trial" }),
+          attribute("anvia.eval.case.id", { stringValue: "case-1" }),
+          attribute("anvia.eval.trial", { intValue: "2" }),
+          attribute("anvia.eval.trial_count", { intValue: "3" }),
+          attribute("anvia.eval.target.trace_id", { stringValue: traceTrial2 }),
+          attribute("anvia.eval.metric.provider", { stringValue: "openai" }),
+          attribute("anvia.eval.metric.model", { stringValue: "gpt-4.1-mini" }),
+        ],
+      },
+    ]);
+
+    const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
+    expect(result.rejectedLogRecords).toBe(0);
+    expect(result.evaluations).toHaveLength(3);
+    expect(result.evaluations[0]).toMatchObject({
+      caseId: "case-1",
+      trial: 1,
+      trialCount: 3,
+      cached: true,
+      metricName: "contains",
+      metricProvider: null,
+      metricModel: null,
+      traceId: traceTrial1,
+    });
+    expect(result.evaluations[1]).toMatchObject({
+      trial: 2,
+      trialCount: 3,
+      cached: false,
+      metricProvider: null,
+      metricModel: null,
+    });
+    expect(result.evaluations[0]?.id).not.toBe(result.evaluations[1]?.id);
+    expect(result.evaluations[2]).toMatchObject({
+      trial: 2,
+      trialCount: 3,
+      cached: null,
+      metricName: "faithfulness",
+      metricProvider: "openai",
+      metricModel: "gpt-4.1-mini",
+      traceId: traceTrial2,
+    });
+  });
+
+  it("normalizes out-of-range trial numbers to null and supports string booleans for cached", () => {
+    const request = decodeRecords([
+      {
+        timeUnixNano: "1786089600000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "contains" }),
+          attribute("anvia.eval.trial", { intValue: "0" }),
+          attribute("anvia.eval.trial_count", { intValue: "4294967296" }),
+          attribute("anvia.eval.cached", { stringValue: "true" }),
+        ],
+      },
+      {
+        timeUnixNano: "1786089600000000000",
+        eventName: "gen_ai.evaluation.result",
+        attributes: [
+          attribute("gen_ai.evaluation.name", { stringValue: "contains" }),
+          attribute("anvia.eval.trial", { doubleValue: 1.5 }),
+          attribute("anvia.eval.cached", { stringValue: "false" }),
+        ],
+      },
+    ]);
+
+    const result = normalizeOtlpLogsRequest(request, { projectId, retentionDays: null, now });
+    expect(result.rejectedLogRecords).toBe(0);
+    expect(result.evaluations[0]).toMatchObject({ trial: null, trialCount: null, cached: true });
+    expect(result.evaluations[1]).toMatchObject({ trial: null, trialCount: null, cached: false });
+    // Untrialed records preserve identical fallback IDs.
+    expect(result.evaluations[0]?.id).toBe(result.evaluations[1]?.id);
+  });
 });

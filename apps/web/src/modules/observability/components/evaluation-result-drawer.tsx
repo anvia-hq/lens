@@ -51,7 +51,24 @@ export function EvaluationResultDrawer(props: {
                   <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                     <DetailField label="Suite">{result.suiteName}</DetailField>
                     <DetailField label="Case">{result.caseId ?? "—"}</DetailField>
+                    {typeof result.trial === "number" ? (
+                      <DetailField label="Trial">
+                        {typeof result.trialCount === "number"
+                          ? `${result.trial} / ${result.trialCount}`
+                          : result.trial}
+                      </DetailField>
+                    ) : null}
+                    {typeof result.cached === "boolean" ? (
+                      <DetailField label="Cached">{result.cached ? "Yes" : "No"}</DetailField>
+                    ) : null}
                     <DetailField label="Metric">{result.metricName}</DetailField>
+                    {result.metricModel ? (
+                      <DetailField label="Judge model">
+                        {result.metricProvider
+                          ? `${result.metricProvider}/${result.metricModel}`
+                          : result.metricModel}
+                      </DetailField>
+                    ) : null}
                     <DetailField label="Data type">{result.dataType ?? "—"}</DetailField>
                     <DetailField label="Recorded">{formatTimestamp(result.timestamp)}</DetailField>
                     <DetailField label="Environment">{result.environment}</DetailField>
@@ -72,7 +89,9 @@ export function EvaluationResultDrawer(props: {
                   </CardHeader>
                   <CardContent>
                     <p className="whitespace-pre-wrap break-words leading-6 text-foreground">
-                      {result.explanation ?? "No explanation was reported for this result."}
+                      {result.explanation?.trim()
+                        ? result.explanation
+                        : "No explanation was reported for this result."}
                     </p>
                   </CardContent>
                 </Card>

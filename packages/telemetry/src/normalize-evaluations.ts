@@ -1,6 +1,7 @@
 import type { EvaluationResult, EvaluationRun, JsonValue } from "@lens/contracts";
 import {
   attributesRecord,
+  optionalBooleanAttribute,
   optionalFiniteDecimalAttribute,
   optionalNumberAttribute,
   stringArrayAttribute,
@@ -102,6 +103,12 @@ function normalizeLogRecord(context: RecordContext): NormalizedRecord {
 }
 
 const MAX_IDENTIFIER_LENGTH = 128;
+const MAX_UINT32 = 4_294_967_295;
+
+function optionalPositiveUint32(attributes: Record<string, JsonValue>, key: string): number | null {
+  const value = optionalNumberAttribute(attributes, [key]);
+  return value !== undefined && value >= 1 && value <= MAX_UINT32 ? value : null;
+}
 
 function normalizeEvaluationResult(context: RecordContext): EvaluationResult | string {
   const metricName = stringAttribute(context.attributes, "gen_ai.evaluation.name");
@@ -136,6 +143,11 @@ function normalizeEvaluationResult(context: RecordContext): EvaluationResult | s
   if (caseId !== null && caseId.length > MAX_IDENTIFIER_LENGTH) {
     return `Evaluation ${metricName} has an invalid anvia.eval.case.id`;
   }
+  const trial = optionalPositiveUint32(context.attributes, "anvia.eval.trial");
+  const trialCount = optionalPositiveUint32(context.attributes, "anvia.eval.trial_count");
+  const cached = optionalBooleanAttribute(context.attributes, "anvia.eval.cached");
+  const metricProvider = stringAttribute(context.attributes, "anvia.eval.metric.provider");
+  const metricModel = stringAttribute(context.attributes, "anvia.eval.metric.model");
   const runId = stringAttribute(context.attributes, "anvia.eval.run.id");
   if (runId !== null && runId.length > MAX_IDENTIFIER_LENGTH) {
     return `Evaluation ${metricName} has an invalid anvia.eval.run.id`;
@@ -146,15 +158,26 @@ function normalizeEvaluationResult(context: RecordContext): EvaluationResult | s
   }
   const id =
     stringAttribute(context.attributes, "anvia.eval.id") ??
-    evaluationHash(
-      context.options.projectId,
-      traceId,
-      observationId,
-      timestamp,
-      suiteName,
-      caseId,
-      metricName,
-    );
+    (trial !== null
+      ? evaluationHash(
+          context.options.projectId,
+          traceId,
+          observationId,
+          timestamp,
+          suiteName,
+          caseId,
+          metricName,
+          String(trial),
+        )
+      : evaluationHash(
+          context.options.projectId,
+          traceId,
+          observationId,
+          timestamp,
+          suiteName,
+          caseId,
+          metricName,
+        ));
   if (id.length > MAX_IDENTIFIER_LENGTH) {
     return `Evaluation ${metricName} has an invalid anvia.eval.id`;
   }
@@ -169,7 +192,12 @@ function normalizeEvaluationResult(context: RecordContext): EvaluationResult | s
     responseId,
     suiteName,
     caseId,
+    trial,
+    trialCount,
+    cached,
     metricName,
+    metricProvider,
+    metricModel,
     outcome: evaluationOutcome(
       stringAttribute(context.attributes, "anvia.eval.outcome"),
       scoreLabel,

@@ -1,7 +1,11 @@
 import type {
   EvaluationOutcome,
+  EvaluationPayload,
+  EvaluationPayloadStatus,
+  EvaluationResult,
   EvaluationRunCaseDetail,
   EvaluationRunDetail,
+  ManagedDatasetCaseInput,
 } from "@lens/contracts";
 import { Badge } from "@lens/ui/components/badge";
 import { Button } from "@lens/ui/components/button";
@@ -197,6 +201,7 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
         {isMobile ? (
           selected ? (
             <CaseInspector
+              key={caseSearchValue(selected)}
               item={selected}
               projectId={state.project.id}
               onBack={() => state.selectCase(null)}
@@ -230,7 +235,11 @@ export function EvaluationRunDetailView({ state }: { state: EvaluationRunDetailS
             <ResizableHandle withHandle />
             <ResizablePanel minSize={420} defaultSize="60" className="min-h-0 min-w-0">
               {selected ? (
-                <CaseInspector item={selected} projectId={state.project.id} />
+                <CaseInspector
+                  key={caseSearchValue(selected)}
+                  item={selected}
+                  projectId={state.project.id}
+                />
               ) : (
                 <div className="grid h-full place-items-center text-base text-muted-foreground">
                   {selectedCaseMissing
@@ -338,41 +347,49 @@ function RunNavigation(props: {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleCases.map((item) => (
-                  <TableRow
-                    key={item.caseId ?? "unspecified"}
-                    className={cn("cursor-pointer", props.selected === item && "bg-muted/60")}
-                    tabIndex={0}
-                    onClick={() => props.onSelect(caseSearchValue(item))}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      props.onSelect(caseSearchValue(item));
-                    }}
-                  >
-                    <TableCell className="max-w-52 truncate pl-4 font-medium">
-                      {item.caseId ?? "Unspecified"}
-                    </TableCell>
-                    <TableCell>
-                      <EvaluationStatusBadge status={item.outcome} />
-                    </TableCell>
-                    <TableCell>{formatNumber(item.results.length)}</TableCell>
-                    <TableCell className="pr-4">
-                      {item.traceId ? (
-                        <Link
-                          className="font-mono text-primary hover:underline"
-                          to="/$projectId/traces/$traceId"
-                          params={{ projectId: props.projectId, traceId: item.traceId }}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {shortId(item.traceId)}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {visibleCases.map((item) => {
+                  const traces = caseTraceIds(item);
+                  const singleTraceId = traces.length === 1 ? traces[0] : undefined;
+                  return (
+                    <TableRow
+                      key={item.caseId ?? "unspecified"}
+                      className={cn("cursor-pointer", props.selected === item && "bg-muted/60")}
+                      tabIndex={0}
+                      onClick={() => props.onSelect(caseSearchValue(item))}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        props.onSelect(caseSearchValue(item));
+                      }}
+                    >
+                      <TableCell className="max-w-52 truncate pl-4 font-medium">
+                        {item.caseId ?? "Unspecified"}
+                      </TableCell>
+                      <TableCell>
+                        <EvaluationStatusBadge status={item.outcome} />
+                      </TableCell>
+                      <TableCell>{formatNumber(item.results.length)}</TableCell>
+                      <TableCell className="pr-4">
+                        {traces.length > 1 ? (
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {formatNumber(traces.length)} traces
+                          </span>
+                        ) : singleTraceId ? (
+                          <Link
+                            className="font-mono text-primary hover:underline"
+                            to="/$projectId/traces/$traceId"
+                            params={{ projectId: props.projectId, traceId: singleTraceId }}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {shortId(singleTraceId)}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -497,17 +514,93 @@ function RunDetails({ detail }: { detail: EvaluationRunDetail }) {
   );
 }
 
+export function formatMetricExplanation(
+  result: Pick<EvaluationResult, "explanation" | "metricModel">,
+): string {
+  if (result.explanation !== null && result.explanation.trim().length > 0) {
+    return result.explanation;
+  }
+  return result.metricModel ? "No judge explanation was provided." : "No explanation provided.";
+}
+
+export function caseTraceIds(item: EvaluationRunCaseDetail): string[] {
+  if (item.traceIds !== undefined) return item.traceIds;
+  const fromResults = item.results
+    .map((result) => result.traceId)
+    .filter((traceId): traceId is string => traceId !== null && traceId !== undefined);
+  if (fromResults.length > 0) return Array.from(new Set(fromResults));
+  return item.traceId ? [item.traceId] : [];
+}
+
+function maxTrialNumber(item: EvaluationRunCaseDetail): number {
+  return (item.trials ?? []).reduce((highest, trial) => Math.max(highest, trial.trial), 0);
+}
+
+function isMultiTrialCase(item: EvaluationRunCaseDetail): boolean {
+  const trials = item.trials ?? [];
+  return (
+    trials.length > 0 &&
+    (trials.length > 1 || (item.trialCount ?? 0) > 1 || maxTrialNumber(item) > 1)
+  );
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (typeof value === "object" && value !== null) {
+    return `{${Object.entries(value)
+      .toSorted(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function aggregateResultOutcome(results: EvaluationResult[]): EvaluationOutcome {
+  const outcomes = new Set(results.map((result) => result.outcome));
+  return outcomes.has("fail")
+    ? "fail"
+    : outcomes.has("invalid")
+      ? "invalid"
+      : outcomes.has("unknown")
+        ? "unknown"
+        : "pass";
+}
+
 function CaseInspector(props: {
   item: EvaluationRunCaseDetail;
   projectId: string;
   onBack?: () => void;
 }) {
   const item = props.item;
-  const definition = item.datasetItem;
-  const input = item.payload?.input ?? definition?.input;
-  const expected = item.payload?.expected ?? definition?.expected;
-  const context = item.payload?.context ?? definition?.context;
-  const retrievalContext = item.payload?.retrievalContext ?? definition?.retrievalContext;
+  const trials = item.trials ?? [];
+  const multiTrial = isMultiTrialCase(item);
+  const totalTrials = multiTrial
+    ? Math.max(item.trialCount ?? 0, maxTrialNumber(item), trials.length)
+    : 0;
+  const passedTrials = multiTrial
+    ? (item.passedTrials ?? trials.filter((trial) => trial.outcome === "pass").length)
+    : 0;
+  const cachedTrialCount = multiTrial ? trials.filter((trial) => trial.cached).length : 0;
+  const caseCached = item.cached ?? item.results.some((result) => result.cached === true);
+  const untrialedResults = multiTrial ? item.results.filter((result) => result.trial === null) : [];
+  const untrialedPayloadItem =
+    untrialedResults.find((result) => result.payload !== null) ?? untrialedResults[0];
+  const untrialedPayloads = untrialedResults.flatMap((result) =>
+    result.payload === null ? [] : [stableJson(result.payload)],
+  );
+  const untrialedPayloadConsistent = new Set(untrialedPayloads).size <= 1;
+  const untrialedTraceId =
+    untrialedResults.find((result) => result.traceId !== null)?.traceId ?? null;
+  const untrialedOutcome =
+    untrialedResults.length > 0 ? aggregateResultOutcome(untrialedResults) : "pass";
+
+  const [selectedTrial, setSelectedTrial] = useState<string>(() => String(trials[0]?.trial ?? 1));
+  const validTabValues = new Set(trials.map((trial) => String(trial.trial)));
+  if (untrialedResults.length > 0) validTabValues.add("case");
+  const activeTrialValue = validTabValues.has(selectedTrial)
+    ? selectedTrial
+    : String(trials[0]?.trial ?? 1);
+
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Evaluation case">
       <header className="shrink-0 border-b px-4 py-4 md:px-6">
@@ -525,13 +618,32 @@ function CaseInspector(props: {
                   {item.caseId ?? "Unspecified case"}
                 </h2>
                 <EvaluationStatusBadge status={item.outcome} />
+                {multiTrial ? (
+                  <>
+                    <Badge variant="secondary">
+                      {passedTrials}/{totalTrials} trials passed
+                    </Badge>
+                    {passedTrials > 0 ? <Badge variant="outline">pass@{totalTrials}</Badge> : null}
+                    {cachedTrialCount === trials.length && cachedTrialCount > 0 ? (
+                      <Badge variant="secondary">Cached</Badge>
+                    ) : cachedTrialCount > 0 ? (
+                      <Badge variant="secondary">
+                        {cachedTrialCount}/{totalTrials} cached
+                      </Badge>
+                    ) : null}
+                  </>
+                ) : caseCached ? (
+                  <Badge variant="secondary">Cached</Badge>
+                ) : null}
               </div>
               <span className="text-xs text-muted-foreground">
-                {item.results.length} metric result{item.results.length === 1 ? "" : "s"}
+                {multiTrial
+                  ? `${trials.length} trial${trials.length === 1 ? "" : "s"} · ${item.results.length} metric result${item.results.length === 1 ? "" : "s"}`
+                  : `${item.results.length} metric result${item.results.length === 1 ? "" : "s"}`}
               </span>
             </div>
           </div>
-          {item.traceId ? (
+          {!multiTrial && item.traceId ? (
             <Button
               className="shrink-0"
               size="sm"
@@ -550,75 +662,221 @@ function CaseInspector(props: {
       </header>
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-6 p-4 md:p-6">
-          <section className="grid gap-3">
-            <h3 className="text-base font-semibold">Metric results</h3>
-            {item.results.length ? (
-              item.results
-                .toSorted(
-                  (left, right) => outcomePriority[left.outcome] - outcomePriority[right.outcome],
-                )
-                .map((result) => (
-                  <Card key={result.id} size="sm">
-                    <CardHeader className="flex-row items-center justify-between gap-3">
-                      <CardTitle className="text-base">{result.metricName}</CardTitle>
-                      <EvaluationStatusBadge status={result.outcome} />
-                    </CardHeader>
-                    <CardContent className="grid gap-2 text-base">
-                      <div>
-                        <span className="text-muted-foreground">Value:</span>{" "}
-                        {result.numericValue ?? result.categoricalValue ?? "—"}
-                      </div>
-                      <p className="whitespace-pre-wrap text-muted-foreground">
-                        {result.explanation ?? "No judge explanation was provided."}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))
-            ) : (
-              <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
-                This case has no metric results.
-              </div>
-            )}
-          </section>
-          {!item.payloadConsistent ? (
-            <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-base">
-              Metrics in this case reported inconsistent payloads.
-            </div>
-          ) : null}
-          <section className="grid gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base font-semibold">Payload</h3>
-            </div>
-            {input === undefined ? (
-              <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
-                {payloadStatusMessage(item.payloadStatus)}
-              </div>
-            ) : (
-              <>
-                {definition && item.payload === null ? (
-                  <Badge className="w-fit" variant="secondary">
-                    Managed dataset definition
-                  </Badge>
+          {multiTrial ? (
+            <Tabs
+              value={activeTrialValue}
+              onValueChange={(value) => setSelectedTrial(String(value))}
+              className="gap-4"
+            >
+              <TabsList
+                variant="line"
+                className="h-auto w-full flex-wrap justify-start gap-2 border-b pb-1"
+              >
+                {trials.map((trial) => (
+                  <TabsTrigger
+                    key={trial.trial}
+                    value={String(trial.trial)}
+                    className="flex-none px-2.5 py-1"
+                  >
+                    <TrialOutcomeDot outcome={trial.outcome} />
+                    <span>
+                      Trial {trial.trial} / {totalTrials}
+                    </span>
+                    <span className="sr-only"> ({trial.outcome})</span>
+                  </TabsTrigger>
+                ))}
+                {untrialedResults.length > 0 ? (
+                  <TabsTrigger value="case" className="flex-none px-2.5 py-1">
+                    <TrialOutcomeDot outcome={untrialedOutcome} />
+                    <span>Case-level</span>
+                    <span className="sr-only"> ({untrialedOutcome})</span>
+                  </TabsTrigger>
                 ) : null}
-                <PayloadSection title="Input" value={input} />
-                <PayloadSection title="Expected" value={expected ?? null} />
-                {item.payload === null ? (
-                  <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
-                    Target output was not captured for this run.
+              </TabsList>
+              {trials.map((trial) => (
+                <TabsContent key={trial.trial} value={String(trial.trial)} className="grid gap-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Trial {trial.trial} / {totalTrials}
+                      </span>
+                      <EvaluationStatusBadge status={trial.outcome} />
+                      {trial.cached ? <Badge variant="secondary">Cached</Badge> : null}
+                    </div>
+                    {trial.traceId ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        render={
+                          <Link
+                            to="/$projectId/traces/$traceId"
+                            params={{ projectId: props.projectId, traceId: trial.traceId }}
+                          />
+                        }
+                      >
+                        Open trace {shortId(trial.traceId)}
+                      </Button>
+                    ) : null}
                   </div>
-                ) : (
-                  <PayloadSection title="Output" value={item.payload.output ?? null} />
-                )}
-                {context !== undefined ? <PayloadSection title="Context" value={context} /> : null}
-                {retrievalContext !== undefined ? (
-                  <PayloadSection title="Retrieval context" value={retrievalContext} />
-                ) : null}
-              </>
-            )}
-          </section>
+                  <CaseResultContent
+                    results={trial.results}
+                    payload={trial.payload}
+                    payloadStatus={trial.payloadStatus}
+                    payloadConsistent={trial.payloadConsistent}
+                    datasetItem={item.datasetItem}
+                  />
+                </TabsContent>
+              ))}
+              {untrialedResults.length > 0 ? (
+                <TabsContent value="case" className="grid gap-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">Case-level results</span>
+                      <EvaluationStatusBadge status={untrialedOutcome} />
+                    </div>
+                    {untrialedTraceId ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        render={
+                          <Link
+                            to="/$projectId/traces/$traceId"
+                            params={{ projectId: props.projectId, traceId: untrialedTraceId }}
+                          />
+                        }
+                      >
+                        Open trace {shortId(untrialedTraceId)}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <CaseResultContent
+                    results={untrialedResults}
+                    payload={untrialedPayloadItem?.payload ?? null}
+                    payloadStatus={untrialedPayloadItem?.payloadStatus ?? "not_requested"}
+                    payloadConsistent={untrialedPayloadConsistent}
+                    datasetItem={item.datasetItem}
+                  />
+                </TabsContent>
+              ) : null}
+            </Tabs>
+          ) : (
+            <CaseResultContent
+              results={item.results}
+              payload={item.payload}
+              payloadStatus={item.payloadStatus}
+              payloadConsistent={item.payloadConsistent}
+              datasetItem={item.datasetItem}
+            />
+          )}
         </div>
       </ScrollArea>
     </section>
+  );
+}
+
+function TrialOutcomeDot({ outcome }: { outcome: EvaluationOutcome }) {
+  const tone =
+    outcome === "pass"
+      ? "bg-status-success"
+      : outcome === "fail"
+        ? "bg-status-error"
+        : outcome === "invalid"
+          ? "bg-status-warning"
+          : "bg-muted-foreground";
+  return <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", tone)} />;
+}
+
+function CaseResultContent(props: {
+  results: EvaluationResult[];
+  payload: EvaluationPayload | null;
+  payloadStatus: EvaluationPayloadStatus;
+  payloadConsistent: boolean;
+  datasetItem?: ManagedDatasetCaseInput | null;
+}) {
+  const definition = props.datasetItem;
+  const input = props.payload?.input ?? definition?.input;
+  const expected = props.payload?.expected ?? definition?.expected;
+  const context = props.payload?.context ?? definition?.context;
+  const retrievalContext = props.payload?.retrievalContext ?? definition?.retrievalContext;
+
+  return (
+    <>
+      <section className="grid gap-3">
+        <h3 className="text-base font-semibold">Metric results</h3>
+        {props.results.length ? (
+          props.results
+            .toSorted(
+              (left, right) => outcomePriority[left.outcome] - outcomePriority[right.outcome],
+            )
+            .map((result) => (
+              <Card key={result.id} size="sm">
+                <CardHeader className="flex-row items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <CardTitle className="text-base">{result.metricName}</CardTitle>
+                    {result.metricModel ? (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {result.metricProvider
+                          ? `${result.metricProvider}/${result.metricModel}`
+                          : result.metricModel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <EvaluationStatusBadge status={result.outcome} />
+                </CardHeader>
+                <CardContent className="grid gap-2 text-base">
+                  <div>
+                    <span className="text-muted-foreground">Value:</span>{" "}
+                    {result.numericValue ?? result.categoricalValue ?? "—"}
+                  </div>
+                  <p className="whitespace-pre-wrap text-muted-foreground">
+                    {formatMetricExplanation(result)}
+                  </p>
+                </CardContent>
+              </Card>
+            ))
+        ) : (
+          <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
+            This case has no metric results.
+          </div>
+        )}
+      </section>
+      {!props.payloadConsistent ? (
+        <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-base">
+          Metrics in this case reported inconsistent payloads.
+        </div>
+      ) : null}
+      <section className="grid gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold">Payload</h3>
+        </div>
+        {input === undefined ? (
+          <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
+            {payloadStatusMessage(props.payloadStatus)}
+          </div>
+        ) : (
+          <>
+            {definition && props.payload === null ? (
+              <Badge className="w-fit" variant="secondary">
+                Managed dataset definition
+              </Badge>
+            ) : null}
+            <PayloadSection title="Input" value={input} />
+            <PayloadSection title="Expected" value={expected ?? null} />
+            {props.payload === null ? (
+              <div className="rounded-lg border border-dashed p-4 text-base text-muted-foreground">
+                Target output was not captured for this run.
+              </div>
+            ) : (
+              <PayloadSection title="Output" value={props.payload.output ?? null} />
+            )}
+            {context !== undefined ? <PayloadSection title="Context" value={context} /> : null}
+            {retrievalContext !== undefined ? (
+              <PayloadSection title="Retrieval context" value={retrievalContext} />
+            ) : null}
+          </>
+        )}
+      </section>
+    </>
   );
 }
 

@@ -44,6 +44,28 @@ describe("queue job contracts", () => {
     });
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.evaluations).toHaveLength(1);
+
+    const {
+      trial: _trial,
+      trialCount: _trialCount,
+      cached: _cached,
+      metricProvider: _metricProvider,
+      metricModel: _metricModel,
+      ...legacyEvaluation
+    } = evaluationResult();
+    const legacyParsed = ingestEvaluationsJobSchema.parse({
+      projectId,
+      ingestId: "ingest-legacy",
+      receivedAt: "2026-09-17T00:00:00.000Z",
+      evaluations: [legacyEvaluation],
+    });
+    expect(legacyParsed.evaluations[0]).toMatchObject({
+      trial: null,
+      trialCount: null,
+      cached: null,
+      metricProvider: null,
+      metricModel: null,
+    });
   });
 
   it("exposes a complete name-to-schema registry", () => {

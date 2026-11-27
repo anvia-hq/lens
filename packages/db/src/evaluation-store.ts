@@ -21,7 +21,12 @@ type EvaluationRow = {
   response_id: string | null;
   suite_name: string;
   case_id: string | null;
+  trial?: number | string | null;
+  trial_count?: number | string | null;
+  cached?: boolean | number | string | null;
   metric_name: string;
+  metric_provider?: string | null;
+  metric_model?: string | null;
   outcome: EvaluationResult["outcome"];
   data_type: EvaluationResult["dataType"];
   numeric_value: number | string | null;
@@ -60,7 +65,12 @@ export async function insertEvaluations(
       response_id: result.responseId,
       suite_name: result.suiteName,
       case_id: result.caseId,
+      trial: result.trial,
+      trial_count: result.trialCount,
+      cached: result.cached,
       metric_name: result.metricName,
+      metric_provider: result.metricProvider,
+      metric_model: result.metricModel,
       outcome: result.outcome,
       data_type: result.dataType,
       numeric_value: result.numericValue,
@@ -113,7 +123,8 @@ export async function listEvaluations(
     client.query({
       ...readCancellation(options.signal),
       query: `SELECT project_id, id, run_id, timestamp, trace_id, observation_id, response_id,
-                     suite_name, case_id, metric_name, outcome, data_type, numeric_value,
+                     suite_name, case_id, trial, trial_count, cached, metric_name,
+                     metric_provider, metric_model, outcome, data_type, numeric_value,
                      categorical_value, explanation, ${payloadColumns}, config_id, service_name,
                      environment, release, source, reviewer_id, reviewer_name, expires_at,
                      ingested_at, toString(ingest_version) AS ingest_version
@@ -386,7 +397,12 @@ function evaluationFromRow(row: EvaluationRow): EvaluationResult {
     responseId: row.response_id,
     suiteName: row.suite_name,
     caseId: row.case_id,
+    trial: nullableNumber(row.trial),
+    trialCount: nullableNumber(row.trial_count),
+    cached: nullableBoolean(row.cached),
     metricName: row.metric_name,
+    metricProvider: row.metric_provider ?? null,
+    metricModel: row.metric_model ?? null,
     outcome: row.outcome,
     dataType: row.data_type,
     numericValue: nullableNumber(row.numeric_value),
@@ -459,6 +475,14 @@ function nullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const result = Number(value);
   return Number.isFinite(result) ? result : null;
+}
+
+function nullableBoolean(value: unknown): boolean | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === "1" || value === "true") return true;
+  if (value === 0 || value === "0" || value === "false") return false;
+  return null;
 }
 
 function parseMetadata(value: string): EvaluationResult["metadata"] {

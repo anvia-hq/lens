@@ -19,13 +19,29 @@ export type EvaluationRunDetail = {
   resultsPage?: { page: number; pageSize: number; total: number; pageCount: number };
 };
 
+export type EvaluationRunCaseTrial = {
+  trial: number;
+  outcome: EvaluationOutcome;
+  traceId: string | null;
+  cached: boolean;
+  payload: EvaluationPayload | null;
+  payloadStatus: EvaluationPayloadStatus;
+  payloadConsistent: boolean;
+  results: EvaluationResult[];
+};
+
 export type EvaluationRunCaseDetail = {
   caseId: string | null;
   outcome: EvaluationOutcome;
   traceId: string | null;
+  traceIds?: string[];
   payload: EvaluationPayload | null;
   payloadStatus: EvaluationPayloadStatus;
   payloadConsistent: boolean;
+  trialCount?: number | null;
+  trials?: EvaluationRunCaseTrial[];
+  passedTrials?: number;
+  cached?: boolean;
   datasetItem?: ManagedDatasetCaseInput | null;
   results: EvaluationResult[];
 };

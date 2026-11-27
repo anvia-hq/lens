@@ -43,6 +43,17 @@ export function firstStringArrayAttribute(
   return [];
 }
 
+export function optionalBooleanAttribute(
+  attributes: Record<string, JsonValue>,
+  key: string,
+): boolean | null {
+  const value = attributes[key];
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
 export function optionalNumberAttribute(
   attributes: Record<string, JsonValue>,
   keys: readonly string[],

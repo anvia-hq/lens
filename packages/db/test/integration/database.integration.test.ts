@@ -922,6 +922,68 @@ describe("database integration", () => {
     });
   });
 
+  it("round-trips multi-trial evaluation attributes and groups per-trial consistency in ClickHouse", async () => {
+    const trialRunId = "run-multi-trial";
+    const trialTrace1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const trialTrace2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    await insertEvaluationRuns(clickhouse, [{ ...evaluationRun(), id: trialRunId }]);
+    await insertEvaluations(clickhouse, [
+      {
+        ...evaluationResult(),
+        id: "mt-t1-det",
+        runId: trialRunId,
+        caseId: "case-mt",
+        trial: 1,
+        trialCount: 2,
+        cached: true,
+        traceId: trialTrace1,
+        metricName: "contains",
+        metricProvider: null,
+        metricModel: null,
+        payload: { input: "q", expected: "a", output: "trial-1-out" },
+      },
+      {
+        ...evaluationResult(),
+        id: "mt-t2-judge",
+        runId: trialRunId,
+        caseId: "case-mt",
+        trial: 2,
+        trialCount: 2,
+        cached: false,
+        traceId: trialTrace2,
+        metricName: "faithfulness",
+        metricProvider: "openai",
+        metricModel: "gpt-4.1",
+        payload: { input: "q", expected: "a", output: "trial-2-out" },
+      },
+    ]);
+
+    const detail = await getEvaluationRunDetail(clickhouse, projectId, trialRunId);
+    expect(detail?.cases).toHaveLength(1);
+    expect(detail?.cases[0]).toMatchObject({
+      caseId: "case-mt",
+      payloadConsistent: true,
+      trialCount: 2,
+      passedTrials: 2,
+      cached: true,
+      traceIds: [trialTrace1, trialTrace2],
+    });
+    expect(detail?.cases[0]?.trials).toMatchObject([
+      {
+        trial: 1,
+        cached: true,
+        traceId: trialTrace1,
+        results: [{ id: "mt-t1-det", metricProvider: null, metricModel: null }],
+      },
+      {
+        trial: 2,
+        cached: false,
+        traceId: trialTrace2,
+        results: [{ id: "mt-t2-judge", metricProvider: "openai", metricModel: "gpt-4.1" }],
+      },
+    ]);
+  });
+
   it("keeps the corrected terminal evaluation run after stale finishes and starts arrive", async () => {
     const id = "corrected-run";
     const records = [
@@ -1525,7 +1587,12 @@ function evaluationResult(): EvaluationResult {
     responseId: null,
     suiteName: "support",
     caseId: "case-1",
+    trial: null,
+    trialCount: null,
+    cached: null,
     metricName: "quality",
+    metricProvider: null,
+    metricModel: null,
     outcome: "pass",
     dataType: "BOOLEAN",
     numericValue: 1,
